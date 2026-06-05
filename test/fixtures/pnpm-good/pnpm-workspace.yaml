@@ -1,0 +1,8 @@
+# fully compliant pnpm config
+strictDepBuilds: true
+savePrefix: ''
+minimumReleaseAge: 4320
+frozenLockfile: true
+frozenStore: true
+blockExoticSubdeps: true
+trustPolicy: no-downgrade

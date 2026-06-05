@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  "plugins": ["vitest"],
+  "globals": {
+    "afterAll": "readonly",
+    "afterEach": "readonly",
+    "beforeAll": "readonly",
+    "beforeEach": "readonly",
+    "console": "readonly",
+    "describe": "readonly",
+    "expect": "readonly",
+    "fetch": "readonly",
+    "it": "readonly",
+    "process": "readonly",
+    "structuredClone": "readonly",
+    "test": "readonly",
+    "vi": "readonly"
+  },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "pedantic": "warn",
+    "perf": "warn",
+    "style": "warn",
+    "restriction": "warn",
+    "nursery": "warn"
+  },
+  "rules": {
+    "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
+    "eslint/no-magic-numbers": ["warn", { "ignore": [0] }],
+    "eslint/capitalized-comments": "off",
+    "eslint/no-void": "off",
+    "eslint/prefer-object-spread": "off",
+    "eslint/sort-imports": ["warn", { "ignoreDeclarationSort": true }],
+    "vitest/max-expects": ["warn", { "max": 6 }],
+    "vitest/no-hooks": "off",
+    "vitest/prefer-importing-vitest-globals": "off",
+    "vitest/prefer-to-be-falsy": "off",
+    "vitest/prefer-to-be-truthy": "off",
+    "vitest/require-hook": "off",
+    "vitest/valid-title": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/shared/paths.ts"],
+      "rules": {
+        "typescript/consistent-type-assertions": ["error", { "assertionStyle": "as" }]
+      }
+    },
+    {
+      "files": ["test/**/*.ts", "bench/**/*.ts"],
+      "rules": {
+        "eslint/max-lines-per-function": ["warn", { "max": 80 }],
+        "eslint/max-lines": ["warn", { "max": 400 }],
+        "eslint/max-statements": ["warn", { "max": 15 }]
+      }
+    }
+  ]
+}

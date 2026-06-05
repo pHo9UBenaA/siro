@@ -1,0 +1,6 @@
+# fully compliant bun 1.3 config
+[install]
+ignoreScripts = true
+exact = true
+frozenLockfile = true
+minimumReleaseAge = 259200

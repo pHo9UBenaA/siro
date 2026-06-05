@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreDependencies": ["@commitlint/cli", "@commitlint/config-conventional"],
+  "entry": [
+    ".githooks/*",
+    "scripts/check/*.mjs",
+    "scripts/gen/*.mjs",
+    "scripts/bench/*.mjs",
+    "scripts/**/*.d.mts!",
+    "test/**/*.test.ts",
+    "bench/**/*.bench.ts"
+  ],
+  "project": ["src/**/*.ts", "scripts/**/*.{ts,mjs,d.mts}", "test/**/*.ts", "bench/**/*.ts"]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "yarn-good-fixture",
+  "version": "1.0.0",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "yarn@4.0.0"
+}

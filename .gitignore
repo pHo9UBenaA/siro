@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+*.log
+*.tgz
+
+# TypeDoc output — generated on demand by `pnpm gen:api`; CI will deploy it
+# to a documentation site once one exists.
+docs/api/

@@ -1,0 +1,7 @@
+{
+  "name": "@siro/deno-good-fixture",
+  "version": "1.0.0",
+  "lock": { "frozen": true },
+  "minimumDependencyAge": "P3D",
+  "publish": { "include": ["mod.ts"] }
+}

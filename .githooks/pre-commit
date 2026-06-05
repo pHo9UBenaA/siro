@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+# Lint staged source files with oxlint.
+if [ -n "$(git diff --cached --name-only --diff-filter=ACMR -- 'src/**/*.ts' 'test/**/*.ts' 'scripts/**/*.mjs' 'scripts/**/*.ts' 'bench/**/*.ts')" ]; then
+  git diff --cached --name-only -z --diff-filter=ACMR -- 'src/**/*.ts' 'test/**/*.ts' 'scripts/**/*.mjs' 'scripts/**/*.ts' 'bench/**/*.ts' \
+    | xargs -0 pnpm exec oxlint --deny-warnings
+fi
+
+# Format-check staged files with oxfmt (includes markdown — oxfmt normalises tables).
+if [ -n "$(git diff --cached --name-only --diff-filter=ACMR -- 'src/**/*.ts' 'test/**/*.ts' 'scripts/**/*.mjs' 'scripts/**/*.ts' 'bench/**/*.ts' '*.md' 'docs/**/*.md')" ]; then
+  git diff --cached --name-only -z --diff-filter=ACMR -- 'src/**/*.ts' 'test/**/*.ts' 'scripts/**/*.mjs' 'scripts/**/*.ts' 'bench/**/*.ts' '*.md' 'docs/**/*.md' \
+    | xargs -0 pnpm exec oxfmt --check
+fi
+
+pnpm run typecheck
+
+# Run tests related to the staged TypeScript files.
+if [ -n "$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts')" ]; then
+  git diff --cached --name-only -z --diff-filter=ACMR -- '*.ts' \
+    | xargs -0 pnpm exec vitest related --run --
+fi
