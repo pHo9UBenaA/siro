@@ -1,0 +1,2 @@
+# Fixture-only placeholder. The commit-lockfile rule checks `yarn.lock`
+# existence (not contents), so a real lockfile body is not needed here.

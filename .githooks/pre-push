@@ -1,0 +1,7 @@
+#!/bin/sh
+set -e
+
+# Full verification before publishing history to the remote.
+pnpm run check
+pnpm run typecheck
+pnpm run test:coverage
