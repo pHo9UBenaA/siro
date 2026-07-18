@@ -49,6 +49,7 @@
     "bench": "node ./scripts/bench/run.mjs",
     "build": "node ./scripts/gen/version.mjs && tsdown && node ./scripts/gen/bin-wrapper.mjs",
     "check": "oxlint --deny-warnings && oxfmt --check",
+    "check:oss-coverage": "node ./oss-benchmarks/check.mjs",
     "format": "oxfmt --write",
     "gen": "pnpm gen:version && pnpm gen:comparison && pnpm gen:rules && pnpm gen:api",
     "gen:api": "typedoc",
