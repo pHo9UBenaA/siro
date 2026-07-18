@@ -174,13 +174,12 @@ export const loadConfig = (
   cwd: AbsPath,
   fs: FileSystem = nodeFileSystem,
 ): Promise<SiroConfig | undefined> => {
-  // Eagerly created so the candidate loop doesn't pay for a discarded jiti
-  // instance per probe. `moduleCache: false` still guarantees the loaded
-  // config sees fresh module state on every loadConfig call.
-  const jiti = createJiti(cwd, { moduleCache: false });
   const candidate = CONFIG_NAMES.find((name) => fs.exists(asAbsPath(path.join(cwd, name))));
   if (typeof candidate === 'undefined') {
     return Promise.resolve(void 0);
   }
+  // `moduleCache: false` guarantees the loaded config sees fresh module state
+  // on every loadConfig call.
+  const jiti = createJiti(cwd, { moduleCache: false });
   return parseCandidate(jiti, asAbsPath(path.join(cwd, candidate)), candidate);
 };
