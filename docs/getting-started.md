@@ -1,5 +1,9 @@
 # Getting started
 
+## Requirements
+
+- Node.js `^22.18.0 || ^23.6.0 || >=24.0.0`
+
 ## Run without installing
 
 ```sh
