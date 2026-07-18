@@ -102,7 +102,10 @@ export default defineConfig({
 });
 ```
 
-`.ts` configs are loaded via [jiti](https://github.com/unjs/jiti); no extra build step.
+`.ts` configs are loaded via Node's native type stripping (requires Node `^22.18.0 || ^23.6.0 || >=24`);
+no extra build step. Only erasable TypeScript syntax is supported (no `enum`, `namespace`, or
+parameter properties). On projects without `"type": "module"` in package.json, Node may print a
+harmless `MODULE_TYPELESS_PACKAGE_JSON` notice on stderr.
 Unknown rule IDs are caught at startup: siro exits with code 2 and prints
 `siro.config: unknown rule id '…'` (or `unknown rule ids` for multiple) so typos fail fast.
 

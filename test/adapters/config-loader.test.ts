@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { ConfigError } from '../../src/shared/errors.ts';
-import { loadConfig } from '../../src/adapters/config-loader.ts';
+import { hasNativeTypeStripping, loadConfig } from '../../src/adapters/config-loader.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { type AbsPath, asAbsPath } from '../../src/shared/paths.ts';
 
@@ -75,6 +75,71 @@ describe('loadConfig — loading', () => {
       assert(config, 'expected config');
       expect(config.customRules).toHaveLength(SINGLE);
     });
+  });
+});
+
+describe('loadConfig — ts config', () => {
+  const td = useTempDir();
+
+  it('loads siro.config.ts with erasable TS syntax', () => {
+    expect.hasAssertions();
+    writeFileSync(
+      path.join(td.dir, 'siro.config.ts'),
+      "const rule: string = 'provenance';\nexport default { pms: ['npm'] as const, rules: { [rule]: 'off' } };\n",
+    );
+    return loadConfig(td.dir).then((config) => {
+      expect(config).toStrictEqual({ pms: ['npm'], rules: { provenance: 'off' } });
+    });
+  });
+});
+
+describe('loadConfig — fresh reload', () => {
+  const td = useTempDir();
+
+  it('re-reads the config from disk on every call', () => {
+    expect.hasAssertions();
+    const file = path.join(td.dir, 'siro.config.mjs');
+    writeFileSync(file, "export default { pms: ['npm'] };\n");
+    return loadConfig(td.dir)
+      .then((first) => {
+        expect(first).toStrictEqual({ pms: ['npm'] });
+        writeFileSync(file, "export default { pms: ['pnpm'] };\n");
+        return loadConfig(td.dir);
+      })
+      .then((second) => {
+        expect(second).toStrictEqual({ pms: ['pnpm'] });
+      });
+  });
+});
+
+describe('loadConfig — ts config on a runtime without type stripping', () => {
+  const td = useTempDir();
+
+  it('rejects siro.config.ts with an actionable ConfigError', () => {
+    expect.hasAssertions();
+    writeFileSync(path.join(td.dir, 'siro.config.ts'), "export default { pms: ['npm'] };\n");
+    return expect(loadConfig(td.dir, void 0, '20.19.0')).rejects.toMatchObject({
+      message: expect.stringMatching(/type stripping[\s\S]*siro\.config\.mjs/u),
+      name: 'ConfigError',
+    });
+  });
+});
+
+describe(hasNativeTypeStripping, () => {
+  it('maps node versions to type-stripping support', () => {
+    expect.hasAssertions();
+    const cases: readonly (readonly [string, boolean])[] = [
+      ['20.19.0', false],
+      ['22.17.9', false],
+      ['22.18.0', true],
+      ['23.5.0', false],
+      ['23.6.0', true],
+      ['24.0.0', true],
+      ['v24.18.0', true],
+    ];
+    for (const [version, expected] of cases) {
+      expect(hasNativeTypeStripping(version)).toBe(expected);
+    }
   });
 });
 

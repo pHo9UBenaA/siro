@@ -38,7 +38,7 @@ export interface LintOptions {
   severity?: Severity;
   /**
    * Inject a non-default FS (e.g. memfs in tests). Caveat: `siro.config.{ts,mjs,js}`
-   * is loaded by jiti from the REAL disk — only the config's existence is probed
+   * is imported from the REAL disk — only the config's existence is probed
    * through this FS. A config that lives solely in an injected FS won't load.
    */
   fs?: FileSystem;

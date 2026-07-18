@@ -15,7 +15,7 @@ export const jsonReporter: Reporter<'json'> = {
   format(result: LintResult, io: IO): void {
     io.stdout(
       JSON.stringify(
-        Object.assign({}, { schemaVersion: SCHEMA_VERSION, siroVersion: version }, result),
+        { schemaVersion: SCHEMA_VERSION, siroVersion: version, ...result },
         void 0,
         JSON_INDENT,
       ),

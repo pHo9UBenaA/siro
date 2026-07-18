@@ -56,14 +56,15 @@ boundary the test crosses:
 - **`mkdtempSync` + real FS** — integration and adapter tests that need a
   real path on disk (notably `test/adapters/config-loader.test.ts` plus
   `test/{e2e,pnpm,yarn,bun}.test.ts`) spawn a temp directory.
-  This is because `adapters/config-loader.ts` uses `jiti` to import
-  `siro.config.{ts,mjs,js}`, and jiti resolves modules against the real
-  filesystem — there is no `FileSystem`-port hook there by design,
-  because the relevant "port" is Node's module loader, not its FS API.
+  This is because `adapters/config-loader.ts` imports
+  `siro.config.{ts,mjs,js}` through Node's module loader, which resolves
+  against the real filesystem — there is no `FileSystem`-port hook there
+  by design, because the relevant "port" is Node's module loader, not its
+  FS API.
   Each tmpdir test cleans up in `afterEach`.
 - **`spawnSync` against `dist/cli.mjs`** — `test/cli.subprocess.test.ts`
   drives the published binary so packaging regressions (shebang,
-  exit-code routing, jiti bundling) surface. The block is gated via
+  exit-code routing, module bundling) surface. The block is gated via
   `describe.skipIf(!existsSync(DIST_BIN))` so a clean checkout silently
   skips it; CI / post-`pnpm build` runs exercise it.
 
@@ -102,7 +103,7 @@ adapters to wire them (see the `allowList` in `scripts/check/layers.mjs`).
 Placement by responsibility:
 
 - **adapters/** — implements a port for a concrete runtime, format, or sink (Node FS,
-  jiti loader, codec, reporter).
+  config loader, codec, reporter).
 - **application/** — orchestrates a multi-port flow on behalf of a CLI command
   (`runLint`, `assertConfigRuleIdsKnown`, `lintCommand`).
 - **domain/** — everything else that depends only on port abstractions: rule definitions,
@@ -178,13 +179,13 @@ src/
     node-file-system.ts    nodeFileSystem + resolveIn
     node-errors.ts         isNodeError (Node-runtime type guard)
     node-io.ts             nodeIO
-    config-loader.ts       loadConfig (jiti-backed)
+    config-loader.ts       loadConfig (native import; type stripping for .ts)
     repo-context.ts        createRepoContext (factory wrapping FileSystem)
     codecs/                ini / yaml / toml / json codecs + store (codecFor)
     reporters/             pretty / json / github + createRegistry, BUILTIN_REPORTER_NAMES
 
 scripts/                   build-time tooling (not bundled into dist)
-  _shared/                 cross-context utilities (script-runtime: root/name/jiti)
+  _shared/                 cross-context utilities (script-runtime: root/name/loadLib)
   check/                   `pnpm typecheck` extension
     layers.mjs             driver — enforce layering contract under src/
     lib/layers.ts          pure layer-check logic (string-in / string-out)

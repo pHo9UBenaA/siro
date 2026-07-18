@@ -1,6 +1,6 @@
 {
   "name": "@pho9ubenaa/siro",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Security best-practices linter for the npm ecosystem (npm, pnpm, deno, bun, yarn, aube).",
   "keywords": [
     "aube",
@@ -49,6 +49,7 @@
     "bench": "node ./scripts/bench/run.mjs",
     "build": "node ./scripts/gen/version.mjs && tsdown && node ./scripts/gen/bin-wrapper.mjs",
     "check": "oxlint --deny-warnings && oxfmt --check",
+    "check:oss-coverage": "node ./oss-benchmarks/check.mjs",
     "format": "oxfmt --write",
     "gen": "pnpm gen:version && pnpm gen:comparison && pnpm gen:rules && pnpm gen:api",
     "gen:api": "typedoc",
@@ -66,7 +67,6 @@
   "dependencies": {
     "cac": "catalog:",
     "ini": "catalog:",
-    "jiti": "catalog:",
     "picocolors": "catalog:",
     "smol-toml": "catalog:",
     "valibot": "catalog:",
@@ -91,7 +91,7 @@
     "vitest": "catalog:"
   },
   "engines": {
-    "node": ">=20"
+    "node": "^22.18.0 || ^23.6.0 || >=24.0.0"
   },
   "packageManager": "pnpm@10.33.2",
   "pnpm": {

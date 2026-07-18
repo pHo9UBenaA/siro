@@ -53,7 +53,7 @@ const allowList = new Map([
 ]);
 
 const allowedPackages = {
-  adapters: new Set(['node:', 'jiti', 'valibot', 'ini', 'smol-toml', 'yaml', 'picocolors']),
+  adapters: new Set(['node:', 'valibot', 'ini', 'smol-toml', 'yaml', 'picocolors']),
   application: new Set(),
   cli: new Set(['node:', 'cac']),
   domain: new Set(['valibot']),

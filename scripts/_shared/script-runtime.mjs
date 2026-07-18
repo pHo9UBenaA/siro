@@ -1,7 +1,8 @@
 // Shared primitives for scripts/**/*.mjs drivers.
 //
 // Every driver reaches for the same trio: resolve the repo root from
-// `import.meta.url`, load a TypeScript lib through jiti, and die with a
+// `import.meta.url`, load a TypeScript lib via native import (Node's type
+// stripping, engines >= 22.18), and die with a
 // prefixed message + structured exit code. Centralizing them keeps each
 // driver as a thin shell (~6 lines) and removes the drift that previously
 // left gen-version with no error handling while gen-rule rolled its own
@@ -18,9 +19,8 @@
 // scripts/bench/) so `ls scripts/` immediately groups
 // the cross-context utilities at the top.
 
-import { createJiti } from 'jiti';
 import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 
 const SCRIPTS_SEG = `${path.sep}scripts${path.sep}`;
@@ -101,7 +101,15 @@ const writeSuccess = (outStream, label) => {
   outStream.write(`${label}\n`);
 };
 
-const importLib = (relPath, { root, fileExists, defaultJiti }, options = {}) => {
+// Node caches ESM modules by URL, and loadLib callers run inside one
+// long-lived process (gen-rule writes a .ts, then re-reads it). A unique
+// query makes { fresh: true } re-evaluate the ENTRY module from disk.
+// Transitive imports of that entry stay cached, so callers must bust the
+// exact file they rewrote — not an importer of it (see gen/rule.mjs).
+let loadCounter = 0;
+const INCREMENT = 1;
+
+const importLib = (relPath, { root, fileExists }, options = {}) => {
   if (!fileExists(path.join(root, 'package.json'))) {
     return Promise.reject(
       new Error(
@@ -109,18 +117,12 @@ const importLib = (relPath, { root, fileExists, defaultJiti }, options = {}) => 
       ),
     );
   }
-  // `cache: false` on the fresh instance disables jiti's on-disk
-  // transform cache; `moduleCache: false` skips Node's own require
-  // cache for paths it shares with the outer instance. Both are
-  // routine in gen-rule's two-phase scaffold + regen: a same-second
-  // rewrite of a .ts that the outer jiti already saw would otherwise
-  // replay the stale transform. Default instance keeps caching for
-  // speed.
-  let ji = defaultJiti;
+  const url = pathToFileURL(path.join(root, relPath));
   if (options.fresh) {
-    ji = createJiti(root, { cache: false, moduleCache: false });
+    loadCounter += INCREMENT;
+    url.searchParams.set('siro-load', String(loadCounter));
   }
-  return ji.import(path.join(root, relPath));
+  return import(url.href);
 };
 
 const resolveDeps = (deps) => ({
@@ -135,14 +137,13 @@ export const createScriptContext = (importMetaUrl, deps = {}) => {
   const root = resolveRoot(importMetaUrl);
   const name = scriptName(importMetaUrl);
   const { exit, errStream, outStream, env, fileExists } = resolveDeps(deps);
-  const defaultJiti = createJiti(root);
 
   const failCtx = { env, errStream, exit, name };
   const fail = (messageOrError, exitCode = DEFAULT_EXIT_CODE) =>
     writeFail(messageOrError, failCtx, exitCode);
   const logSuccess = (label) => writeSuccess(outStream, label);
 
-  const libCtx = { defaultJiti, fileExists, root };
+  const libCtx = { fileExists, root };
   const loadLib = (relPath, options = {}) => importLib(relPath, libCtx, options);
 
   return { fail, loadLib, logSuccess, name, root };

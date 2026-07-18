@@ -44,7 +44,7 @@ const validateVersion = (version: string, pkgPath: string): void => {
   // (digits, ASCII letters, `.`, `+`, `-`) cover legitimate inputs; anything
   // outside this set — single quotes, newlines, backslashes — would either
   // break the generated module's syntax or smuggle executable code into the
-  // jiti-transformed output. Fail loud at read time instead of generating a
+  // emitted version module. Fail loud at read time instead of generating a
   // broken version.ts.
   if (!/^[0-9a-zA-Z.+-]+$/u.test(version)) {
     throw new Error(

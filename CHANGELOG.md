@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.0]
+
+### Breaking Changes
+
+- **Node.js `^22.18.0 || ^23.6.0 || >=24.0.0` required** (was `>=20`): `siro.config.ts` now loads via Node's native type stripping.
+
+### Features
+
+- **OSS benchmarks module**: coverage validation against 47 leading OSS projects across all 6 package managers. Includes sparse-checkout clone script, snapshot-based CI mode, and local clone-based checking.
+- **jiti dependency removed**: runtime dependencies drop from 7 to 6. `.ts` configs load via native type stripping, and every `loadConfig` call now truly re-reads the config from disk (jiti's transform cache could replay a same-second rewrite).
+- **Unminified dist**: the published bundle ships as readable JavaScript for supply-chain transparency.
+
+### Fixes
+
+- A `.ts` config on a runtime without type stripping fails with an actionable `ConfigError` instead of a raw `ERR_UNKNOWN_FILE_EXTENSION`.
+- `pnpm gen:rule` works again — the scaffolder's marker had drifted from `rule-id.ts`.
+
 ## [0.1.3]
 
 Initial public release. 27 rules across 6 package managers (npm, pnpm, yarn, bun, deno, aube).

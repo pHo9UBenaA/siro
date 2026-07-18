@@ -28,7 +28,7 @@ const FIXTURES = path.join(import.meta.dirname, 'fixtures');
 // The rest of the suite drives `run()` from src/cli.ts in-process — fast,
 // but it never exercises the published bin: the shebang, `process.argv`
 // shape, exit code routing via `process.exitCode`, or anything tsdown's
-// bundler folds into dist/cli.mjs (jiti resolution, esm interop, etc.).
+// bundler folds into dist/cli.mjs (module resolution, esm interop, etc.).
 // A real `spawnSync` against the built binary is the only check that
 // proves the npm-installable artefact still works.
 //

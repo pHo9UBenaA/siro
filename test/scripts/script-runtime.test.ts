@@ -208,7 +208,7 @@ describe('createScriptContext — loadLib — import', () => {
     rmSync(tempRoot, { force: true, recursive: true });
   });
 
-  it('imports a .ts module via jiti relative to the repo root', () => {
+  it('imports a .ts module relative to the repo root', () => {
     expect.hasAssertions();
     const libDir = path.join(tempRoot, 'scripts', 'lib');
     return import('node:fs')
@@ -256,7 +256,7 @@ describe('createScriptContext — loadLib — fresh cache', () => {
     rmSync(tempRoot, { force: true, recursive: true });
   });
 
-  it('uses a fresh jiti instance when { fresh: true } is passed', () => {
+  it('re-imports the entry module from disk when { fresh: true } is passed', () => {
     expect.hasAssertions();
     const libDir = path.join(tempRoot, 'scripts', 'lib');
     let libPath = '';

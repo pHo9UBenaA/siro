@@ -111,13 +111,13 @@ if (dryRun) {
     );
   }
 
-  // Regenerate docs via a *fresh* jiti instance — the outer ctx.loadLib has
-  // already loaded rule-scaffolder.ts, and doc-generator.ts transitively
-  // imports the builtin-rules.ts we just rewrote. Without `fresh: true`
-  // the cached module graph would re-emit docs against the pre-write rule
-  // registry. One in-process call also replaces the previous pair of
-  // `execFileSync('node', ...)` child invocations, saving the two
-  // node-startup hits.
+  // Re-render docs against the registry this run just rewrote. Node caches
+  // ESM by URL, so builtin-rules.ts is loaded with { fresh: true } to
+  // re-evaluate exactly that file from disk; the render functions take the
+  // fresh registry explicitly (doc-generator's default param would bind the
+  // cached, pre-write module). One in-process call also replaces the
+  // previous pair of `execFileSync('node', ...)` child invocations, saving
+  // the two node-startup hits.
   //
   // Doc regeneration sits outside the rollback guard because docs/*.md are
   // derived artifacts — a failure here doesn't invalidate the registered
@@ -131,12 +131,10 @@ if (dryRun) {
   try {
     const { renderRulesDoc, renderComparison } = await ctx.loadLib(
       'scripts/gen/lib/doc-generator.ts',
-      {
-        fresh: true,
-      },
     );
-    writeFileSync(path.join(root, 'docs/rules.md'), renderRulesDoc());
-    writeFileSync(path.join(root, 'docs/comparison.md'), renderComparison());
+    const { rules } = await ctx.loadLib('src/domain/builtin-rules.ts', { fresh: true });
+    writeFileSync(path.join(root, 'docs/rules.md'), renderRulesDoc(rules));
+    writeFileSync(path.join(root, 'docs/comparison.md'), renderComparison(rules));
   } catch (error) {
     let errMsg = String(error);
     if (error instanceof Error) {

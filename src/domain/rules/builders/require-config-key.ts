@@ -95,8 +95,10 @@ export interface RequireConfigKeyOptions {
  * the hand-written bindings in via this helper rather than rebuilding from
  * scratch or mutating the source rule.
  */
-export const overrideBindings = (rule: Rule, overrides: Partial<Rule['bindings']>): Rule =>
-  Object.assign({}, rule, { bindings: Object.assign({}, rule.bindings, overrides) });
+export const overrideBindings = (rule: Rule, overrides: Partial<Rule['bindings']>): Rule => ({
+  ...rule,
+  bindings: { ...rule.bindings, ...overrides },
+});
 
 /**
  * Compose `message` with the structured suffix derived from {@link VersionNote}.
