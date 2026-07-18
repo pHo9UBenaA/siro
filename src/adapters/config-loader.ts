@@ -7,9 +7,9 @@ import type { FileSystem } from '../domain/ports/file-system.ts';
 import type { Rule } from '../domain/entities/rule.ts';
 import type { SiroConfig } from '../domain/entities/siro-config.ts';
 import { rules as builtinRules } from '../domain/builtin-rules.ts';
-import { createJiti } from 'jiti';
 import { nodeFileSystem } from './node-file-system.ts';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { validateRuleIds } from '../domain/services/validate-rule-ids.ts';
 
 // Array order IS the precedence: if more than one exists, the first match
@@ -81,18 +81,46 @@ const formatIssues = (
     })
     .join('; ');
 
-/**
- * Locate and load `siro.config.{ts,mjs,js}` under `cwd`. Returns undefined when
- * no config exists. Throws ConfigError on malformed exports.
- */
-const importConfig = (
-  jitiInst: ReturnType<typeof createJiti>,
-  modulePath: string,
-  name: string,
-): Promise<unknown> =>
-  jitiInst.import(modulePath).catch((error: unknown) => {
+const TS_STRIPPING_MAJOR_22 = 22;
+const TS_STRIPPING_MINOR_22 = 18;
+const TS_STRIPPING_MAJOR_23 = 23;
+const TS_STRIPPING_MINOR_23 = 6;
+const TS_STRIPPING_ALWAYS_SINCE = 24;
+
+/** Whether a Node version imports .ts via native type stripping (unflagged since 22.18.0 / 23.6.0). */
+export const hasNativeTypeStripping = (version: string): boolean => {
+  const [majorRaw = '', minorRaw = '0'] = version.replace(/^v/u, '').split('.');
+  const major = Number(majorRaw);
+  const minor = Number(minorRaw);
+  if (major >= TS_STRIPPING_ALWAYS_SINCE) {
+    return true;
+  }
+  if (major === TS_STRIPPING_MAJOR_23) {
+    return minor >= TS_STRIPPING_MINOR_23;
+  }
+  if (major === TS_STRIPPING_MAJOR_22) {
+    return minor >= TS_STRIPPING_MINOR_22;
+  }
+  return false;
+};
+
+// Node caches ESM modules by URL, so the per-call query forces
+// re-evaluation: a config rewritten between loadConfig calls (e.g. an
+// embedder calling lintCommand repeatedly) is re-read from disk. jiti's
+// `moduleCache: false` was believed to provide this, but its on-disk
+// transform cache could still replay a same-second rewrite (pinned by the
+// fresh-reload test).
+let loadCounter = 0;
+const INCREMENT = 1;
+
+const importConfig = (modulePath: string, name: string): Promise<unknown> => {
+  const url = pathToFileURL(modulePath);
+  loadCounter += INCREMENT;
+  url.searchParams.set('siro-load', String(loadCounter));
+  return import(url.href).catch((error: unknown) => {
     throw new ConfigError(`Failed to load ${name}: ${describeError(error)}`);
   });
+};
 
 const extractDefault = (mod: unknown): unknown => {
   if (mod !== null && typeof mod === 'object' && 'default' in mod) {
@@ -154,32 +182,37 @@ const rejectDuplicateCustomRuleIds = (config: SiroConfig, name: string): void =>
   }
 };
 
-const parseCandidate = (
-  jiti: ReturnType<typeof createJiti>,
-  configPath: AbsPath,
-  name: string,
-): Promise<SiroConfig> =>
+const parseCandidate = (configPath: AbsPath, name: string): Promise<SiroConfig> =>
   // `cwd` is already an `AbsPath`, branded at the CLI boundary in
   // `src/cli.ts` via `asAbsPath(resolve(positionalCwd ?? process.cwd()))`.
   // The brand certifies "already resolved", so re-resolving here
   // would only signal that we don't trust our own type contract.
-  importConfig(jiti, configPath, name).then((mod) => {
+  importConfig(configPath, name).then((mod) => {
     const candidate = validateCandidateShape(extractDefault(mod), name);
     const config = validateSchema(candidate, name);
     rejectDuplicateCustomRuleIds(config, name);
     return config;
   });
 
+/**
+ * Locate and load `siro.config.{ts,mjs,js}` under `cwd`. Returns undefined when
+ * no config exists. Throws ConfigError on malformed exports.
+ */
 export const loadConfig = (
   cwd: AbsPath,
   fs: FileSystem = nodeFileSystem,
+  nodeVersion: string = process.versions.node,
 ): Promise<SiroConfig | undefined> => {
   const candidate = CONFIG_NAMES.find((name) => fs.exists(asAbsPath(path.join(cwd, name))));
   if (typeof candidate === 'undefined') {
     return Promise.resolve(void 0);
   }
-  // `moduleCache: false` guarantees the loaded config sees fresh module state
-  // on every loadConfig call.
-  const jiti = createJiti(cwd, { moduleCache: false });
-  return parseCandidate(jiti, asAbsPath(path.join(cwd, candidate)), candidate);
+  if (candidate.endsWith('.ts') && !hasNativeTypeStripping(nodeVersion)) {
+    return Promise.reject(
+      new ConfigError(
+        `${candidate} requires Node.js with native type stripping (^22.18.0 || ^23.6.0 || >=24); current is v${nodeVersion}. Rename the config to siro.config.mjs (plain JS) or upgrade Node.js.`,
+      ),
+    );
+  }
+  return parseCandidate(asAbsPath(path.join(cwd, candidate)), candidate);
 };

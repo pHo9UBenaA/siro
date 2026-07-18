@@ -27,9 +27,6 @@ catalogs:
     ini:
       specifier: 7.0.0
       version: 7.0.0
-    jiti:
-      specifier: 2.7.0
-      version: 2.7.0
     knip:
       specifier: 6.15.0
       version: 6.15.0
@@ -86,9 +83,6 @@ importers:
       ini:
         specifier: 'catalog:'
         version: 7.0.0
-      jiti:
-        specifier: 'catalog:'
-        version: 2.7.0
       picocolors:
         specifier: 'catalog:'
         version: 1.1.1

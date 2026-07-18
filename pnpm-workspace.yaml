@@ -9,7 +9,6 @@ catalog:
   '@vitest/coverage-v8': 4.1.7
   cac: 7.0.0
   ini: 7.0.0
-  jiti: 2.7.0
   knip: 6.15.0
   memfs: 4.57.3
   oxfmt: 0.53.0
