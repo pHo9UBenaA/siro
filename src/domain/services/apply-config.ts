@@ -37,13 +37,14 @@ const rewriteBindingsForSeverityOverride = (rule: Rule, override: Severity): Rul
   for (const pm of PMS) {
     const binding = rule.bindings[pm];
     if (typeof binding !== 'undefined') {
-      bindings[pm] = Object.assign({}, binding, {
+      bindings[pm] = {
+        ...binding,
         check: stripDynamicSeverity(binding.check),
         severity: void 0,
-      });
+      };
     }
   }
-  return Object.assign({}, rule, { bindings, severity: override });
+  return { ...rule, bindings, severity: override };
 };
 
 /**
@@ -74,7 +75,7 @@ const mergeBase = (base: readonly Rule[], config?: SiroConfig): Rule[] => {
   if (config) {
     ({ customRules } = config);
   }
-  return Array.from(base).concat(customRules ?? []);
+  return [...base, ...(customRules ?? [])];
 };
 
 export const applyConfig = (base: readonly Rule[], config?: SiroConfig): Rule[] => {

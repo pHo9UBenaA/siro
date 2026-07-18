@@ -19,19 +19,22 @@ const npmrcProvenance = {
 export const provenance = requireConfigKey({
   applies: isPublishable,
   bindings: {
-    bun: Object.assign({}, npmrcProvenance, {
+    bun: {
+      ...npmrcProvenance,
       docs: 'https://github.com/oven-sh/bun/issues/15601',
       message:
         'Set `provenance=true` in .npmrc and publish via `bunx npm publish` from CI — `bun publish` does not emit provenance attestations natively (tracking: oven-sh/bun#15601).',
-    }),
-    npm: Object.assign({}, npmrcProvenance, {
+    },
+    npm: {
+      ...npmrcProvenance,
       docs: 'https://docs.npmjs.com/cli/v11/using-npm/config#provenance',
       versionNote: { configAvailableSince: 'npm 9.5.0' },
-    }),
-    pnpm: Object.assign({}, npmrcProvenance, {
+    },
+    pnpm: {
+      ...npmrcProvenance,
       // pnpm publish reads `.npmrc` for npm-side flags including provenance.
       docs: 'https://pnpm.io/cli/publish',
-    }),
+    },
     yarn: {
       docs: 'https://yarnpkg.com/configuration/yarnrc#npmPublishProvenance',
       file: yarnrc,

@@ -21,18 +21,19 @@ const denoBinding: AutoRuleBinding = {
     const lockIsScalar =
       typeof lock !== 'undefined' &&
       (typeof lock !== 'object' || lock === null || Array.isArray(lock));
-    const base = {
+    const base: CheckStatus & { state: 'violation' } = {
       actual: getByPath(config, ['lock', 'frozen']),
       expected: true,
       message: denoLockMessage,
       state: 'violation',
-    } as const;
+    };
     if (lockIsScalar) {
-      return Object.assign({}, base, {
+      return {
+        ...base,
         manualSteps: [
           'deno.json `lock` is set to a non-object value; writing `lock.frozen: true` under it would overwrite that value. Set it yourself, or make `lock` an object first.',
         ],
-      });
+      };
     }
     return base;
   },
