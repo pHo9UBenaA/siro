@@ -78,6 +78,21 @@ describe('loadConfig — loading', () => {
   });
 });
 
+describe('loadConfig — ts config', () => {
+  const td = useTempDir();
+
+  it('loads siro.config.ts with erasable TS syntax', () => {
+    expect.hasAssertions();
+    writeFileSync(
+      path.join(td.dir, 'siro.config.ts'),
+      "const rule: string = 'provenance';\nexport default { pms: ['npm'] as const, rules: { [rule]: 'off' } };\n",
+    );
+    return loadConfig(td.dir).then((config) => {
+      expect(config).toStrictEqual({ pms: ['npm'], rules: { provenance: 'off' } });
+    });
+  });
+});
+
 describe('loadConfig — export shape validation', () => {
   const td = useTempDir();
 
