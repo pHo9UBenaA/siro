@@ -59,7 +59,9 @@ export const renderRuleFile = (id: string, camelId: string, type: RuleType): str
   return renderAutoRule(id, camelId);
 };
 
-const RULE_ID_ARRAY_OPEN = 'export const BUILTIN_RULE_IDS = [';
+// rule-id.ts keeps the array module-private (only the BuiltinRuleId type is
+// exported), so the marker intentionally has no `export` prefix.
+const RULE_ID_ARRAY_OPEN = 'const BUILTIN_RULE_IDS = [';
 const RULE_ID_ARRAY_CLOSE = '] as const;';
 const RULE_REGISTRY_OPEN = 'const RULE_REGISTRY = {';
 const RULE_REGISTRY_CLOSE = '} as const satisfies Record<BuiltinRuleId, Rule>;';

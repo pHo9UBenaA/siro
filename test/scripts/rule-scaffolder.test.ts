@@ -76,7 +76,7 @@ describe(renderRuleFile, () => {
   });
 });
 
-const RULE_ID_SOURCE = `export const BUILTIN_RULE_IDS = [
+const RULE_ID_SOURCE = `const BUILTIN_RULE_IDS = [
   'disable-lifecycle-scripts',
   'frozen-lockfile',
   'provenance',
@@ -114,7 +114,7 @@ describe(insertRuleIdEntry, () => {
   'json',
 ] as const;
 
-export const BUILTIN_RULE_IDS = [
+const BUILTIN_RULE_IDS = [
   'provenance',
 ] as const;
 `;
@@ -123,20 +123,20 @@ export const BUILTIN_RULE_IDS = [
         "export const KNOWN_REPORTERS = [\n  'pretty',\n  'json',\n] as const;",
       );
       expect(out).toContain(
-        "export const BUILTIN_RULE_IDS = [\n  'provenance',\n  'enforce-2fa',\n] as const;",
+        "const BUILTIN_RULE_IDS = [\n  'provenance',\n  'enforce-2fa',\n] as const;",
       );
     });
 
     it('ignores a commented-out marker so it cannot anchor the splice', () => {
       expect.hasAssertions();
-      const sourceWithComment = `// example: export const BUILTIN_RULE_IDS = ['fake'] as const;
-export const BUILTIN_RULE_IDS = [
+      const sourceWithComment = `// example: const BUILTIN_RULE_IDS = ['fake'] as const;
+const BUILTIN_RULE_IDS = [
   'provenance',
 ] as const;
 `;
       const out = insertRuleIdEntry(sourceWithComment, 'enforce-2fa');
       expect(out).toContain("  'provenance',\n  'enforce-2fa',\n] as const;");
-      expect(out).toContain("// example: export const BUILTIN_RULE_IDS = ['fake'] as const;");
+      expect(out).toContain("// example: const BUILTIN_RULE_IDS = ['fake'] as const;");
     });
   });
 });
