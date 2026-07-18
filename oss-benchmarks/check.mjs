@@ -34,7 +34,7 @@ const skipMsg = (text) => {
 
 try {
   const { checkCoverage, fetchSnapshotLocal, REPOS_DIR } = await import(
-    pathToFileURL(path.join(dir, 'coverage.ts')).href,
+    pathToFileURL(path.join(dir, 'coverage.ts')).href
   );
 
   const readFromLocal = () => {
