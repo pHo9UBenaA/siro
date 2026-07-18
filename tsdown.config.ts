@@ -5,7 +5,7 @@ export default defineConfig({
   dts: { entry: ['src/index.ts'] },
   entry: ['src/cli.ts', 'src/index.ts'],
   format: ['esm'],
-  minify: true,
+  minify: false,
   sourcemap: true,
   target: 'node20',
 });
