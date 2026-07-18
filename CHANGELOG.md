@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.4]
+
+### Features
+
+- **OSS benchmarks module**: coverage validation against 47 leading OSS projects across all 6 package managers. Includes sparse-checkout clone script, snapshot-based CI mode, and local clone-based checking.
+
 ## [0.1.3]
 
 Initial public release. 27 rules across 6 package managers (npm, pnpm, yarn, bun, deno, aube).

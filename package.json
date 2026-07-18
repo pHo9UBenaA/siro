@@ -1,6 +1,6 @@
 {
   "name": "@pho9ubenaa/siro",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Security best-practices linter for the npm ecosystem (npm, pnpm, deno, bun, yarn, aube).",
   "keywords": [
     "aube",
