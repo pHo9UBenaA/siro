@@ -6,13 +6,11 @@
 //   node oss-benchmarks/check.mjs --update   # rebuild snapshot from local clones
 //   node oss-benchmarks/check.mjs --local    # check directly from local clones
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { createJiti } from 'jiti';
+import { pathToFileURL } from 'node:url';
 
 import path from 'node:path';
 
 const dir = import.meta.dirname;
-const root = path.join(dir, '..');
-const jiti = createJiti(root);
 const snapshotPath = path.join(dir, 'snapshots.json');
 const isUpdate = process.argv.includes('--update');
 const isLocal = process.argv.includes('--local');
@@ -35,8 +33,8 @@ const skipMsg = (text) => {
 };
 
 try {
-  const { checkCoverage, fetchSnapshotLocal, REPOS_DIR } = await jiti.import(
-    path.join(dir, 'coverage.ts'),
+  const { checkCoverage, fetchSnapshotLocal, REPOS_DIR } = await import(
+    pathToFileURL(path.join(dir, 'coverage.ts')).href,
   );
 
   const readFromLocal = () => {
