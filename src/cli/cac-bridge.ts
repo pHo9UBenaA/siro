@@ -1,5 +1,6 @@
 import { BUILTIN_REPORTER_NAMES } from '../adapters/reporters/registry.ts';
 import { COMMANDS } from './commands.ts';
+import type { FlagValues } from './flags.ts';
 import { SEVERITIES } from '../domain/entities/pms.ts';
 import { cac } from 'cac';
 import { version } from '../version.ts';
@@ -10,9 +11,8 @@ const ARGS_OFFSET = 2;
 
 export interface CacOutput {
   readonly commandCandidate: unknown;
-  readonly extraPositionals: unknown[];
-  readonly flags: Record<string, unknown>;
-  readonly matchedCommand: string | undefined;
+  readonly extraPositionals: readonly unknown[];
+  readonly flags: FlagValues;
   readonly positionalCwd: unknown;
 }
 
@@ -59,7 +59,7 @@ const extractCommandCandidate = (
 const extractExtraPositionals = (
   matchedCommand: string | undefined,
   args: readonly unknown[],
-): unknown[] => {
+): readonly unknown[] => {
   if (matchedCommand) {
     return args.slice(STEP);
   }
@@ -69,11 +69,11 @@ const extractExtraPositionals = (
 export const parseCacOutput = (argv: readonly string[]): CacOutput => {
   const cli = buildCli();
   const parsed = cli.parse(['node', 'siro', ...argv], { run: false });
-  const flags: Record<string, unknown> = parsed.options;
+  const flags: FlagValues = parsed.options;
   const matchedCommand = cli.matchedCommandName;
   const positionalCwd = extractPositionalCwd(matchedCommand, parsed.args);
   const commandCandidate = extractCommandCandidate(matchedCommand, parsed.args);
   const extraPositionals = extractExtraPositionals(matchedCommand, parsed.args);
 
-  return { commandCandidate, extraPositionals, flags, matchedCommand, positionalCwd };
+  return { commandCandidate, extraPositionals, flags, positionalCwd };
 };

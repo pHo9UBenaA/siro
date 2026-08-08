@@ -46,7 +46,7 @@ const scanHelpTokens = (argv: readonly string[]): ScanResult => {
     }
   }
   // Empty string sentinel → undefined when no positional was found
-  return { asksHelp: state.asksHelp, first: state.first || [].pop() };
+  return { asksHelp: state.asksHelp, first: state.first || void 0 };
 };
 
 const resolveTarget = (first: string | undefined): CommandName | undefined => {
@@ -65,7 +65,7 @@ export const detectHelpFlag = (
 ): { target: CommandName | undefined } | undefined => {
   const { asksHelp, first } = scanHelpTokens(argv);
   if (!asksHelp) {
-    return [].pop();
+    return void 0;
   }
   return { target: resolveTarget(first) };
 };

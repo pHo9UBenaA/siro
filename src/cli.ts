@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { type AbsPath, asAbsPath } from './shared/paths.ts';
 import { type CommandName, isCommandName } from './cli/commands.ts';
-import { KNOWN_FLAGS, flagsFor } from './cli/flags.ts';
+import { type FlagValues, KNOWN_FLAGS, flagsFor } from './cli/flags.ts';
 import type { PM, Severity } from './domain/entities/pms.ts';
 import { SiroError, UsageError } from './shared/errors.ts';
 import { detectHelpFlag, detectVersionFlag } from './cli/scanners.ts';
@@ -33,7 +33,7 @@ const EXIT_SUCCESS = 0;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
 
-const rejectPassthrough = (flags: Record<string, unknown>): void => {
+const rejectPassthrough = (flags: FlagValues): void => {
   // siro wraps no downstream tool, so anything after `--` has nowhere to go.
   const passthrough = flags['--'];
   if (Array.isArray(passthrough) && passthrough.length > EMPTY) {
@@ -94,7 +94,7 @@ const checkPreScanFlags = (argv: readonly string[]): ParsedCommand | undefined =
 };
 
 const buildLintCommand = (
-  flags: Record<string, unknown>,
+  flags: FlagValues,
   positionalCwd: unknown,
   commandCandidate: CommandName,
 ): ParsedCommand => {
@@ -108,7 +108,7 @@ const buildLintCommand = (
   };
 };
 
-const validateFlags = (flags: Record<string, unknown>): void => {
+const validateFlags = (flags: FlagValues): void => {
   rejectUnknownFlags(flags, KNOWN_FLAGS);
   rejectPassthrough(flags);
 };

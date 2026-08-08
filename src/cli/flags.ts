@@ -2,6 +2,8 @@ import { COMMANDS, type CommandName } from './commands.ts';
 
 const ARGS_OFFSET = 2;
 
+export type FlagValues = Readonly<Record<string, unknown>>;
+
 // Single source of flag metadata. `takesValue` derives VALUE_FLAGS (the
 // Pre-cac scanners use it to skip a flag's value token), and the keys are the
 // `keyof typeof FLAGS` constraint the per-command scopes below `satisfies`, so
