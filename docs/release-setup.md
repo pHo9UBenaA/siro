@@ -28,7 +28,7 @@ permissions:
   id-token: write # OIDC
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -40,7 +40,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test
-      - run: npm stage publish --access public
+      - run: pnpm pack
+      - run: npm stage publish *.tgz --access public --allow-file=all
 ```
 
 ### npmjs.com 設定
