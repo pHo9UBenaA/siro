@@ -31,7 +31,7 @@ npx @pho9ubenaa/siro lint --reporter json # machine-readable output with fix ops
 - **PM-aware severities.** When a manager's documented default already satisfies a rule (e.g.
   Yarn's `enableScripts: false`, aube's `preferFrozenLockfile: true`), the finding is demoted
   to `info` so CI noise stays proportional to real risk.
-- **Machine-readable remediation.** Every finding carries `fix` operations and `manualSteps` in the
+- **Machine-readable remediation.** Every finding carries `fix` operations or `manualSteps` in the
   JSON output — hand it to an agent skill or editor plugin that edits the files and re-runs
   `siro lint` until it exits `0`. See [JSON output](docs/json-output.md).
 - **Lint with severities.** `error` fails CI by default; `--severity warn` tightens the gate.
@@ -70,7 +70,7 @@ siro <lint|check> [path] [options]
 
 `check` is an alias of `lint` (same flags, same exit codes) — provided so `siro check` reads naturally in CI scripts.
 
-Exit codes: `0` clean · `1` findings at/above threshold · `2` usage error.
+Exit codes: `0` clean · `1` findings at/above threshold · `2` usage error · `70` uncaught exception (a siro bug or a throwing reporter/custom rule).
 
 ## How is this different from `npm audit` / `osv-scanner`?
 
