@@ -61,8 +61,8 @@ interface RequireConfigKeySpec {
   readonly versionNote?: VersionNote;
 }
 
-export interface RequireConfigKeyOptions {
-  readonly id: string;
+export interface RequireConfigKeyOptions<Id extends string = string> {
+  readonly id: Id;
   readonly title: string;
   readonly description: string;
   readonly severity: Severity;
@@ -80,10 +80,10 @@ export interface RequireConfigKeyOptions {
  * the hand-written bindings in via this helper rather than rebuilding from
  * scratch or mutating the source rule.
  */
-export const overrideBindings = (rule: Rule, overrides: Partial<Rule['bindings']>): Rule => ({
-  ...rule,
-  bindings: { ...rule.bindings, ...overrides },
-});
+export const overrideBindings = <Id extends string>(
+  rule: Rule<Id>,
+  overrides: Partial<Rule['bindings']>,
+): Rule<Id> => ({ ...rule, bindings: { ...rule.bindings, ...overrides } });
 
 const isDefaultOk = (spec: RequireConfigKeySpec): boolean => {
   if (spec.accept) {
@@ -187,7 +187,9 @@ const buildBinding = (
 });
 
 /** Build a Rule from a per-PM table of {file, keyPath, value, message}. */
-export const requireConfigKey = (options: RequireConfigKeyOptions): Rule => {
+export const requireConfigKey = <const Id extends string>(
+  options: RequireConfigKeyOptions<Id>,
+): Rule<Id> => {
   const bindings: Partial<Record<PM, AutoRuleBinding>> = {};
   for (const pm of PMS) {
     const spec = options.bindings[pm];

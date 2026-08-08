@@ -108,8 +108,8 @@ export interface AdvisoryRuleBinding {
 export type RuleBinding = AutoRuleBinding | AdvisoryRuleBinding;
 
 /** A package-manager-agnostic security intent, realized per PM via `bindings`. */
-export interface Rule {
-  readonly id: string;
+export interface Rule<Id extends string = string> {
+  readonly id: Id;
   readonly title: string;
   readonly description: string;
   readonly severity: Severity;
@@ -117,3 +117,5 @@ export interface Rule {
   /** Absence of a PM key means the rule does not apply (N/A) to that PM. */
   readonly bindings: Partial<Record<PM, RuleBinding>>;
 }
+
+export const defineRule = <const Id extends string>(rule: Rule<Id>): Rule<Id> => rule;

@@ -1,12 +1,14 @@
-import { rules } from '../../src/domain/builtin-rules.ts';
+import { type BuiltinRuleId, rules } from '../../src/domain/builtin-rules.ts';
 
 vi.setConfig({ testTimeout: 5000 });
 
 describe('builtin rules registry', () => {
-  // The two id ↔ registry cross-checks (and duplicate-id check) are enforced
-  // at compile time via `Record<BuiltinRuleId, Rule>` in builtin-rules.ts;
-  // no runtime mirror is needed. This file only pins the invariant the type
-  // system cannot express.
+  it('derives a non-widened rule ID union from registry values', () => {
+    expect.hasAssertions();
+    const idUnionIsString: string extends BuiltinRuleId ? true : false = false;
+    expect(idUnionIsString).toBe(false);
+  });
+
   it('every rule declares at least one PM binding', () => {
     expect.hasAssertions();
     for (const rule of rules) {

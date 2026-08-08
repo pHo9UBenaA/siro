@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
@@ -33,7 +33,7 @@ const bunScannerBinding: AdvisoryRuleBinding = {
   versionNote: { configAvailableSince: 'bun 1.3.0' },
 };
 
-export const bunSecurityScanner: Rule = {
+export const bunSecurityScanner = defineRule({
   bindings: {
     bun: bunScannerBinding,
   },
@@ -43,4 +43,4 @@ export const bunSecurityScanner: Rule = {
   id: 'bun-security-scanner',
   severity: 'info',
   title: 'Enable a bun install-time security scanner',
-};
+});

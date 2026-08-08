@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, CheckStatus, Rule } from '../entities/rule.ts';
+import type { AdvisoryRuleBinding, CheckStatus } from '../entities/rule.ts';
 import { type ParsedConfig, getByPath } from '../entities/config-value.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
@@ -160,4 +160,4 @@ const baseRule = requireConfigKey({
 // value-iteration mode for one rule. If more rules need this shape (yarn
 // `resolutions`, pnpm `overrides`, etc.), extract an `inspectConfigValues`
 // builder rather than growing requireConfigKey.
-export const pinExactVersions: Rule = overrideBindings(baseRule, { deno: denoBinding });
+export const pinExactVersions = overrideBindings(baseRule, { deno: denoBinding });

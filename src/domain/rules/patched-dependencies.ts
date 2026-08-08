@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
@@ -38,7 +38,7 @@ const pnpmBinding: AdvisoryRuleBinding = {
   fixKind: 'advisory',
 };
 
-export const patchedDependencies: Rule = {
+export const patchedDependencies = defineRule({
   bindings: { pnpm: pnpmBinding },
   description:
     'Flag patched dependencies whose source code is modified by local patch files, bypassing registry integrity verification.',
@@ -46,4 +46,4 @@ export const patchedDependencies: Rule = {
   id: 'patched-dependencies',
   severity: 'info',
   title: 'Review patched dependencies',
-};
+});

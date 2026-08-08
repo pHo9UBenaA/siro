@@ -5,8 +5,8 @@ vi.setConfig({ testTimeout: 5000 });
 
 const EXIT_USAGE = 2;
 
-// scripts/gen/rule.mjs mutates checked-in source (src/domain/rules/*.ts,
-// rule-id.ts, builtin-rules.ts) so the happy path can only be exercised
+// scripts/gen/rule.mjs mutates checked-in source (src/domain/rules/*.ts and
+// builtin-rules.ts) so the happy path can only be exercised
 // inside a copy of the repo. The exit-2 branches, in contrast, all bail
 // out *before* any write — they are safe to spawn against the live tree.
 //

@@ -1,5 +1,5 @@
 import type { PM, Severity } from './pms.ts';
-import type { BuiltinRuleId } from './rule-id.ts';
+import type { BuiltinRuleId } from '../builtin-rules.ts';
 import type { Reporter } from '../ports/reporter.ts';
 import type { Rule } from './rule.ts';
 

@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
@@ -32,7 +32,7 @@ const pnpmBinding: AdvisoryRuleBinding = {
   fixKind: 'advisory',
 };
 
-export const storeServer: Rule = {
+export const storeServer = defineRule({
   bindings: { pnpm: pnpmBinding },
   description:
     'Flag use of an external store server process, which introduces a trust boundary where tampered packages could be served.',
@@ -40,4 +40,4 @@ export const storeServer: Rule = {
   id: 'store-server',
   severity: 'info',
   title: 'Review store server usage',
-};
+});

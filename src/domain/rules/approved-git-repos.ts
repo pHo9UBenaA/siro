@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
@@ -36,7 +36,7 @@ const yarnBinding: AdvisoryRuleBinding = {
   versionNote: { configAvailableSince: 'yarn 4.14.0' },
 };
 
-export const approvedGitRepos: Rule = {
+export const approvedGitRepos = defineRule({
   bindings: { yarn: yarnBinding },
   description:
     'Restrict git: protocol dependencies to an explicit allowlist of approved repository URL patterns.',
@@ -44,4 +44,4 @@ export const approvedGitRepos: Rule = {
   id: 'approved-git-repos',
   severity: 'warn',
   title: 'Approve git repository dependencies',
-};
+});

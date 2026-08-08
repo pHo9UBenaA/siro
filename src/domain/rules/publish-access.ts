@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { isPublishable } from './publishable.ts';
 
@@ -40,7 +40,7 @@ const publishAccessBinding: AdvisoryRuleBinding = {
   fixKind: 'advisory',
 };
 
-export const publishAccess: Rule = {
+export const publishAccess = defineRule({
   bindings: {
     aube: publishAccessBinding,
     bun: publishAccessBinding,
@@ -54,4 +54,4 @@ export const publishAccess: Rule = {
   id: 'publish-access',
   severity: 'info',
   title: 'Declare publish access explicitly',
-};
+});

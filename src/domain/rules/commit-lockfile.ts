@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, Rule, VersionNote } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, type VersionNote, defineRule } from '../entities/rule.ts';
 import { type PMSignals, PM_SIGNALS } from '../entities/signals.ts';
 import type { PM } from '../entities/pms.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
@@ -49,7 +49,7 @@ const lockfileBinding = (pm: PM): AdvisoryRuleBinding => {
   };
 };
 
-export const commitLockfile: Rule = {
+export const commitLockfile = defineRule({
   bindings: {
     aube: lockfileBinding('aube'),
     bun: lockfileBinding('bun'),
@@ -64,4 +64,4 @@ export const commitLockfile: Rule = {
   id: 'commit-lockfile',
   severity: 'error',
   title: 'Commit a lockfile',
-};
+});

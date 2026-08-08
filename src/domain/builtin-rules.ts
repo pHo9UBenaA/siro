@@ -1,4 +1,3 @@
-import type { BuiltinRuleId } from './entities/rule-id.ts';
 import type { Rule } from './entities/rule.ts';
 import { advisoryCheck } from './rules/advisory-check.ts';
 import { approvedGitRepos } from './rules/approved-git-repos.ts';
@@ -28,34 +27,34 @@ import { strictReleaseAge } from './rules/strict-release-age.ts';
 import { strictStoreIntegrity } from './rules/strict-store-integrity.ts';
 import { trustPolicy } from './rules/trust-policy.ts';
 
-const RULE_REGISTRY = {
-  'advisory-check': advisoryCheck,
-  'approved-git-repos': approvedGitRepos,
-  'audit-suppression': auditSuppression,
-  'block-auto-install': blockAutoInstall,
-  'block-exotic-subdeps': blockExoticSubdeps,
-  'bun-security-scanner': bunSecurityScanner,
-  'checksum-verification': checksumVerification,
-  'commit-lockfile': commitLockfile,
-  'dependency-overrides': dependencyOverrides,
-  'disable-lifecycle-scripts': disableLifecycleScripts,
-  'enforce-strict-ssl': enforceStrictSsl,
-  'files-field': filesField,
-  'frozen-lockfile': frozenLockfile,
-  'frozen-store': frozenStore,
-  'hardened-mode': hardenedMode,
-  'minimum-release-age': minimumReleaseAge,
-  'named-registries': namedRegistries,
-  'paranoid-mode': paranoidMode,
-  'patched-dependencies': patchedDependencies,
-  'pin-exact-versions': pinExactVersions,
+export const rules = [
+  advisoryCheck,
+  approvedGitRepos,
+  auditSuppression,
+  blockAutoInstall,
+  blockExoticSubdeps,
+  bunSecurityScanner,
+  checksumVerification,
+  commitLockfile,
+  dependencyOverrides,
+  disableLifecycleScripts,
+  enforceStrictSsl,
+  filesField,
+  frozenLockfile,
+  frozenStore,
+  hardenedMode,
+  minimumReleaseAge,
+  namedRegistries,
+  paranoidMode,
+  patchedDependencies,
+  pinExactVersions,
   provenance,
-  'publish-access': publishAccess,
-  'store-server': storeServer,
-  'strict-allow-scripts': strictAllowScripts,
-  'strict-release-age': strictReleaseAge,
-  'strict-store-integrity': strictStoreIntegrity,
-  'trust-policy': trustPolicy,
-} as const satisfies Record<BuiltinRuleId, Rule>;
+  publishAccess,
+  storeServer,
+  strictAllowScripts,
+  strictReleaseAge,
+  strictStoreIntegrity,
+  trustPolicy,
+] as const satisfies readonly Rule[];
 
-export const rules: readonly Rule[] = Object.values(RULE_REGISTRY);
+export type BuiltinRuleId = (typeof rules)[number]['id'];

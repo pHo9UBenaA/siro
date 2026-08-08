@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 import { isPublishable } from './publishable.ts';
@@ -76,7 +76,7 @@ const denoPublishBinding: AdvisoryRuleBinding = {
   fixKind: 'advisory',
 };
 
-export const filesField: Rule = {
+export const filesField = defineRule({
   bindings: {
     aube: packageJsonFilesBinding,
     bun: packageJsonFilesBinding,
@@ -91,4 +91,4 @@ export const filesField: Rule = {
   id: 'files-field',
   severity: 'info',
   title: 'Declare a published files allow-list',
-};
+});
