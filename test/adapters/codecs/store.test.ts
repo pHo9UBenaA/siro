@@ -1,26 +1,12 @@
-import type { CodecKind } from '../../../src/domain/entities/config-value.ts';
+import { CODEC_KINDS } from '../../../src/domain/entities/config-value.ts';
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
 
 vi.setConfig({ testTimeout: 5000 });
 
-// Derived from a Record<CodecKind, _> so adding a CodecKind union member
-// without listing it here is a compile error: the test cannot silently
-// under-count when the union grows.
-// Exhaustiveness guard: a new CodecKind union member that is not listed
-// here will cause a compile error on the Record<CodecKind, true> type.
-Object.freeze({
-  json: true,
-  npmrc: true,
-  toml: true,
-  yaml: true,
-} satisfies Record<CodecKind, true>);
-
-const ALL_KINDS: readonly CodecKind[] = ['json', 'npmrc', 'toml', 'yaml'];
-
 describe(codecFor, () => {
   it('returns a codec for every declared CodecKind', () => {
     expect.hasAssertions();
-    for (const kind of ALL_KINDS) {
+    for (const kind of CODEC_KINDS) {
       const codec = codecFor(kind);
       expect(codec).toBeDefined();
       expect(codec.parse).toBeTypeOf('function');
@@ -37,7 +23,7 @@ describe(codecFor, () => {
 
   it('parses an empty document without throwing for every kind', () => {
     expect.hasAssertions();
-    for (const kind of ALL_KINDS) {
+    for (const kind of CODEC_KINDS) {
       expect(() => codecFor(kind).parse('')).not.toThrow();
     }
   });

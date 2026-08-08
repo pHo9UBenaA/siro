@@ -1,4 +1,5 @@
-export type CodecKind = 'npmrc' | 'yaml' | 'toml' | 'json';
+export const CODEC_KINDS = ['json', 'npmrc', 'toml', 'yaml'] as const;
+export type CodecKind = (typeof CODEC_KINDS)[number];
 
 /** Scalar value that can be written back to a config file. */
 export type ConfigValue = string | number | boolean;
