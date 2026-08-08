@@ -3,7 +3,7 @@ import type { PM } from '../../src/domain/entities/pms.ts';
 export interface OssFixture {
   readonly name: string;
   readonly pm: PM;
-  readonly files: Record<string, string>;
+  readonly files: Readonly<Record<string, string>>;
 }
 
 const eslint: OssFixture = {

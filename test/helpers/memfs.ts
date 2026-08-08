@@ -3,7 +3,7 @@ import type { FileSystem } from '../../src/domain/ports/file-system.ts';
 import { isNodeError } from '../../src/adapters/node-errors.ts';
 
 export const createMemFileSystem = (
-  initial: Record<string, string>,
+  initial: Readonly<Record<string, string>>,
   root = '/repo',
 ): FileSystem => {
   const vol = Volume.fromJSON(initial, root);
