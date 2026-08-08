@@ -7,10 +7,8 @@ import {
   isSeverity,
 } from '../domain/entities/pms.ts';
 import { BUILTIN_REPORTER_NAMES } from '../adapters/reporters/registry.ts';
+import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../shared/node-version.ts';
 import { UsageError } from '../shared/errors.ts';
-
-const FIRST_INDEX = 0;
-const MIN_NODE_MAJOR = 20;
 
 export const rejectUnknownFlags = (
   flags: Record<string, unknown>,
@@ -79,10 +77,9 @@ export const resolveReporter = (flags: Record<string, unknown>): string => {
 };
 
 export const ensureNodeVersion = (nodeVersion: string): void => {
-  const major = Number(nodeVersion.replace(/^v/u, '').split('.')[FIRST_INDEX]);
-  if (Number.isFinite(major) && major < MIN_NODE_MAJOR) {
+  if (!isSupportedNodeVersion(nodeVersion)) {
     throw new UsageError(
-      `Node ${MIN_NODE_MAJOR}+ required (you are on ${nodeVersion}). Upgrade your runtime to use siro.`,
+      `Node ${SUPPORTED_NODE_RANGE} required (you are on ${nodeVersion}). Upgrade your runtime to use siro.`,
     );
   }
 };

@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import { ConfigError } from '../../src/shared/errors.ts';
-import { hasNativeTypeStripping, loadConfig } from '../../src/adapters/config-loader.ts';
+import { loadConfig } from '../../src/adapters/config-loader.ts';
+import { isSupportedNodeVersion } from '../../src/shared/node-version.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { type AbsPath, asAbsPath } from '../../src/shared/paths.ts';
 
@@ -125,7 +126,7 @@ describe('loadConfig — ts config on a runtime without type stripping', () => {
   });
 });
 
-describe(hasNativeTypeStripping, () => {
+describe(isSupportedNodeVersion, () => {
   it('maps node versions to type-stripping support', () => {
     expect.hasAssertions();
     const cases: readonly (readonly [string, boolean])[] = [
@@ -138,7 +139,7 @@ describe(hasNativeTypeStripping, () => {
       ['v24.18.0', true],
     ];
     for (const [version, expected] of cases) {
-      expect(hasNativeTypeStripping(version)).toBe(expected);
+      expect(isSupportedNodeVersion(version)).toBe(expected);
     }
   });
 });

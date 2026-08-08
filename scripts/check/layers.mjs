@@ -67,8 +67,6 @@ const entryFiles = new Set(['index.ts', 'version.ts']);
 // layer may import it.
 const barrelFiles = new Set(['index.ts', 'index.js']);
 
-// glob from node:fs/promises is Node ≥22; readdirSync({recursive:true}) works
-// on Node ≥20 which the CI matrix still targets.
 const TS_EXT = '.ts';
 const files = readdirSync(srcRoot, { recursive: true, withFileTypes: true })
   .filter((de) => de.isFile() && de.name.endsWith(TS_EXT))

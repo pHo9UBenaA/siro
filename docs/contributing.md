@@ -2,7 +2,7 @@
 
 ## Setup
 
-The project requires **Node 20+** (matching `engines.node` in `package.json`)
+The project requires **Node `^22.18.0 || ^23.6.0 || >=24.0.0`** (matching `engines.node` in `package.json`)
 and **pnpm 10.33+** (matching `packageManager` in `package.json`).
 Dependency versions are managed through a pnpm catalog in `pnpm-workspace.yaml`.
 
@@ -283,17 +283,10 @@ copy-pasting. Until then, hand-writing is fine (YAGNI).
 
 ### aube rule-adoption policy
 
-aube ships several strict defaults beyond `jailBuilds` (`blockExoticSubdeps`, `trustPolicy`,
-`verifyStoreIntegrity`, `paranoid`, `advisoryCheck`, …). The current policy is **bind
-`jailBuilds` and stop** — postinstall RCE is the highest-impact supply-chain failure mode, and
-aube already enforces the rest at runtime. Adding more aube-only bindings requires:
-
-1. A concrete attack scenario the current bindings miss.
-2. Symmetry with at least one other PM (don't add aube-only hardening that has no analogue
-   elsewhere — it's a configuration linter, not an aube tutorial).
-
-`advisoryCheck` (CVE scanning) is explicitly out of scope: siro checks configuration, not
-running databases. Use `npm audit` / `osv-scanner` for that layer.
+Add an aube binding when it addresses a concrete supply-chain risk and its setting is covered by
+authoritative upstream documentation. Prefer symmetry with another package manager, but allow an
+aube-specific control when the risk is relevant to configuration linting. Runtime-only behavior
+without a configurable policy remains out of scope.
 
 ## Adding a package manager
 

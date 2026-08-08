@@ -11,6 +11,7 @@ import { nodeFileSystem } from './node-file-system.ts';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateRuleIds } from '../domain/services/validate-rule-ids.ts';
+import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../shared/node-version.ts';
 
 // Array order IS the precedence: if more than one exists, the first match
 // wins and the rest are ignored. This is deliberate (a single deterministic
@@ -80,29 +81,6 @@ const formatIssues = (
       return issue.message;
     })
     .join('; ');
-
-const TS_STRIPPING_MAJOR_22 = 22;
-const TS_STRIPPING_MINOR_22 = 18;
-const TS_STRIPPING_MAJOR_23 = 23;
-const TS_STRIPPING_MINOR_23 = 6;
-const TS_STRIPPING_ALWAYS_SINCE = 24;
-
-/** Whether a Node version imports .ts via native type stripping (unflagged since 22.18.0 / 23.6.0). */
-export const hasNativeTypeStripping = (version: string): boolean => {
-  const [majorRaw = '', minorRaw = '0'] = version.replace(/^v/u, '').split('.');
-  const major = Number(majorRaw);
-  const minor = Number(minorRaw);
-  if (major >= TS_STRIPPING_ALWAYS_SINCE) {
-    return true;
-  }
-  if (major === TS_STRIPPING_MAJOR_23) {
-    return minor >= TS_STRIPPING_MINOR_23;
-  }
-  if (major === TS_STRIPPING_MAJOR_22) {
-    return minor >= TS_STRIPPING_MINOR_22;
-  }
-  return false;
-};
 
 // Node caches ESM modules by URL, so the per-call query forces
 // re-evaluation: a config rewritten between loadConfig calls (e.g. an
@@ -207,10 +185,10 @@ export const loadConfig = (
   if (typeof candidate === 'undefined') {
     return Promise.resolve(void 0);
   }
-  if (candidate.endsWith('.ts') && !hasNativeTypeStripping(nodeVersion)) {
+  if (candidate.endsWith('.ts') && !isSupportedNodeVersion(nodeVersion)) {
     return Promise.reject(
       new ConfigError(
-        `${candidate} requires Node.js with native type stripping (^22.18.0 || ^23.6.0 || >=24); current is v${nodeVersion}. Rename the config to siro.config.mjs (plain JS) or upgrade Node.js.`,
+        `${candidate} requires Node.js with native type stripping (${SUPPORTED_NODE_RANGE}); current is v${nodeVersion}. Rename the config to siro.config.mjs (plain JS) or upgrade Node.js.`,
       ),
     );
   }
