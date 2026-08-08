@@ -34,7 +34,6 @@ const SCRIPTS_SEG = `${path.sep}scripts${path.sep}`;
  * would resolve against the wrong base.
  */
 const NOT_FOUND = -1;
-const FIRST_INDEX = 0;
 const DEFAULT_EXIT_CODE = 1;
 
 export const resolveRoot = (importMetaUrl) => {
@@ -43,7 +42,7 @@ export const resolveRoot = (importMetaUrl) => {
   if (idx === NOT_FOUND) {
     throw new Error(`script-runtime: caller is not under scripts/: ${filePath}`);
   }
-  return filePath.slice(FIRST_INDEX, idx);
+  return filePath.slice(0, idx);
 };
 
 /**

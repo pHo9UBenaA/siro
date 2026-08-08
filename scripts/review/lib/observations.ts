@@ -1,9 +1,7 @@
 // Observation-related functions for OBSERVATIONS.md. Extracted from ctx.ts.
 
 const HEADING_OFFSET = 1;
-const EMPTY_LENGTH = 0;
 const LAST_ELEMENT = -1;
-const FALLBACK_ZERO = 0;
 const INDEX_STEP = 1;
 
 const OBSERVATION_HEADING = /^## (?<date>\d{4}-\d{2}-\d{2}) — (?<axis>[^ ]+) — (?<slug>.+)$/u;
@@ -87,10 +85,10 @@ const findEndOfEntry = (lines: string[], start: number): number => {
 export const getObservationBySlug = (markdown: string, slug: string): string | undefined => {
   const lines = markdown.split('\n');
   const targets = findObservationTargets(lines, slug);
-  if (targets.length === EMPTY_LENGTH) {
+  if (targets.length === 0) {
     return;
   }
-  const start = targets.at(LAST_ELEMENT) ?? FALLBACK_ZERO;
+  const start = targets.at(LAST_ELEMENT) ?? 0;
   const end = findEndOfEntry(lines, start);
   const slice = lines.slice(start, end).join('\n');
   if (slice.endsWith('\n')) {

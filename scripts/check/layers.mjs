@@ -87,8 +87,7 @@ const offenders = findLayerViolations(files, {
   entryFiles,
 });
 
-const EMPTY = 0;
-if (offenders.length > EMPTY) {
+if (offenders.length > 0) {
   // Compose the diagnostic as a single block so the violations and the
   // allowed-targets cheatsheet stay together on stderr — splitting them
   // across two writes risks interleaving with unrelated output in CI
@@ -98,7 +97,7 @@ if (offenders.length > EMPTY) {
   const pad = Math.max(...Object.keys(allowedDependencies).map((key) => key.length));
   const cheatsheet = Object.entries(allowedDependencies).map(([from, targets]) => {
     let list = [...targets].join(', ');
-    if (targets.size === EMPTY) {
+    if (targets.size === 0) {
       list = '(nothing)';
     }
     return `  ${from.padEnd(pad)} → ${list}`;

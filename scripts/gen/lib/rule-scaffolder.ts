@@ -62,10 +62,8 @@ export const renderRuleFile = (id: string, camelId: string, type: RuleType): str
 const RULES_ARRAY_OPEN = 'export const rules = [';
 const RULES_ARRAY_CLOSE = '] as const satisfies readonly Rule[];';
 
-const DEFAULT_SEARCH_START = 0;
 const NEXT_LINE = 1;
 const NOT_FOUND = -1;
-const INSERT_COUNT = 0;
 
 interface FindMarkerLineOptions {
   readonly lines: readonly string[];
@@ -84,7 +82,7 @@ interface FindMarkerLineOptions {
  * lookup with a clear error rather than splicing into the wrong location.
  */
 const findMarkerLine = (opts: FindMarkerLineOptions): number => {
-  const { lines, marker, what, from = DEFAULT_SEARCH_START } = opts;
+  const { lines, marker, what, from = 0 } = opts;
   for (let idx = from; idx < lines.length; idx += NEXT_LINE) {
     const line = lines[idx];
     if (typeof line !== 'undefined' && line.trim() === marker) {
@@ -108,17 +106,12 @@ interface ImportScanState {
   lastRulesImportIdx: number;
 }
 
-const AFTER_CURRENT = 0;
-
 const updateImportScanState = (
   state: ImportScanState,
   match: { readonly lineIdx: number; readonly matchedId: string; readonly targetId: string },
 ): void => {
   state.lastRulesImportIdx = match.lineIdx;
-  if (
-    naturalOrder(match.matchedId, match.targetId) > AFTER_CURRENT &&
-    state.insertImportAt === NOT_FOUND
-  ) {
+  if (naturalOrder(match.matchedId, match.targetId) > 0 && state.insertImportAt === NOT_FOUND) {
     state.insertImportAt = match.lineIdx;
   }
 };
@@ -161,7 +154,7 @@ const insertRulesArrayEntry = (lines: string[], camelId: string): void => {
     marker: RULES_ARRAY_CLOSE,
     what: 'rules array closing',
   });
-  lines.splice(arrayEndIdx, INSERT_COUNT, `  ${camelId},`);
+  lines.splice(arrayEndIdx, 0, `  ${camelId},`);
 };
 
 export const insertBuiltinRuleEntries = (source: string, id: string, camelId: string): string => {
@@ -172,7 +165,7 @@ export const insertBuiltinRuleEntries = (source: string, id: string, camelId: st
 
   const lines = source.split('\n');
   const insertImportAt = findImportInsertionIndex(lines, id);
-  lines.splice(insertImportAt, INSERT_COUNT, importLine);
+  lines.splice(insertImportAt, 0, importLine);
 
   insertRulesArrayEntry(lines, camelId);
 

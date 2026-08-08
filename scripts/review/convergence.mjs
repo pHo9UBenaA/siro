@@ -21,7 +21,6 @@ const EXIT_NOT_FOUND = 1;
 const EXIT_USAGE = 2;
 const CONVERGENCE_THRESHOLD = 2;
 const CONFIRMATION_COUNT = 1;
-const EMPTY_COUNT = 0;
 const JSON_INDENT = 2;
 const JSON_REPLACER = (_key, val) => val;
 
@@ -63,12 +62,12 @@ const total = findings.length;
 const overlap = findings.filter((finding) =>
   rejectedSlugs.has(String(finding.id ?? '').toLowerCase()),
 ).length;
-let overlapRate = EMPTY_COUNT;
-if (total > EMPTY_COUNT) {
+let overlapRate = 0;
+if (total > 0) {
   overlapRate = overlap / total;
 }
 
-let cleanRunCount = EMPTY_COUNT;
+let cleanRunCount = 0;
 if (Number.isInteger(entry.clean_run_count)) {
   cleanRunCount = entry.clean_run_count;
 }

@@ -131,7 +131,6 @@ const resolveRelative = (fromRel: string, spec: string): string => {
   return path.posix.normalize(joined);
 };
 
-const FIRST_SEGMENT = 0;
 const SCOPED_SEGMENTS = 2;
 
 const packageNameOf = (spec: string): string => {
@@ -140,9 +139,10 @@ const packageNameOf = (spec: string): string => {
   }
   const segments = spec.split('/');
   if (spec.startsWith('@')) {
-    return segments.slice(FIRST_SEGMENT, SCOPED_SEGMENTS).join('/');
+    return segments.slice(0, SCOPED_SEGMENTS).join('/');
   }
-  return segments[FIRST_SEGMENT] ?? spec;
+  const [packageName = spec] = segments;
+  return packageName;
 };
 
 interface CheckImportContext {

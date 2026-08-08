@@ -17,13 +17,12 @@ const EXIT_ISSUES = 1;
 const FALLBACK_EXIT = -1;
 const JSON_INDENT = 2;
 const JSON_REPLACER = (_key, val) => val;
-const TRIMMED_EMPTY = 0;
 const { findMissingReviewAssets } = await ctx.loadLib('scripts/review/lib/preflight-assets.ts');
 
 const missingAssets = findMissingReviewAssets((relativePath) =>
   existsSync(path.join(ctx.root, relativePath)),
 );
-if (missingAssets.length > TRIMMED_EMPTY) {
+if (missingAssets.length > 0) {
   process.stdout.write(
     `${JSON.stringify({ missing_review_assets: missingAssets, ok: false }, JSON_REPLACER, JSON_INDENT)}\n`,
   );
@@ -79,7 +78,7 @@ const buildPassResult = ({ duration_ms, opts, stdout }) => {
  */
 const buildFailResult = ({ code, duration_ms, stderr, stdout }) => {
   let captured = stderr;
-  if (stderr.trim().length <= TRIMMED_EMPTY) {
+  if (stderr.trim().length === 0) {
     captured = stdout;
   }
   return {
@@ -98,7 +97,7 @@ const handleClose = ({ code, opts, resolve, startedAt, stderr, stdout }) => {
   const duration_ms = Date.now() - startedAt;
   if (code === EXIT_SUCCESS) {
     resolve(buildPassResult({ duration_ms, opts, stdout }));
-  } else if (opts.informational && code === EXIT_ISSUES && stdout.trim().length > TRIMMED_EMPTY) {
+  } else if (opts.informational && code === EXIT_ISSUES && stdout.trim().length > 0) {
     resolve({ duration_ms, exit_code: EXIT_ISSUES, ok: true, status: 'pass', stdout });
   } else {
     resolve(buildFailResult({ code, duration_ms, stderr, stdout }));

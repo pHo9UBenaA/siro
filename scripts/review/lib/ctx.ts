@@ -24,10 +24,7 @@ export interface AxisEntry {
 }
 
 const HEADING_OFFSET = 1;
-const EMPTY_LENGTH = 0;
 const LAST_ELEMENT = -1;
-const FALLBACK_ZERO = 0;
-const FIRST_ELEMENT = 0;
 const INDEX_STEP = 1;
 
 const REJECTED_HEADING = /^## (?<id>R\d+) — (?<slug>.+)$/u;
@@ -50,10 +47,10 @@ const collectBody = (
     endIdx += INDEX_STEP;
   }
   const bodyLines = lines.slice(idx + HEADING_OFFSET, endIdx);
-  while (bodyLines.length > EMPTY_LENGTH && bodyLines[FIRST_ELEMENT] === '') {
+  while (bodyLines.length > 0 && bodyLines[0] === '') {
     bodyLines.shift();
   }
-  while (bodyLines.length > EMPTY_LENGTH && bodyLines.at(LAST_ELEMENT) === '') {
+  while (bodyLines.length > 0 && bodyLines.at(LAST_ELEMENT) === '') {
     bodyLines.pop();
   }
   return { body: bodyLines.join('\n'), endIdx };
@@ -89,7 +86,7 @@ const firstSentence = (body: string): string => {
   const [firstParagraph = ''] = stripped.split(/\n\n/u, FIRST_PARAGRAPH_SPLIT_LIMIT);
   const boundary = /\.\s/gu;
   for (let bm = boundary.exec(firstParagraph); bm !== null; bm = boundary.exec(firstParagraph)) {
-    const upto = firstParagraph.slice(FALLBACK_ZERO, bm.index + SENTENCE_DOT_OFFSET);
+    const upto = firstParagraph.slice(0, bm.index + SENTENCE_DOT_OFFSET);
     if (!ABBREVIATION_END.test(upto)) {
       return upto.trim();
     }
