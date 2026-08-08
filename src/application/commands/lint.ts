@@ -8,7 +8,7 @@ import type { RepoContext } from '../../domain/ports/repo-context.ts';
 import type { Rule } from '../../domain/entities/rule.ts';
 import { UsageError } from '../../shared/errors.ts';
 import { codecFor } from '../../adapters/codecs/store.ts';
-import { createRegistry } from '../../adapters/reporters/registry.ts';
+import { DEFAULT_REPORTER_NAME, createRegistry } from '../../adapters/reporters/registry.ts';
 import { prepareRun } from '../prepare-context.ts';
 import { runLint } from '../run-lint.ts';
 
@@ -49,7 +49,7 @@ const resolveReporter = (
   registry: ReturnType<typeof createRegistry>,
 ): Reporter | undefined => {
   if (typeof value === 'undefined') {
-    return registry.get('pretty');
+    return registry.get(DEFAULT_REPORTER_NAME);
   }
   if (typeof value === 'string') {
     return registry.get(value);
