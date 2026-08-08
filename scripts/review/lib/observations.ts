@@ -1,6 +1,5 @@
 // Observation-related functions for OBSERVATIONS.md. Extracted from ctx.ts.
 
-const THIRD_CAPTURE = 3;
 const HEADING_OFFSET = 1;
 const EMPTY_LENGTH = 0;
 const LAST_ELEMENT = -1;
@@ -64,7 +63,7 @@ const findObservationTargets = (lines: string[], slug: string): number[] => {
   const targets: number[] = [];
   for (let idx = 0; idx < lines.length; idx += INDEX_STEP) {
     const match = (lines[idx] ?? '').match(OBSERVATION_HEADING);
-    if (match && match[THIRD_CAPTURE] === slug) {
+    if (match?.groups?.slug === slug) {
       targets.push(idx);
     }
   }

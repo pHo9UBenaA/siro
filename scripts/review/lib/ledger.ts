@@ -1,7 +1,6 @@
 // Ledger entry formatting and ID allocation for DECISIONS.md / REJECTED.md.
 // Extracted from ctx.ts.
 
-const FIRST_CAPTURE = 1;
 const HEADING_OFFSET = 1;
 const FALLBACK_ZERO = 0;
 const MIN_PAD_WIDTH = 2;
@@ -26,7 +25,7 @@ export const nextLedgerId = (currentMd: string, kind: LedgerKind): string => {
   const pattern = new RegExp(LEDGER_ID_PATTERN[kind], 'gmu');
   let max = FALLBACK_ZERO;
   for (const md of currentMd.matchAll(pattern)) {
-    const num = Number.parseInt(md[FIRST_CAPTURE] ?? '0', BASE_TEN);
+    const num = Number.parseInt(md.groups?.num ?? '0', BASE_TEN);
     if (num > max) {
       max = num;
     }

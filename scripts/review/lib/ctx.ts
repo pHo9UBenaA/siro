@@ -23,9 +23,6 @@ export interface AxisEntry {
   readonly oneline: string;
 }
 
-const FIRST_CAPTURE = 1;
-const SECOND_CAPTURE = 2;
-const THIRD_CAPTURE = 3;
 const HEADING_OFFSET = 1;
 const EMPTY_LENGTH = 0;
 const LAST_ELEMENT = -1;
@@ -106,9 +103,9 @@ export const parseRejected = (markdown: string): RejectedEntry[] =>
     REJECTED_HEADING,
     (line) => line.startsWith('## ') || line.startsWith('# '),
   ).map(({ match, body }) => ({
-    id: match[FIRST_CAPTURE] ?? '',
+    id: match.groups?.id ?? '',
     oneline: firstSentence(body),
-    slug: match[SECOND_CAPTURE] ?? '',
+    slug: match.groups?.slug ?? '',
   }));
 
 export const parseDecisions = (markdown: string): DecisionEntry[] =>
@@ -117,9 +114,9 @@ export const parseDecisions = (markdown: string): DecisionEntry[] =>
     DECISION_HEADING,
     (line) => line.startsWith('## ') || line.startsWith('# '),
   ).map(({ match, body }) => ({
-    id: match[FIRST_CAPTURE] ?? '',
+    id: match.groups?.id ?? '',
     oneline: firstSentence(body),
-    title: match[SECOND_CAPTURE] ?? '',
+    title: match.groups?.title ?? '',
   }));
 
 export const parseAxes = (markdown: string): AxisEntry[] =>
@@ -128,8 +125,8 @@ export const parseAxes = (markdown: string): AxisEntry[] =>
     AXIS_HEADING,
     (line) => line.startsWith('### ') || line.startsWith('## ') || line.startsWith('# '),
   ).map(({ match, body }) => ({
-    axis: match[SECOND_CAPTURE] ?? '',
-    id: match[FIRST_CAPTURE] ?? '',
+    axis: match.groups?.axis ?? '',
+    id: match.groups?.num ?? '',
     oneline: firstSentence(body),
   }));
 
@@ -138,23 +135,26 @@ export interface GetEntryOptions {
   readonly id: string;
 }
 
-const HEADING_CONFIG: Record<
-  GetEntryOptions['kind'],
-  {
-    readonly pattern: RegExp;
-    readonly isBoundary: (line: string) => boolean;
-  }
-> = {
+interface HeadingConfig {
+  readonly groups: readonly [string, string];
+  readonly pattern: RegExp;
+  readonly isBoundary: (line: string) => boolean;
+}
+
+const HEADING_CONFIG: Record<GetEntryOptions['kind'], HeadingConfig> = {
   axes: {
+    groups: ['num', 'axis'],
     isBoundary: (line) =>
       line.startsWith('### ') || line.startsWith('## ') || line.startsWith('# '),
     pattern: AXIS_HEADING,
   },
   decisions: {
+    groups: ['id', 'title'],
     isBoundary: (line) => line.startsWith('## ') || line.startsWith('# '),
     pattern: DECISION_HEADING,
   },
   rejected: {
+    groups: ['id', 'slug'],
     isBoundary: (line) => line.startsWith('## ') || line.startsWith('# '),
     pattern: REJECTED_HEADING,
   },
@@ -162,7 +162,7 @@ const HEADING_CONFIG: Record<
 
 interface MatchEntryOpts {
   readonly lines: string[];
-  readonly config: { readonly pattern: RegExp; readonly isBoundary: (line: string) => boolean };
+  readonly config: HeadingConfig;
   readonly needle: string;
   readonly idx: number;
 }
@@ -195,7 +195,8 @@ const matchEntryLine = ({ config, idx, lines, needle }: MatchEntryOpts): string 
   if (!match) {
     return;
   }
-  const candidates = [match[FIRST_CAPTURE] ?? '', match[SECOND_CAPTURE] ?? ''].map((str) =>
+  const [first, second] = config.groups;
+  const candidates = [match.groups?.[first] ?? '', match.groups?.[second] ?? ''].map((str) =>
     str.toLowerCase(),
   );
   if (!candidates.includes(needle)) {
@@ -231,10 +232,10 @@ export const parseObservations = (markdown: string): ObservationEntry[] =>
     OBSERVATION_HEADING,
     (line) => line.startsWith('## ') || line.startsWith('# '),
   ).map(({ match, body }) => ({
-    axis: match[SECOND_CAPTURE] ?? '',
-    date: match[FIRST_CAPTURE] ?? '',
+    axis: match.groups?.axis ?? '',
+    date: match.groups?.date ?? '',
     oneline: firstSentence(body),
-    slug: match[THIRD_CAPTURE] ?? '',
+    slug: match.groups?.slug ?? '',
   }));
 
 export { appendObservation, formatObservationEntry, getObservationBySlug } from './observations.ts';
