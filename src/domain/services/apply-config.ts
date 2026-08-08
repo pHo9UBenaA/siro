@@ -71,19 +71,13 @@ const applyOverride = (
 };
 
 const mergeBase = (base: readonly Rule[], config?: SiroConfig): Rule[] => {
-  let customRules: SiroConfig['customRules'] | undefined = void 0;
-  if (config) {
-    ({ customRules } = config);
-  }
+  const customRules = config?.customRules;
   return [...base, ...(customRules ?? [])];
 };
 
 export const applyConfig = (base: readonly Rule[], config?: SiroConfig): Rule[] => {
   const merged = mergeBase(base, config);
-  let overrides: SiroConfig['rules'] | undefined = void 0;
-  if (config) {
-    overrides = config.rules;
-  }
+  const overrides = config?.rules;
   if (typeof overrides === 'undefined') {
     return merged;
   }

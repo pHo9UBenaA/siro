@@ -119,10 +119,7 @@ const bunBinding: AutoRuleBinding = {
       return { state: 'ok' };
     }
     const EMPTY = 0;
-    let trusted: string[] | undefined = void 0;
-    if (ctx.packageJson) {
-      trusted = ctx.packageJson.trustedDependencies;
-    }
+    const trusted = ctx.packageJson?.trustedDependencies;
     if (typeof trusted !== 'undefined' && trusted.length === EMPTY) {
       return { state: 'ok' };
     }

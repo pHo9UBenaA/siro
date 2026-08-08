@@ -35,10 +35,7 @@ const resolveRuleSet = (
   userConfig: SiroConfig | undefined,
   customRules: readonly Rule[] | undefined,
 ): readonly Rule[] => {
-  let configCustomRules: SiroConfig['customRules'] | undefined = void 0;
-  if (userConfig) {
-    configCustomRules = userConfig.customRules;
-  }
+  const configCustomRules = userConfig?.customRules;
   const base = mergeProgrammaticRules(rules, customRules, configCustomRules);
   assertConfigRuleIdsKnown(userConfig, customRules);
   return applyConfig(base, userConfig);
@@ -50,10 +47,7 @@ const buildRunResult = (
 ): PreparedRun => {
   const { cwd, fs, pm, customRules } = options;
   const ctx = createRepoContext(cwd, fs);
-  let allowedPms: SiroConfig['pms'] | undefined = void 0;
-  if (userConfig) {
-    allowedPms = userConfig.pms;
-  }
+  const allowedPms = userConfig?.pms;
   const pms = resolvePMs(ctx, { allowed: allowedPms, pmOverride: pm });
   const ruleSet = resolveRuleSet(userConfig, customRules);
   return { ctx, pms, ruleSet, userConfig };

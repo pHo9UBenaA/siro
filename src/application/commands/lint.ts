@@ -114,10 +114,7 @@ export const lintCommand = (options: LintOptions, io: IO): Promise<number> =>
     pm: options.pm,
   }).then(({ userConfig, ctx, pms, ruleSet }) => {
     validateEmbedderReporters(options.reporters);
-    let configReporters: readonly Reporter[] = [];
-    if (userConfig && userConfig.reporters) {
-      configReporters = userConfig.reporters;
-    }
+    const configReporters = userConfig?.reporters ?? [];
     const registry = createRegistry([...(options.reporters ?? []), ...configReporters]);
     const reporter = resolveAndValidateReporter(options.reporter, registry);
     return formatAndExit({ ctx, io, options, pms, reporter, ruleSet });

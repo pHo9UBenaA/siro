@@ -11,10 +11,7 @@ const publishAccessBinding: AdvisoryRuleBinding = {
     if (!isPublishable(ctx)) {
       return { state: 'na' };
     }
-    let access: string | undefined = void 0;
-    if (ctx.packageJson && ctx.packageJson.publishConfig) {
-      ({ access } = ctx.packageJson.publishConfig);
-    }
+    const access = ctx.packageJson?.publishConfig?.access;
     if (access === 'public' || access === 'restricted') {
       return { state: 'ok' };
     }

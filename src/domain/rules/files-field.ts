@@ -13,10 +13,7 @@ const packageJsonFilesBinding: AdvisoryRuleBinding = {
     if (!isPublishable(ctx)) {
       return { state: 'na' };
     }
-    let files: string[] | undefined = void 0;
-    if (ctx.packageJson) {
-      ({ files } = ctx.packageJson);
-    }
+    const files = ctx.packageJson?.files;
     const EMPTY = 0;
     if (Array.isArray(files) && files.length > EMPTY) {
       return { state: 'ok' };

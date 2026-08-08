@@ -47,10 +47,7 @@ const DETECTION_SIGNALS: ReadonlyMap<PM, readonly string[]> = buildDetectionSign
  * touching the real disk.
  */
 const addDeclaredPM = (ctx: RepoContext, found: Set<PM>): void => {
-  let declared: string | undefined = void 0;
-  if (ctx.packageJson) {
-    declared = ctx.packageJson.packageManager;
-  }
+  const declared = ctx.packageJson?.packageManager;
   if (typeof declared === 'string') {
     const pm = parsePackageManagerField(declared);
     if (typeof pm !== 'undefined') {
