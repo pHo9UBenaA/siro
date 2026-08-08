@@ -46,8 +46,7 @@ export const mergeProgrammaticRules = (
   // appends programmatic rules (after a collision check that includes
   // configCustom in the `taken` set). Merging configCustom here as well
   // would double the customRules in the final ruleset.
-  const EMPTY = 0;
-  if (typeof programmatic === 'undefined' || programmatic.length === EMPTY) {
+  if (typeof programmatic === 'undefined' || programmatic.length === 0) {
     return builtins;
   }
   const taken = new Set<string>([
@@ -55,7 +54,7 @@ export const mergeProgrammaticRules = (
     ...(configCustom ?? []).map((rule) => rule.id),
   ]);
   const collisions = detectCollisions(programmatic, taken);
-  if (collisions.size > EMPTY) {
+  if (collisions.size > 0) {
     throwCollisionError(collisions);
   }
   return [...builtins, ...programmatic];

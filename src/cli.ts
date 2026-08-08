@@ -28,7 +28,6 @@ type ParsedCommand =
   | { kind: 'usage'; reason?: string }
   | { kind: 'lint'; cwd: AbsPath; pm?: PM; reporter: string; severity?: Severity };
 
-const EMPTY = 0;
 const EXIT_SUCCESS = 0;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
@@ -36,7 +35,7 @@ const EXIT_CRASH = 70;
 const rejectPassthrough = (flags: FlagValues): void => {
   // siro wraps no downstream tool, so anything after `--` has nowhere to go.
   const passthrough = flags['--'];
-  if (Array.isArray(passthrough) && passthrough.length > EMPTY) {
+  if (Array.isArray(passthrough) && passthrough.length > 0) {
     throw new UsageError('siro takes no passthrough arguments after `--`.');
   }
 };
@@ -63,7 +62,7 @@ const resolveCommandCandidate = (
 const SINGLE = 1;
 
 const rejectExtraPositionals = (extraPositionals: readonly unknown[]): void => {
-  if (extraPositionals.length > EMPTY) {
+  if (extraPositionals.length > 0) {
     let plural = '';
     if (extraPositionals.length > SINGLE) {
       plural = 's';

@@ -15,10 +15,8 @@ export interface RunLintOptions {
   readonly codecFor: CodecFor;
 }
 
-const EMPTY = 0;
-
 const resolveManualSteps = (raw: readonly string[] | undefined): readonly string[] | undefined => {
-  if (typeof raw !== 'undefined' && raw.length > EMPTY) {
+  if (typeof raw !== 'undefined' && raw.length > 0) {
     return raw;
   }
   return void 0;

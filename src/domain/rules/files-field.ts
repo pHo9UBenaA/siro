@@ -14,8 +14,7 @@ const packageJsonFilesBinding: AdvisoryRuleBinding = {
       return { state: 'na' };
     }
     const files = ctx.packageJson?.files;
-    const EMPTY = 0;
-    if (Array.isArray(files) && files.length > EMPTY) {
+    if (Array.isArray(files) && files.length > 0) {
       return { state: 'ok' };
     }
     return {
@@ -49,8 +48,7 @@ const denoPublishBinding: AdvisoryRuleBinding = {
       return { state: 'na' };
     }
     const include = getByPath(config, ['publish', 'include']);
-    const EMPTY = 0;
-    if (Array.isArray(include) && include.length > EMPTY) {
+    if (Array.isArray(include) && include.length > 0) {
       return { state: 'ok' };
     }
     return {

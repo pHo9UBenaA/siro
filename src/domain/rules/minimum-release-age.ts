@@ -17,13 +17,11 @@ const { npmrc, pnpmWorkspace, yarnrc, bunfig, denoJson, aubeWorkspace } = CONFIG
 // exists", and a user who set a shorter window than the recommended 3 days
 // made an explicit trade-off siro should not relitigate. Do not tighten
 // this to `>= RECOMMENDED_*` — that breaks deliberate short windows.
-const ZERO = 0;
-
-const isPositiveNumber = (value: unknown): boolean => typeof value === 'number' && value > ZERO;
+const isPositiveNumber = (value: unknown): boolean => typeof value === 'number' && value > 0;
 
 const isNonDisabledDenoDuration = (value: unknown): boolean => {
   if (typeof value === 'number') {
-    return value > ZERO;
+    return value > 0;
   }
   if (typeof value === 'string') {
     return value !== '' && value !== '0';

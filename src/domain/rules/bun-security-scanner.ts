@@ -6,8 +6,7 @@ const { bunfig } = CONFIG_FILES;
 const bunScannerBinding: AdvisoryRuleBinding = {
   check(_ctx, config) {
     const scanner = getByPath(config, ['install', 'security', 'scanner']);
-    const EMPTY = 0;
-    if (typeof scanner === 'string' && scanner.length > EMPTY) {
+    if (typeof scanner === 'string' && scanner.length > 0) {
       return { state: 'ok' };
     }
     return {

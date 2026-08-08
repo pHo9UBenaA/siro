@@ -5,7 +5,6 @@ import { SEVERITIES } from '../domain/entities/pms.ts';
 import { cac } from 'cac';
 import { version } from '../version.ts';
 
-const FIRST_INDEX = 0;
 const STEP = 1;
 const ARGS_OFFSET = 2;
 
@@ -41,7 +40,8 @@ const extractPositionalCwd = (
   args: readonly unknown[],
 ): unknown => {
   if (matchedCommand) {
-    return args[FIRST_INDEX];
+    const [cwd] = args;
+    return cwd;
   }
   return args[STEP];
 };
@@ -53,7 +53,8 @@ const extractCommandCandidate = (
   if (matchedCommand) {
     return matchedCommand;
   }
-  return args[FIRST_INDEX];
+  const [candidate] = args;
+  return candidate;
 };
 
 const extractExtraPositionals = (

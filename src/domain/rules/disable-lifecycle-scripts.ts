@@ -118,9 +118,8 @@ const bunBinding: AutoRuleBinding = {
     if (ignoreScripts === true) {
       return { state: 'ok' };
     }
-    const EMPTY = 0;
     const trusted = ctx.packageJson?.trustedDependencies;
-    if (typeof trusted !== 'undefined' && trusted.length === EMPTY) {
+    if (typeof trusted !== 'undefined' && trusted.length === 0) {
       return { state: 'ok' };
     }
     return { actual: ignoreScripts, expected: true, message: bunMessage, state: 'violation' };

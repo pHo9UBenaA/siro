@@ -146,10 +146,9 @@ const rejectDuplicateCustomRuleIds = (config: SiroConfig, name: string): void =>
   // whose ids legitimately appear in the user's `rules` map.
   // The application layer re-runs validateRuleIds with the programmatic
   // ids in `extraKnownIds` so the full known set is consulted.
-  const EMPTY = 0;
   const SINGLE = 1;
   const { duplicates } = validateRuleIds(config, builtinRules);
-  if (duplicates.length > EMPTY) {
+  if (duplicates.length > 0) {
     let plural = '';
     if (duplicates.length > SINGLE) {
       plural = 's';

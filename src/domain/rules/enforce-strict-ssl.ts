@@ -19,9 +19,8 @@ const yarnBinding: AutoRuleBinding = {
         state: 'violation',
       };
     }
-    const EMPTY = 0;
     const whitelist = getByPath(config, ['unsafeHttpWhitelist']);
-    if (Array.isArray(whitelist) && whitelist.length > EMPTY) {
+    if (Array.isArray(whitelist) && whitelist.length > 0) {
       return {
         actual: whitelist,
         expected: '',

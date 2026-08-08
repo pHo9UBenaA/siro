@@ -4,7 +4,6 @@ import type { SiroConfig } from '../domain/entities/siro-config.ts';
 import { rules as builtinRules } from '../domain/builtin-rules.ts';
 import { validateRuleIds } from '../domain/services/validate-rule-ids.ts';
 
-const EMPTY = 0;
 const SINGLE = 1;
 
 const throwUnknownIds = (unknown: readonly string[]): void => {
@@ -26,7 +25,7 @@ export const assertConfigRuleIdsKnown = (
   }
   const programmaticIds = (programmaticRules ?? []).map((rule) => rule.id);
   const { unknown } = validateRuleIds(userConfig, builtinRules, programmaticIds);
-  if (unknown.length > EMPTY) {
+  if (unknown.length > 0) {
     throwUnknownIds(unknown);
   }
 };

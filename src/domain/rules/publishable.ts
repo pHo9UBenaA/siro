@@ -5,6 +5,5 @@ export const isPublishable = (ctx: RepoContext): boolean => {
   if (typeof pkg === 'undefined') {
     return false;
   }
-  const EMPTY = 0;
-  return pkg.private !== true && typeof pkg.name === 'string' && pkg.name.length > EMPTY;
+  return pkg.private !== true && typeof pkg.name === 'string' && pkg.name.length > 0;
 };

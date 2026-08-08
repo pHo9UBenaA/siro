@@ -22,9 +22,8 @@ const throwEmptyPMsError = (
         `--pm ${opts.pmOverride} is not in siro.config.ts pms (${allowed.join(', ')}). Adjust the config or the flag.`,
       );
     }
-    const EMPTY = 0;
     let msg = `No package manager detected, and siro.config.ts restricts pms to ${allowed.join(', ')}. Adjust the config or remove the restriction.`;
-    if (detected.length > EMPTY) {
+    if (detected.length > 0) {
       msg = `Detected PMs (${detected.join(', ')}) do not match siro.config.ts pms (${allowed.join(', ')}). Adjust the config or remove the restriction.`;
     }
     throw new UsageError(msg);
@@ -62,8 +61,7 @@ const computePMs = (
 
 export const resolvePMs = (ctx: RepoContext, opts: ResolvePMsOptions): readonly PM[] => {
   const { detected, pms } = computePMs(ctx, opts);
-  const EMPTY = 0;
-  if (pms.length > EMPTY) {
+  if (pms.length > 0) {
     return pms;
   }
   throw throwEmptyPMsError(detected, opts, opts.allowed);
