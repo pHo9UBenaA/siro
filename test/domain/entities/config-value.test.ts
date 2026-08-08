@@ -25,8 +25,7 @@ describe(toParsedConfig, () => {
   it('returns an empty object for null, undefined, and primitives', () => {
     expect.hasAssertions();
     expect(toParsedConfig(JSON.parse('null'))).toStrictEqual({});
-    const [noArg]: unknown[] = [];
-    expect(toParsedConfig(noArg)).toStrictEqual({});
+    expect(toParsedConfig(void 0)).toStrictEqual({});
     expect(toParsedConfig('a string')).toStrictEqual({});
     expect(toParsedConfig(NON_OBJECT_NUMBER)).toStrictEqual({});
     expect(toParsedConfig(true)).toStrictEqual({});

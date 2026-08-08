@@ -16,10 +16,7 @@ import { type PM, PMS, type Severity } from '../../entities/pms.ts';
 import type { RepoContext } from '../../ports/repo-context.ts';
 
 type SetKeyOp = Extract<FixOp, { op: 'setKey' }>;
-type First<Tp extends readonly unknown[]> = Tp extends readonly [infer Hd, ...unknown[]]
-  ? Hd
-  : never;
-type GetByPathConfig = First<Parameters<typeof getByPath>>;
+type GetByPathConfig = Parameters<typeof getByPath>[0];
 
 interface RequireConfigKeySpec {
   readonly file: ConfigFileRef;

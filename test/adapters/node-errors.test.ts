@@ -21,8 +21,7 @@ describe(isNodeError, () => {
     expect.hasAssertions();
     expect(isNodeError('ENOENT')).toBe(false);
     expect(isNodeError({ code: 'ENOENT' })).toBe(false);
-    const [noArg]: unknown[] = [];
-    expect(isNodeError(noArg)).toBe(false);
+    expect(isNodeError(void 0)).toBe(false);
     const nullValue: unknown = JSON.parse('null');
     expect(isNodeError(nullValue)).toBe(false);
   });
