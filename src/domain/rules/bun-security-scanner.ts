@@ -1,11 +1,8 @@
 import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
-import { type VersionNote, renderVersionNoteMessage } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
 const { bunfig } = CONFIG_FILES;
-const versionNote: VersionNote = { configAvailableSince: 'bun 1.3.0' };
-
 const bunScannerBinding: AdvisoryRuleBinding = {
   check(_ctx, config) {
     const scanner = getByPath(config, ['install', 'security', 'scanner']);
@@ -15,10 +12,8 @@ const bunScannerBinding: AdvisoryRuleBinding = {
     }
     return {
       actual: scanner,
-      message: renderVersionNoteMessage(
+      message:
         'Configure `[install.security] scanner = "..."` in bunfig.toml (e.g. `@socketsecurity/bun-security-scanner`) to scan new packages on install.',
-        versionNote,
-      ),
       state: 'violation',
     };
   },
@@ -35,6 +30,7 @@ const bunScannerBinding: AdvisoryRuleBinding = {
     ];
   },
   fixKind: 'advisory',
+  versionNote: { configAvailableSince: 'bun 1.3.0' },
 };
 
 export const bunSecurityScanner: Rule = {

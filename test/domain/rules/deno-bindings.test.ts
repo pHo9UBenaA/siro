@@ -67,6 +67,13 @@ describe('deno bindings target deno.json', () => {
 });
 
 describe('pin-exact-versions × deno — binding shape', () => {
+  it('records when inline imports became available in deno.json', () => {
+    expect.hasAssertions();
+    expect(pinExactVersions.bindings.deno?.versionNote).toStrictEqual({
+      configAvailableSince: 'deno 1.30.0',
+    });
+  });
+
   const ctx = makeCtx();
   const bd = pinExactVersions.bindings.deno;
   assert(bd, 'expected binding');

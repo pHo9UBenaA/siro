@@ -65,6 +65,13 @@ export type FixOp =
  */
 export type FixKind = 'auto' | 'advisory';
 
+/** Display-only package-manager version metadata. */
+export interface VersionNote {
+  readonly configAvailableSince?: string;
+  readonly defaultSafeSince?: string;
+  readonly note?: string;
+}
+
 type SetKeyOp = Extract<FixOp, { op: 'setKey' }>;
 type AdvisoryOp = Extract<FixOp, { op: 'note' | 'ensureFileTracked' }>;
 
@@ -81,6 +88,7 @@ export interface AutoRuleBinding {
    * override always wins over both.
    */
   readonly severity?: Severity;
+  readonly versionNote?: VersionNote;
   check: (ctx: RepoContext, config: ParsedConfig) => CheckStatus;
   fix: (ctx: RepoContext) => readonly SetKeyOp[];
 }
@@ -92,6 +100,7 @@ export interface AdvisoryRuleBinding {
   readonly docs?: string;
   /** See {@link AutoRuleBinding.severity}. */
   readonly severity?: Severity;
+  readonly versionNote?: VersionNote;
   check: (ctx: RepoContext, config: ParsedConfig) => CheckStatus;
   fix: (ctx: RepoContext) => readonly AdvisoryOp[];
 }

@@ -123,13 +123,13 @@ describe('bun bindings — lifecycle scripts', () => {
         state: 'violation',
       });
     });
-    it('points users at bun 1.2.0 (when the key landed), not the 1.3 default-on prose', () => {
+    it('records bun 1.2.0 as the key introduction without 1.3 default-on prose', () => {
       expect.hasAssertions();
       const bd = disableLifecycleScripts.bindings.bun;
       assert(bd, 'expected binding');
       const res = bd.check(ctx(), {});
       assert(res.state === 'violation', 'expected violation state');
-      expect(res.message).toContain('available since bun 1.2.0');
+      expect(bd.versionNote).toStrictEqual({ configAvailableSince: 'bun 1.2.0' });
       expect(res.message).not.toContain('bun 1.3.0');
       expect(res.message).not.toMatch(/introduced the curated allow-list/u);
       expect(res.message).not.toMatch(/bun 1\.3\+/u);

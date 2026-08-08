@@ -1,5 +1,4 @@
 import assert from 'node:assert';
-import { expectMessageContains } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { approvedGitRepos } from '../../../src/domain/rules/approved-git-repos.ts';
 
@@ -54,13 +53,9 @@ describe('approved-git-repos: scope, metadata, and fix', () => {
     expect(yarnBinding.fixKind).toBe('advisory');
   });
 
-  it('includes version note in violation message', () => {
+  it('records when the setting became available', () => {
     expect.hasAssertions();
-    expectMessageContains({
-      binding: yarnBinding,
-      ctx: makeCtx(),
-      substrings: ['yarn 4.14.0'],
-    });
+    expect(yarnBinding.versionNote).toStrictEqual({ configAvailableSince: 'yarn 4.14.0' });
   });
 
   it('fix returns a note op', () => {

@@ -4,6 +4,7 @@ import type {
   ConfigFileRef,
   FixOp,
   Rule,
+  VersionNote,
 } from '../../entities/rule.ts';
 import {
   type ConfigValue,
@@ -19,22 +20,6 @@ type First<Tp extends readonly unknown[]> = Tp extends readonly [infer Hd, ...un
   ? Hd
   : never;
 type GetByPathConfig = First<Parameters<typeof getByPath>>;
-
-/**
- * Display-only metadata for a binding. siro itself is intentionally
- * version-agnostic (we never branch on the user's actual PM version) — these
- * fields exist so the rendered message can still tell the reader *when* a key
- * appeared and *when* the PM started shipping a safe default. They MUST NOT
- * be consulted by any code path that decides severity or applicability.
- */
-export interface VersionNote {
-  /** PM version that first shipped this config key (e.g. `'pnpm 10.16.0'`). */
-  readonly configAvailableSince?: string;
-  /** PM version whose built-in default first satisfies the rule (e.g. `'pnpm 11.0.0 (1440 minutes)'`). */
-  readonly defaultSafeSince?: string;
-  /** Free-form trailing note rendered last (e.g. `'replaces auto-install-peers'`). */
-  readonly note?: string;
-}
 
 interface RequireConfigKeySpec {
   readonly file: ConfigFileRef;
@@ -99,47 +84,6 @@ export const overrideBindings = (rule: Rule, overrides: Partial<Rule['bindings']
   ...rule,
   bindings: { ...rule.bindings, ...overrides },
 });
-
-/**
- * Compose `message` with the structured suffix derived from {@link VersionNote}.
- * Exported for the two hand-written bindings that can't be expressed via
- * {@link requireConfigKey}: the pnpm slot of `disable-lifecycle-scripts`
- * (two-key gate+bypass) and `bun-security-scanner` (advisory shape).
- * New rules should grow `requireConfigKey` rather than reach for this
- * helper — every additional caller raises the cost of evolving the suffix
- * format.
- */
-const buildVersionNoteParts = (versionNote: VersionNote): readonly string[] => {
-  const parts: string[] = [];
-  if (typeof versionNote.configAvailableSince !== 'undefined') {
-    parts.push(`available since ${versionNote.configAvailableSince}`);
-  }
-  if (typeof versionNote.defaultSafeSince !== 'undefined') {
-    parts.push(`default safe since ${versionNote.defaultSafeSince}`);
-  }
-  if (typeof versionNote.note !== 'undefined') {
-    parts.push(versionNote.note);
-  }
-  return parts;
-};
-
-export const renderVersionNoteMessage = (
-  message: string,
-  versionNote: VersionNote | undefined,
-): string => {
-  if (typeof versionNote === 'undefined') {
-    return message;
-  }
-  const parts = buildVersionNoteParts(versionNote);
-  // Why not throw on empty? An empty VersionNote is harmless documentation
-  // noise; treating it as a bug would force callers to either omit the field
-  // or fill it, and the omit-the-field path is already the natural default.
-  const EMPTY = 0;
-  if (parts.length === EMPTY) {
-    return message;
-  }
-  return `${message} (${parts.join('; ')})`;
-};
 
 const isDefaultOk = (spec: RequireConfigKeySpec): boolean => {
   if (spec.accept) {
@@ -224,8 +168,7 @@ const buildBinding = (
     if (typeof applies !== 'undefined' && !applies(ctx)) {
       return { state: 'na' };
     }
-    const message = renderVersionNoteMessage(spec.message, spec.versionNote);
-    return checkKeyValue(spec, config, message);
+    return checkKeyValue(spec, config, spec.message);
   },
   docs: spec.docs,
   file: spec.file,
@@ -240,6 +183,7 @@ const buildBinding = (
   },
   fixKind: 'auto',
   severity: spec.severity,
+  versionNote: spec.versionNote,
 });
 
 /** Build a Rule from a per-PM table of {file, keyPath, value, message}. */

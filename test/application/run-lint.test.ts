@@ -5,6 +5,7 @@ import type { AutoRuleBinding, Rule } from '../../src/domain/entities/rule.ts';
 import type { CodecFor, ConfigCodec } from '../../src/domain/ports/config-codec.ts';
 import { makeCtx } from '../helpers/ctx.ts';
 import { runLint } from '../../src/application/run-lint.ts';
+import { blockExoticSubdeps } from '../../src/domain/rules/block-exotic-subdeps.ts';
 
 vi.setConfig({ testTimeout: 5000 });
 
@@ -115,5 +116,21 @@ describe('per-binding severity — user config override', () => {
 
     expect(npmBinding.severity).toBe('info');
     expect(rule.severity).toBe('error');
+  });
+});
+
+describe('version notes', () => {
+  it('reports when blockExoticSubdeps became available and default-safe', () => {
+    expect.hasAssertions();
+    const { findings } = runLint({
+      codecFor: stubCodecFor,
+      ctx: makeCtx(),
+      pms: ['pnpm'],
+      ruleSet: [blockExoticSubdeps],
+    });
+    const first = findings[FIRST_ELEMENT];
+    assert(first, 'expected finding');
+    expect(first.message).toContain('available since pnpm 10.26.0');
+    expect(first.message).toContain('default safe since pnpm 10.26.0');
   });
 });

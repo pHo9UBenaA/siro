@@ -56,6 +56,13 @@ const LOCKFILE_BY_PM: readonly { pm: PM; lockfile: string }[] = [
 ];
 
 describe('commit-lockfile per-PM lockfile detection', () => {
+  it('records when deno.lock auto-discovery became available', () => {
+    expect.hasAssertions();
+    expect(commitLockfile.bindings.deno?.versionNote).toStrictEqual({
+      configAvailableSince: 'deno 1.28.0',
+    });
+  });
+
   it.each(LOCKFILE_BY_PM)(
     '$pm: ok when $lockfile exists, violation when absent',
     ({ pm, lockfile }) => {

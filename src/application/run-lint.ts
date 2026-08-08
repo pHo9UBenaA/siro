@@ -6,6 +6,7 @@ import type { CodecFor } from '../domain/ports/config-codec.ts';
 import type { RepoContext } from '../domain/ports/repo-context.ts';
 import { createConfigParser } from '../domain/services/parse-config-file.ts';
 import { decideSeverity } from '../domain/services/decide-severity.ts';
+import { renderVersionNoteMessage } from '../domain/services/render-version-note.ts';
 
 export interface RunLintOptions {
   readonly ctx: RepoContext;
@@ -51,7 +52,7 @@ const buildFinding = (visit: BindingVisit, ctx: RepoContext): Finding => {
     fix,
     fixable: binding.fixKind === 'auto' && typeof manualSteps === 'undefined',
     manualSteps,
-    message: status.message,
+    message: renderVersionNoteMessage(status.message, binding.versionNote),
     pm,
     ruleId: rule.id,
     severity,

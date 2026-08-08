@@ -52,7 +52,10 @@ const builtRule = requireConfigKey({
       message:
         'Set `blockExoticSubdeps: true` in pnpm-workspace.yaml to block git/tarball URLs in transitive dependencies.',
       value: true,
-      versionNote: { configAvailableSince: 'pnpm 10.26.0' },
+      versionNote: {
+        configAvailableSince: 'pnpm 10.26.0',
+        defaultSafeSince: 'pnpm 10.26.0',
+      },
     },
   },
   description:

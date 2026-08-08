@@ -103,6 +103,7 @@ const denoBinding: AdvisoryRuleBinding = {
     ];
   },
   fixKind: 'advisory',
+  versionNote: { configAvailableSince: 'deno 1.30.0' },
 };
 
 // Coverage notes:

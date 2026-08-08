@@ -1,14 +1,11 @@
 import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
-import { renderVersionNoteMessage } from './builders/require-config-key.ts';
 
 const { yarnrc } = CONFIG_FILES;
 
-const message = renderVersionNoteMessage(
-  'Set `approvedGitRepositories: []` in .yarnrc.yml to block all git: protocol dependencies (or list approved repository globs).',
-  { configAvailableSince: 'yarn 4.14.0' },
-);
+const message =
+  'Set `approvedGitRepositories: []` in .yarnrc.yml to block all git: protocol dependencies (or list approved repository globs).';
 
 const yarnBinding: AdvisoryRuleBinding = {
   check(_ctx, config) {
@@ -36,6 +33,7 @@ const yarnBinding: AdvisoryRuleBinding = {
     ];
   },
   fixKind: 'advisory',
+  versionNote: { configAvailableSince: 'yarn 4.14.0' },
 };
 
 export const approvedGitRepos: Rule = {
