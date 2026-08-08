@@ -172,7 +172,7 @@ const describePassthroughAndConflict = (): void => {
     const cases = [
       ['lint', '--reporter', 'github', '--json'],
       ['lint', '--reporter', 'json', '--json'],
-    ];
+    ] as const;
     return Promise.all(
       cases.map((args) =>
         runExpectCode(args).then(({ code, err }) => {

@@ -129,7 +129,7 @@ describe('loadConfig — ts config on a runtime without type stripping', () => {
 describe(isSupportedNodeVersion, () => {
   it('maps node versions to type-stripping support', () => {
     expect.hasAssertions();
-    const cases: readonly (readonly [string, boolean])[] = [
+    const cases = [
       ['20.19.0', false],
       ['22.17.9', false],
       ['22.18.0', true],
@@ -137,7 +137,7 @@ describe(isSupportedNodeVersion, () => {
       ['23.6.0', true],
       ['24.0.0', true],
       ['v24.18.0', true],
-    ];
+    ] as const satisfies readonly (readonly [string, boolean])[];
     for (const [version, expected] of cases) {
       expect(isSupportedNodeVersion(version)).toBe(expected);
     }

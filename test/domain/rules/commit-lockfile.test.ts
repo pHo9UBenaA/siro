@@ -47,13 +47,13 @@ describe('commit-lockfile (npm)', () => {
 // — the rule decides which lockfile to look for given a PM, so the assertion
 // belongs next to the rule. The table also makes it impossible to add a new
 // PM and silently forget to wire the lockfile name through.
-const LOCKFILE_BY_PM: readonly { pm: PM; lockfile: string }[] = [
+const LOCKFILE_BY_PM = [
   { lockfile: 'pnpm-lock.yaml', pm: 'pnpm' },
   { lockfile: 'yarn.lock', pm: 'yarn' },
   { lockfile: 'bun.lock', pm: 'bun' },
   { lockfile: 'deno.lock', pm: 'deno' },
   { lockfile: 'aube-lock.yaml', pm: 'aube' },
-];
+] as const satisfies readonly { pm: PM; lockfile: string }[];
 
 describe('commit-lockfile per-PM lockfile detection', () => {
   it('records when deno.lock auto-discovery became available', () => {

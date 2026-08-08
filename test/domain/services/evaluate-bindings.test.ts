@@ -44,10 +44,10 @@ describe('evaluateBindings — violation delivery', () => {
   it('invokes the visitor for every (rule, pm) binding that reports a violation', () => {
     expect.hasAssertions();
     const violating: CheckStatus = { message: 'x', state: 'violation' };
-    const ruleSet: Rule[] = [
+    const ruleSet = [
       ruleWith('a', ['npm', 'pnpm'], violating),
       ruleWith('b', ['npm'], violating),
-    ];
+    ] as const satisfies readonly Rule[];
     const visited: string[] = [];
     evaluateBindings({
       ctx: noopCtx,
@@ -63,11 +63,11 @@ describe('evaluateBindings — violation delivery', () => {
 describe('evaluateBindings — non-violation filtering', () => {
   it('skips bindings that report ok or na', () => {
     expect.hasAssertions();
-    const ruleSet: Rule[] = [
+    const ruleSet = [
       ruleWith('ok', ['npm'], { state: 'ok' }),
       ruleWith('na', ['npm'], { state: 'na' }),
       ruleWith('v', ['npm'], { message: 'x', state: 'violation' }),
-    ];
+    ] as const satisfies readonly Rule[];
     const visited: string[] = [];
     evaluateBindings({
       ctx: noopCtx,
@@ -81,7 +81,9 @@ describe('evaluateBindings — non-violation filtering', () => {
 
   it('skips PMs without a binding instead of recording N/A', () => {
     expect.hasAssertions();
-    const ruleSet: Rule[] = [ruleWith('a', ['npm'], { message: 'x', state: 'violation' })];
+    const ruleSet = [
+      ruleWith('a', ['npm'], { message: 'x', state: 'violation' }),
+    ] as const satisfies readonly Rule[];
     const visited: string[] = [];
     evaluateBindings({
       ctx: noopCtx,
@@ -102,7 +104,9 @@ describe('evaluateBindings — parser reuse', () => {
       parseCalls += SINGLE_CALL;
       return noopCodecFor(kind);
     });
-    const ruleSet: Rule[] = [ruleWith('a', ['npm'], { message: 'x', state: 'violation' })];
+    const ruleSet = [
+      ruleWith('a', ['npm'], { message: 'x', state: 'violation' }),
+    ] as const satisfies readonly Rule[];
     evaluateBindings({
       ctx: noopCtx,
       onViolation: ({ binding }) => {

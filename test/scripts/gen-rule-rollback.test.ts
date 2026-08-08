@@ -69,11 +69,11 @@ const makeDiskFullFs = (): RollbackFs => ({
 describe('rollbackWrites — ordering and restore', () => {
   it('reverses the order so the most-recently-applied write rolls back first', () => {
     expect.hasAssertions();
-    const done: GenRuleWrite[] = [
+    const done = [
       { path: '/a.ts', previousContent: 'old-a' },
       { path: '/b.ts', previousContent: 'old-b' },
       { path: '/c.ts', previousContent: void 0 },
-    ];
+    ] as const satisfies readonly GenRuleWrite[];
     const { fs, unlinks, writes } = makeFakeFs();
     rollbackWrites(done, fs, noopReporter);
     expect(unlinks).toStrictEqual(['/c.ts']);
@@ -82,7 +82,9 @@ describe('rollbackWrites — ordering and restore', () => {
 
   it('restores the previous content for entries that overwrote an existing file', () => {
     expect.hasAssertions();
-    const done: GenRuleWrite[] = [{ path: '/x.ts', previousContent: 'original' }];
+    const done = [
+      { path: '/x.ts', previousContent: 'original' },
+    ] as const satisfies readonly GenRuleWrite[];
     const { fs, writes } = makeFakeFs();
     rollbackWrites(done, fs, noopReporter);
     expect(writes).toStrictEqual([{ content: 'original', path: '/x.ts' }]);
@@ -90,7 +92,9 @@ describe('rollbackWrites — ordering and restore', () => {
 
   it('unlinks entries whose previousContent is undefined (creations)', () => {
     expect.hasAssertions();
-    const done: GenRuleWrite[] = [{ path: '/new.ts', previousContent: void 0 }];
+    const done = [
+      { path: '/new.ts', previousContent: void 0 },
+    ] as const satisfies readonly GenRuleWrite[];
     const { fs, unlinks } = makeFakeFs();
     rollbackWrites(done, fs, noopReporter);
     expect(unlinks).toStrictEqual(['/new.ts']);
