@@ -523,3 +523,9 @@ withInlineComment re-attaches a preserved trailing `# comment` with a fixed two-
 ## 2026-06-13 — spot-check — line-merge-normalises-mixed-eol-on-write-withdrawn
 
 **Withdrawn** (2026-06-13): superseded by D23 — `_merge.ts` and the entire write path were removed. The mixed-EOL normalisation this entry described no longer exists.
+
+## 2026-08-09 — architecture-drift — config-loader-cache-buster-global-counter
+
+The cache-busting counter is mutable module-global state, but its value is used only to make D24's justified dynamic-import URL unique; no command behavior otherwise depends on prior invocations.
+
+`src/adapters/config-loader.ts:91`
