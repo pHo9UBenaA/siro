@@ -78,6 +78,34 @@ describe('evaluateBindings — non-violation filtering', () => {
     expect(visited).toStrictEqual([]);
   });
 
+  it('skips a package-only custom rule for a nameless Deno application', () => {
+    expect.hasAssertions();
+    const rule: Rule = {
+      bindings: {
+        deno: {
+          check: () => ({ message: 'x', state: 'violation' }),
+          file: { kind: 'json', path: asRelPath('custom.json') },
+          fix: () => [],
+          fixKind: 'auto',
+        },
+      },
+      description: 'package-only-deno',
+      id: 'package-only-deno',
+      projectTypes: ['package'],
+      severity: 'warn',
+      title: 'package-only-deno',
+    };
+    const visited: string[] = [];
+    evaluateBindings({
+      ctx: noopCtx,
+      onViolation: ({ rule: visitedRule }) => visited.push(visitedRule.id),
+      parseConfig: createConfigParser(noopCodecFor),
+      pms: ['deno'],
+      ruleSet: [rule],
+    });
+    expect(visited).toStrictEqual([]);
+  });
+
   it('skips bindings that report ok or na', () => {
     expect.hasAssertions();
     const ruleSet = [

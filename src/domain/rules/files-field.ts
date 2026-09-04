@@ -1,7 +1,8 @@
 import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
-import { isPackageProject, isPublishable } from './publishable.ts';
+import { resolveDenoProjectType } from '../services/project-type.ts';
+import { isPublishable } from './publishable.ts';
 
 const { packageJson, denoJson } = CONFIG_FILES;
 
@@ -44,7 +45,7 @@ const packageJsonFilesBinding: AdvisoryRuleBinding = {
 // binding (whose privacy signal is `private: true` rather than missing name).
 const denoPublishBinding: AdvisoryRuleBinding = {
   check(ctx, config) {
-    if (!isPackageProject(ctx, typeof getByPath(config, ['name']) === 'string')) {
+    if (resolveDenoProjectType(ctx, config) !== 'package') {
       return { state: 'na' };
     }
     const include = getByPath(config, ['publish', 'include']);

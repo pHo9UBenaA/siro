@@ -3,7 +3,8 @@ import type { ConfigParser } from './parse-config-file.ts';
 import type { PM } from '../entities/pms.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
 import type { ProjectType } from '../entities/project-type.ts';
-import { resolvePackageJsonProjectType } from './project-type.ts';
+import { CONFIG_FILES } from '../entities/config-files.ts';
+import { resolveDenoProjectType, resolvePackageJsonProjectType } from './project-type.ts';
 
 type Violation = Extract<CheckStatus, { state: 'violation' }>;
 
@@ -28,9 +29,17 @@ const appliesToProject = (rule: Rule, projectType: RepoContext['projectType']): 
   typeof rule.projectTypes === 'undefined' ||
   rule.projectTypes.some((candidate) => candidate === projectType);
 
-const resolveBindingProjectType = (ctx: RepoContext, pm: PM): ProjectType | undefined => {
-  if (typeof ctx.projectType !== 'undefined' || pm === 'deno') {
+const resolveBindingProjectType = (
+  ctx: RepoContext,
+  pm: PM,
+  parseConfig: ConfigParser,
+): ProjectType => {
+  if (typeof ctx.projectType !== 'undefined') {
     return ctx.projectType;
+  }
+  if (pm === 'deno') {
+    const { parsed } = parseConfig(ctx, CONFIG_FILES.denoJson);
+    return resolveDenoProjectType(ctx, parsed);
   }
   return resolvePackageJsonProjectType(ctx);
 };
@@ -41,7 +50,7 @@ const evaluateRule = (rule: Rule, opts: EvaluateBindingsOptions): void => {
     const binding = rule.bindings[pm];
     if (
       typeof binding !== 'undefined' &&
-      appliesToProject(rule, resolveBindingProjectType(ctx, pm))
+      appliesToProject(rule, resolveBindingProjectType(ctx, pm, parseConfig))
     ) {
       const { parsed } = parseConfig(ctx, binding.file);
       const status = binding.check(ctx, parsed);
