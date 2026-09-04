@@ -43,9 +43,4 @@ describe('decideSeverity (runtime precedence)', () => {
     expect.hasAssertions();
     expect(decideSeverity(violation('info'), binding('warn'), rule('error'))).toBe('info');
   });
-
-  it('lets status.severity downgrade past binding.severity even when binding sets a stricter level', () => {
-    expect.hasAssertions();
-    expect(decideSeverity(violation('info'), binding('warn'), rule('error'))).toBe('info');
-  });
 });
