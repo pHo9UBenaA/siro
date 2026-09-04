@@ -141,6 +141,7 @@ A rule's severity is its default; an individual PM binding can override it. Two 
     `× aube` (`preferFrozenLockfile: true`).
   - `minimum-release-age × pnpm` (`minimumReleaseAge: 1440`),
     `× yarn` (`npmMinimalAgeGate: 1440`),
+    `× deno` (`minimumDependencyAge: 1440`),
     `× aube` (`minimumReleaseAge: 1440`).
   - `hardened-mode × yarn` (`enableHardenedMode: true`, auto-enabled only for
     PRs on public repositories).
