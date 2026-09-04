@@ -31,6 +31,27 @@ const unlinkIfExists = (fs, filePath) => {
   }
 };
 
+export const atomicWriteSync = (write, fs, tempPath) => {
+  try {
+    fs.writeFileSync(tempPath, write.nextContent, { flag: 'wx' });
+    fs.renameSync(tempPath, write.path);
+  } catch (error) {
+    try {
+      unlinkIfExists(fs, tempPath);
+    } catch (cleanupError) {
+      let cleanupMessage = String(cleanupError);
+      if (cleanupError instanceof Error) {
+        cleanupMessage = cleanupError.message;
+      }
+      throw new Error(
+        `atomic write of ${write.path} failed — ${String(error)}; temporary cleanup also failed — ${cleanupMessage}`,
+        { cause: cleanupError },
+      );
+    }
+    throw error;
+  }
+};
+
 export const rollbackWrites = (done, fs, report) => {
   for (const wr of [...done].toReversed()) {
     try {

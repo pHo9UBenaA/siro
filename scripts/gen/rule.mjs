@@ -3,10 +3,11 @@
 //   pnpm gen:rule <id>                # AutoRuleBinding (requireConfigKey)
 //   pnpm gen:rule <id> --advisory     # AdvisoryRuleBinding (custom check)
 //   pnpm gen:rule <id> --dry-run      # print the plan and exit without writing
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { createScriptContext } from '../_shared/script-runtime.mjs';
 import path from 'node:path';
-import { rollbackWrites } from './lib/rule-rollback.mjs';
+import { atomicWriteSync, rollbackWrites } from './lib/rule-rollback.mjs';
 import { shortenRollbackPaths } from './lib/rule-paths.mjs';
 
 const ARGV_SKIP = 2;
@@ -87,7 +88,8 @@ if (dryRun) {
   const applied = [];
   try {
     for (const wr of writes) {
-      writeFileSync(wr.path, wr.nextContent);
+      const tempPath = `${wr.path}.${process.pid}.${randomUUID()}.tmp`;
+      atomicWriteSync(wr, { renameSync, unlinkSync, writeFileSync }, tempPath);
       applied.push(wr);
     }
   } catch (error) {

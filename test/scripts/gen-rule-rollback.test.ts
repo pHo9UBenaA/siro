@@ -4,7 +4,7 @@ import type {
   RollbackFs,
   RollbackReporter,
 } from '../../scripts/gen/lib/rule-rollback.d.mts';
-import { rollbackWrites } from '../../scripts/gen/lib/rule-rollback.mjs';
+import { atomicWriteSync, rollbackWrites } from '../../scripts/gen/lib/rule-rollback.mjs';
 
 vi.setConfig({ testTimeout: 5000 });
 
@@ -64,6 +64,42 @@ const makeDiskFullFs = (): RollbackFs => ({
   writeFileSync: (): void => {
     throw new Error('disk full');
   },
+});
+
+describe('atomicWriteSync — failure isolation', () => {
+  it('keeps the target intact and removes a partial temp file after a staged write failure', () => {
+    expect.hasAssertions();
+    const targetPath = '/rule-id.ts';
+    const tempPath = '/rule-id.ts.tmp';
+    const files = new Map([[targetPath, 'original']]);
+    const fs = {
+      renameSync: (): void => {
+        throw new Error('rename should not be reached');
+      },
+      unlinkSync: (filePath: string): void => {
+        files.delete(filePath);
+      },
+      writeFileSync: (filePath: string): void => {
+        files.set(filePath, 'partial');
+        throw new Error('disk full');
+      },
+    };
+    let failure = '';
+    try {
+      atomicWriteSync(
+        { nextContent: 'replacement', path: targetPath, previousContent: 'original' },
+        fs,
+        tempPath,
+      );
+    } catch (error) {
+      assert(error instanceof Error, `expected Error, received ${String(error)}`);
+      failure = error.message;
+    }
+    expect({ failure, files: Array.from(files.entries()) }).toStrictEqual({
+      failure: 'disk full',
+      files: [[targetPath, 'original']],
+    });
+  });
 });
 
 describe('rollbackWrites — ordering and restore', () => {
