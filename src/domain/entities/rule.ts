@@ -1,9 +1,10 @@
-import type {
-  CodecKind,
-  ConfigReadValue,
-  ConfigValue,
-  KeyPath,
-  ParsedConfig,
+import {
+  CODEC_KINDS,
+  type CodecKind,
+  type ConfigReadValue,
+  type ConfigValue,
+  type KeyPath,
+  type ParsedConfig,
 } from './config-value.ts';
 import { type PM, type Severity, isPM, isSeverity } from './pms.ts';
 import type { RelPath } from '../../shared/paths.ts';
@@ -127,13 +128,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isOptionalString = (value: unknown): boolean =>
   typeof value === 'undefined' || typeof value === 'string';
 
-const CONFIG_FILE_KINDS: ReadonlySet<string> = new Set([
-  'npmrc',
-  'yaml',
-  'toml',
-  'json',
-  'fileGlob',
-]);
+const CONFIG_FILE_KINDS: ReadonlySet<string> = new Set([...CODEC_KINDS, 'fileGlob']);
 
 const isConfigFileRefShape = (value: unknown): value is ConfigFileRef => {
   if (!isRecord(value) || typeof value.kind !== 'string' || typeof value.path !== 'string') {
