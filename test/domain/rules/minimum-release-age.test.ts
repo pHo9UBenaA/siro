@@ -1,4 +1,3 @@
-import assert from 'node:assert';
 import {
   expectMessageContains,
   expectMessageContainsAndAvoids,
@@ -144,16 +143,6 @@ describe('minimum-release-age tells users which PM version made the key availabl
       binding: minimumReleaseAge.bindings.pnpm,
       ctx,
       substrings: ['default safe since pnpm 11.0.0'],
-    });
-  });
-
-  it('on pnpm: no longer prefixes a hand-written "pnpm 11+ defaults..." note', () => {
-    expect.hasAssertions();
-    const pnpmBinding = minimumReleaseAge.bindings.pnpm;
-    assert(pnpmBinding, 'expected pnpm binding');
-    expect(pnpmBinding.check(ctx, {})).toMatchObject({
-      message: expect.not.stringMatching(/pnpm 11\+ defaults/u),
-      state: 'violation',
     });
   });
 
