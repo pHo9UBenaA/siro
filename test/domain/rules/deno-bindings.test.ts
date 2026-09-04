@@ -179,6 +179,12 @@ describe('pin-exact-versions × deno — single-specifier violations', () => {
     expect(res.state).toBe('violation');
   });
 
+  it('violation when an npm import uses a partial numeric version', () => {
+    expect.hasAssertions();
+    const config = { imports: { foo: 'npm:foo@16' } };
+    expect(bd.check(ctx, config).state).toBe('violation');
+  });
+
   it('flags wildcard-segment specifiers (1.x / 1.* / 1.0.x) as ranges', () => {
     expect.hasAssertions();
     const status = bd.check(ctx, {

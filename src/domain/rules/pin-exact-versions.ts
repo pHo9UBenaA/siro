@@ -24,9 +24,14 @@ const hasWildcardSegment = (spec: string): boolean => {
 };
 
 const RANGE_OPERATOR = /[\^~]|>=|<=|<|>|\|\||\s/u;
+const INCOMPLETE_NUMERIC_VERSION = /^\d+(?:\.\d+)?(?:-|$)/u;
 
 const isRangeSpec = (spec: string): boolean =>
-  spec === '' || spec === '*' || RANGE_OPERATOR.test(spec) || hasWildcardSegment(spec);
+  spec === '' ||
+  spec === '*' ||
+  RANGE_OPERATOR.test(spec) ||
+  INCOMPLETE_NUMERIC_VERSION.test(spec) ||
+  hasWildcardSegment(spec);
 
 const AFTER_AT_SIGN = 1;
 
