@@ -15,6 +15,7 @@ const BUILTINS = [
 ] as const satisfies readonly Reporter[];
 
 export const DEFAULT_REPORTER_NAME = prettyReporter.name;
+export const JSON_REPORTER_NAME = jsonReporter.name;
 
 /** Names of every built-in reporter, in stable display order. */
 export const BUILTIN_REPORTER_NAMES: readonly BuiltinReporterName[] = BUILTINS.map(

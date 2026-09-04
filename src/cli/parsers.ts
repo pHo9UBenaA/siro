@@ -6,7 +6,11 @@ import {
   isPM,
   isSeverity,
 } from '../domain/entities/pms.ts';
-import { BUILTIN_REPORTER_NAMES, DEFAULT_REPORTER_NAME } from '../adapters/reporters/registry.ts';
+import {
+  BUILTIN_REPORTER_NAMES,
+  DEFAULT_REPORTER_NAME,
+  JSON_REPORTER_NAME,
+} from '../adapters/reporters/registry.ts';
 import type { FlagValues } from './flags.ts';
 import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../shared/node-version.ts';
 import { UsageError } from '../shared/errors.ts';
@@ -88,7 +92,7 @@ export const resolveReporter = (flags: FlagValues): string => {
     return flags.reporter;
   }
   if (flags.json === true) {
-    return 'json';
+    return JSON_REPORTER_NAME;
   }
   return DEFAULT_REPORTER_NAME;
 };
