@@ -1,4 +1,4 @@
-import { toParsedConfig } from '../../../src/domain/entities/config-value.ts';
+import { getByPath, toParsedConfig } from '../../../src/domain/entities/config-value.ts';
 
 vi.setConfig({ testTimeout: 5000 });
 
@@ -43,5 +43,12 @@ describe(toParsedConfig, () => {
     const input: Record<string, unknown> = Object.create(null);
     input.foo = 'bar';
     expect(toParsedConfig(input)).toBe(input);
+  });
+});
+
+describe(getByPath, () => {
+  it('returns undefined for an inherited property', () => {
+    expect.hasAssertions();
+    expect(getByPath({}, ['constructor'])).toBeUndefined();
   });
 });

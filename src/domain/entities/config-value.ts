@@ -59,6 +59,9 @@ export const getByPath = (
     if (!isParsedConfigObject(current)) {
       return;
     }
+    if (!Object.hasOwn(current, key)) {
+      return;
+    }
     current = current[key];
   }
   return current;
