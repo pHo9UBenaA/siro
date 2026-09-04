@@ -10,6 +10,7 @@
 ### Fixes
 
 - Programmatic `lintCommand` calls reject unsupported project type, package manager, and severity values instead of returning misleading results.
+- Unscoped Deno rules no longer read `deno.json` solely for project-type inference.
 - The published `package.json#bin` preserves exit code 70 when a reporter or custom rule crashes, and subprocess tests now execute that declared bin directly.
 
 ## [0.2.0]
