@@ -143,6 +143,12 @@ Conventions:
 | ---- | --------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------- |
 | yarn | `approvedGitRepositories` (.yarnrc.yml) | **yarn 4.14.0** ([release](https://github.com/yarnpkg/berry/releases/tag/%40yarnpkg%2Fcli%2F4.14.0)) | n/a                | Empty array blocks all git protocol dependencies. |
 
+## `strict-store-integrity`
+
+| PM   | Key                                                                  | Available since                              | Default safe since          | Notes                                                                                                                                                                                                                                                                                                                                                                           |
+| ---- | -------------------------------------------------------------------- | -------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| aube | `strictStoreIntegrity`, `verifyStoreIntegrity` (aube-workspace.yaml) | TBD (current official source is unversioned) | n/a (strict mode is opt-in) | `paranoid` forces strict mode, but does not force verification. Explicit `verifyStoreIntegrity: false` bypasses the import guard and requires manual remediation ([settings](https://github.com/aubepkg/aube/blob/main/crates/aube-settings/settings.toml), [import guard](https://github.com/aubepkg/aube/blob/main/crates/aube/src/commands/install/lifecycle.rs#L782-L799)). |
+
 ## Maintenance
 
 When updating a cell:

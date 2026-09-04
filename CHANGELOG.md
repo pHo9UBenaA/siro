@@ -9,7 +9,7 @@
 - Treat npm 12's default URL restrictions as safe informational pins and recommend `none` without weakening defaults.
 - Stop accepting `npm-shrinkwrap.json` as lockfile protection under the latest npm policy; preserve npm detection from that legacy file.
 - Treat Aube frozen-lockfile enforcement as command guidance, not an automatic `preferFrozenLockfile` fix.
-- Honor Aube's `paranoid` switch across its six forced security controls.
+- Honor Aube's `paranoid` switch across its six forced security controls; explicitly disabled integrity verification still requires manual remediation.
 
 ### Security and documentation
 
