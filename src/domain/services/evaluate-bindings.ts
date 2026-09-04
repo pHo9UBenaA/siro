@@ -2,6 +2,8 @@ import type { CheckStatus, Rule, RuleBinding } from '../entities/rule.ts';
 import type { ConfigParser } from './parse-config-file.ts';
 import type { PM } from '../entities/pms.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
+import type { ProjectType } from '../entities/project-type.ts';
+import { resolvePackageJsonProjectType } from './project-type.ts';
 
 type Violation = Extract<CheckStatus, { state: 'violation' }>;
 
@@ -26,11 +28,21 @@ const appliesToProject = (rule: Rule, projectType: RepoContext['projectType']): 
   typeof rule.projectTypes === 'undefined' ||
   rule.projectTypes.some((candidate) => candidate === projectType);
 
+const resolveBindingProjectType = (ctx: RepoContext, pm: PM): ProjectType | undefined => {
+  if (typeof ctx.projectType !== 'undefined' || pm === 'deno') {
+    return ctx.projectType;
+  }
+  return resolvePackageJsonProjectType(ctx);
+};
+
 const evaluateRule = (rule: Rule, opts: EvaluateBindingsOptions): void => {
   const { ctx, pms, parseConfig, onViolation } = opts;
   for (const pm of pms) {
     const binding = rule.bindings[pm];
-    if (typeof binding !== 'undefined') {
+    if (
+      typeof binding !== 'undefined' &&
+      appliesToProject(rule, resolveBindingProjectType(ctx, pm))
+    ) {
       const { parsed } = parseConfig(ctx, binding.file);
       const status = binding.check(ctx, parsed);
       if (status.state === 'violation') {
@@ -47,10 +59,8 @@ const evaluateRule = (rule: Rule, opts: EvaluateBindingsOptions): void => {
  * in a single location so the call site (`runLint`) stays declarative.
  */
 export const evaluateBindings = (opts: EvaluateBindingsOptions): void => {
-  const { ctx, ruleSet } = opts;
+  const { ruleSet } = opts;
   for (const rule of ruleSet) {
-    if (appliesToProject(rule, ctx.projectType)) {
-      evaluateRule(rule, opts);
-    }
+    evaluateRule(rule, opts);
   }
 };

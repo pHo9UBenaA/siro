@@ -61,6 +61,23 @@ describe('evaluateBindings — violation delivery', () => {
 });
 
 describe('evaluateBindings — non-violation filtering', () => {
+  it('skips a package-only custom rule for an inferred application', () => {
+    expect.hasAssertions();
+    const rule: Rule = {
+      ...ruleWith('package-only', ['npm'], { message: 'x', state: 'violation' }),
+      projectTypes: ['package'],
+    };
+    const visited: string[] = [];
+    evaluateBindings({
+      ctx: { ...noopCtx, packageJson: { name: 'private-app', private: true } },
+      onViolation: ({ rule: visitedRule }) => visited.push(visitedRule.id),
+      parseConfig: createConfigParser(noopCodecFor),
+      pms: ['npm'],
+      ruleSet: [rule],
+    });
+    expect(visited).toStrictEqual([]);
+  });
+
   it('skips bindings that report ok or na', () => {
     expect.hasAssertions();
     const ruleSet = [
