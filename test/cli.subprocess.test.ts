@@ -2,7 +2,7 @@ const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -69,6 +69,25 @@ describe.skipIf(!DIST_PRESENT)('CLI binary — lint behaviour', () => {
     expect(ids).toContain('disable-lifecycle-scripts');
   });
 });
+
+describe.skipIf(!DIST_PRESENT || process.platform === 'win32')(
+  'CLI binary — installed symlink',
+  () => {
+    test('prints the version when invoked through an installation-style bin symlink', () => {
+      expect.hasAssertions();
+      const dir = mkdtempSync(path.join(tmpdir(), 'siro-bin-'));
+      try {
+        const installedBin = path.join(dir, 'siro');
+        symlinkSync(DIST_BIN, installedBin);
+        const result = spawnSync(installedBin, ['--version'], { encoding: 'utf8' });
+        expect(result.status, `stderr: ${result.stderr}`).toBe(EXIT_SUCCESS);
+        expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+(?:-[\w.]+)?(?:\+[\w.]+)?$/u);
+      } finally {
+        rmSync(dir, { force: true, recursive: true });
+      }
+    });
+  },
+);
 
 describe.skipIf(!DIST_PRESENT)('CLI binary — version and flags', () => {
   test('prints the version on --version and exits 0', () => {
