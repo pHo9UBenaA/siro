@@ -18,13 +18,17 @@ const { npmrc, pnpmWorkspace, yarnrc, bunfig, denoJson, aubeWorkspace } = CONFIG
 // made an explicit trade-off siro should not relitigate. Do not tighten
 // this to `>= RECOMMENDED_*` — that breaks deliberate short windows.
 const isPositiveNumber = (value: unknown): boolean => typeof value === 'number' && value > 0;
+const DENO_ZERO_DURATION = 'P0D';
 
 const isNonDisabledDenoDuration = (value: unknown): boolean => {
   if (typeof value === 'number') {
     return value > 0;
   }
   if (typeof value === 'string') {
-    return value !== '' && value !== '0';
+    return value !== '' && value !== '0' && value !== DENO_ZERO_DURATION;
+  }
+  if (typeof value === 'object' && value !== null && 'age' in value) {
+    return isNonDisabledDenoDuration(value.age);
   }
   return typeof value === 'object' && value !== null;
 };
