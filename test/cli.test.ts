@@ -98,6 +98,16 @@ const describeFlagInteraction = (): void => {
       expect(out).toContain('siro lint —');
     });
   });
+
+  test('does not mistake a normalized projectType value for the help target', () => {
+    expect.hasAssertions();
+    return runExpectCode(['--projectType', 'application', 'lint', '--help']).then(
+      ({ code, out }) => {
+        expect(code).toBe(EXIT_OK);
+        expect(out).toContain('siro lint —');
+      },
+    );
+  });
 };
 
 const describeUsageErrors = (): void => {

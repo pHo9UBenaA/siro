@@ -34,7 +34,7 @@ const flagCliName = (
 const VALUE_FLAGS: ReadonlySet<string> = new Set(
   Object.entries(FLAGS)
     .filter(([, meta]) => meta.takesValue)
-    .map(([name, meta]) => flagCliName(name, meta)),
+    .flatMap(([name, meta]) => [name, flagCliName(name, meta)]),
 );
 
 const LINT_FLAGS = [
