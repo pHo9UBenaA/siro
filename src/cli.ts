@@ -238,14 +238,12 @@ const onRunRejected = (error: unknown): void => {
   process.exitCode = EXIT_CRASH;
 };
 
+export const runMain = (argv: readonly string[]): Promise<void> =>
+  run(argv).then(onRunFulfilled, onRunRejected);
+
 const ARGV_SKIP = 2;
 const [, invokedPath] = process.argv;
 const isDirectInvocation = invokedPath && import.meta.url === pathToFileURL(invokedPath).href;
 if (isDirectInvocation) {
-  try {
-    const code = await run(process.argv.slice(ARGV_SKIP));
-    onRunFulfilled(code);
-  } catch (error: unknown) {
-    onRunRejected(error);
-  }
+  await runMain(process.argv.slice(ARGV_SKIP));
 }
