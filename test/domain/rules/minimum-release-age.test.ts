@@ -79,6 +79,11 @@ describe('minimum-release-age (deno)', () => {
     ).toStrictEqual(['violation', 'violation']);
   });
 
+  it('flags an equivalent zero-duration cooldown', () => {
+    expect.hasAssertions();
+    expect(deno.check(ctx, { minimumDependencyAge: 'PT0S' }).state).toBe('violation');
+  });
+
   it('flags a violation when minimumDependencyAge is unset', () => {
     expect.hasAssertions();
     expect(deno.check(ctx, {}).state).toBe('violation');
