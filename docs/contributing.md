@@ -66,7 +66,7 @@ boundary the test crosses:
   drives the published binary so packaging regressions (shebang,
   exit-code routing, module bundling) surface. The block is gated via
   `describe.skipIf(!existsSync(DIST_BIN))` so a clean checkout silently
-  skips it; CI, review preflight, and prepublish build before testing so the
+  skips it; CI and prepublish build before testing so the
   packaged binary is always exercised there.
 
 Committed fixtures under `test/fixtures/` cover each PM with a `-good`

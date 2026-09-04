@@ -4,7 +4,7 @@
 // editors still want types — hence this declaration file.
 //
 // Drivers may live at any depth under `scripts/` (top-level or nested
-// per-context dirs like `scripts/gen/`, `scripts/review/`). See the
+// per-context dirs like `scripts/gen/` and `scripts/bench/`). See the
 // implementation file for how root and name are derived from the path.
 
 export interface ScriptContextDeps {

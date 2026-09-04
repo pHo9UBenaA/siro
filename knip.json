@@ -6,8 +6,6 @@
     "scripts/check/*.mjs",
     "scripts/gen/*.mjs",
     "scripts/bench/*.mjs",
-    "scripts/review/*.mjs",
-    "scripts/review/lib/scan-*.mjs",
     "scripts/**/*.d.mts!",
     "test/**/*.test.ts",
     "bench/**/*.bench.ts"

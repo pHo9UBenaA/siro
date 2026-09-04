@@ -37,7 +37,7 @@ const throwEmptyPMsError = (
  * needs. Throws `UsageError` for the two empty-set cases so the
  * caller never has to invent its own messaging.
  *
- * Empty-set branches are usage errors, not silent npm fallback: see DECISIONS.md D08.
+ * Empty-set branches are usage errors, not a silent npm fallback.
  */
 const computePMs = (
   ctx: RepoContext,
