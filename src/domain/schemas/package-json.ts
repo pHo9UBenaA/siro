@@ -10,7 +10,7 @@ import * as vb from 'valibot';
  * A malformed value reads as "absent" — EXCEPT `private`, which falls back to
  * `true`: a security tool must never flip a broken `private` into publishable.
  */
-const [ABSENT]: undefined[] = [];
+const ABSENT = void 0;
 const optionalString = vb.fallback(vb.optional(vb.string()), ABSENT);
 const PackageJsonSchema = vb.looseObject({
   files: vb.fallback(vb.optional(vb.array(vb.string())), ABSENT),

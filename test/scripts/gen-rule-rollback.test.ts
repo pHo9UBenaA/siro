@@ -4,7 +4,7 @@ import type {
   RollbackFs,
   RollbackReporter,
 } from '../../scripts/gen/lib/rule-rollback.d.mts';
-import { rollbackWrites } from '../../scripts/gen/lib/rule-rollback.mjs';
+import { atomicWriteSync, rollbackWrites } from '../../scripts/gen/lib/rule-rollback.mjs';
 
 vi.setConfig({ testTimeout: 5000 });
 
@@ -66,14 +66,50 @@ const makeDiskFullFs = (): RollbackFs => ({
   },
 });
 
+describe('atomicWriteSync — failure isolation', () => {
+  it('keeps the target intact and removes a partial temp file after a staged write failure', () => {
+    expect.hasAssertions();
+    const targetPath = '/rule-id.ts';
+    const tempPath = '/rule-id.ts.tmp';
+    const files = new Map([[targetPath, 'original']]);
+    const fs = {
+      renameSync: (): void => {
+        throw new Error('rename should not be reached');
+      },
+      unlinkSync: (filePath: string): void => {
+        files.delete(filePath);
+      },
+      writeFileSync: (filePath: string): void => {
+        files.set(filePath, 'partial');
+        throw new Error('disk full');
+      },
+    };
+    let failure = '';
+    try {
+      atomicWriteSync(
+        { nextContent: 'replacement', path: targetPath, previousContent: 'original' },
+        fs,
+        tempPath,
+      );
+    } catch (error) {
+      assert(error instanceof Error, `expected Error, received ${String(error)}`);
+      failure = error.message;
+    }
+    expect({ failure, files: Array.from(files.entries()) }).toStrictEqual({
+      failure: 'disk full',
+      files: [[targetPath, 'original']],
+    });
+  });
+});
+
 describe('rollbackWrites — ordering and restore', () => {
   it('reverses the order so the most-recently-applied write rolls back first', () => {
     expect.hasAssertions();
-    const done: GenRuleWrite[] = [
+    const done = [
       { path: '/a.ts', previousContent: 'old-a' },
       { path: '/b.ts', previousContent: 'old-b' },
       { path: '/c.ts', previousContent: void 0 },
-    ];
+    ] as const satisfies readonly GenRuleWrite[];
     const { fs, unlinks, writes } = makeFakeFs();
     rollbackWrites(done, fs, noopReporter);
     expect(unlinks).toStrictEqual(['/c.ts']);
@@ -82,7 +118,9 @@ describe('rollbackWrites — ordering and restore', () => {
 
   it('restores the previous content for entries that overwrote an existing file', () => {
     expect.hasAssertions();
-    const done: GenRuleWrite[] = [{ path: '/x.ts', previousContent: 'original' }];
+    const done = [
+      { path: '/x.ts', previousContent: 'original' },
+    ] as const satisfies readonly GenRuleWrite[];
     const { fs, writes } = makeFakeFs();
     rollbackWrites(done, fs, noopReporter);
     expect(writes).toStrictEqual([{ content: 'original', path: '/x.ts' }]);
@@ -90,7 +128,9 @@ describe('rollbackWrites — ordering and restore', () => {
 
   it('unlinks entries whose previousContent is undefined (creations)', () => {
     expect.hasAssertions();
-    const done: GenRuleWrite[] = [{ path: '/new.ts', previousContent: void 0 }];
+    const done = [
+      { path: '/new.ts', previousContent: void 0 },
+    ] as const satisfies readonly GenRuleWrite[];
     const { fs, unlinks } = makeFakeFs();
     rollbackWrites(done, fs, noopReporter);
     expect(unlinks).toStrictEqual(['/new.ts']);

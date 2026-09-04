@@ -2,10 +2,11 @@ const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
+import { object, parse, string } from 'valibot';
 
 vi.setConfig({ testTimeout: 5000 });
 
@@ -22,8 +23,20 @@ const parseJsonOutput = (
   }
 };
 
-const DIST_BIN = path.join(import.meta.dirname, '..', 'dist', 'cli.mjs');
+const REPO_ROOT = path.join(import.meta.dirname, '..');
+const packageManifest = parse(
+  object({ bin: object({ siro: string() }) }),
+  JSON.parse(readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8')),
+);
+const DIST_BIN = path.resolve(REPO_ROOT, packageManifest.bin.siro);
 const FIXTURES = path.join(import.meta.dirname, 'fixtures');
+
+const spawnBin = (args: readonly string[]) => {
+  if (process.platform === 'win32') {
+    return spawnSync(process.execPath, [DIST_BIN, ...args], { encoding: 'utf8' });
+  }
+  return spawnSync(DIST_BIN, args, { encoding: 'utf8' });
+};
 
 // The rest of the suite drives `run()` from src/cli.ts in-process — fast,
 // but it never exercises the published bin: the shebang, `process.argv`
@@ -49,11 +62,7 @@ if (!DIST_PRESENT && process.env.CI === 'true') {
 describe.skipIf(!DIST_PRESENT)('CLI binary — lint behaviour', () => {
   test('lints a known-bad fixture and exits 1 with structured JSON output', () => {
     expect.hasAssertions();
-    const result = spawnSync(
-      process.execPath,
-      [DIST_BIN, 'lint', '--reporter', 'json', path.join(FIXTURES, 'npm-bad')],
-      { encoding: 'utf8' },
-    );
+    const result = spawnBin(['lint', '--reporter', 'json', path.join(FIXTURES, 'npm-bad')]);
     expect(result.status, `stderr: ${result.stderr}`).toBe(EXIT_FAILURE);
     const parsed = parseJsonOutput(result.stdout, result.stderr);
     const ids = parsed.findings.map((finding) => finding.ruleId);
@@ -61,25 +70,59 @@ describe.skipIf(!DIST_PRESENT)('CLI binary — lint behaviour', () => {
   });
 });
 
+describe.skipIf(!DIST_PRESENT || process.platform === 'win32')(
+  'CLI binary — installed symlink',
+  () => {
+    test('prints the version when invoked through an installation-style bin symlink', () => {
+      expect.hasAssertions();
+      const dir = mkdtempSync(path.join(tmpdir(), 'siro-bin-'));
+      try {
+        const installedBin = path.join(dir, 'siro');
+        symlinkSync(DIST_BIN, installedBin);
+        const result = spawnSync(installedBin, ['--version'], { encoding: 'utf8' });
+        expect(result.status, `stderr: ${result.stderr}`).toBe(EXIT_SUCCESS);
+        expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+(?:-[\w.]+)?(?:\+[\w.]+)?$/u);
+      } finally {
+        rmSync(dir, { force: true, recursive: true });
+      }
+    });
+  },
+);
+
 describe.skipIf(!DIST_PRESENT)('CLI binary — version and flags', () => {
   test('prints the version on --version and exits 0', () => {
     expect.hasAssertions();
-    const result = spawnSync(process.execPath, [DIST_BIN, '--version'], { encoding: 'utf8' });
+    const result = spawnBin(['--version']);
     expect(result.status).toBe(EXIT_SUCCESS);
     expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+(?:-[\w.]+)?(?:\+[\w.]+)?$/u);
   });
 
   test('returns exit 2 with a UsageError on an unknown flag', () => {
     expect.hasAssertions();
-    const result = spawnSync(process.execPath, [DIST_BIN, 'lint', '--no-such-flag'], {
-      encoding: 'utf8',
-    });
+    const result = spawnBin(['lint', '--no-such-flag']);
     expect(result.status).toBe(EXIT_USAGE);
     expect(result.stderr).toMatch(/Unknown flag/u);
   });
 });
 
 describe.skipIf(!DIST_PRESENT)('CLI binary — error handling', () => {
+  test('exits 2 when a config contains a malformed custom rule', () => {
+    expect.hasAssertions();
+    const dir = mkdtempSync(path.join(tmpdir(), 'siro-invalid-rule-'));
+    try {
+      writeFileSync(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ name: 'demo', packageManager: 'pnpm@10.0.0' }),
+      );
+      writeFileSync(path.join(dir, 'siro.config.mjs'), 'export default { customRules: [null] };\n');
+      const result = spawnBin(['lint', dir]);
+      expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(EXIT_USAGE);
+      expect(result.stderr).toMatch(/customRules\.0/iu);
+    } finally {
+      rmSync(dir, { force: true, recursive: true });
+    }
+  });
+
   test('exits 70 when a config reporter throws (uncaught user-extension error)', () => {
     expect.hasAssertions();
     const dir = mkdtempSync(path.join(tmpdir(), 'siro-boom-'));
@@ -92,9 +135,7 @@ describe.skipIf(!DIST_PRESENT)('CLI binary — error handling', () => {
         path.join(dir, 'siro.config.ts'),
         "export default { reporters: [{ name: 'boom', format() { throw new Error('boom from reporter'); } }] };\n",
       );
-      const result = spawnSync(process.execPath, [DIST_BIN, 'lint', '--reporter', 'boom', dir], {
-        encoding: 'utf8',
-      });
+      const result = spawnBin(['lint', '--reporter', 'boom', dir]);
       expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(EXIT_CRASH);
     } finally {
       rmSync(dir, { force: true, recursive: true });

@@ -267,9 +267,9 @@ describe('shared bench constants', () => {
     }).not.toThrow();
   });
 
-  it('freezes noopIO so a stateful-reporter regression surfaces as a TypeError, not silent drift', () => {
+  it('prevents callers from replacing noopIO functions', () => {
     expect.hasAssertions();
-    expect(Object.isFrozen(noopIO)).toBe(true);
+    expect(Reflect.set(noopIO, 'stdout', noopIO.stdout)).toBe(false);
   });
 
   it('keeps WARMUP_MS small enough relative to MEASURE_MS to stay inside the ~3s laptop budget', () => {

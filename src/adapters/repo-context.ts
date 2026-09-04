@@ -4,6 +4,7 @@ import { nodeFileSystem, resolveIn } from './node-file-system.ts';
 import { ConfigError } from '../shared/errors.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import type { RepoContext } from '../domain/ports/repo-context.ts';
+import type { ProjectType } from '../domain/entities/project-type.ts';
 
 const tryParseJson = (text: string): unknown => {
   try {
@@ -25,7 +26,11 @@ const parsePackageJson = (raw: string): PackageJson | undefined => {
   return safeParsePackageJson(parsed);
 };
 
-export const createRepoContext = (root: AbsPath, fs: FileSystem = nodeFileSystem): RepoContext => {
+export const createRepoContext = (
+  root: AbsPath,
+  fs: FileSystem = nodeFileSystem,
+  projectType?: ProjectType,
+): RepoContext => {
   const readText = (relPath: RelPath): string | undefined => fs.readText(resolveIn(root, relPath));
   const exists = (relPath: RelPath): boolean => fs.exists(resolveIn(root, relPath));
 
@@ -35,5 +40,5 @@ export const createRepoContext = (root: AbsPath, fs: FileSystem = nodeFileSystem
     packageJson = parsePackageJson(raw);
   }
 
-  return { exists, packageJson, readText, root };
+  return { exists, packageJson, projectType, readText, root };
 };

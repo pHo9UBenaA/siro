@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, CheckStatus, Rule } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, type CheckStatus, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { type ConfigReadValue, type ParsedConfig, getByPath } from '../entities/config-value.ts';
 
@@ -41,7 +41,7 @@ const yarnBinding: AdvisoryRuleBinding = {
   fixKind: 'advisory',
 };
 
-export const auditSuppression: Rule = {
+export const auditSuppression = defineRule({
   bindings: { yarn: yarnBinding },
   description:
     'Flag audit advisory suppressions that may silently hide future vulnerabilities via broad glob patterns.',
@@ -49,4 +49,4 @@ export const auditSuppression: Rule = {
   id: 'audit-suppression',
   severity: 'info',
   title: 'Review audit suppression entries',
-};
+});

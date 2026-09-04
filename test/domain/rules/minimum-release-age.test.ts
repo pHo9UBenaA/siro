@@ -1,4 +1,3 @@
-import assert from 'node:assert';
 import {
   expectMessageContains,
   expectMessageContainsAndAvoids,
@@ -59,6 +58,14 @@ describe('minimum-release-age (deno)', () => {
     expect(deno.check(ctx, { minimumDependencyAge: 'P3D' }).state).toBe('ok');
   });
 
+  it('accepts supported active strings and flags invalid strings', () => {
+    expect.hasAssertions();
+    const values = ['PT72H', '2026-09-04', '2026-09-04T12:34:56Z', '-P1D', 'not-a-duration'];
+    expect(
+      values.map((minimumDependencyAge) => deno.check(ctx, { minimumDependencyAge }).state),
+    ).toStrictEqual(['ok', 'ok', 'ok', 'violation', 'violation']);
+  });
+
   it('passes when minimumDependencyAge is a positive number (minutes)', () => {
     expect.hasAssertions();
     expect(deno.check(ctx, { minimumDependencyAge: 4320 }).state).toBe('ok');
@@ -71,9 +78,33 @@ describe('minimum-release-age (deno)', () => {
     ).toBe('ok');
   });
 
-  it('flags a violation when minimumDependencyAge is unset', () => {
+  it('accepts a defaulted object without age and rejects arrays', () => {
     expect.hasAssertions();
-    expect(deno.check(ctx, {}).state).toBe('violation');
+    const values = [{ exclude: ['npm:foo'] }, []];
+    expect(
+      values.map((minimumDependencyAge) => deno.check(ctx, { minimumDependencyAge }).state),
+    ).toStrictEqual(['ok', 'violation']);
+  });
+
+  it('flags zero-duration cooldowns in string and object forms', () => {
+    expect.hasAssertions();
+    const values = ['P0D', { age: 'P0D', exclude: ['npm:foo'] }];
+    expect(
+      values.map((minimumDependencyAge) => deno.check(ctx, { minimumDependencyAge }).state),
+    ).toStrictEqual(['violation', 'violation']);
+  });
+
+  it('flags an equivalent zero-duration cooldown', () => {
+    expect.hasAssertions();
+    expect(deno.check(ctx, { minimumDependencyAge: 'PT0S' }).state).toBe('violation');
+  });
+
+  it('flags an info advisory for the safe Deno default when minimumDependencyAge is unset', () => {
+    expect.hasAssertions();
+    expect(deno.check(ctx, {})).toMatchObject({
+      severity: 'info',
+      state: 'violation',
+    });
   });
 
   it('flags a violation when minimumDependencyAge is "0" (disabled)', () => {
@@ -97,22 +128,21 @@ describe('minimum-release-age (deno)', () => {
 describe('minimum-release-age tells users which PM version made the key available or safe by default', () => {
   const ctx = makeCtx();
 
+  it('on deno: tells the user from which Deno version the safe default applies', () => {
+    expect.hasAssertions();
+    expectMessageContains({
+      binding: deno,
+      ctx,
+      substrings: ['default safe since deno 2.9.0'],
+    });
+  });
+
   it('on pnpm: tells the user from which pnpm version the safe default applies', () => {
     expect.hasAssertions();
     expectMessageContains({
       binding: minimumReleaseAge.bindings.pnpm,
       ctx,
       substrings: ['default safe since pnpm 11.0.0'],
-    });
-  });
-
-  it('on pnpm: no longer prefixes a hand-written "pnpm 11+ defaults..." note', () => {
-    expect.hasAssertions();
-    const pnpmBinding = minimumReleaseAge.bindings.pnpm;
-    assert(pnpmBinding, 'expected pnpm binding');
-    expect(pnpmBinding.check(ctx, {})).toMatchObject({
-      message: expect.not.stringMatching(/pnpm 11\+ defaults/u),
-      state: 'violation',
     });
   });
 

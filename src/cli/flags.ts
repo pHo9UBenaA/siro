@@ -2,6 +2,8 @@ import { COMMANDS, type CommandName } from './commands.ts';
 
 const ARGS_OFFSET = 2;
 
+export type FlagValues = Readonly<Record<string, unknown>>;
+
 // Single source of flag metadata. `takesValue` derives VALUE_FLAGS (the
 // Pre-cac scanners use it to skip a flag's value token), and the keys are the
 // `keyof typeof FLAGS` constraint the per-command scopes below `satisfies`, so
@@ -13,19 +15,31 @@ const ARGS_OFFSET = 2;
 const FLAGS = {
   json: { takesValue: false },
   pm: { takesValue: true },
+  projectType: { cliName: 'project-type', takesValue: true },
   reporter: { takesValue: true },
   severity: { takesValue: true },
-} as const satisfies Record<string, { takesValue: boolean }>;
+} as const satisfies Record<string, { cliName?: string; takesValue: boolean }>;
+
+const flagCliName = (
+  name: string,
+  meta: { readonly cliName?: string; readonly takesValue: boolean },
+): string => {
+  if (typeof meta.cliName !== 'undefined') {
+    return meta.cliName;
+  }
+  return name;
+};
 
 /** Flags that consume the following argv token; pre-cac scanners skip that token. */
 const VALUE_FLAGS: ReadonlySet<string> = new Set(
   Object.entries(FLAGS)
     .filter(([, meta]) => meta.takesValue)
-    .map(([name]) => name),
+    .flatMap(([name, meta]) => [name, flagCliName(name, meta)]),
 );
 
 const LINT_FLAGS = [
   'pm',
+  'projectType',
   'reporter',
   'json',
   'severity',

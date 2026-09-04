@@ -172,11 +172,11 @@ describe('githubReporter — docs links', () => {
 describe('githubReporter — severity mapping', () => {
   it('maps each severity to its workflow-command keyword (error / warning / notice)', () => {
     expect.hasAssertions();
-    const cases: { severity: 'error' | 'warn' | 'info'; expected: string }[] = [
+    const cases = [
       { expected: 'error', severity: 'error' },
       { expected: 'warning', severity: 'warn' },
       { expected: 'notice', severity: 'info' },
-    ];
+    ] as const satisfies readonly { severity: 'error' | 'warn' | 'info'; expected: string }[];
     for (const tc of cases) {
       const single: LintResult = {
         findings: [

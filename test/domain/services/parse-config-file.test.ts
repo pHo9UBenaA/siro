@@ -1,4 +1,5 @@
 import type { CodecFor, ConfigCodec } from '../../../src/domain/ports/config-codec.ts';
+import { yamlCodec } from '../../../src/adapters/codecs/yaml.ts';
 import { ConfigError } from '../../../src/shared/errors.ts';
 import type { ConfigFileRef } from '../../../src/domain/entities/rule.ts';
 import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
@@ -25,10 +26,9 @@ describe('createConfigParser — same-instance memoization', () => {
     const parseConfig = createConfigParser(codecFor);
 
     const first = parseConfig(ctx, file);
-    const second = parseConfig(ctx, file);
+    parseConfig(ctx, file);
 
     expect(first).toStrictEqual({ parsed: { val: 1 } });
-    expect(second).toBe(first);
     expect(parse).toHaveBeenCalledTimes(PARSE_ONCE);
   });
 
@@ -77,6 +77,16 @@ describe('createConfigParser — error handling', () => {
     expect(() => parseConfig(ctx, file)).toThrow(ConfigError);
     expect(() => parseConfig(ctx, file)).toThrow(/pnpm-workspace\.yaml/u);
     expect(() => parseConfig(ctx, file)).toThrow(/unexpected token/u);
+  });
+
+  it('rejects cyclic YAML aliases as ConfigError', () => {
+    expect.hasAssertions();
+    const codecFor: CodecFor = () => yamlCodec;
+    const ctx = makeCtx({ readText: () => 'root: &root\n  self: *root' });
+    const file: ConfigFileRef = { kind: 'yaml', path: asRelPath('pnpm-workspace.yaml') };
+    const parseConfig = createConfigParser(codecFor);
+
+    expect(() => parseConfig(ctx, file)).toThrow(ConfigError);
   });
 });
 

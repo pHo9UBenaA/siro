@@ -11,17 +11,16 @@ const yarnMessage =
 const yarnBinding: AutoRuleBinding = {
   check(_ctx, config): CheckStatus {
     const strictSsl = getByPath(config, ['enableStrictSsl']);
-    if (strictSsl === false) {
+    if (typeof strictSsl !== 'undefined' && strictSsl !== true) {
       return {
-        actual: false,
+        actual: strictSsl,
         expected: true,
         message: yarnMessage,
         state: 'violation',
       };
     }
-    const EMPTY = 0;
     const whitelist = getByPath(config, ['unsafeHttpWhitelist']);
-    if (Array.isArray(whitelist) && whitelist.length > EMPTY) {
+    if (Array.isArray(whitelist) && whitelist.length > 0) {
       return {
         actual: whitelist,
         expected: '',

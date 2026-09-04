@@ -67,6 +67,13 @@ describe('deno bindings target deno.json', () => {
 });
 
 describe('pin-exact-versions × deno — binding shape', () => {
+  it('records when inline imports became available in deno.json', () => {
+    expect.hasAssertions();
+    expect(pinExactVersions.bindings.deno?.versionNote).toStrictEqual({
+      configAvailableSince: 'deno 1.30.0',
+    });
+  });
+
   const ctx = makeCtx();
   const bd = pinExactVersions.bindings.deno;
   assert(bd, 'expected binding');
@@ -170,6 +177,12 @@ describe('pin-exact-versions × deno — single-specifier violations', () => {
     const config = { imports: { react: 'npm:react@^18.2.0' } };
     const res = bd.check(ctx, config);
     expect(res.state).toBe('violation');
+  });
+
+  it('violation when an npm import uses a partial numeric version', () => {
+    expect.hasAssertions();
+    const config = { imports: { foo: 'npm:foo@16' } };
+    expect(bd.check(ctx, config).state).toBe('violation');
   });
 
   it('flags wildcard-segment specifiers (1.x / 1.* / 1.0.x) as ranges', () => {

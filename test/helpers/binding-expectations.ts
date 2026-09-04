@@ -1,6 +1,7 @@
 import type { ParsedConfig } from '../../src/domain/entities/config-value.ts';
 import type { RepoContext } from '../../src/domain/ports/repo-context.ts';
 import type { RuleBinding } from '../../src/domain/entities/rule.ts';
+import { renderVersionNoteMessage } from '../../src/domain/services/render-version-note.ts';
 
 export const expectDocumentedDefaultDynamicInfo = (
   binding: RuleBinding | undefined,
@@ -33,7 +34,10 @@ export const expectMessageContains = (opts: ExpectMessageContainsOptions): void 
     return;
   }
   for (const sub of substrings) {
-    expect(status.message, `expected message to contain "${sub}"`).toContain(sub);
+    expect(
+      renderVersionNoteMessage(status.message, binding.versionNote),
+      `expected message to contain "${sub}"`,
+    ).toContain(sub);
   }
 };
 
@@ -71,5 +75,5 @@ export const expectMessageContainsAndAvoids = (
   if (status.state !== 'violation') {
     return;
   }
-  assertViolationMessage(status.message, options);
+  assertViolationMessage(renderVersionNoteMessage(status.message, binding.versionNote), options);
 };

@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
@@ -32,7 +32,7 @@ const pnpmBinding: AdvisoryRuleBinding = {
   fixKind: 'advisory',
 };
 
-export const frozenStore: Rule = {
+export const frozenStore = defineRule({
   bindings: { pnpm: pnpmBinding },
   description:
     'Recommend enabling frozenStore to prevent mutations to the content-addressable store, strengthening supply-chain integrity in CI and deploy environments.',
@@ -40,4 +40,4 @@ export const frozenStore: Rule = {
   id: 'frozen-store',
   severity: 'info',
   title: 'Enable frozen store',
-};
+});

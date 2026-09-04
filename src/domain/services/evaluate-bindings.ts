@@ -2,6 +2,9 @@ import type { CheckStatus, Rule, RuleBinding } from '../entities/rule.ts';
 import type { ConfigParser } from './parse-config-file.ts';
 import type { PM } from '../entities/pms.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
+import type { ProjectType } from '../entities/project-type.ts';
+import { CONFIG_FILES } from '../entities/config-files.ts';
+import { resolveDenoProjectType, resolvePackageJsonProjectType } from './project-type.ts';
 
 type Violation = Extract<CheckStatus, { state: 'violation' }>;
 
@@ -21,6 +24,48 @@ export interface EvaluateBindingsOptions {
   readonly onViolation: (visit: BindingVisit) => void;
 }
 
+const appliesToProject = (rule: Rule, projectType: RepoContext['projectType']): boolean =>
+  typeof projectType === 'undefined' ||
+  typeof rule.projectTypes === 'undefined' ||
+  rule.projectTypes.some((candidate) => candidate === projectType);
+
+const resolveBindingProjectType = (
+  ctx: RepoContext,
+  pm: PM,
+  parseConfig: ConfigParser,
+): ProjectType => {
+  if (typeof ctx.projectType !== 'undefined') {
+    return ctx.projectType;
+  }
+  if (pm === 'deno') {
+    const { parsed } = parseConfig(ctx, CONFIG_FILES.denoJson);
+    return resolveDenoProjectType(ctx, parsed);
+  }
+  return resolvePackageJsonProjectType(ctx);
+};
+
+const appliesToBinding = (rule: Rule, pm: PM, opts: EvaluateBindingsOptions): boolean => {
+  const { ctx, parseConfig } = opts;
+  return (
+    typeof rule.projectTypes === 'undefined' ||
+    appliesToProject(rule, resolveBindingProjectType(ctx, pm, parseConfig))
+  );
+};
+
+const evaluateRule = (rule: Rule, opts: EvaluateBindingsOptions): void => {
+  const { ctx, pms, parseConfig, onViolation } = opts;
+  for (const pm of pms) {
+    const binding = rule.bindings[pm];
+    if (typeof binding !== 'undefined' && appliesToBinding(rule, pm, opts)) {
+      const { parsed } = parseConfig(ctx, binding.file);
+      const status = binding.check(ctx, parsed);
+      if (status.state === 'violation') {
+        onViolation({ binding, pm, rule, status });
+      }
+    }
+  }
+};
+
 /**
  * Iterate every applicable `(rule, pm)` binding, run its check, and hand
  * each violation to `onViolation`. Folding the loop into one place keeps
@@ -28,17 +73,8 @@ export interface EvaluateBindingsOptions {
  * in a single location so the call site (`runLint`) stays declarative.
  */
 export const evaluateBindings = (opts: EvaluateBindingsOptions): void => {
-  const { ctx, pms, ruleSet, parseConfig, onViolation } = opts;
+  const { ruleSet } = opts;
   for (const rule of ruleSet) {
-    for (const pm of pms) {
-      const binding = rule.bindings[pm];
-      if (typeof binding !== 'undefined') {
-        const { parsed } = parseConfig(ctx, binding.file);
-        const status = binding.check(ctx, parsed);
-        if (status.state === 'violation') {
-          onViolation({ binding, pm, rule, status });
-        }
-      }
-    }
+    evaluateRule(rule, opts);
   }
 };

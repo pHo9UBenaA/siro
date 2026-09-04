@@ -1,6 +1,7 @@
-import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
+import { resolveDenoProjectType } from '../services/project-type.ts';
 import { isPublishable } from './publishable.ts';
 
 const { packageJson, denoJson } = CONFIG_FILES;
@@ -13,12 +14,8 @@ const packageJsonFilesBinding: AdvisoryRuleBinding = {
     if (!isPublishable(ctx)) {
       return { state: 'na' };
     }
-    let files: string[] | undefined = void 0;
-    if (ctx.packageJson) {
-      ({ files } = ctx.packageJson);
-    }
-    const EMPTY = 0;
-    if (Array.isArray(files) && files.length > EMPTY) {
+    const files = ctx.packageJson?.files;
+    if (Array.isArray(files) && files.length > 0) {
       return { state: 'ok' };
     }
     return {
@@ -47,13 +44,12 @@ const packageJsonFilesBinding: AdvisoryRuleBinding = {
 // deno repos — mirroring the `isPublishable` guard used by the package.json
 // binding (whose privacy signal is `private: true` rather than missing name).
 const denoPublishBinding: AdvisoryRuleBinding = {
-  check(_ctx, config) {
-    if (typeof getByPath(config, ['name']) !== 'string') {
+  check(ctx, config) {
+    if (resolveDenoProjectType(ctx, config) !== 'package') {
       return { state: 'na' };
     }
     const include = getByPath(config, ['publish', 'include']);
-    const EMPTY = 0;
-    if (Array.isArray(include) && include.length > EMPTY) {
+    if (Array.isArray(include) && include.length > 0) {
       return { state: 'ok' };
     }
     return {
@@ -76,7 +72,7 @@ const denoPublishBinding: AdvisoryRuleBinding = {
   fixKind: 'advisory',
 };
 
-export const filesField: Rule = {
+export const filesField = defineRule({
   bindings: {
     aube: packageJsonFilesBinding,
     bun: packageJsonFilesBinding,
@@ -89,6 +85,7 @@ export const filesField: Rule = {
     'An explicit `files` array in package.json restricts what gets published, preventing accidental inclusion of secrets or local files.',
   docs: 'https://github.com/bodadotsh/npm-security-best-practices#11-review-published-files',
   id: 'files-field',
+  projectTypes: ['package'],
   severity: 'info',
   title: 'Declare a published files allow-list',
-};
+});

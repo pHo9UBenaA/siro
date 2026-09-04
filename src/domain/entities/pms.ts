@@ -33,10 +33,7 @@ const PACKAGE_MANAGER_FIELD = /^(?<pmName>[a-z]+)(?:@.+)?$/u;
 
 export const parsePackageManagerField = (value: string): PM | undefined => {
   const match = PACKAGE_MANAGER_FIELD.exec(value.trim());
-  let name: string | undefined = void 0;
-  if (match && match.groups) {
-    name = match.groups.pmName;
-  }
+  const name = match?.groups?.pmName;
   if (typeof name !== 'undefined' && isPM(name)) {
     return name;
   }

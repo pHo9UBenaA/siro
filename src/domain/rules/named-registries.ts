@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
@@ -38,7 +38,7 @@ const pnpmBinding: AdvisoryRuleBinding = {
   fixKind: 'advisory',
 };
 
-export const namedRegistries: Rule = {
+export const namedRegistries = defineRule({
   bindings: { pnpm: pnpmBinding },
   description:
     'Flag named registry mappings that redirect package resolution to custom registries, which may enable dependency confusion attacks.',
@@ -46,4 +46,4 @@ export const namedRegistries: Rule = {
   id: 'named-registries',
   severity: 'info',
   title: 'Review named registry mappings',
-};
+});

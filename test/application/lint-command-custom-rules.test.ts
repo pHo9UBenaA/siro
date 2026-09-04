@@ -12,6 +12,7 @@ vi.setConfig({ testTimeout: 5000 });
 
 const EXIT_VIOLATION = 1;
 const SINGLE_OCCURRENCE = 1;
+const SPARSE_ARRAY_LENGTH = 1;
 
 const customAlwaysViolates: Rule = {
   bindings: {
@@ -94,9 +95,29 @@ describe('lintCommand customRules — reporter validation', () => {
       lintCommand({ cwd: asAbsPath('/repo'), fs, reporters: [brokenReporterObj] }, io),
     ).rejects.toBeInstanceOf(UsageError);
   });
+
+  it('rejects a non-array `reporters` value (UsageError)', () => {
+    expect.hasAssertions();
+    const fs = npmGoodFs();
+    const { io } = captureIO();
+    const reporters = { format: () => '', name: 'object-not-list' } as unknown as [];
+    return expect(
+      lintCommand({ cwd: asAbsPath('/repo'), fs, reporters }, io),
+    ).rejects.toBeInstanceOf(UsageError);
+  });
 });
 
 describe('lintCommand customRules — injection and collision', () => {
+  it('rejects a sparse programmatic customRules array (UsageError)', () => {
+    expect.hasAssertions();
+    const customRules = new Array<Rule>(SPARSE_ARRAY_LENGTH);
+    const fs = npmGoodFs();
+    const { io } = captureIO();
+    return expect(
+      lintCommand({ customRules, cwd: asAbsPath('/repo'), fs, reporter: 'json' }, io),
+    ).rejects.toBeInstanceOf(UsageError);
+  });
+
   it('evaluates a programmatically injected custom rule', () => {
     expect.hasAssertions();
     const fs = npmGoodFs();

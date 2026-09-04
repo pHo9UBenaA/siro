@@ -13,14 +13,6 @@ export interface RuleIdValidation {
 }
 
 /**
- * Cross-check a loaded SiroConfig against the registered builtin rules.
- *
- * Pure: no I/O, no globals, takes builtins as an argument so it stays
- * testable and so the domain layer doesn't reach for `builtin-rules.ts`
- * via a hidden static dependency. Callers (the adapters-layer loadConfig
- * and the application-layer assertConfigRuleIdsKnown) pass the builtin
- * list explicitly.
- *
  * Why both checks in one pass? `duplicates` must be detected against the
  * builtin set *before* `unknown` consults the merged (builtin ∪ custom)
  * set — otherwise a colliding customRule id silently widens the known

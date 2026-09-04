@@ -1,4 +1,9 @@
-import type { AdvisoryRuleBinding, CheckStatus, ConfigFileRef, Rule } from '../entities/rule.ts';
+import {
+  type AdvisoryRuleBinding,
+  type CheckStatus,
+  type ConfigFileRef,
+  defineRule,
+} from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { type ParsedConfig, getByPath } from '../entities/config-value.ts';
 
@@ -41,7 +46,7 @@ const makeBinding = (file: ConfigFileRef, fileName: string, docs: string): Advis
   fixKind: 'advisory',
 });
 
-export const dependencyOverrides: Rule = {
+export const dependencyOverrides = defineRule({
   bindings: {
     aube: makeBinding(aubeWorkspace, 'aube-workspace.yaml', 'https://aube.jdx.dev/settings.html'),
     pnpm: makeBinding(pnpmWorkspace, 'pnpm-workspace.yaml', 'https://pnpm.io/settings#overrides'),
@@ -52,4 +57,4 @@ export const dependencyOverrides: Rule = {
   id: 'dependency-overrides',
   severity: 'info',
   title: 'Review dependency overrides',
-};
+});

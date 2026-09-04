@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, Rule } from '../entities/rule.ts';
+import { type AdvisoryRuleBinding, type VersionNote, defineRule } from '../entities/rule.ts';
 import { type PMSignals, PM_SIGNALS } from '../entities/signals.ts';
 import type { PM } from '../entities/pms.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
@@ -11,6 +11,10 @@ const LOCKFILE_DOCS: Partial<Record<PM, string>> = {
   npm: 'https://docs.npmjs.com/cli/v11/configuring-npm/package-lock-json',
   pnpm: 'https://pnpm.io/git#lockfiles',
   yarn: 'https://yarnpkg.com/getting-started/qa#should-lockfiles-be-committed-to-the-repository',
+};
+
+const LOCKFILE_VERSION_NOTES: Partial<Record<PM, VersionNote>> = {
+  deno: { configAvailableSince: 'deno 1.28.0' },
 };
 
 const lockfileBinding = (pm: PM): AdvisoryRuleBinding => {
@@ -41,10 +45,11 @@ const lockfileBinding = (pm: PM): AdvisoryRuleBinding => {
       ];
     },
     fixKind: 'advisory',
+    versionNote: LOCKFILE_VERSION_NOTES[pm],
   };
 };
 
-export const commitLockfile: Rule = {
+export const commitLockfile = defineRule({
   bindings: {
     aube: lockfileBinding('aube'),
     bun: lockfileBinding('bun'),
@@ -59,4 +64,4 @@ export const commitLockfile: Rule = {
   id: 'commit-lockfile',
   severity: 'error',
   title: 'Commit a lockfile',
-};
+});

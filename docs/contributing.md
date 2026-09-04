@@ -2,7 +2,7 @@
 
 ## Setup
 
-The project requires **Node 20+** (matching `engines.node` in `package.json`)
+The project requires **Node `^22.18.0 || ^23.6.0 || >=24.0.0`** (matching `engines.node` in `package.json`)
 and **pnpm 10.33+** (matching `packageManager` in `package.json`).
 Dependency versions are managed through a pnpm catalog in `pnpm-workspace.yaml`.
 
@@ -55,7 +55,7 @@ boundary the test crosses:
   `binding-expectations.ts` (rule-binding assertion helpers).
 - **`mkdtempSync` + real FS** — integration and adapter tests that need a
   real path on disk (notably `test/adapters/config-loader.test.ts` plus
-  `test/{e2e,pnpm,yarn,bun}.test.ts`) spawn a temp directory.
+  mutation cases in `test/e2e.test.ts`) spawn a temp directory.
   This is because `adapters/config-loader.ts` imports
   `siro.config.{ts,mjs,js}` through Node's module loader, which resolves
   against the real filesystem — there is no `FileSystem`-port hook there
@@ -66,10 +66,12 @@ boundary the test crosses:
   drives the published binary so packaging regressions (shebang,
   exit-code routing, module bundling) surface. The block is gated via
   `describe.skipIf(!existsSync(DIST_BIN))` so a clean checkout silently
-  skips it; CI / post-`pnpm build` runs exercise it.
+  skips it; CI and prepublish build before testing so the
+  packaged binary is always exercised there.
 
 Committed fixtures under `test/fixtures/` cover each PM with a `-good`
-shape (and `npm-bad` for failure-path coverage). They are read-only —
+shape (and `npm-bad` for failure-path coverage). The pnpm, yarn, and bun
+end-to-end suites read their `-good` fixtures directly. They are read-only —
 tests that need to mutate a fixture mkdtemp + write inline rather than
 copying the committed tree, to keep the tree's intent (a known-clean
 or known-broken repo) tamper-evident in git.
@@ -139,14 +141,13 @@ src/
     usage-error.ts         UsageError subclass
 
   domain/                  pure types + port contracts + ctx-only domain services
-    builtin-rules.ts       Record<BuiltinRuleId, Rule> registry + `rules` projection
+    builtin-rules.ts       ordered `rules` registry + derived BuiltinRuleId
     entities/              pure value types
       pms.ts               PM / Severity tuples
       signals.ts           PM_SIGNALS (lockfile + config-file map per PM)
       config-files.ts      CONFIG_FILES (canonical ConfigFileRef per PM config file)
       lint-result.ts       Finding / LintResult / ConfigReadValue
       rule.ts              Rule / RuleBinding / FixOp / CheckStatus / ConfigFileRef
-      rule-id.ts           BUILTIN_RULE_IDS / BuiltinRuleId
       config-value.ts      ConfigScalar / ConfigValue / ParsedConfig + getByPath
       siro-config.ts       SiroConfig / RuleSetting / defineConfig
     ports/                 I/O abstraction contracts
@@ -217,8 +218,8 @@ A **rule** is a security intent with a `bindings` map of PM → `RuleBinding`. E
 ## Adding a rule
 
 The fastest path is `pnpm gen:rule <id>`, which creates the rule file, registers
-the id in `BUILTIN_RULE_IDS`, splices the import + entry into
-`src/domain/builtin-rules.ts`, and regenerates the docs in one shot:
+it in the ordered array in `src/domain/builtin-rules.ts`, and regenerates the
+docs in one shot:
 
 ```sh
 pnpm gen:rule frozen-lockfile             # AutoRuleBinding (requireConfigKey)
@@ -242,11 +243,10 @@ Then:
    generated docs match the new bindings. `test/scripts/doc-generator.test.ts`
    catches any drift.
 
-If you skip `gen:rule`, the manual equivalent is: create the rule file, add an
-entry to `RULE_REGISTRY` in `src/domain/builtin-rules.ts`, add the id to
-`BUILTIN_RULE_IDS` in `src/domain/entities/rule-id.ts` (the
-`Record<BuiltinRuleId, Rule>` constraint fails to compile if either side is
-out of sync), and regenerate the docs.
+If you skip `gen:rule`, the manual equivalent is: create the rule file, import
+it into the ordered `rules` array in `src/domain/builtin-rules.ts`, and
+regenerate the docs. `BuiltinRuleId` is derived from the array's literal rule
+IDs, so there is no separate ID list to update.
 
 CLI, reporters, and the lint engine need no changes.
 
@@ -283,17 +283,10 @@ copy-pasting. Until then, hand-writing is fine (YAGNI).
 
 ### aube rule-adoption policy
 
-aube ships several strict defaults beyond `jailBuilds` (`blockExoticSubdeps`, `trustPolicy`,
-`verifyStoreIntegrity`, `paranoid`, `advisoryCheck`, …). The current policy is **bind
-`jailBuilds` and stop** — postinstall RCE is the highest-impact supply-chain failure mode, and
-aube already enforces the rest at runtime. Adding more aube-only bindings requires:
-
-1. A concrete attack scenario the current bindings miss.
-2. Symmetry with at least one other PM (don't add aube-only hardening that has no analogue
-   elsewhere — it's a configuration linter, not an aube tutorial).
-
-`advisoryCheck` (CVE scanning) is explicitly out of scope: siro checks configuration, not
-running databases. Use `npm audit` / `osv-scanner` for that layer.
+Add an aube binding when it addresses a concrete supply-chain risk and its setting is covered by
+authoritative upstream documentation. Prefer symmetry with another package manager, but allow an
+aube-specific control when the risk is relevant to configuration linting. Runtime-only behavior
+without a configurable policy remains out of scope.
 
 ## Adding a package manager
 

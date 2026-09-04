@@ -1,4 +1,4 @@
-import type { AdvisoryRuleBinding, CheckStatus, Rule } from '../entities/rule.ts';
+import type { AdvisoryRuleBinding, CheckStatus } from '../entities/rule.ts';
 import { type ParsedConfig, getByPath } from '../entities/config-value.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
@@ -15,21 +15,24 @@ const isConfigObject = (value: object): value is ParsedConfig => !Array.isArray(
  */
 /** Wildcard segments (`1.x`, `1.*`, `1.2.X`) are ranges too. */
 const SPLIT_LIMIT_FIRST = 1;
-const FIRST_ELEMENT = 0;
 
 const hasWildcardSegment = (spec: string): boolean => {
   // Only the core version (before the first `-`) is inspected — a prerelease
   // tag may legally contain `x` (`1.0.0-x.1`) without making the specifier a range.
-  const core = spec.split('-', SPLIT_LIMIT_FIRST)[FIRST_ELEMENT] ?? spec;
+  const [core = spec] = spec.split('-', SPLIT_LIMIT_FIRST);
   return core.split('.').some((seg) => seg === 'x' || seg === 'X' || seg === '*');
 };
 
 const RANGE_OPERATOR = /[\^~]|>=|<=|<|>|\|\||\s/u;
+const INCOMPLETE_NUMERIC_VERSION = /^\d+(?:\.\d+)?(?:-|$)/u;
 
 const isRangeSpec = (spec: string): boolean =>
-  spec === '' || spec === '*' || RANGE_OPERATOR.test(spec) || hasWildcardSegment(spec);
+  spec === '' ||
+  spec === '*' ||
+  RANGE_OPERATOR.test(spec) ||
+  INCOMPLETE_NUMERIC_VERSION.test(spec) ||
+  hasWildcardSegment(spec);
 
-const NO_AT_SIGN = 0;
 const AFTER_AT_SIGN = 1;
 
 const hasSemverRange = (specifier: string): boolean => {
@@ -37,7 +40,7 @@ const hasSemverRange = (specifier: string): boolean => {
     return false;
   }
   const at = specifier.lastIndexOf('@');
-  if (at <= NO_AT_SIGN) {
+  if (at <= 0) {
     return false;
   }
   return isRangeSpec(specifier.slice(at + AFTER_AT_SIGN));
@@ -54,10 +57,9 @@ const collectRangedImports = (imports: Readonly<Record<string, unknown>>): reado
 };
 
 const MAX_SAMPLE_COUNT = 3;
-const EMPTY = 0;
 
 const formatOffenders = (offenders: readonly string[]): CheckStatus => {
-  const sample = offenders.slice(FIRST_ELEMENT, MAX_SAMPLE_COUNT).join(', ');
+  const sample = offenders.slice(0, MAX_SAMPLE_COUNT).join(', ');
   let more = '';
   if (offenders.length > MAX_SAMPLE_COUNT) {
     more = ` (and ${offenders.length - MAX_SAMPLE_COUNT} more)`;
@@ -85,7 +87,7 @@ const denoBinding: AdvisoryRuleBinding = {
       return OK;
     }
     const offenders = collectRangedImports(imports);
-    if (offenders.length === EMPTY) {
+    if (offenders.length === 0) {
       return OK;
     }
     return formatOffenders(offenders);
@@ -103,6 +105,7 @@ const denoBinding: AdvisoryRuleBinding = {
     ];
   },
   fixKind: 'advisory',
+  versionNote: { configAvailableSince: 'deno 1.30.0' },
 };
 
 // Coverage notes:
@@ -159,4 +162,4 @@ const baseRule = requireConfigKey({
 // value-iteration mode for one rule. If more rules need this shape (yarn
 // `resolutions`, pnpm `overrides`, etc.), extract an `inspectConfigValues`
 // builder rather than growing requireConfigKey.
-export const pinExactVersions: Rule = overrideBindings(baseRule, { deno: denoBinding });
+export const pinExactVersions = overrideBindings(baseRule, { deno: denoBinding });

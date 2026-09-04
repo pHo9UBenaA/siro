@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { ConfigError } from '../../src/shared/errors.ts';
-import { hasNativeTypeStripping, loadConfig } from '../../src/adapters/config-loader.ts';
+import { loadConfig } from '../../src/adapters/config-loader.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { type AbsPath, asAbsPath } from '../../src/shared/paths.ts';
 
@@ -122,24 +122,6 @@ describe('loadConfig — ts config on a runtime without type stripping', () => {
       message: expect.stringMatching(/type stripping[\s\S]*siro\.config\.mjs/u),
       name: 'ConfigError',
     });
-  });
-});
-
-describe(hasNativeTypeStripping, () => {
-  it('maps node versions to type-stripping support', () => {
-    expect.hasAssertions();
-    const cases: readonly (readonly [string, boolean])[] = [
-      ['20.19.0', false],
-      ['22.17.9', false],
-      ['22.18.0', true],
-      ['23.5.0', false],
-      ['23.6.0', true],
-      ['24.0.0', true],
-      ['v24.18.0', true],
-    ];
-    for (const [version, expected] of cases) {
-      expect(hasNativeTypeStripping(version)).toBe(expected);
-    }
   });
 });
 

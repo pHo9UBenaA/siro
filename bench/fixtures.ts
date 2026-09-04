@@ -1,6 +1,6 @@
 export interface Fixture {
   readonly name: string;
-  readonly files: Record<string, string>;
+  readonly files: Readonly<Record<string, string>>;
 }
 
 const SMALL: Fixture = {
@@ -71,4 +71,4 @@ const buildMonorepo = (): Fixture => {
 
 const MONOREPO: Fixture = buildMonorepo();
 
-export const fixtures: readonly Fixture[] = [SMALL, MEDIUM, MONOREPO];
+export const fixtures = [SMALL, MEDIUM, MONOREPO] as const satisfies readonly Fixture[];

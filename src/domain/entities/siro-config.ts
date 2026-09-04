@@ -1,7 +1,8 @@
 import type { PM, Severity } from './pms.ts';
-import type { BuiltinRuleId } from './rule-id.ts';
+import type { BuiltinRuleId } from '../builtin-rules.ts';
 import type { Reporter } from '../ports/reporter.ts';
 import type { Rule } from './rule.ts';
+import type { ProjectType } from './project-type.ts';
 
 /** Per-rule setting. `'off'` disables; a Severity overrides the default level. */
 export type RuleSetting = Severity | 'off';
@@ -18,6 +19,7 @@ export type RuleSetting = Severity | 'off';
  */
 export interface SiroConfig {
   readonly pms?: readonly PM[];
+  readonly projectType?: ProjectType;
   // `string & {}` keeps autocompletion for BuiltinRuleId while still
   // permitting arbitrary keys from customRules.
   readonly rules?: Readonly<

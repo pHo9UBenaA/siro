@@ -98,6 +98,16 @@ const describeFlagInteraction = (): void => {
       expect(out).toContain('siro lint —');
     });
   });
+
+  test('does not mistake a normalized projectType value for the help target', () => {
+    expect.hasAssertions();
+    return runExpectCode(['--projectType', 'application', 'lint', '--help']).then(
+      ({ code, out }) => {
+        expect(code).toBe(EXIT_OK);
+        expect(out).toContain('siro lint —');
+      },
+    );
+  });
 };
 
 const describeUsageErrors = (): void => {
@@ -130,6 +140,14 @@ const describeUsageErrors = (): void => {
     return runExpectCode(['lint', '--pm', 'cargo']).then(({ code, err }) => {
       expect(code).toBe(EXIT_USAGE);
       expect(err).toMatch(/unknown package manager/iu);
+    });
+  });
+
+  test('exits 2 for an unknown --project-type', () => {
+    expect.hasAssertions();
+    return runExpectCode(['lint', '--project-type', 'service']).then(({ code, err }) => {
+      expect(code).toBe(EXIT_USAGE);
+      expect(err).toMatch(/unknown project type/iu);
     });
   });
 
@@ -172,6 +190,22 @@ const describePassthroughAndConflict = (): void => {
     const cases = [
       ['lint', '--reporter', 'github', '--json'],
       ['lint', '--reporter', 'json', '--json'],
+    ] as const;
+    return Promise.all(
+      cases.map((args) =>
+        runExpectCode(args).then(({ code, err }) => {
+          expect(code).toBe(EXIT_USAGE);
+          expect(err).toMatch(/reporter|json/iu);
+        }),
+      ),
+    );
+  });
+
+  test('rejects repeated reporter selectors (exit 2)', () => {
+    expect.hasAssertions();
+    const cases = [
+      ['lint', '--reporter', 'json', '--reporter', 'github'],
+      ['lint', '--json', '--json'],
     ];
     return Promise.all(
       cases.map((args) =>
@@ -248,5 +282,10 @@ describe('public API surface', () => {
   it('exposes detectPMs for embedders authoring custom rules', () => {
     expect.hasAssertions();
     expect(publicApi.detectPMs).toBeTypeOf('function');
+  });
+
+  it('exposes the canonical project types for embedders', () => {
+    expect.hasAssertions();
+    expect(publicApi.PROJECT_TYPES).toStrictEqual(['application', 'package']);
   });
 });

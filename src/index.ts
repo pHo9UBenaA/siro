@@ -25,6 +25,7 @@ export type {
 } from './domain/entities/config-value.ts';
 export { getByPath } from './domain/entities/config-value.ts';
 export type { ConfigReadValue, Finding, LintResult } from './domain/entities/lint-result.ts';
+export { type ProjectType, PROJECT_TYPES } from './domain/entities/project-type.ts';
 export {
   isPM,
   isSeverity,
@@ -42,6 +43,7 @@ export type {
   FixOp,
   Rule,
   RuleBinding,
+  VersionNote,
 } from './domain/entities/rule.ts';
 export { PM_SIGNALS, type PMSignals } from './domain/entities/signals.ts';
 export { defineConfig, type RuleSetting, type SiroConfig } from './domain/entities/siro-config.ts';
@@ -53,10 +55,9 @@ export { isReporterShape, type Reporter } from './domain/ports/reporter.ts';
 export {
   overrideBindings,
   type RequireConfigKeyOptions,
-  renderVersionNoteMessage,
   requireConfigKey,
-  type VersionNote,
 } from './domain/rules/builders/require-config-key.ts';
+export { renderVersionNoteMessage } from './domain/services/render-version-note.ts';
 export type { PackageJson } from './domain/schemas/package-json.ts';
 export { detectPMs } from './domain/services/detect-pms.ts';
 export { exitCodeForLint, filterBySeverity } from './domain/services/filter.ts';

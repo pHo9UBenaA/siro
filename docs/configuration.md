@@ -92,6 +92,7 @@ Drop a `siro.config.{ts,mjs,js}` next to `package.json` to customize behavior:
 import { defineConfig } from '@pho9ubenaa/siro';
 
 export default defineConfig({
+  projectType: 'application', // or 'package'; omit to infer from publish metadata
   pms: ['npm', 'pnpm'], // restrict detection to a subset
   rules: {
     provenance: 'off', // disable a rule
@@ -101,6 +102,16 @@ export default defineConfig({
   reporters: [], // register custom Reporter implementations
 });
 ```
+
+`projectType` separates published packages from applications that only consume
+dependencies. `application` skips `files-field`, `publish-access`, and `provenance`;
+`package` evaluates them even when package metadata is temporarily private. A CLI or
+programmatic `projectType` takes precedence over this config value. When neither is set,
+siro infers each PM binding from `private`/`name`; Deno bindings use the `name` in
+`deno.json`. The inferred result also filters `projectTypes` on custom rules, so a
+package-only custom rule does not run for an inferred application. Untyped programmatic
+calls that pass an unsupported project type, PM, or severity reject with `UsageError`
+instead of returning a potentially clean result.
 
 `.ts` configs are loaded via Node's native type stripping (requires Node `^22.18.0 || ^23.6.0 || >=24`);
 no extra build step. Only erasable TypeScript syntax is supported (no `enum`, `namespace`, or
@@ -130,6 +141,7 @@ A rule's severity is its default; an individual PM binding can override it. Two 
     `× aube` (`preferFrozenLockfile: true`).
   - `minimum-release-age × pnpm` (`minimumReleaseAge: 1440`),
     `× yarn` (`npmMinimalAgeGate: 1440`),
+    `× deno` (`minimumDependencyAge: 1440`),
     `× aube` (`minimumReleaseAge: 1440`).
   - `hardened-mode × yarn` (`enableHardenedMode: true`, auto-enabled only for
     PRs on public repositories).

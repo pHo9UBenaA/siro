@@ -4,6 +4,7 @@ import type {
   ConfigFileRef,
   FixOp,
   Rule,
+  VersionNote,
 } from '../../entities/rule.ts';
 import {
   type ConfigValue,
@@ -15,26 +16,7 @@ import { type PM, PMS, type Severity } from '../../entities/pms.ts';
 import type { RepoContext } from '../../ports/repo-context.ts';
 
 type SetKeyOp = Extract<FixOp, { op: 'setKey' }>;
-type First<Tp extends readonly unknown[]> = Tp extends readonly [infer Hd, ...unknown[]]
-  ? Hd
-  : never;
-type GetByPathConfig = First<Parameters<typeof getByPath>>;
-
-/**
- * Display-only metadata for a binding. siro itself is intentionally
- * version-agnostic (we never branch on the user's actual PM version) — these
- * fields exist so the rendered message can still tell the reader *when* a key
- * appeared and *when* the PM started shipping a safe default. They MUST NOT
- * be consulted by any code path that decides severity or applicability.
- */
-export interface VersionNote {
-  /** PM version that first shipped this config key (e.g. `'pnpm 10.16.0'`). */
-  readonly configAvailableSince?: string;
-  /** PM version whose built-in default first satisfies the rule (e.g. `'pnpm 11.0.0 (1440 minutes)'`). */
-  readonly defaultSafeSince?: string;
-  /** Free-form trailing note rendered last (e.g. `'replaces auto-install-peers'`). */
-  readonly note?: string;
-}
+type GetByPathConfig = Parameters<typeof getByPath>[0];
 
 interface RequireConfigKeySpec {
   readonly file: ConfigFileRef;
@@ -76,12 +58,13 @@ interface RequireConfigKeySpec {
   readonly versionNote?: VersionNote;
 }
 
-export interface RequireConfigKeyOptions {
-  readonly id: string;
+export interface RequireConfigKeyOptions<Id extends string = string> {
+  readonly id: Id;
   readonly title: string;
   readonly description: string;
   readonly severity: Severity;
   readonly docs?: string;
+  readonly projectTypes?: Rule['projectTypes'];
   /** Bindings keyed by PM. PMs absent from this map are treated as N/A. */
   readonly bindings: Partial<Record<PM, RequireConfigKeySpec>>;
   /** Return false to short-circuit `check` as N/A (e.g. private packages). */
@@ -95,51 +78,10 @@ export interface RequireConfigKeyOptions {
  * the hand-written bindings in via this helper rather than rebuilding from
  * scratch or mutating the source rule.
  */
-export const overrideBindings = (rule: Rule, overrides: Partial<Rule['bindings']>): Rule => ({
-  ...rule,
-  bindings: { ...rule.bindings, ...overrides },
-});
-
-/**
- * Compose `message` with the structured suffix derived from {@link VersionNote}.
- * Exported for the two hand-written bindings that can't be expressed via
- * {@link requireConfigKey}: the pnpm slot of `disable-lifecycle-scripts`
- * (two-key gate+bypass) and `bun-security-scanner` (advisory shape).
- * New rules should grow `requireConfigKey` rather than reach for this
- * helper — every additional caller raises the cost of evolving the suffix
- * format.
- */
-const buildVersionNoteParts = (versionNote: VersionNote): readonly string[] => {
-  const parts: string[] = [];
-  if (typeof versionNote.configAvailableSince !== 'undefined') {
-    parts.push(`available since ${versionNote.configAvailableSince}`);
-  }
-  if (typeof versionNote.defaultSafeSince !== 'undefined') {
-    parts.push(`default safe since ${versionNote.defaultSafeSince}`);
-  }
-  if (typeof versionNote.note !== 'undefined') {
-    parts.push(versionNote.note);
-  }
-  return parts;
-};
-
-export const renderVersionNoteMessage = (
-  message: string,
-  versionNote: VersionNote | undefined,
-): string => {
-  if (typeof versionNote === 'undefined') {
-    return message;
-  }
-  const parts = buildVersionNoteParts(versionNote);
-  // Why not throw on empty? An empty VersionNote is harmless documentation
-  // noise; treating it as a bug would force callers to either omit the field
-  // or fill it, and the omit-the-field path is already the natural default.
-  const EMPTY = 0;
-  if (parts.length === EMPTY) {
-    return message;
-  }
-  return `${message} (${parts.join('; ')})`;
-};
+export const overrideBindings = <Id extends string>(
+  rule: Rule<Id>,
+  overrides: Partial<Rule['bindings']>,
+): Rule<Id> => ({ ...rule, bindings: { ...rule.bindings, ...overrides } });
 
 const isDefaultOk = (spec: RequireConfigKeySpec): boolean => {
   if (spec.accept) {
@@ -224,8 +166,7 @@ const buildBinding = (
     if (typeof applies !== 'undefined' && !applies(ctx)) {
       return { state: 'na' };
     }
-    const message = renderVersionNoteMessage(spec.message, spec.versionNote);
-    return checkKeyValue(spec, config, message);
+    return checkKeyValue(spec, config, spec.message);
   },
   docs: spec.docs,
   file: spec.file,
@@ -240,10 +181,13 @@ const buildBinding = (
   },
   fixKind: 'auto',
   severity: spec.severity,
+  versionNote: spec.versionNote,
 });
 
 /** Build a Rule from a per-PM table of {file, keyPath, value, message}. */
-export const requireConfigKey = (options: RequireConfigKeyOptions): Rule => {
+export const requireConfigKey = <const Id extends string>(
+  options: RequireConfigKeyOptions<Id>,
+): Rule<Id> => {
   const bindings: Partial<Record<PM, AutoRuleBinding>> = {};
   for (const pm of PMS) {
     const spec = options.bindings[pm];
@@ -256,6 +200,7 @@ export const requireConfigKey = (options: RequireConfigKeyOptions): Rule => {
     description: options.description,
     docs: options.docs,
     id: options.id,
+    projectTypes: options.projectTypes,
     severity: options.severity,
     title: options.title,
   };

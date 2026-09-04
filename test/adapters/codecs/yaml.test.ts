@@ -29,6 +29,11 @@ describe('yamlCodec.parse (shallow)', () => {
     expect(() => yamlCodec.parse(text)).not.toThrow();
   });
 
+  it('rejects a malformed document', () => {
+    expect.hasAssertions();
+    expect(() => yamlCodec.parse('enableScripts: [')).toThrow(/./u);
+  });
+
   it('ignores comments and does not descend into nested blocks', () => {
     expect.hasAssertions();
     const text = [

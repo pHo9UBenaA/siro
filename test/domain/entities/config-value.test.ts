@@ -1,4 +1,4 @@
-import { toParsedConfig } from '../../../src/domain/entities/config-value.ts';
+import { getByPath, toParsedConfig } from '../../../src/domain/entities/config-value.ts';
 
 vi.setConfig({ testTimeout: 5000 });
 
@@ -25,8 +25,7 @@ describe(toParsedConfig, () => {
   it('returns an empty object for null, undefined, and primitives', () => {
     expect.hasAssertions();
     expect(toParsedConfig(JSON.parse('null'))).toStrictEqual({});
-    const [noArg]: unknown[] = [];
-    expect(toParsedConfig(noArg)).toStrictEqual({});
+    expect(toParsedConfig(void 0)).toStrictEqual({});
     expect(toParsedConfig('a string')).toStrictEqual({});
     expect(toParsedConfig(NON_OBJECT_NUMBER)).toStrictEqual({});
     expect(toParsedConfig(true)).toStrictEqual({});
@@ -44,5 +43,12 @@ describe(toParsedConfig, () => {
     const input: Record<string, unknown> = Object.create(null);
     input.foo = 'bar';
     expect(toParsedConfig(input)).toBe(input);
+  });
+});
+
+describe(getByPath, () => {
+  it('returns undefined for an inherited property', () => {
+    expect.hasAssertions();
+    expect(getByPath({}, ['constructor'])).toBeUndefined();
   });
 });

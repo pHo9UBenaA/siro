@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 import { type AbsPath, asAbsPath } from './shared/paths.ts';
 import { type CommandName, isCommandName } from './cli/commands.ts';
-import { KNOWN_FLAGS, flagsFor } from './cli/flags.ts';
+import { type FlagValues, KNOWN_FLAGS, flagsFor } from './cli/flags.ts';
 import type { PM, Severity } from './domain/entities/pms.ts';
 import { SiroError, UsageError } from './shared/errors.ts';
 import { detectHelpFlag, detectVersionFlag } from './cli/scanners.ts';
 import {
   ensureNodeVersion,
   parsePmFlag,
+  parseProjectTypeFlag,
   parseSeverityFlag,
   rejectUnknownFlags,
   resolveReporter,
@@ -21,22 +22,29 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { renderHelp } from './cli/help.ts';
 import { version } from './version.ts';
+import type { ProjectType } from './domain/entities/project-type.ts';
 
 type ParsedCommand =
   | { kind: 'help'; target?: CommandName }
   | { kind: 'version' }
   | { kind: 'usage'; reason?: string }
-  | { kind: 'lint'; cwd: AbsPath; pm?: PM; reporter: string; severity?: Severity };
+  | {
+      kind: 'lint';
+      cwd: AbsPath;
+      pm?: PM;
+      projectType?: ProjectType;
+      reporter: string;
+      severity?: Severity;
+    };
 
-const EMPTY = 0;
 const EXIT_SUCCESS = 0;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
 
-const rejectPassthrough = (flags: Record<string, unknown>): void => {
+const rejectPassthrough = (flags: FlagValues): void => {
   // siro wraps no downstream tool, so anything after `--` has nowhere to go.
   const passthrough = flags['--'];
-  if (Array.isArray(passthrough) && passthrough.length > EMPTY) {
+  if (Array.isArray(passthrough) && passthrough.length > 0) {
     throw new UsageError('siro takes no passthrough arguments after `--`.');
   }
 };
@@ -63,7 +71,7 @@ const resolveCommandCandidate = (
 const SINGLE = 1;
 
 const rejectExtraPositionals = (extraPositionals: readonly unknown[]): void => {
-  if (extraPositionals.length > EMPTY) {
+  if (extraPositionals.length > 0) {
     let plural = '';
     if (extraPositionals.length > SINGLE) {
       plural = 's';
@@ -94,7 +102,7 @@ const checkPreScanFlags = (argv: readonly string[]): ParsedCommand | undefined =
 };
 
 const buildLintCommand = (
-  flags: Record<string, unknown>,
+  flags: FlagValues,
   positionalCwd: unknown,
   commandCandidate: CommandName,
 ): ParsedCommand => {
@@ -103,12 +111,13 @@ const buildLintCommand = (
     cwd: resolveCwd(positionalCwd),
     kind: 'lint',
     pm: parsePmFlag(flags.pm),
+    projectType: parseProjectTypeFlag(flags.projectType),
     reporter: resolveReporter(flags),
     severity: parseSeverityFlag(flags.severity),
   };
 };
 
-const validateFlags = (flags: Record<string, unknown>): void => {
+const validateFlags = (flags: FlagValues): void => {
   rejectUnknownFlags(flags, KNOWN_FLAGS);
   rejectPassthrough(flags);
 };
@@ -229,14 +238,12 @@ const onRunRejected = (error: unknown): void => {
   process.exitCode = EXIT_CRASH;
 };
 
+export const runMain = (argv: readonly string[]): Promise<void> =>
+  run(argv).then(onRunFulfilled, onRunRejected);
+
 const ARGV_SKIP = 2;
 const [, invokedPath] = process.argv;
 const isDirectInvocation = invokedPath && import.meta.url === pathToFileURL(invokedPath).href;
 if (isDirectInvocation) {
-  try {
-    const code = await run(process.argv.slice(ARGV_SKIP));
-    onRunFulfilled(code);
-  } catch (error: unknown) {
-    onRunRejected(error);
-  }
+  await runMain(process.argv.slice(ARGV_SKIP));
 }

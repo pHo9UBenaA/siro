@@ -11,11 +11,13 @@ import { loadConfig } from '../adapters/config-loader.ts';
 import { mergeProgrammaticRules } from '../domain/services/merge-programmatic-rules.ts';
 import { resolvePMs } from '../domain/services/resolve-pms.ts';
 import { rules } from '../domain/builtin-rules.ts';
+import type { ProjectType } from '../domain/entities/project-type.ts';
 
 export interface PrepareOptions {
   readonly cwd: AbsPath;
   readonly fs?: FileSystem;
   readonly pm?: PM;
+  readonly projectType?: ProjectType;
   readonly customRules?: readonly Rule[];
 }
 
@@ -35,10 +37,7 @@ const resolveRuleSet = (
   userConfig: SiroConfig | undefined,
   customRules: readonly Rule[] | undefined,
 ): readonly Rule[] => {
-  let configCustomRules: SiroConfig['customRules'] | undefined = void 0;
-  if (userConfig) {
-    configCustomRules = userConfig.customRules;
-  }
+  const configCustomRules = userConfig?.customRules;
   const base = mergeProgrammaticRules(rules, customRules, configCustomRules);
   assertConfigRuleIdsKnown(userConfig, customRules);
   return applyConfig(base, userConfig);
@@ -49,11 +48,9 @@ const buildRunResult = (
   userConfig: SiroConfig | undefined,
 ): PreparedRun => {
   const { cwd, fs, pm, customRules } = options;
-  const ctx = createRepoContext(cwd, fs);
-  let allowedPms: SiroConfig['pms'] | undefined = void 0;
-  if (userConfig) {
-    allowedPms = userConfig.pms;
-  }
+  const projectType = options.projectType ?? userConfig?.projectType;
+  const ctx = createRepoContext(cwd, fs, projectType);
+  const allowedPms = userConfig?.pms;
   const pms = resolvePMs(ctx, { allowed: allowedPms, pmOverride: pm });
   const ruleSet = resolveRuleSet(userConfig, customRules);
   return { ctx, pms, ruleSet, userConfig };

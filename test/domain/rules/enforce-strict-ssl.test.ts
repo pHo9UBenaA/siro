@@ -69,6 +69,11 @@ describe('enforce-strict-ssl (yarn) — check states', () => {
     expect(status.actual).toBe(false);
   });
 
+  it('flags a violation when enableStrictSsl is a string', () => {
+    expect.hasAssertions();
+    expect(yarnBinding.check(makeCtx(), { enableStrictSsl: 'false' }).state).toBe('violation');
+  });
+
   it('emits info advisory when enableStrictSsl is unset', () => {
     expect.hasAssertions();
     const status = yarnBinding.check(makeCtx(), {});

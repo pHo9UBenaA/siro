@@ -44,10 +44,10 @@ describe('evaluateBindings — violation delivery', () => {
   it('invokes the visitor for every (rule, pm) binding that reports a violation', () => {
     expect.hasAssertions();
     const violating: CheckStatus = { message: 'x', state: 'violation' };
-    const ruleSet: Rule[] = [
+    const ruleSet = [
       ruleWith('a', ['npm', 'pnpm'], violating),
       ruleWith('b', ['npm'], violating),
-    ];
+    ] as const satisfies readonly Rule[];
     const visited: string[] = [];
     evaluateBindings({
       ctx: noopCtx,
@@ -61,13 +61,58 @@ describe('evaluateBindings — violation delivery', () => {
 });
 
 describe('evaluateBindings — non-violation filtering', () => {
+  it('skips a package-only custom rule for an inferred application', () => {
+    expect.hasAssertions();
+    const rule: Rule = {
+      ...ruleWith('package-only', ['npm'], { message: 'x', state: 'violation' }),
+      projectTypes: ['package'],
+    };
+    const visited: string[] = [];
+    evaluateBindings({
+      ctx: { ...noopCtx, packageJson: { name: 'private-app', private: true } },
+      onViolation: ({ rule: visitedRule }) => visited.push(visitedRule.id),
+      parseConfig: createConfigParser(noopCodecFor),
+      pms: ['npm'],
+      ruleSet: [rule],
+    });
+    expect(visited).toStrictEqual([]);
+  });
+
+  it('skips a package-only custom rule for a nameless Deno application', () => {
+    expect.hasAssertions();
+    const rule: Rule = {
+      bindings: {
+        deno: {
+          check: () => ({ message: 'x', state: 'violation' }),
+          file: { kind: 'json', path: asRelPath('custom.json') },
+          fix: () => [],
+          fixKind: 'auto',
+        },
+      },
+      description: 'package-only-deno',
+      id: 'package-only-deno',
+      projectTypes: ['package'],
+      severity: 'warn',
+      title: 'package-only-deno',
+    };
+    const visited: string[] = [];
+    evaluateBindings({
+      ctx: noopCtx,
+      onViolation: ({ rule: visitedRule }) => visited.push(visitedRule.id),
+      parseConfig: createConfigParser(noopCodecFor),
+      pms: ['deno'],
+      ruleSet: [rule],
+    });
+    expect(visited).toStrictEqual([]);
+  });
+
   it('skips bindings that report ok or na', () => {
     expect.hasAssertions();
-    const ruleSet: Rule[] = [
+    const ruleSet = [
       ruleWith('ok', ['npm'], { state: 'ok' }),
       ruleWith('na', ['npm'], { state: 'na' }),
       ruleWith('v', ['npm'], { message: 'x', state: 'violation' }),
-    ];
+    ] as const satisfies readonly Rule[];
     const visited: string[] = [];
     evaluateBindings({
       ctx: noopCtx,
@@ -81,7 +126,9 @@ describe('evaluateBindings — non-violation filtering', () => {
 
   it('skips PMs without a binding instead of recording N/A', () => {
     expect.hasAssertions();
-    const ruleSet: Rule[] = [ruleWith('a', ['npm'], { message: 'x', state: 'violation' })];
+    const ruleSet = [
+      ruleWith('a', ['npm'], { message: 'x', state: 'violation' }),
+    ] as const satisfies readonly Rule[];
     const visited: string[] = [];
     evaluateBindings({
       ctx: noopCtx,
@@ -95,6 +142,40 @@ describe('evaluateBindings — non-violation filtering', () => {
 });
 
 describe('evaluateBindings — parser reuse', () => {
+  it('does not read deno.json to classify an unscoped Deno rule', () => {
+    expect.hasAssertions();
+    const reads: string[] = [];
+    const ctx: RepoContext = {
+      ...noopCtx,
+      readText: (file) => {
+        reads.push(file);
+        return '{}';
+      },
+    };
+    const rule: Rule = {
+      bindings: {
+        deno: {
+          check: () => ({ state: 'ok' }),
+          file: { kind: 'json', path: asRelPath('custom.json') },
+          fix: () => [],
+          fixKind: 'auto',
+        },
+      },
+      description: 'unscoped-deno',
+      id: 'unscoped-deno',
+      severity: 'warn',
+      title: 'unscoped-deno',
+    };
+    evaluateBindings({
+      ctx,
+      onViolation: () => void 0,
+      parseConfig: createConfigParser(noopCodecFor),
+      pms: ['deno'],
+      ruleSet: [rule],
+    });
+    expect(reads).toStrictEqual(['custom.json']);
+  });
+
   it('reuses the caller-provided parser so a fix-side re-read is a cache hit', () => {
     expect.hasAssertions();
     let parseCalls = 0;
@@ -102,7 +183,9 @@ describe('evaluateBindings — parser reuse', () => {
       parseCalls += SINGLE_CALL;
       return noopCodecFor(kind);
     });
-    const ruleSet: Rule[] = [ruleWith('a', ['npm'], { message: 'x', state: 'violation' })];
+    const ruleSet = [
+      ruleWith('a', ['npm'], { message: 'x', state: 'violation' }),
+    ] as const satisfies readonly Rule[];
     evaluateBindings({
       ctx: noopCtx,
       onViolation: ({ binding }) => {

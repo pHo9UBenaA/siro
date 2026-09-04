@@ -1,13 +1,15 @@
-import type {
-  CodecKind,
-  ConfigReadValue,
-  ConfigValue,
-  KeyPath,
-  ParsedConfig,
+import {
+  CODEC_KINDS,
+  type CodecKind,
+  type ConfigReadValue,
+  type ConfigValue,
+  type KeyPath,
+  type ParsedConfig,
 } from './config-value.ts';
-import type { PM, Severity } from './pms.ts';
+import { type PM, type Severity, isPM, isSeverity } from './pms.ts';
 import type { RelPath } from '../../shared/paths.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
+import { type ProjectType, isProjectType } from './project-type.ts';
 
 /**
  * What a rule binding points at on disk: a parsed config file or an existence
@@ -65,6 +67,13 @@ export type FixOp =
  */
 export type FixKind = 'auto' | 'advisory';
 
+/** Display-only package-manager version metadata. */
+export interface VersionNote {
+  readonly configAvailableSince?: string;
+  readonly defaultSafeSince?: string;
+  readonly note?: string;
+}
+
 type SetKeyOp = Extract<FixOp, { op: 'setKey' }>;
 type AdvisoryOp = Extract<FixOp, { op: 'note' | 'ensureFileTracked' }>;
 
@@ -81,6 +90,7 @@ export interface AutoRuleBinding {
    * override always wins over both.
    */
   readonly severity?: Severity;
+  readonly versionNote?: VersionNote;
   check: (ctx: RepoContext, config: ParsedConfig) => CheckStatus;
   fix: (ctx: RepoContext) => readonly SetKeyOp[];
 }
@@ -92,6 +102,7 @@ export interface AdvisoryRuleBinding {
   readonly docs?: string;
   /** See {@link AutoRuleBinding.severity}. */
   readonly severity?: Severity;
+  readonly versionNote?: VersionNote;
   check: (ctx: RepoContext, config: ParsedConfig) => CheckStatus;
   fix: (ctx: RepoContext) => readonly AdvisoryOp[];
 }
@@ -99,12 +110,82 @@ export interface AdvisoryRuleBinding {
 export type RuleBinding = AutoRuleBinding | AdvisoryRuleBinding;
 
 /** A package-manager-agnostic security intent, realized per PM via `bindings`. */
-export interface Rule {
-  readonly id: string;
+export interface Rule<Id extends string = string> {
+  readonly id: Id;
   readonly title: string;
   readonly description: string;
   readonly severity: Severity;
   readonly docs?: string;
+  /** Project types this rule applies to; omission means both types. */
+  readonly projectTypes?: readonly ProjectType[];
   /** Absence of a PM key means the rule does not apply (N/A) to that PM. */
   readonly bindings: Partial<Record<PM, RuleBinding>>;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isOptionalString = (value: unknown): boolean =>
+  typeof value === 'undefined' || typeof value === 'string';
+
+const CONFIG_FILE_KINDS: ReadonlySet<string> = new Set([...CODEC_KINDS, 'fileGlob']);
+
+const isConfigFileRefShape = (value: unknown): value is ConfigFileRef => {
+  if (!isRecord(value) || typeof value.kind !== 'string' || typeof value.path !== 'string') {
+    return false;
+  }
+  return CONFIG_FILE_KINDS.has(value.kind);
+};
+
+const isVersionNoteShape = (value: unknown): value is VersionNote | undefined =>
+  typeof value === 'undefined' ||
+  (isRecord(value) &&
+    isOptionalString(value.configAvailableSince) &&
+    isOptionalString(value.defaultSafeSince) &&
+    isOptionalString(value.note));
+
+const isRuleBindingShape = (value: unknown): value is RuleBinding => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isConfigFileRefShape(value.file) &&
+    (value.fixKind === 'auto' || value.fixKind === 'advisory') &&
+    isOptionalString(value.docs) &&
+    (typeof value.severity === 'undefined' ||
+      (typeof value.severity === 'string' && isSeverity(value.severity))) &&
+    isVersionNoteShape(value.versionNote) &&
+    typeof value.check === 'function' &&
+    typeof value.fix === 'function'
+  );
+};
+
+const isBindingsShape = (value: unknown): value is Rule['bindings'] =>
+  isRecord(value) &&
+  Object.entries(value).every(([pm, binding]) => isPM(pm) && isRuleBindingShape(binding));
+
+const isProjectTypeValue = (value: unknown): value is ProjectType =>
+  typeof value === 'string' && isProjectType(value);
+
+const isProjectTypesShape = (value: unknown): value is readonly ProjectType[] | undefined =>
+  typeof value === 'undefined' ||
+  (Array.isArray(value) &&
+    Array.from(value).every((projectType) => isProjectTypeValue(projectType)));
+
+export const isRuleShape = (value: unknown): value is Rule => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    typeof value.id === 'string' &&
+    typeof value.title === 'string' &&
+    typeof value.description === 'string' &&
+    typeof value.severity === 'string' &&
+    isSeverity(value.severity) &&
+    isOptionalString(value.docs) &&
+    isProjectTypesShape(value.projectTypes) &&
+    isBindingsShape(value.bindings)
+  );
+};
+
+export const defineRule = <const Id extends string>(rule: Rule<Id>): Rule<Id> => rule;

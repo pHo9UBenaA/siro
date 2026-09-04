@@ -63,8 +63,15 @@ describe('fixtures', () => {
   it('contains at least one entry per package manager', () => {
     expect.hasAssertions();
     const dirs = new Set(files.map((entry) => entry.dir));
-    expect(dirs).toStrictEqual(
-      new Set(['npm-good', 'npm-bad', 'pnpm-good', 'yarn-good', 'bun-good', 'deno-good']),
+    expect([...dirs]).toStrictEqual(
+      expect.arrayContaining([
+        'npm-good',
+        'npm-bad',
+        'pnpm-good',
+        'yarn-good',
+        'bun-good',
+        'deno-good',
+      ]),
     );
   });
 

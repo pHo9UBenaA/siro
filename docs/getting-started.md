@@ -8,7 +8,7 @@
 
 ```sh
 npx @pho9ubenaa/siro lint       # latest
-npx @pho9ubenaa/siro@v0.0.3 lint # pin to a specific version
+npx @pho9ubenaa/siro@v0.3.0 lint # pin to a specific version
 ```
 
 `siro` auto-detects your package manager from the `packageManager` field, lockfiles, and config
@@ -17,7 +17,7 @@ files, then reports any best-practice violations.
 ## Fix the findings
 
 siro is a linter: it reports violations but never writes your config files.
-Every finding carries machine-readable remediation (`fix` operations and
+Every finding carries machine-readable remediation (`fix` operations or
 `manualSteps`) in the JSON output:
 
 ```sh
@@ -31,7 +31,7 @@ output shape is a versioned contract; see [json-output.md](json-output.md).
 ## Add it to CI
 
 ```sh
-npx @pho9ubenaa/siro@v0.0.3 lint                     # pin version in CI
+npx @pho9ubenaa/siro@v0.3.0 lint                     # pin version in CI
 npx @pho9ubenaa/siro lint --severity warn            # also fail on warnings
 npx @pho9ubenaa/siro lint --reporter json            # machine-readable output (equivalent to --json)
 npx @pho9ubenaa/siro lint --reporter github          # GitHub Actions annotations on PRs
@@ -40,8 +40,17 @@ npx @pho9ubenaa/siro lint --reporter github          # GitHub Actions annotation
 ## Target a specific package manager
 
 ```sh
-npx @pho9ubenaa/siro@v0.0.3 lint --pm pnpm
+npx @pho9ubenaa/siro@v0.3.0 lint --pm pnpm
 ```
+
+## Select application or package policy
+
+```sh
+npx @pho9ubenaa/siro@v0.3.0 lint --project-type application # skip published-artifact rules
+npx @pho9ubenaa/siro@v0.3.0 lint --project-type package     # require artifact safeguards
+```
+
+Omit the flag to infer the policy from the repository's publish metadata.
 
 ## Install as a dev dependency (optional)
 

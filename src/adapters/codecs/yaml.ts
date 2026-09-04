@@ -10,6 +10,16 @@ export const yamlCodec: ConfigCodec = {
     // Keep the library's default maxAliasCount (the billion-laughs guard):
     // a fork-PR `pnpm-workspace.yaml` is attacker-controllable, so unbounded
     // alias expansion (`-1`) risks an OOM during CI lint (D14).
-    return toParsedConfig(parseDocument(text).toJS());
+    const document = parseDocument(text);
+    if (document.errors.length > 0) {
+      throw document.errors[0];
+    }
+    return toParsedConfig(
+      document.toJS({
+        onAnchor: (value) => {
+          JSON.stringify(value);
+        },
+      }),
+    );
   },
 };

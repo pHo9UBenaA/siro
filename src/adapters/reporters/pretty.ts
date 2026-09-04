@@ -79,8 +79,7 @@ const buildRenderCtx = (
 export const prettyReporter: Reporter<'pretty'> = {
   format(result: LintResult, io: IO): void {
     const ctx = buildRenderCtx(io);
-    const EMPTY = 0;
-    if (result.findings.length === EMPTY) {
+    if (result.findings.length === 0) {
       io.stdout(ctx.colors.green('✔ No security best-practice issues found.'));
       return;
     }

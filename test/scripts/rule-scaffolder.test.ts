@@ -1,6 +1,5 @@
 import {
   insertBuiltinRuleEntries,
-  insertRuleIdEntry,
   isValidRuleId,
   kebabToCamel,
   renderRuleFile,
@@ -67,118 +66,45 @@ describe(renderRuleFile, () => {
     expect(out).toMatch(/TODO\(siro\): bindings are empty/u);
   });
 
-  it('emits an advisory template using a bare Rule literal', () => {
+  it('emits an advisory template through defineRule', () => {
     expect.hasAssertions();
     const out = renderRuleFile('enforce-2fa', 'enforce2fa', 'advisory');
-    expect(out).toContain("import type { Rule } from '../entities/rule.ts';");
-    expect(out).toContain('export const enforce2fa: Rule = {');
+    expect(out).toContain("import { defineRule } from '../entities/rule.ts';");
+    expect(out).toContain('export const enforce2fa = defineRule({');
     expect(out).toContain("id: 'enforce-2fa',");
-  });
-});
-
-const RULE_ID_SOURCE = `const BUILTIN_RULE_IDS = [
-  'disable-lifecycle-scripts',
-  'frozen-lockfile',
-  'provenance',
-] as const;
-
-export type BuiltinRuleId = (typeof BUILTIN_RULE_IDS)[number];
-`;
-
-describe(insertRuleIdEntry, () => {
-  describe('basic operations', () => {
-    it('appends a new id at the end of the array', () => {
-      expect.hasAssertions();
-      const out = insertRuleIdEntry(RULE_ID_SOURCE, 'enforce-2fa');
-      expect(out).toContain("  'provenance',\n  'enforce-2fa',\n] as const;");
-    });
-
-    it('refuses duplicates', () => {
-      expect.hasAssertions();
-      expect(() => insertRuleIdEntry(RULE_ID_SOURCE, 'provenance')).toThrow(/already present/u);
-    });
-
-    it('throws with the missing marker name when the array is missing', () => {
-      expect.hasAssertions();
-      expect(() => insertRuleIdEntry('// no array here', 'enforce-2fa')).toThrow(
-        /BUILTIN_RULE_IDS opening/u,
-      );
-    });
-  });
-
-  describe('ambiguous anchors', () => {
-    it('does not latch onto an earlier `] as const;` that closes a different array', () => {
-      expect.hasAssertions();
-      const sourceWithExtra = `export const KNOWN_REPORTERS = [
-  'pretty',
-  'json',
-] as const;
-
-const BUILTIN_RULE_IDS = [
-  'provenance',
-] as const;
-`;
-      const out = insertRuleIdEntry(sourceWithExtra, 'enforce-2fa');
-      expect(out).toContain(
-        "export const KNOWN_REPORTERS = [\n  'pretty',\n  'json',\n] as const;",
-      );
-      expect(out).toContain(
-        "const BUILTIN_RULE_IDS = [\n  'provenance',\n  'enforce-2fa',\n] as const;",
-      );
-    });
-
-    it('ignores a commented-out marker so it cannot anchor the splice', () => {
-      expect.hasAssertions();
-      const sourceWithComment = `// example: const BUILTIN_RULE_IDS = ['fake'] as const;
-const BUILTIN_RULE_IDS = [
-  'provenance',
-] as const;
-`;
-      const out = insertRuleIdEntry(sourceWithComment, 'enforce-2fa');
-      expect(out).toContain("  'provenance',\n  'enforce-2fa',\n] as const;");
-      expect(out).toContain("// example: const BUILTIN_RULE_IDS = ['fake'] as const;");
-    });
+    expect(out).toContain('});');
   });
 });
 
 const BUILTIN_ENTRIES_SOURCE = `import type { Rule } from './entities/rule.ts';
-import type { BuiltinRuleId } from './entities/rule-id.ts';
 import { disableLifecycleScripts } from './rules/disable-lifecycle-scripts.ts';
 import { frozenLockfile } from './rules/frozen-lockfile.ts';
 import { provenance } from './rules/provenance.ts';
 
-const RULE_REGISTRY = {
-  'disable-lifecycle-scripts': disableLifecycleScripts,
-  'frozen-lockfile': frozenLockfile,
+export const rules = [
+  disableLifecycleScripts,
+  frozenLockfile,
   provenance,
-} as const satisfies Record<BuiltinRuleId, Rule>;
+] as const satisfies readonly Rule[];
 
-export const rules: readonly Rule[] = Object.values(RULE_REGISTRY);
+export type BuiltinRuleId = (typeof rules)[number]['id'];
 `;
 
 describe('insertBuiltinRuleEntries — insertion order', () => {
   it('inserts the import in alphabetical position among ./rules imports', () => {
     expect.hasAssertions();
     const out = insertBuiltinRuleEntries(BUILTIN_ENTRIES_SOURCE, 'enforce-2fa', 'enforce2fa');
-    expect(out).toMatch(
-      /\.\/rules\/disable-lifecycle-scripts\.ts'.*\n.*\.\/rules\/enforce-2fa\.ts'.*\n.*\.\/rules\/frozen-lockfile\.ts'/su,
+    const normalized = out.replace(/\s+/gu, ' ');
+    expect(normalized).toMatch(
+      /\.\/rules\/disable-lifecycle-scripts\.ts'.*\.\/rules\/enforce-2fa\.ts'.*\.\/rules\/frozen-lockfile\.ts'/u,
     );
   });
 
-  it('appends the new entry to RULE_REGISTRY using the quoted-key form', () => {
+  it('appends the new rule to the ordered rules array', () => {
     expect.hasAssertions();
     const out = insertBuiltinRuleEntries(BUILTIN_ENTRIES_SOURCE, 'enforce-2fa', 'enforce2fa');
-    expect(out).toContain(
-      "  provenance,\n  'enforce-2fa': enforce2fa,\n} as const satisfies Record<BuiltinRuleId, Rule>;",
-    );
-  });
-
-  it('uses shorthand when the kebab id equals the camel identifier', () => {
-    expect.hasAssertions();
-    const out = insertBuiltinRuleEntries(BUILTIN_ENTRIES_SOURCE, 'audit', 'audit');
-    expect(out).toContain(
-      '  provenance,\n  audit,\n} as const satisfies Record<BuiltinRuleId, Rule>;',
-    );
+    const normalized = out.replace(/\s+/gu, ' ');
+    expect(normalized).toContain('provenance, enforce2fa,');
   });
 
   it('refuses an id that is already imported', () => {
@@ -191,53 +117,59 @@ describe('insertBuiltinRuleEntries — insertion order', () => {
   it('appends when the new id sorts after every existing import', () => {
     expect.hasAssertions();
     const out = insertBuiltinRuleEntries(BUILTIN_ENTRIES_SOURCE, 'zoo-rule', 'zooRule');
-    expect(out).toContain(
-      "import { provenance } from './rules/provenance.ts';\nimport { zooRule } from './rules/zoo-rule.ts';",
+    const normalized = out.replace(/\s+/gu, ' ');
+    expect(normalized).toContain(
+      "import { provenance } from './rules/provenance.ts'; import { zooRule } from './rules/zoo-rule.ts';",
     );
   });
 });
 
 const DIGIT_ENTRIES_SOURCE = `import type { Rule } from './entities/rule.ts';
-import type { BuiltinRuleId } from './entities/rule-id.ts';
 import { enforce2fa } from './rules/enforce-2fa.ts';
 
-const RULE_REGISTRY = {
-  'enforce-2fa': enforce2fa,
-} as const satisfies Record<BuiltinRuleId, Rule>;
+export const rules = [
+  enforce2fa,
+] as const satisfies readonly Rule[];
 
-export const rules: readonly Rule[] = Object.values(RULE_REGISTRY);
+export type BuiltinRuleId = (typeof rules)[number]['id'];
 `;
 
-const EXTRA_OBJECT_SOURCE = `import type { Rule } from './entities/rule.ts';
-import type { BuiltinRuleId } from './entities/rule-id.ts';
+const EXTRA_ARRAY_SOURCE = `import type { Rule } from './entities/rule.ts';
 import { provenance } from './rules/provenance.ts';
 
 vi.setConfig({ testTimeout: 5000 });
 
-const ADVISORY_RULES = {
+const ADVISORY_RULES = [
   provenance,
-} as const;
+] as const satisfies readonly Rule[];
 
-const RULE_REGISTRY = {
+export const rules = [
   provenance,
-} as const satisfies Record<BuiltinRuleId, Rule>;
+] as const satisfies readonly Rule[];
 
-export const rules: readonly Rule[] = Object.values(RULE_REGISTRY);
+export type BuiltinRuleId = (typeof rules)[number]['id'];
 `;
 
 describe('insertBuiltinRuleEntries — edge cases', () => {
   it('inserts digit-containing ids in natural order, not lexicographic order', () => {
     expect.hasAssertions();
     const out = insertBuiltinRuleEntries(DIGIT_ENTRIES_SOURCE, 'enforce-10x', 'enforce10x');
-    expect(out).toMatch(/\.\/rules\/enforce-2fa\.ts'.*\n.*\.\/rules\/enforce-10x\.ts'/su);
+    const normalized = out.replace(/\s+/gu, ' ');
+    expect(normalized).toMatch(/\.\/rules\/enforce-2fa\.ts'.*\.\/rules\/enforce-10x\.ts'/u);
   });
 
-  it('does not latch onto an earlier `};` that closes a different object', () => {
+  it('does not latch onto an earlier rule-shaped array', () => {
     expect.hasAssertions();
-    const out = insertBuiltinRuleEntries(EXTRA_OBJECT_SOURCE, 'enforce-2fa', 'enforce2fa');
-    expect(out).toContain('const ADVISORY_RULES = {\n  provenance,\n} as const;');
-    expect(out).toContain(
-      "const RULE_REGISTRY = {\n  provenance,\n  'enforce-2fa': enforce2fa,\n} as const satisfies Record<BuiltinRuleId, Rule>;",
-    );
+    const out = insertBuiltinRuleEntries(EXTRA_ARRAY_SOURCE, 'enforce-2fa', 'enforce2fa');
+    const normalized = out.replace(/\s+/gu, ' ');
+    expect(normalized).toContain('const ADVISORY_RULES = [ provenance,');
+    expect(normalized).toContain('export const rules = [ provenance, enforce2fa,');
+  });
+
+  it('reports a missing rules array marker', () => {
+    expect.hasAssertions();
+    expect(() =>
+      insertBuiltinRuleEntries("import { rule } from './rules/rule.ts';", 'x', 'x'),
+    ).toThrow(/rules array opening/u);
   });
 });

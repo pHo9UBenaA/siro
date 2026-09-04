@@ -7,6 +7,7 @@ export const tomlCodec: ConfigCodec = {
     if (text.trim() === '') {
       return {};
     }
-    return toParsedConfig(parseToml(text));
+    const input = text.replace(/^\uFEFF/u, '');
+    return toParsedConfig(parseToml(input));
   },
 };

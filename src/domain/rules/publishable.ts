@@ -1,10 +1,5 @@
 import type { RepoContext } from '../ports/repo-context.ts';
+import { resolvePackageJsonProjectType } from '../services/project-type.ts';
 
-export const isPublishable = (ctx: RepoContext): boolean => {
-  const pkg = ctx.packageJson;
-  if (typeof pkg === 'undefined') {
-    return false;
-  }
-  const EMPTY = 0;
-  return pkg.private !== true && typeof pkg.name === 'string' && pkg.name.length > EMPTY;
-};
+export const isPublishable = (ctx: RepoContext): boolean =>
+  resolvePackageJsonProjectType(ctx) === 'package';

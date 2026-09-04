@@ -6,14 +6,18 @@ import {
   isPM,
   isSeverity,
 } from '../domain/entities/pms.ts';
-import { BUILTIN_REPORTER_NAMES } from '../adapters/reporters/registry.ts';
+import {
+  BUILTIN_REPORTER_NAMES,
+  DEFAULT_REPORTER_NAME,
+  JSON_REPORTER_NAME,
+} from '../adapters/reporters/registry.ts';
+import type { FlagValues } from './flags.ts';
+import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../shared/node-version.ts';
 import { UsageError } from '../shared/errors.ts';
-
-const FIRST_INDEX = 0;
-const MIN_NODE_MAJOR = 20;
+import { PROJECT_TYPES, type ProjectType, isProjectType } from '../domain/entities/project-type.ts';
 
 export const rejectUnknownFlags = (
-  flags: Record<string, unknown>,
+  flags: FlagValues,
   allowed: ReadonlySet<string>,
   scope?: string,
 ): void => {
@@ -42,6 +46,21 @@ export const parsePmFlag = (raw: unknown): PM | undefined => {
   return raw;
 };
 
+export const parseProjectTypeFlag = (raw: unknown): ProjectType | undefined => {
+  if (typeof raw === 'undefined') {
+    return;
+  }
+  if (raw === true) {
+    throw new UsageError(`--project-type requires a value (expected ${PROJECT_TYPES.join('|')})`);
+  }
+  if (typeof raw === 'string' && isProjectType(raw)) {
+    return raw;
+  }
+  throw new UsageError(
+    `Unknown project type: ${String(raw)} (expected ${PROJECT_TYPES.join('|')})`,
+  );
+};
+
 export const parseSeverityFlag = (raw: unknown): Severity | undefined => {
   if (typeof raw === 'undefined') {
     return;
@@ -55,7 +74,7 @@ export const parseSeverityFlag = (raw: unknown): Severity | undefined => {
   return raw;
 };
 
-export const resolveReporter = (flags: Record<string, unknown>): string => {
+export const resolveReporter = (flags: FlagValues): string => {
   if (flags.reporter === true) {
     // Cac yields `true` when --reporter has no value token; falling through
     // Would silently select 'pretty', unlike --pm / --severity which reject.
@@ -63,26 +82,25 @@ export const resolveReporter = (flags: Record<string, unknown>): string => {
       `--reporter requires a value (expected one of: ${BUILTIN_REPORTER_NAMES.join(', ')}, or a reporter registered via siro.config.ts)`,
     );
   }
+  const repeatedReporterSelector = Array.isArray(flags.reporter) || Array.isArray(flags.json);
+  if (repeatedReporterSelector || (typeof flags.reporter === 'string' && flags.json === true)) {
+    throw new UsageError(
+      'Invalid reporter selection: use either --reporter or --json, and specify it only once.',
+    );
+  }
   if (typeof flags.reporter === 'string') {
-    // --reporter and --json both select a reporter; using both is ambiguous
-    // Intent (even when redundant, e.g. `--reporter json --json`). Reject
-    // Rather than silently letting one win.
-    if (flags.json === true) {
-      throw new UsageError('Use either --reporter or --json, not both.');
-    }
     return flags.reporter;
   }
   if (flags.json === true) {
-    return 'json';
+    return JSON_REPORTER_NAME;
   }
-  return 'pretty';
+  return DEFAULT_REPORTER_NAME;
 };
 
 export const ensureNodeVersion = (nodeVersion: string): void => {
-  const major = Number(nodeVersion.replace(/^v/u, '').split('.')[FIRST_INDEX]);
-  if (Number.isFinite(major) && major < MIN_NODE_MAJOR) {
+  if (!isSupportedNodeVersion(nodeVersion)) {
     throw new UsageError(
-      `Node ${MIN_NODE_MAJOR}+ required (you are on ${nodeVersion}). Upgrade your runtime to use siro.`,
+      `Node ${SUPPORTED_NODE_RANGE} required (you are on ${nodeVersion}). Upgrade your runtime to use siro.`,
     );
   }
 };

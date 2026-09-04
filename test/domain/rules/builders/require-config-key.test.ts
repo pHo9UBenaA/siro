@@ -1,12 +1,11 @@
 import assert from 'node:assert';
 import type {
   AutoRuleBinding,
-  CheckStatus,
   ConfigFileRef,
   Rule,
+  VersionNote,
 } from '../../../../src/domain/entities/rule.ts';
 import {
-  type VersionNote,
   overrideBindings,
   requireConfigKey,
 } from '../../../../src/domain/rules/builders/require-config-key.ts';
@@ -21,10 +20,6 @@ vi.setConfig({ testTimeout: 5000 });
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
 
 const INCREMENT = 1;
-const EMPTY = 0;
-
-const acceptPositiveNumber = (val: unknown): boolean => typeof val === 'number' && val > EMPTY;
-
 let vnCounter = 0;
 const vnRule = (versionNote?: VersionNote): Rule => {
   vnCounter += INCREMENT;
@@ -85,131 +80,29 @@ describe('requireConfigKey passes spec.severity into binding (D-1)', () => {
   });
 });
 
-describe('versionNote — single-field and absent rendering (D-3)', () => {
-  const check = (vn?: VersionNote): CheckStatus => {
+describe('versionNote metadata', () => {
+  const binding = (vn?: VersionNote) => {
     const bd = vnRule(vn).bindings.npm;
     assert(bd, 'expected npm binding');
-    return bd.check(makeCtx(), {});
+    return bd;
   };
 
-  it('appends "available since" when only configAvailableSince is set', () => {
+  it('copies structured metadata to the binding', () => {
     expect.hasAssertions();
-    expect(check({ configAvailableSince: 'npm 9.0.0' })).toMatchObject({
-      message: 'Pin the key explicitly. (available since npm 9.0.0)',
-      state: 'violation',
-    });
-  });
-
-  it('appends "default safe since" when only defaultSafeSince is set', () => {
-    expect.hasAssertions();
-    expect(check({ defaultSafeSince: 'npm 11.0.0' })).toMatchObject({
-      message: 'Pin the key explicitly. (default safe since npm 11.0.0)',
-      state: 'violation',
-    });
-  });
-
-  it('passes the message through unchanged when versionNote is absent', () => {
-    expect.hasAssertions();
-    expect(check()).toMatchObject({ message: 'Pin the key explicitly.', state: 'violation' });
-  });
-});
-
-describe('versionNote — multi-field rendering (D-3)', () => {
-  const check = (vn?: VersionNote): CheckStatus => {
-    const bd = vnRule(vn).bindings.npm;
-    assert(bd, 'expected npm binding');
-    return bd.check(makeCtx(), {});
-  };
-
-  it('joins both fields with "; " inside a single parenthesised suffix', () => {
-    expect.hasAssertions();
-    expect(
-      check({ configAvailableSince: 'npm 9.0.0', defaultSafeSince: 'npm 11.0.0' }),
-    ).toMatchObject({
-      message: 'Pin the key explicitly. (available since npm 9.0.0; default safe since npm 11.0.0)',
-      state: 'violation',
-    });
-  });
-
-  it('appends a free-form note after the structured fields', () => {
-    expect.hasAssertions();
-    expect(
-      check({ configAvailableSince: 'npm 9.0.0', note: 'replaces legacy-flag' }),
-    ).toMatchObject({
-      message: 'Pin the key explicitly. (available since npm 9.0.0; replaces legacy-flag)',
-      state: 'violation',
-    });
-  });
-
-  it('locks rendering order when all three versionNote fields are set', () => {
-    expect.hasAssertions();
-    const vn = {
+    expect(binding({ configAvailableSince: 'npm 9.0.0' }).versionNote).toStrictEqual({
       configAvailableSince: 'npm 9.0.0',
-      defaultSafeSince: 'npm 11.0.0',
-      note: 'replaces legacy-flag',
-    };
-    expect(check(vn)).toMatchObject({
-      message:
-        'Pin the key explicitly. (available since npm 9.0.0; default safe since npm 11.0.0; replaces legacy-flag)',
-      state: 'violation',
-    });
-  });
-});
-
-describe('versionNote — accept / documentedDefault advisory path (D-3)', () => {
-  it('renders the suffix on the accept-based documentedDefault advisory path', () => {
-    expect.hasAssertions();
-    vnCounter += INCREMENT;
-    const rule = requireConfigKey({
-      bindings: {
-        npm: {
-          accept: acceptPositiveNumber,
-          documentedDefault: 1440,
-          file: npmrc,
-          keyPath: ['k'],
-          message: 'Pin the key explicitly.',
-          value: 1440,
-          versionNote: { defaultSafeSince: 'npm 11.0.0' },
-        },
-      },
-      description: 'd',
-      id: `vn-accept-${vnCounter}`,
-      severity: 'error',
-      title: 't',
-    });
-    const acceptBd = rule.bindings.npm;
-    assert(acceptBd, 'expected npm binding');
-    expect(acceptBd.check(makeCtx(), {})).toMatchObject({
-      message: 'Pin the key explicitly. (default safe since npm 11.0.0)',
-      severity: 'info',
-      state: 'violation',
     });
   });
 
-  it('also renders the suffix on the documentedDefault advisory path', () => {
+  it('leaves metadata absent when the spec omits it', () => {
     expect.hasAssertions();
-    vnCounter += INCREMENT;
-    const rule = requireConfigKey({
-      bindings: {
-        npm: {
-          documentedDefault: true,
-          file: npmrc,
-          keyPath: ['k'],
-          message: 'Pin the key explicitly.',
-          value: true,
-          versionNote: { configAvailableSince: 'npm 9.0.0', defaultSafeSince: 'npm 11.0.0' },
-        },
-      },
-      description: 'd',
-      id: `vn-dd-${vnCounter}`,
-      severity: 'error',
-      title: 't',
-    });
-    const ddBd = rule.bindings.npm;
-    assert(ddBd, 'expected npm binding');
-    expect(ddBd.check(makeCtx(), {})).toMatchObject({
-      message: 'Pin the key explicitly. (available since npm 9.0.0; default safe since npm 11.0.0)',
-      severity: 'info',
+    expect(binding().versionNote).toBeUndefined();
+  });
+
+  it('keeps the check result free of presentation metadata', () => {
+    expect.hasAssertions();
+    expect(binding({ defaultSafeSince: 'npm 11.0.0' }).check(makeCtx(), {})).toMatchObject({
+      message: 'Pin the key explicitly.',
       state: 'violation',
     });
   });

@@ -1,4 +1,5 @@
-export type CodecKind = 'npmrc' | 'yaml' | 'toml' | 'json';
+export const CODEC_KINDS = ['json', 'npmrc', 'toml', 'yaml'] as const;
+export type CodecKind = (typeof CODEC_KINDS)[number];
 
 /** Scalar value that can be written back to a config file. */
 export type ConfigValue = string | number | boolean;
@@ -56,6 +57,9 @@ export const getByPath = (
   let current: ConfigScalar | readonly ConfigScalar[] | ParsedConfig | undefined = config;
   for (const key of keyPath) {
     if (!isParsedConfigObject(current)) {
+      return;
+    }
+    if (!Object.hasOwn(current, key)) {
       return;
     }
     current = current[key];

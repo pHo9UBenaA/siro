@@ -3,10 +3,11 @@
 //   pnpm gen:rule <id>                # AutoRuleBinding (requireConfigKey)
 //   pnpm gen:rule <id> --advisory     # AdvisoryRuleBinding (custom check)
 //   pnpm gen:rule <id> --dry-run      # print the plan and exit without writing
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { createScriptContext } from '../_shared/script-runtime.mjs';
 import path from 'node:path';
-import { rollbackWrites } from './lib/rule-rollback.mjs';
+import { atomicWriteSync, rollbackWrites } from './lib/rule-rollback.mjs';
 import { shortenRollbackPaths } from './lib/rule-paths.mjs';
 
 const ARGV_SKIP = 2;
@@ -15,18 +16,25 @@ const EXIT_FAILURE = 1;
 
 const ctx = createScriptContext(import.meta.url);
 const { root } = ctx;
-const { insertBuiltinRuleEntries, insertRuleIdEntry, isValidRuleId, kebabToCamel, renderRuleFile } =
-  await ctx.loadLib('scripts/gen/lib/rule-scaffolder.ts');
+const { insertBuiltinRuleEntries, isValidRuleId, kebabToCamel, renderRuleFile } = await ctx.loadLib(
+  'scripts/gen/lib/rule-scaffolder.ts',
+);
 
 const args = process.argv.slice(ARGV_SKIP);
-const id = args.find((arg) => !arg.startsWith('--'));
+const [id, extraId] = args.filter((arg) => !arg.startsWith('--'));
+const unknownOption = args.find(
+  (arg) => arg.startsWith('--') && arg !== '--advisory' && arg !== '--dry-run',
+);
 let type = 'auto';
 if (args.includes('--advisory')) {
   type = 'advisory';
 }
 const dryRun = args.includes('--dry-run');
 
-if (!id) {
+if (unknownOption) {
+  ctx.fail(`unknown option: '${unknownOption}'`, EXIT_USAGE);
+}
+if (!id || typeof extraId !== 'undefined') {
   ctx.fail('usage: pnpm gen:rule <id> [--advisory] [--dry-run]', EXIT_USAGE);
 }
 if (!isValidRuleId(id)) {
@@ -35,7 +43,6 @@ if (!isValidRuleId(id)) {
 
 const camelId = kebabToCamel(id);
 const ruleFilePath = path.join(root, 'src', 'domain', 'rules', `${id}.ts`);
-const ruleIdFilePath = path.join(root, 'src', 'domain', 'entities', 'rule-id.ts');
 const builtinRulesFilePath = path.join(root, 'src', 'domain', 'builtin-rules.ts');
 
 if (existsSync(ruleFilePath)) {
@@ -47,9 +54,8 @@ if (existsSync(ruleFilePath)) {
 // rollback baseline. Re-reading would open a TOCTOU window where a concurrent
 // writer between the two reads could make rollback restore a state that
 // never actually existed on disk before this script ran. If any pure
-// transform throws (duplicate marker, missing array sentinel, …), we exit
+// transform throws (duplicate import, missing array sentinel, …), we exit
 // before touching anything.
-const ruleIdSource = readFileSync(ruleIdFilePath, 'utf8');
 const builtinRulesSource = readFileSync(builtinRulesFilePath, 'utf8');
 
 const writes = [
@@ -58,11 +64,6 @@ const writes = [
     path: ruleFilePath,
     // creating a new file
     previousContent: void 0,
-  },
-  {
-    nextContent: insertRuleIdEntry(ruleIdSource, id),
-    path: ruleIdFilePath,
-    previousContent: ruleIdSource,
   },
   {
     nextContent: insertBuiltinRuleEntries(builtinRulesSource, id, camelId),
@@ -87,13 +88,14 @@ if (dryRun) {
   // Phase 2 (apply): write every file inside a try/catch and roll back any
   // already-applied writes on first failure. Without rollback, a mid-loop
   // failure (permissions / disk full / signal) would leave the repo in a
-  // half-scaffolded state where the rule file exists but rule-id.ts /
-  // builtin-rules.ts never registered it — the next `gen:rule` invocation
+  // half-scaffolded state where the rule file exists but builtin-rules.ts
+  // never registered it — the next `gen:rule` invocation
   // would then trip the `existsSync` guard above and block.
   const applied = [];
   try {
     for (const wr of writes) {
-      writeFileSync(wr.path, wr.nextContent);
+      const tempPath = `${wr.path}.${process.pid}.${randomUUID()}.tmp`;
+      atomicWriteSync(wr, { renameSync, unlinkSync, writeFileSync }, tempPath);
       applied.push(wr);
     }
   } catch (error) {
@@ -147,7 +149,7 @@ if (dryRun) {
   }
 
   ctx.logSuccess(`Created src/domain/rules/${id}.ts (${type})`);
-  ctx.logSuccess(`Registered '${id}' in BUILTIN_RULE_IDS and rules array.`);
+  ctx.logSuccess(`Registered '${id}' in the builtin rules array.`);
   ctx.logSuccess('Regenerated docs/rules.md and docs/comparison.md.');
   ctx.logSuccess('');
   ctx.logSuccess('Next:');

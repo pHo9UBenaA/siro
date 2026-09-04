@@ -1,10 +1,5 @@
-import type { AutoRuleBinding, CheckStatus } from '../entities/rule.ts';
-import {
-  type VersionNote,
-  overrideBindings,
-  renderVersionNoteMessage,
-  requireConfigKey,
-} from './builders/require-config-key.ts';
+import type { AutoRuleBinding, CheckStatus, VersionNote } from '../entities/rule.ts';
+import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
@@ -14,13 +9,10 @@ const pnpmStrictDepBuildsDocs = 'https://pnpm.io/settings#strictdepbuilds';
 // Why not let `requireConfigKey` own this binding too? The builder models
 // exactly one key per binding; pnpm's lifecycle-script story needs both
 // `strictDepBuilds` (the gate) and `dangerouslyAllowAllBuilds` (the bypass).
-// Sharing `renderVersionNoteMessage` keeps the rendering identical across the
-// hand-written and builder-generated paths.
 const pnpmVersionNote: VersionNote = {
   configAvailableSince: 'pnpm 10.3.0',
   defaultSafeSince: 'pnpm 11.0.0',
 };
-const pnpmMsg = (body: string): string => renderVersionNoteMessage(body, pnpmVersionNote);
 const pnpmBinding: AutoRuleBinding = {
   check(_ctx, config): CheckStatus {
     const bypass = getByPath(config, ['dangerouslyAllowAllBuilds']);
@@ -36,9 +28,8 @@ const pnpmBinding: AutoRuleBinding = {
         manualSteps: [
           'Remove `dangerouslyAllowAllBuilds: true` from pnpm-workspace.yaml (or set it to `false`). Setting `strictDepBuilds: true` alone has no effect while the bypass remains.',
         ],
-        message: pnpmMsg(
+        message:
           '`dangerouslyAllowAllBuilds: true` in pnpm-workspace.yaml bypasses strictDepBuilds — remove it (or set it to false) to restore lifecycle-script gating.',
-        ),
         state: 'violation',
       };
     }
@@ -51,9 +42,8 @@ const pnpmBinding: AutoRuleBinding = {
       return {
         actual: strict,
         expected: true,
-        message: pnpmMsg(
+        message:
           'Set `strictDepBuilds: true` in pnpm-workspace.yaml to pin lifecycle-script gating across versions.',
-        ),
         severity: 'info',
         state: 'violation',
       };
@@ -61,9 +51,8 @@ const pnpmBinding: AutoRuleBinding = {
     return {
       actual: strict,
       expected: true,
-      message: pnpmMsg(
+      message:
         'Set `strictDepBuilds: true` in pnpm-workspace.yaml to block silent skips of un-approved dep builds.',
-      ),
       state: 'violation',
     };
   },
@@ -76,6 +65,7 @@ const pnpmBinding: AutoRuleBinding = {
     return [{ file: pnpmWorkspace, keyPath: ['strictDepBuilds'], op: 'setKey', value: true }];
   },
   fixKind: 'auto',
+  versionNote: pnpmVersionNote,
 };
 
 const aubeBinding: AutoRuleBinding = {
@@ -112,11 +102,8 @@ const aubeBinding: AutoRuleBinding = {
   fixKind: 'auto',
 };
 
-const bunVersionNote: VersionNote = { configAvailableSince: 'bun 1.2.0' };
-const bunMessage = renderVersionNoteMessage(
-  'Set `ignoreScripts = true` under [install] in bunfig.toml — or set `"trustedDependencies": []` in package.json — to opt out of the curated allow-list (postinstall is already blocked for untrusted packages by default).',
-  bunVersionNote,
-);
+const bunMessage =
+  'Set `ignoreScripts = true` under [install] in bunfig.toml — or set `"trustedDependencies": []` in package.json — to opt out of the curated allow-list (postinstall is already blocked for untrusted packages by default).';
 
 // Hand-written for the same reason as pnpm: the rule's bun story spans two
 // files. `install.ignoreScripts = true` (bunfig) and `"trustedDependencies":
@@ -131,12 +118,8 @@ const bunBinding: AutoRuleBinding = {
     if (ignoreScripts === true) {
       return { state: 'ok' };
     }
-    const EMPTY = 0;
-    let trusted: string[] | undefined = void 0;
-    if (ctx.packageJson) {
-      trusted = ctx.packageJson.trustedDependencies;
-    }
-    if (typeof trusted !== 'undefined' && trusted.length === EMPTY) {
+    const trusted = ctx.packageJson?.trustedDependencies;
+    if (typeof trusted !== 'undefined' && trusted.length === 0) {
       return { state: 'ok' };
     }
     return { actual: ignoreScripts, expected: true, message: bunMessage, state: 'violation' };
@@ -148,6 +131,7 @@ const bunBinding: AutoRuleBinding = {
   },
   fixKind: 'auto',
   severity: 'info',
+  versionNote: { configAvailableSince: 'bun 1.2.0' },
 };
 const builtRule = requireConfigKey({
   bindings: {
