@@ -11,9 +11,9 @@ const yarnMessage =
 const yarnBinding: AutoRuleBinding = {
   check(_ctx, config): CheckStatus {
     const strictSsl = getByPath(config, ['enableStrictSsl']);
-    if (strictSsl === false) {
+    if (typeof strictSsl !== 'undefined' && strictSsl !== true) {
       return {
-        actual: false,
+        actual: strictSsl,
         expected: true,
         message: yarnMessage,
         state: 'violation',
