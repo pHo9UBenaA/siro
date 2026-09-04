@@ -188,3 +188,10 @@ describe('minimum-release-age tells users which PM version made the key availabl
     });
   });
 });
+
+describe('minimum-release-age minute strings (deno)', () => {
+  it('accepts a positive minute string in deno.json', () => {
+    expect.hasAssertions();
+    expect(deno.check(makeCtx(), { minimumDependencyAge: '120' }).state).toBe('ok');
+  });
+});

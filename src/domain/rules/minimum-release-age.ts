@@ -26,6 +26,13 @@ const DENO_RFC3339_TIMESTAMP =
   /^\d{4}-\d{2}-\d{2}[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/u;
 const DENO_DATE_LENGTH = 10;
 
+const isPositiveYarnDuration = (value: unknown): boolean =>
+  isPositiveNumber(value) ||
+  (typeof value === 'string' &&
+    /^\d*\.?\d+(?:ms|s|m|h|d|w)?$/u.test(value) &&
+    Number.isFinite(Number.parseFloat(value)) &&
+    Number.parseFloat(value) > 0);
+
 const isNonDisabledDenoDuration = (value: unknown): boolean => {
   if (typeof value === 'number') {
     return value > 0;
@@ -35,6 +42,7 @@ const isNonDisabledDenoDuration = (value: unknown): boolean => {
     const date = value.slice(0, DENO_DATE_LENGTH);
     const dateTimestamp = Date.parse(`${date}T00:00:00Z`);
     return (
+      (/^\d+$/u.test(value) && Number.isFinite(Number(value)) && Number(value) > 0) ||
       (isDuration && !DENO_ZERO_DURATION.test(value)) ||
       (!isDuration &&
         (DENO_DATE.test(value) || DENO_RFC3339_TIMESTAMP.test(value)) &&
@@ -108,7 +116,7 @@ export const minimumReleaseAge = requireConfigKey({
       },
     },
     yarn: {
-      accept: isPositiveNumber,
+      accept: isPositiveYarnDuration,
       docs: 'https://yarnpkg.com/configuration/yarnrc#npmMinimalAgeGate',
       documentedDefault: DOCUMENTED_DEFAULT_MINUTES,
       file: yarnrc,

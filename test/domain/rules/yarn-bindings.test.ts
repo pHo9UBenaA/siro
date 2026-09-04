@@ -65,6 +65,28 @@ describe('yarn bindings — pin-exact-versions and minimum-release-age', () => {
     });
   });
 
+  it('accepts active Yarn duration strings and rejects disabled or invalid windows', () => {
+    expect.hasAssertions();
+    const bd = minimumReleaseAge.bindings.yarn;
+    assert(bd, 'expected binding');
+    const values = ['1w', '1d', '1.5h', '.5m', '120', '1ms', '0m', '0', '-1d', '1y', '1d junk'];
+    expect(
+      values.map((npmMinimalAgeGate) => bd.check(ctx(), { npmMinimalAgeGate }).state),
+    ).toStrictEqual([
+      'ok',
+      'ok',
+      'ok',
+      'ok',
+      'ok',
+      'ok',
+      'violation',
+      'violation',
+      'violation',
+      'violation',
+      'violation',
+    ]);
+  });
+
   it('checks npmMinimalAgeGate', () => {
     expect.hasAssertions();
     const bd = minimumReleaseAge.bindings.yarn;
