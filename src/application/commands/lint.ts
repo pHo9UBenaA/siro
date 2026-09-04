@@ -12,7 +12,7 @@ import type { AbsPath } from '../../shared/paths.ts';
 import type { FileSystem } from '../../domain/ports/file-system.ts';
 import type { IO } from '../../domain/ports/io.ts';
 import type { RepoContext } from '../../domain/ports/repo-context.ts';
-import type { Rule } from '../../domain/entities/rule.ts';
+import { type Rule, isRuleShape } from '../../domain/entities/rule.ts';
 import { UsageError } from '../../shared/errors.ts';
 import { codecFor } from '../../adapters/codecs/store.ts';
 import { DEFAULT_REPORTER_NAME, createRegistry } from '../../adapters/reporters/registry.ts';
@@ -99,7 +99,17 @@ const validateSelection = (
   }
 };
 
+const validateCustomRules = (customRules: readonly Rule[] | undefined): void => {
+  if (
+    typeof customRules !== 'undefined' &&
+    (!Array.isArray(customRules) || !customRules.every((rule) => isRuleShape(rule)))
+  ) {
+    throw new UsageError("The 'customRules' option must contain structurally valid rules.");
+  }
+};
+
 const validateLintOptions = (options: LintOptions): void => {
+  validateCustomRules(options.customRules);
   validateSelection(
     options.projectType,
     isProjectType,

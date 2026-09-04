@@ -36,4 +36,14 @@ describe('lintCommand option validation', () => {
       lintCommand({ cwd: asAbsPath('/repo'), fs: npmGoodFs(), reporter: 'json', severity }, io),
     ).rejects.toBeInstanceOf(UsageError);
   });
+
+  it('rejects a malformed custom rule from an untyped embedder', () => {
+    expect.hasAssertions();
+    const { io } = captureIO();
+    const customRules = JSON.parse('[null]');
+
+    return expect(
+      lintCommand({ customRules, cwd: asAbsPath('/repo'), fs: npmGoodFs(), reporter: 'json' }, io),
+    ).rejects.toBeInstanceOf(UsageError);
+  });
 });
