@@ -1,4 +1,11 @@
-import type { PM, Severity } from '../../domain/entities/pms.ts';
+import {
+  type PM,
+  PMS,
+  SEVERITIES,
+  type Severity,
+  isPM,
+  isSeverity,
+} from '../../domain/entities/pms.ts';
 import { type Reporter, isReporterShape } from '../../domain/ports/reporter.ts';
 import { exitCodeForLint, filterBySeverity } from '../../domain/services/filter.ts';
 import type { AbsPath } from '../../shared/paths.ts';
@@ -11,7 +18,11 @@ import { codecFor } from '../../adapters/codecs/store.ts';
 import { DEFAULT_REPORTER_NAME, createRegistry } from '../../adapters/reporters/registry.ts';
 import { prepareRun } from '../prepare-context.ts';
 import { runLint } from '../run-lint.ts';
-import type { ProjectType } from '../../domain/entities/project-type.ts';
+import {
+  PROJECT_TYPES,
+  type ProjectType,
+  isProjectType,
+} from '../../domain/entities/project-type.ts';
 
 export interface LintOptions {
   /**
@@ -78,6 +89,34 @@ const validateEmbedderReporters = (reporters: readonly Reporter[] | undefined): 
   }
 };
 
+const validateSelection = (
+  value: unknown,
+  isValid: (candidate: string) => boolean,
+  errorMessage: string,
+): void => {
+  if (typeof value !== 'undefined' && (typeof value !== 'string' || !isValid(value))) {
+    throw new UsageError(errorMessage);
+  }
+};
+
+const validateLintOptions = (options: LintOptions): void => {
+  validateSelection(
+    options.projectType,
+    isProjectType,
+    `Unknown project type: ${String(options.projectType)} (expected ${PROJECT_TYPES.join('|')})`,
+  );
+  validateSelection(
+    options.pm,
+    isPM,
+    `Unknown package manager: ${String(options.pm)} (expected one of: ${PMS.join(', ')})`,
+  );
+  validateSelection(
+    options.severity,
+    isSeverity,
+    `Invalid severity: ${String(options.severity)} (expected ${SEVERITIES.join('|')})`,
+  );
+};
+
 const resolveAndValidateReporter = (
   value: LintOptions['reporter'],
   registry: ReturnType<typeof createRegistry>,
@@ -109,17 +148,18 @@ const formatAndExit = (args: FormatAndExitArgs): number => {
 };
 
 /** `siro lint`: detect PMs, evaluate rules, report findings. */
-export const lintCommand = (options: LintOptions, io: IO): Promise<number> =>
-  prepareRun({
+export const lintCommand = async (options: LintOptions, io: IO): Promise<number> => {
+  validateLintOptions(options);
+  const { userConfig, ctx, pms, ruleSet } = await prepareRun({
     customRules: options.customRules,
     cwd: options.cwd,
     fs: options.fs,
     pm: options.pm,
     projectType: options.projectType,
-  }).then(({ userConfig, ctx, pms, ruleSet }) => {
-    validateEmbedderReporters(options.reporters);
-    const configReporters = userConfig?.reporters ?? [];
-    const registry = createRegistry([...(options.reporters ?? []), ...configReporters]);
-    const reporter = resolveAndValidateReporter(options.reporter, registry);
-    return formatAndExit({ ctx, io, options, pms, reporter, ruleSet });
   });
+  validateEmbedderReporters(options.reporters);
+  const configReporters = userConfig?.reporters ?? [];
+  const registry = createRegistry([...(options.reporters ?? []), ...configReporters]);
+  const reporter = resolveAndValidateReporter(options.reporter, registry);
+  return formatAndExit({ ctx, io, options, pms, reporter, ruleSet });
+};
