@@ -87,6 +87,23 @@ describe.skipIf(!DIST_PRESENT)('CLI binary — version and flags', () => {
 });
 
 describe.skipIf(!DIST_PRESENT)('CLI binary — error handling', () => {
+  test('exits 2 when a config contains a malformed custom rule', () => {
+    expect.hasAssertions();
+    const dir = mkdtempSync(path.join(tmpdir(), 'siro-invalid-rule-'));
+    try {
+      writeFileSync(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ name: 'demo', packageManager: 'pnpm@10.0.0' }),
+      );
+      writeFileSync(path.join(dir, 'siro.config.mjs'), 'export default { customRules: [null] };\n');
+      const result = spawnBin(['lint', dir]);
+      expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(EXIT_USAGE);
+      expect(result.stderr).toMatch(/customRules\.0/iu);
+    } finally {
+      rmSync(dir, { force: true, recursive: true });
+    }
+  });
+
   test('exits 70 when a config reporter throws (uncaught user-extension error)', () => {
     expect.hasAssertions();
     const dir = mkdtempSync(path.join(tmpdir(), 'siro-boom-'));

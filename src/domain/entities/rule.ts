@@ -5,10 +5,10 @@ import type {
   KeyPath,
   ParsedConfig,
 } from './config-value.ts';
-import type { PM, Severity } from './pms.ts';
+import { type PM, type Severity, isPM, isSeverity } from './pms.ts';
 import type { RelPath } from '../../shared/paths.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
-import type { ProjectType } from './project-type.ts';
+import { type ProjectType, isProjectType } from './project-type.ts';
 
 /**
  * What a rule binding points at on disk: a parsed config file or an existence
@@ -120,5 +120,76 @@ export interface Rule<Id extends string = string> {
   /** Absence of a PM key means the rule does not apply (N/A) to that PM. */
   readonly bindings: Partial<Record<PM, RuleBinding>>;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isOptionalString = (value: unknown): boolean =>
+  typeof value === 'undefined' || typeof value === 'string';
+
+const CONFIG_FILE_KINDS: ReadonlySet<string> = new Set([
+  'npmrc',
+  'yaml',
+  'toml',
+  'json',
+  'fileGlob',
+]);
+
+const isConfigFileRefShape = (value: unknown): value is ConfigFileRef => {
+  if (!isRecord(value) || typeof value.kind !== 'string' || typeof value.path !== 'string') {
+    return false;
+  }
+  return CONFIG_FILE_KINDS.has(value.kind);
+};
+
+const isVersionNoteShape = (value: unknown): value is VersionNote | undefined =>
+  typeof value === 'undefined' ||
+  (isRecord(value) &&
+    isOptionalString(value.configAvailableSince) &&
+    isOptionalString(value.defaultSafeSince) &&
+    isOptionalString(value.note));
+
+const isRuleBindingShape = (value: unknown): value is RuleBinding => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    isConfigFileRefShape(value.file) &&
+    (value.fixKind === 'auto' || value.fixKind === 'advisory') &&
+    isOptionalString(value.docs) &&
+    (typeof value.severity === 'undefined' ||
+      (typeof value.severity === 'string' && isSeverity(value.severity))) &&
+    isVersionNoteShape(value.versionNote) &&
+    typeof value.check === 'function' &&
+    typeof value.fix === 'function'
+  );
+};
+
+const isBindingsShape = (value: unknown): value is Rule['bindings'] =>
+  isRecord(value) &&
+  Object.entries(value).every(([pm, binding]) => isPM(pm) && isRuleBindingShape(binding));
+
+const isProjectTypeValue = (value: unknown): value is ProjectType =>
+  typeof value === 'string' && isProjectType(value);
+
+const isProjectTypesShape = (value: unknown): value is readonly ProjectType[] | undefined =>
+  typeof value === 'undefined' ||
+  (Array.isArray(value) && value.every((projectType) => isProjectTypeValue(projectType)));
+
+export const isRuleShape = (value: unknown): value is Rule => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return (
+    typeof value.id === 'string' &&
+    typeof value.title === 'string' &&
+    typeof value.description === 'string' &&
+    typeof value.severity === 'string' &&
+    isSeverity(value.severity) &&
+    isOptionalString(value.docs) &&
+    isProjectTypesShape(value.projectTypes) &&
+    isBindingsShape(value.bindings)
+  );
+};
 
 export const defineRule = <const Id extends string>(rule: Rule<Id>): Rule<Id> => rule;

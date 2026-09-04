@@ -4,7 +4,7 @@ import { PMS, SEVERITIES } from '../domain/entities/pms.ts';
 import { type Reporter, isReporterShape } from '../domain/ports/reporter.ts';
 import { ConfigError } from '../shared/errors.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
-import type { Rule } from '../domain/entities/rule.ts';
+import { type Rule, isRuleShape } from '../domain/entities/rule.ts';
 import type { SiroConfig } from '../domain/entities/siro-config.ts';
 import { rules as builtinRules } from '../domain/builtin-rules.ts';
 import { nodeFileSystem } from './node-file-system.ts';
@@ -21,19 +21,16 @@ import { PROJECT_TYPES } from '../domain/entities/project-type.ts';
 const MIN_PMS_LENGTH = 1;
 const CONFIG_NAMES = ['siro.config.ts', 'siro.config.mjs', 'siro.config.js'] as const;
 
-// Rule / Reporter hold user-supplied functions, so no runtime schema can
-// actually validate them — the contract is enforced at compile time by
-// `defineConfig`. `v.unknown()` would express that pass-through but erase
-// the inferred type and force every caller to cast; `vb.custom<T>(() => true)`
-// keeps the type without pretending to validate.
 // strictObject (not loose): an unknown top-level key is almost always a typo
 // (`rule` for `rules`, `customRule` for `customRules`) that a loose schema
 // would silently drop. siro fails fast on rule-id typos, so key typos fail
-// fast too. defineConfig already enforces the shape at compile time; this is
-// the runtime guard for hand-written / JS configs.
+// fast too. Structural guards cover function-bearing extensions from
+// hand-written / JavaScript configs without executing user functions.
 const ConfigSchema = vb.strictObject(
   {
-    customRules: vb.optional(vb.array(vb.custom<Rule>(() => true))),
+    customRules: vb.optional(
+      vb.array(vb.custom<Rule>(isRuleShape, 'must be a structurally valid rule')),
+    ),
     pms: vb.optional(
       vb.pipe(
         vb.array(vb.picklist(PMS)),
