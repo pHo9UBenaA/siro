@@ -44,8 +44,7 @@ interface RequireConfigKeySpec {
    * threat is mitigated by the PM but explicit pinning is still recommended.
    * - unset: no PM-default protection (legacy behaviour).
    *
-   * A CONDITIONAL default (e.g. CI-only: pnpm `frozenLockfile`, aube
-   * `preferFrozenLockfile`) may use this field, but the binding's `message`
+   * A CONDITIONAL default (e.g. CI-only: pnpm `frozenLockfile`) may use this field, but the binding's `message`
    * MUST name the condition — the downgrade then reads "covered where it
    * matters most", not "covered unconditionally".
    */

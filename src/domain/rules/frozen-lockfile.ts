@@ -1,4 +1,4 @@
-import type { AutoRuleBinding, CheckStatus } from '../entities/rule.ts';
+import type { AdvisoryRuleBinding, AutoRuleBinding, CheckStatus } from '../entities/rule.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
@@ -45,17 +45,28 @@ const denoBinding: AutoRuleBinding = {
   fixKind: 'auto',
 };
 
+const aubeFrozenCommand =
+  'Use `aube ci` or `aube install --frozen-lockfile` to fail when the lockfile would change.';
+
+const aubeBinding: AdvisoryRuleBinding = {
+  check(): CheckStatus {
+    return {
+      message:
+        '`preferFrozenLockfile` only reuses an up-to-date lockfile; it does not prevent updates. Verify that install commands enforce a frozen lockfile.',
+      state: 'violation',
+    };
+  },
+  docs: 'https://github.com/aubepkg/aube/blob/main/docs/cli/ci.md',
+  file: aubeWorkspace,
+  fix() {
+    return [{ message: aubeFrozenCommand, op: 'note' }];
+  },
+  fixKind: 'advisory',
+  severity: 'info',
+};
+
 const builtRule = requireConfigKey({
   bindings: {
-    aube: {
-      docs: 'https://aube.en.dev/settings/',
-      documentedDefault: true,
-      file: aubeWorkspace,
-      keyPath: ['preferFrozenLockfile'],
-      message:
-        'aube defaults preferFrozenLockfile to true — set it explicitly in aube-workspace.yaml to pin the policy across versions.',
-      value: true,
-    },
     bun: {
       docs: 'https://bun.com/docs/runtime/bunfig#install-frozenlockfile',
       file: bunfig,
@@ -98,4 +109,7 @@ const builtRule = requireConfigKey({
 
 // deno's binding is hand-written (see `denoBinding`) so it can refuse to
 // clobber a non-object `lock`; the builder can't express that conditional.
-export const frozenLockfile = overrideBindings(builtRule, { deno: denoBinding });
+export const frozenLockfile = overrideBindings(builtRule, {
+  aube: aubeBinding,
+  deno: denoBinding,
+});

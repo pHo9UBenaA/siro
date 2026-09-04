@@ -1,9 +1,10 @@
+import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { requireConfigKey } from './builders/require-config-key.ts';
 
 const { aubeWorkspace } = CONFIG_FILES;
 
-export const strictStoreIntegrity = requireConfigKey({
+const builtRule = requireConfigKey({
   bindings: {
     aube: {
       docs: 'https://aube.jdx.dev/settings/',
@@ -21,3 +22,5 @@ export const strictStoreIntegrity = requireConfigKey({
   severity: 'warn',
   title: 'Require tarball integrity metadata',
 });
+
+export const strictStoreIntegrity = withAubeParanoid(builtRule);

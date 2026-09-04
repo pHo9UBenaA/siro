@@ -1,9 +1,10 @@
+import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { requireConfigKey } from './builders/require-config-key.ts';
 
 const { aubeWorkspace, pnpmWorkspace } = CONFIG_FILES;
 
-export const trustPolicy = requireConfigKey({
+const builtRule = requireConfigKey({
   bindings: {
     aube: {
       docs: 'https://aube.jdx.dev/security.html',
@@ -30,3 +31,5 @@ export const trustPolicy = requireConfigKey({
   severity: 'warn',
   title: 'Enforce trust policy on dependency updates',
 });
+
+export const trustPolicy = withAubeParanoid(builtRule);

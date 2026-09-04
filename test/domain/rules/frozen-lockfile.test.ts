@@ -22,15 +22,12 @@ describe('frozen-lockfile rule identity', () => {
     expect(frozenLockfile.bindings[pm]).toBeDefined();
   });
 
-  it.each<PM>(['pnpm', 'yarn', 'aube'])(
-    'on %s: unset → dynamic info via documentedDefault',
-    (pm) => {
-      expect.hasAssertions();
-      // pnpm, yarn (CI default), and aube all document the safe default,
-      // so an unset key is advisory rather than warn.
-      expectDocumentedDefaultDynamicInfo(frozenLockfile.bindings[pm], makeCtx());
-    },
-  );
+  it.each<PM>(['pnpm', 'yarn'])('on %s: unset → dynamic info via documentedDefault', (pm) => {
+    expect.hasAssertions();
+    // pnpm and yarn document a safe CI default,
+    // so an unset key is advisory rather than warn.
+    expectDocumentedDefaultDynamicInfo(frozenLockfile.bindings[pm], makeCtx());
+  });
 
   it.each<PM>(['bun', 'deno'])(
     'on %s: unset → plain violation (no documentedDefault downgrade)',

@@ -1,9 +1,10 @@
+import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { requireConfigKey } from './builders/require-config-key.ts';
 
 const { aubeWorkspace } = CONFIG_FILES;
 
-export const advisoryCheck = requireConfigKey({
+const builtRule = requireConfigKey({
   bindings: {
     aube: {
       accept: (value: unknown): boolean => value === 'on' || value === 'required',
@@ -21,3 +22,5 @@ export const advisoryCheck = requireConfigKey({
   severity: 'warn',
   title: 'Enable malicious-package advisory checks',
 });
+
+export const advisoryCheck = withAubeParanoid(builtRule);

@@ -1,3 +1,4 @@
+import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
 import type { AutoRuleBinding, CheckStatus, VersionNote } from '../entities/rule.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
@@ -161,14 +162,16 @@ const builtRule = requireConfigKey({
 });
 
 // Coverage notes:
-// - deno: no binding — deno does not run install scripts; lifecycle
-//   script gating is N/A.
+// - deno: no binding — dependency scripts are blocked by default;
+//   explicit allowScripts opt-ins are not audited here.
 //
 // `requireConfigKey`'s single-key model can't express the strictDepBuilds +
 // dangerouslyAllowAllBuilds combo pnpm needs, nor bun's two-file opt-out, so
 // those slots are overridden post-hoc via `overrideBindings`.
-export const disableLifecycleScripts = overrideBindings(builtRule, {
-  aube: aubeBinding,
-  bun: bunBinding,
-  pnpm: pnpmBinding,
-});
+export const disableLifecycleScripts = withAubeParanoid(
+  overrideBindings(builtRule, {
+    aube: aubeBinding,
+    bun: bunBinding,
+    pnpm: pnpmBinding,
+  }),
+);
