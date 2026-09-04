@@ -105,7 +105,7 @@ const validateSelection = (
 const validateCustomRules = (customRules: readonly Rule[] | undefined): void => {
   if (
     typeof customRules !== 'undefined' &&
-    (!Array.isArray(customRules) || !customRules.every((rule) => isRuleShape(rule)))
+    (!Array.isArray(customRules) || !Array.from(customRules).every((rule) => isRuleShape(rule)))
   ) {
     throw new UsageError("The 'customRules' option must contain structurally valid rules.");
   }
