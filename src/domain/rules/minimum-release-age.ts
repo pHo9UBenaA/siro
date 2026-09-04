@@ -72,10 +72,12 @@ export const minimumReleaseAge = requireConfigKey({
     deno: {
       accept: isNonDisabledDenoDuration,
       docs: 'https://docs.deno.com/runtime/reference/deno_json/',
+      documentedDefault: DOCUMENTED_DEFAULT_MINUTES,
       file: denoJson,
       keyPath: ['minimumDependencyAge'],
       message: `Set minimumDependencyAge (e.g. "P3D" for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in deno.json.`,
       value: 'P3D',
+      versionNote: { defaultSafeSince: 'deno 2.9.0 (1440 minutes)' },
     },
     npm: {
       accept: isPositiveNumber,

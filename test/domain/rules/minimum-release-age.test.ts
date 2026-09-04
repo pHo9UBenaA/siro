@@ -100,9 +100,12 @@ describe('minimum-release-age (deno)', () => {
     expect(deno.check(ctx, { minimumDependencyAge: 'PT0S' }).state).toBe('violation');
   });
 
-  it('flags a violation when minimumDependencyAge is unset', () => {
+  it('flags an info advisory for the safe Deno default when minimumDependencyAge is unset', () => {
     expect.hasAssertions();
-    expect(deno.check(ctx, {}).state).toBe('violation');
+    expect(deno.check(ctx, {})).toMatchObject({
+      severity: 'info',
+      state: 'violation',
+    });
   });
 
   it('flags a violation when minimumDependencyAge is "0" (disabled)', () => {
@@ -125,6 +128,15 @@ describe('minimum-release-age (deno)', () => {
 
 describe('minimum-release-age tells users which PM version made the key available or safe by default', () => {
   const ctx = makeCtx();
+
+  it('on deno: tells the user from which Deno version the safe default applies', () => {
+    expect.hasAssertions();
+    expectMessageContains({
+      binding: deno,
+      ctx,
+      substrings: ['default safe since deno 2.9.0'],
+    });
+  });
 
   it('on pnpm: tells the user from which pnpm version the safe default applies', () => {
     expect.hasAssertions();
