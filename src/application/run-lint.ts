@@ -8,6 +8,8 @@ import { createConfigParser } from '../domain/services/parse-config-file.ts';
 import { decideSeverity } from '../domain/services/decide-severity.ts';
 import { renderVersionNoteMessage } from '../domain/services/render-version-note.ts';
 
+const EMPTY = 0;
+
 export interface RunLintOptions {
   readonly ctx: RepoContext;
   readonly pms: readonly PM[];
@@ -48,7 +50,7 @@ const buildFinding = (visit: BindingVisit, ctx: RepoContext): Finding => {
     expected: status.expected,
     file: filePath,
     fix,
-    fixable: binding.fixKind === 'auto' && typeof manualSteps === 'undefined',
+    fixable: binding.fixKind === 'auto' && typeof manualSteps === 'undefined' && fix.length > EMPTY,
     manualSteps,
     message: renderVersionNoteMessage(status.message, binding.versionNote),
     pm,
