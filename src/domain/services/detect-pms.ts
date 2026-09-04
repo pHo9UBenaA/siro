@@ -36,16 +36,6 @@ const buildDetectionSignals = (): ReadonlyMap<PM, readonly string[]> => {
 
 const DETECTION_SIGNALS: ReadonlyMap<PM, readonly string[]> = buildDetectionSignals();
 
-/**
- * Detect the package managers in use, strongest signal first:
- *   1) `packageManager` in package.json,
- *   2) lockfiles + configs (see DETECTION_SIGNALS for the per-PM allow-list
- *      that skips filenames shared between PMs).
- * Returns every PM with evidence, in canonical `PMS` order. `ctx` carries
- * the repo signals — `packageJson` (already parsed) and `exists(relPath)`
- * for filename probing — so embedders can swap in a virtual FS without
- * touching the real disk.
- */
 const addDeclaredPM = (ctx: RepoContext, found: Set<PM>): void => {
   const declared = ctx.packageJson?.packageManager;
   if (typeof declared === 'string') {
