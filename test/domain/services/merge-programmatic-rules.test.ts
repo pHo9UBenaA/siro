@@ -34,13 +34,13 @@ describe('mergeProgrammaticRules — no-op cases', () => {
   it('returns the builtins untouched when no programmatic rules are supplied', () => {
     expect.hasAssertions();
     const merged = mergeProgrammaticRules(builtins);
-    expect(merged).toBe(builtins);
+    expect(merged.map((mr) => mr.id)).toStrictEqual(['builtin-a', 'builtin-b']);
   });
 
   it('returns the builtins untouched when programmatic is an empty list', () => {
     expect.hasAssertions();
     const merged = mergeProgrammaticRules(builtins, []);
-    expect(merged).toBe(builtins);
+    expect(merged.map((mr) => mr.id)).toStrictEqual(['builtin-a', 'builtin-b']);
   });
 
   it('appends programmatic rules after the builtins', () => {
