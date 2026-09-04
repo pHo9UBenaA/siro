@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import {
   expectDocumentedDefaultDynamicInfo,
   expectMessageContains,
@@ -129,30 +130,40 @@ describe('block-exotic-subdeps (npm)', () => {
     expect(npm.check(makeCtx(), { 'allow-git': 'none', 'allow-remote': 'none' }).state).toBe('ok');
   });
 
-  it('flags a violation when allow-git is all (default)', () => {
+  it.each<ParsedConfig>([
+    { 'allow-git': 'all' },
+    { 'allow-remote': 'all' },
+    { 'allow-git': 'all', 'allow-remote': 'root' },
+    { 'allow-git': 'root', 'allow-remote': 'all' },
+  ])('keeps full severity when either URL restriction is explicitly unsafe (%j)', (config) => {
     expect.hasAssertions();
-    const status = npm.check(makeCtx(), { 'allow-git': 'all', 'allow-remote': 'root' });
-    expect(status.state).toBe('violation');
+    const status = npm.check(makeCtx(), config);
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
-  it('flags a violation when allow-remote is all', () => {
+  it.each<ParsedConfig>([
+    {},
+    { 'allow-git': 'root' },
+    { 'allow-git': 'none' },
+    { 'allow-remote': 'root' },
+    { 'allow-remote': 'none' },
+  ])('treats unset URL restrictions as a documented-default info advisory (%j)', (config) => {
     expect.hasAssertions();
-    const status = npm.check(makeCtx(), { 'allow-git': 'root', 'allow-remote': 'all' });
-    expect(status.state).toBe('violation');
+    expect(npm.check(makeCtx(), config)).toMatchObject({
+      expected: 'none',
+      severity: 'info',
+      state: 'violation',
+    });
   });
 
-  it('flags a violation when both keys are unset', () => {
-    expect.hasAssertions();
-    expect(npm.check(makeCtx(), {}).state).toBe('violation');
-  });
-
-  it('fix sets both allow-git and allow-remote to root', () => {
+  it('fix preserves default restrictions by setting both keys to none', () => {
     expect.hasAssertions();
     const ops = npm.fix(makeCtx());
     const npmrcFile = { kind: 'npmrc', path: '.npmrc' };
     expect(ops).toStrictEqual([
-      { file: npmrcFile, keyPath: ['allow-git'], op: 'setKey', value: 'root' },
-      { file: npmrcFile, keyPath: ['allow-remote'], op: 'setKey', value: 'root' },
+      { file: npmrcFile, keyPath: ['allow-git'], op: 'setKey', value: 'none' },
+      { file: npmrcFile, keyPath: ['allow-remote'], op: 'setKey', value: 'none' },
     ]);
   });
 });

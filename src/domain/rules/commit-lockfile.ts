@@ -8,7 +8,7 @@ const LOCKFILE_DOCS: Partial<Record<PM, string>> = {
   aube: 'https://aube.en.dev/package-manager/lockfiles',
   bun: 'https://bun.com/docs/install/lockfile',
   deno: 'https://docs.deno.com/runtime/fundamentals/modules/#integrity-checking-and-lock-files',
-  npm: 'https://docs.npmjs.com/cli/v11/configuring-npm/package-lock-json',
+  npm: 'https://docs.npmjs.com/cli/v12/configuring-npm/package-lock-json',
   pnpm: 'https://pnpm.io/git#lockfiles',
   yarn: 'https://yarnpkg.com/getting-started/qa#should-lockfiles-be-committed-to-the-repository',
 };
@@ -23,9 +23,10 @@ const lockfileBinding = (pm: PM): AdvisoryRuleBinding => {
   // fileGlob refs aren't in CONFIG_FILES (the lockfile name is PM-derived), so
   // mint the RelPath here — the one spot this rule crosses into a ConfigFileRef.
   const primaryRef = { kind: 'fileGlob', path: asRelPath(primary) } as const;
-  // A committed lockfile of any shape this PM writes OR reuses satisfies the
-  // rule — aube, for instance, is happy with a pre-existing pnpm-lock.yaml.
-  const accepted = [...lockfiles, ...(reusesLockfiles ?? [])];
+  // npm-shrinkwrap.json still identifies npm, but npm 12 no longer reads it.
+  const accepted = [...lockfiles, ...(reusesLockfiles ?? [])].filter(
+    (lockfile) => pm !== 'npm' || lockfile === primary,
+  );
   return {
     check(ctx: RepoContext) {
       if (accepted.some((lf) => ctx.exists(asRelPath(lf)))) {

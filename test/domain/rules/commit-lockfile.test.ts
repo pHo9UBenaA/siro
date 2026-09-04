@@ -28,9 +28,9 @@ describe('commit-lockfile (npm)', () => {
     expect(npmBinding.check(ctxWith(['package-lock.json']), {}).state).toBe('ok');
   });
 
-  it('passes when npm-shrinkwrap.json exists', () => {
+  it('requires a supported lockfile when only the removed npm shrinkwrap exists', () => {
     expect.hasAssertions();
-    expect(npmBinding.check(ctxWith(['npm-shrinkwrap.json']), {}).state).toBe('ok');
+    expect(npmBinding.check(ctxWith(['npm-shrinkwrap.json']), {}).state).toBe('violation');
   });
 
   it('fix is advisory (ensureFileTracked), not auto-writable', () => {
