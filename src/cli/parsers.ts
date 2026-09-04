@@ -82,13 +82,13 @@ export const resolveReporter = (flags: FlagValues): string => {
       `--reporter requires a value (expected one of: ${BUILTIN_REPORTER_NAMES.join(', ')}, or a reporter registered via siro.config.ts)`,
     );
   }
+  const repeatedReporterSelector = Array.isArray(flags.reporter) || Array.isArray(flags.json);
+  if (repeatedReporterSelector || (typeof flags.reporter === 'string' && flags.json === true)) {
+    throw new UsageError(
+      'Invalid reporter selection: use either --reporter or --json, and specify it only once.',
+    );
+  }
   if (typeof flags.reporter === 'string') {
-    // --reporter and --json both select a reporter; using both is ambiguous
-    // Intent (even when redundant, e.g. `--reporter json --json`). Reject
-    // Rather than silently letting one win.
-    if (flags.json === true) {
-      throw new UsageError('Use either --reporter or --json, not both.');
-    }
     return flags.reporter;
   }
   if (flags.json === true) {

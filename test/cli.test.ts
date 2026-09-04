@@ -200,6 +200,22 @@ const describePassthroughAndConflict = (): void => {
       ),
     );
   });
+
+  test('rejects repeated reporter selectors (exit 2)', () => {
+    expect.hasAssertions();
+    const cases = [
+      ['lint', '--reporter', 'json', '--reporter', 'github'],
+      ['lint', '--json', '--json'],
+    ];
+    return Promise.all(
+      cases.map((args) =>
+        runExpectCode(args).then(({ code, err }) => {
+          expect(code).toBe(EXIT_USAGE);
+          expect(err).toMatch(/reporter|json/iu);
+        }),
+      ),
+    );
+  });
 };
 
 const describeErrorPropagation = (): void => {
