@@ -18,14 +18,30 @@ const { npmrc, pnpmWorkspace, yarnrc, bunfig, denoJson, aubeWorkspace } = CONFIG
 // made an explicit trade-off siro should not relitigate. Do not tighten
 // this to `>= RECOMMENDED_*` — that breaks deliberate short windows.
 const isPositiveNumber = (value: unknown): boolean => typeof value === 'number' && value > 0;
+const DENO_DURATION =
+  /^P(?=.*\d)(?:\d+(?:[.,]\d+)?Y)?(?:\d+(?:[.,]\d+)?M)?(?:\d+(?:[.,]\d+)?W)?(?:\d+(?:[.,]\d+)?D)?(?:T(?=\d)(?:\d+(?:[.,]\d+)?H)?(?:\d+(?:[.,]\d+)?M)?(?:\d+(?:[.,]\d+)?S)?)?$/u;
 const DENO_ZERO_DURATION = /^P(?=.*\d)(?:0+(?:[.,]0+)?[YMWD])*(?:T(?:0+(?:[.,]0+)?[HMS])*)?$/u;
+const DENO_DATE = /^\d{4}-\d{2}-\d{2}$/u;
+const DENO_RFC3339_TIMESTAMP =
+  /^\d{4}-\d{2}-\d{2}[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/u;
+const DENO_DATE_LENGTH = 10;
 
 const isNonDisabledDenoDuration = (value: unknown): boolean => {
   if (typeof value === 'number') {
     return value > 0;
   }
   if (typeof value === 'string') {
-    return value !== '' && value !== '0' && !DENO_ZERO_DURATION.test(value);
+    const isDuration = DENO_DURATION.test(value);
+    const date = value.slice(0, DENO_DATE_LENGTH);
+    const dateTimestamp = Date.parse(`${date}T00:00:00Z`);
+    return (
+      (isDuration && !DENO_ZERO_DURATION.test(value)) ||
+      (!isDuration &&
+        (DENO_DATE.test(value) || DENO_RFC3339_TIMESTAMP.test(value)) &&
+        !Number.isNaN(dateTimestamp) &&
+        new Date(dateTimestamp).toISOString().slice(0, date.length) === date &&
+        (DENO_DATE.test(value) || !Number.isNaN(Date.parse(value))))
+    );
   }
   if (typeof value !== 'object' || value === null || Array.isArray(value) || !('age' in value)) {
     return false;

@@ -59,6 +59,14 @@ describe('minimum-release-age (deno)', () => {
     expect(deno.check(ctx, { minimumDependencyAge: 'P3D' }).state).toBe('ok');
   });
 
+  it('accepts supported active strings and flags invalid strings', () => {
+    expect.hasAssertions();
+    const values = ['PT72H', '2026-09-04', '2026-09-04T12:34:56Z', '-P1D', 'not-a-duration'];
+    expect(
+      values.map((minimumDependencyAge) => deno.check(ctx, { minimumDependencyAge }).state),
+    ).toStrictEqual(['ok', 'ok', 'ok', 'violation', 'violation']);
+  });
+
   it('passes when minimumDependencyAge is a positive number (minutes)', () => {
     expect.hasAssertions();
     expect(deno.check(ctx, { minimumDependencyAge: 4320 }).state).toBe('ok');
