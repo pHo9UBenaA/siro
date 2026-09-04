@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.0]
 
 ### Features
 
@@ -14,6 +14,10 @@
 - Empty and whitespace-only package names no longer activate published-package policy.
 - Unscoped Deno rules no longer read `deno.json` solely for project-type inference.
 - The published `package.json#bin` preserves exit code 70 when a reporter or custom rule crashes, and subprocess tests now execute that declared bin directly.
+- Malformed or cyclic YAML configurations are rejected, while TOML configurations with a leading UTF-8 BOM are accepted.
+- Deno release-age validation accepts documented default forms and rejects invalid, partial, or zero ages.
+- Repeated reporter selectors and non-boolean Yarn strict SSL values are rejected as invalid input.
+- Findings without automatic remediation operations no longer report themselves as fixable.
 
 ## [0.2.0]
 
