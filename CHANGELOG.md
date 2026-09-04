@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+- **Project policy selection**: `--project-type application|package`, `SiroConfig.projectType`, and `LintOptions.projectType` distinguish dependency-consuming applications from published packages. Omit the selection to infer policy per package-manager binding.
+- **Scoped custom rules**: `Rule.projectTypes` follows explicit or inferred policy for npm-family and Deno bindings.
+
+### Fixes
+
+- Programmatic `lintCommand` calls reject unsupported project type, package manager, and severity values instead of returning misleading results.
+- The published `package.json#bin` preserves exit code 70 when a reporter or custom rule crashes, and subprocess tests now execute that declared bin directly.
+
 ## [0.2.0]
 
 ### Breaking Changes

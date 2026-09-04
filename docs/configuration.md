@@ -107,7 +107,11 @@ export default defineConfig({
 dependencies. `application` skips `files-field`, `publish-access`, and `provenance`;
 `package` evaluates them even when package metadata is temporarily private. A CLI or
 programmatic `projectType` takes precedence over this config value. When neither is set,
-siro keeps its existing inference from `private`/`name` (and the Deno publish signal).
+siro infers each PM binding from `private`/`name`; Deno bindings use the `name` in
+`deno.json`. The inferred result also filters `projectTypes` on custom rules, so a
+package-only custom rule does not run for an inferred application. Untyped programmatic
+calls that pass an unsupported project type, PM, or severity reject with `UsageError`
+instead of returning a potentially clean result.
 
 `.ts` configs are loaded via Node's native type stripping (requires Node `^22.18.0 || ^23.6.0 || >=24`);
 no extra build step. Only erasable TypeScript syntax is supported (no `enum`, `namespace`, or
