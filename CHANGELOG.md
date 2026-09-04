@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.1]
+
+### Fixes
+
+- Accept documented Deno minute strings and Yarn duration strings in release-age settings.
+- Honor npm script-policy bypass and ignore-scripts precedence; bypass remediation remains manual.
+- Treat npm 12's default URL restrictions as safe informational pins and recommend `none` without weakening defaults.
+- Stop accepting `npm-shrinkwrap.json` as lockfile protection under the latest npm policy; preserve npm detection from that legacy file.
+- Treat Aube frozen-lockfile enforcement as command guidance, not an automatic `preferFrozenLockfile` fix.
+- Honor Aube's `paranoid` switch across its six forced security controls.
+
+### Security and documentation
+
+- Pin workflow Actions to verified full commit SHAs, disable persisted checkout credentials, and configure Dependabot Action updates.
+- Add security reporting guidance, a threat model, and a concrete before/after example.
+- Refresh cited package-manager metadata and clarify static-analysis and OSS benchmark limitations.
+
 ## [0.3.0]
 
 ### Features
