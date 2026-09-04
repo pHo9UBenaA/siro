@@ -23,9 +23,14 @@ const stubCodecFor: CodecFor = (): ConfigCodec => ({
 const makeRule = (opts: {
   ruleSeverity: 'error' | 'warn' | 'info';
   bindingSeverity?: 'error' | 'warn' | 'info';
+  statusSeverity?: 'error' | 'warn' | 'info';
 }): Rule => {
   const binding: AutoRuleBinding = {
-    check: () => ({ message: 'always violates', state: 'violation' }),
+    check: () => ({
+      message: 'always violates',
+      severity: opts.statusSeverity,
+      state: 'violation',
+    }),
     file: { kind: 'npmrc', path: asRelPath('.npmrc') },
     fix: () => [],
     fixKind: 'auto',
@@ -71,6 +76,24 @@ describe('per-binding severity — basic resolution', () => {
     assert(first, 'expected finding');
     expect(first.severity).toBe('error');
     expect(summary).toStrictEqual({ error: SINGLE_FINDING, info: NO_FINDINGS, warn: NO_FINDINGS });
+  });
+
+  it('uses status.severity ahead of binding.severity', () => {
+    expect.hasAssertions();
+    const rule = makeRule({
+      bindingSeverity: 'warn',
+      ruleSeverity: 'error',
+      statusSeverity: 'info',
+    });
+    const { findings } = runLint({
+      codecFor: stubCodecFor,
+      ctx: makeCtx(),
+      pms: ['npm'],
+      ruleSet: [rule],
+    });
+    const first = findings[FIRST_ELEMENT];
+    assert(first, 'expected finding');
+    expect(first.severity).toBe('info');
   });
 });
 
