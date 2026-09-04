@@ -176,6 +176,7 @@ const runGate = (cmd, args, opts = {}) =>
 
 const gates = [
   { args: ['typecheck'], cmd: 'pnpm', key: 'typecheck', label: 'typecheck' },
+  { args: ['build'], cmd: 'pnpm', key: 'build', label: 'build' },
   { args: ['test'], cmd: 'pnpm', key: 'test', label: 'test' },
   { args: ['exec', 'oxlint', '--deny-warnings'], cmd: 'pnpm', key: 'oxlint', label: 'oxlint' },
   { args: ['exec', 'oxfmt', '--check'], cmd: 'pnpm', key: 'oxfmt', label: 'oxfmt' },
