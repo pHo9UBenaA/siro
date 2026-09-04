@@ -142,6 +142,40 @@ describe('evaluateBindings — non-violation filtering', () => {
 });
 
 describe('evaluateBindings — parser reuse', () => {
+  it('does not read deno.json to classify an unscoped Deno rule', () => {
+    expect.hasAssertions();
+    const reads: string[] = [];
+    const ctx: RepoContext = {
+      ...noopCtx,
+      readText: (file) => {
+        reads.push(file);
+        return '{}';
+      },
+    };
+    const rule: Rule = {
+      bindings: {
+        deno: {
+          check: () => ({ state: 'ok' }),
+          file: { kind: 'json', path: asRelPath('custom.json') },
+          fix: () => [],
+          fixKind: 'auto',
+        },
+      },
+      description: 'unscoped-deno',
+      id: 'unscoped-deno',
+      severity: 'warn',
+      title: 'unscoped-deno',
+    };
+    evaluateBindings({
+      ctx,
+      onViolation: () => void 0,
+      parseConfig: createConfigParser(noopCodecFor),
+      pms: ['deno'],
+      ruleSet: [rule],
+    });
+    expect(reads).toStrictEqual(['custom.json']);
+  });
+
   it('reuses the caller-provided parser so a fix-side re-read is a cache hit', () => {
     expect.hasAssertions();
     let parseCalls = 0;

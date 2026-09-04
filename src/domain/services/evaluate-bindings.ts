@@ -44,14 +44,19 @@ const resolveBindingProjectType = (
   return resolvePackageJsonProjectType(ctx);
 };
 
+const appliesToBinding = (rule: Rule, pm: PM, opts: EvaluateBindingsOptions): boolean => {
+  const { ctx, parseConfig } = opts;
+  return (
+    typeof rule.projectTypes === 'undefined' ||
+    appliesToProject(rule, resolveBindingProjectType(ctx, pm, parseConfig))
+  );
+};
+
 const evaluateRule = (rule: Rule, opts: EvaluateBindingsOptions): void => {
   const { ctx, pms, parseConfig, onViolation } = opts;
   for (const pm of pms) {
     const binding = rule.bindings[pm];
-    if (
-      typeof binding !== 'undefined' &&
-      appliesToProject(rule, resolveBindingProjectType(ctx, pm, parseConfig))
-    ) {
+    if (typeof binding !== 'undefined' && appliesToBinding(rule, pm, opts)) {
       const { parsed } = parseConfig(ctx, binding.file);
       const status = binding.check(ctx, parsed);
       if (status.state === 'violation') {
