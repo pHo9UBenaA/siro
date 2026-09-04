@@ -26,4 +26,10 @@ describe('tomlCodec.parse', () => {
     const config = tomlCodec.parse('# bun config\n[install]\nexact = true');
     expect(getByPath(config, ['install', 'exact'])).toBe(true);
   });
+
+  it('accepts one leading UTF-8 BOM', () => {
+    expect.hasAssertions();
+    const config = tomlCodec.parse('\uFEFF[install]\nexact = true');
+    expect(getByPath(config, ['install', 'exact'])).toBe(true);
+  });
 });
