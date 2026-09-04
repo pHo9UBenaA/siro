@@ -37,6 +37,12 @@ describe('scripts/gen/rule.mjs exit-2 branches', () => {
     expect(result.stderr).toMatch(/invalid rule id/u);
   });
 
+  it('exits 2 when an option is unknown', () => {
+    expect.hasAssertions();
+    const result = run(['review-probe-rule', '--advisry', '--dry-run']);
+    expect(result.status).toBe(EXIT_USAGE);
+  });
+
   it('exits 2 when the target rule file already exists', () => {
     expect.hasAssertions();
     // disable-lifecycle-scripts is shipped in src/domain/rules/, so the

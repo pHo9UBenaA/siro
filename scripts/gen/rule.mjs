@@ -21,14 +21,20 @@ const { insertBuiltinRuleEntries, isValidRuleId, kebabToCamel, renderRuleFile } 
 );
 
 const args = process.argv.slice(ARGV_SKIP);
-const id = args.find((arg) => !arg.startsWith('--'));
+const [id, extraId] = args.filter((arg) => !arg.startsWith('--'));
+const unknownOption = args.find(
+  (arg) => arg.startsWith('--') && arg !== '--advisory' && arg !== '--dry-run',
+);
 let type = 'auto';
 if (args.includes('--advisory')) {
   type = 'advisory';
 }
 const dryRun = args.includes('--dry-run');
 
-if (!id) {
+if (unknownOption) {
+  ctx.fail(`unknown option: '${unknownOption}'`, EXIT_USAGE);
+}
+if (!id || typeof extraId !== 'undefined') {
   ctx.fail('usage: pnpm gen:rule <id> [--advisory] [--dry-run]', EXIT_USAGE);
 }
 if (!isValidRuleId(id)) {
