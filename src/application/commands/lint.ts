@@ -80,6 +80,9 @@ const validateEmbedderReporters = (reporters: readonly Reporter[] | undefined): 
   // Validate embedder-supplied reporters at the CLI/programmatic boundary so a
   // malformed one is a UsageError, not a TypeError from `format` later. (Config
   // reporters are already shape-checked in loadConfig → ConfigError.)
+  if (typeof reporters !== 'undefined' && !Array.isArray(reporters)) {
+    throw new UsageError("The 'reporters' option must be an array of reporter objects.");
+  }
   for (const rep of reporters ?? []) {
     if (!isReporterShape(rep)) {
       throw new UsageError(

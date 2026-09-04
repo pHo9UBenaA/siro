@@ -94,6 +94,16 @@ describe('lintCommand customRules — reporter validation', () => {
       lintCommand({ cwd: asAbsPath('/repo'), fs, reporters: [brokenReporterObj] }, io),
     ).rejects.toBeInstanceOf(UsageError);
   });
+
+  it('rejects a non-array `reporters` value (UsageError)', () => {
+    expect.hasAssertions();
+    const fs = npmGoodFs();
+    const { io } = captureIO();
+    const reporters = { format: () => '', name: 'object-not-list' } as unknown as [];
+    return expect(
+      lintCommand({ cwd: asAbsPath('/repo'), fs, reporters }, io),
+    ).rejects.toBeInstanceOf(UsageError);
+  });
 });
 
 describe('lintCommand customRules — injection and collision', () => {
