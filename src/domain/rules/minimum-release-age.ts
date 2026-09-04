@@ -27,10 +27,10 @@ const isNonDisabledDenoDuration = (value: unknown): boolean => {
   if (typeof value === 'string') {
     return value !== '' && value !== '0' && !DENO_ZERO_DURATION.test(value);
   }
-  if (typeof value === 'object' && value !== null && 'age' in value) {
-    return isNonDisabledDenoDuration(value.age);
+  if (typeof value !== 'object' || value === null || Array.isArray(value) || !('age' in value)) {
+    return false;
   }
-  return typeof value === 'object' && value !== null;
+  return isNonDisabledDenoDuration(value.age);
 };
 
 export const minimumReleaseAge = requireConfigKey({
