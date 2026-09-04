@@ -49,6 +49,7 @@ export const publishAccess = defineRule({
     'Set `publishConfig.access` so a misconfigured scope or registry never accidentally publishes an internal package publicly.',
   docs: 'https://github.com/bodadotsh/npm-security-best-practices#for-maintainers',
   id: 'publish-access',
+  projectTypes: ['package'],
   severity: 'info',
   title: 'Declare publish access explicitly',
 });

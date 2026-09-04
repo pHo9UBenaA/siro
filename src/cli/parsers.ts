@@ -10,6 +10,7 @@ import { BUILTIN_REPORTER_NAMES, DEFAULT_REPORTER_NAME } from '../adapters/repor
 import type { FlagValues } from './flags.ts';
 import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../shared/node-version.ts';
 import { UsageError } from '../shared/errors.ts';
+import { PROJECT_TYPES, type ProjectType, isProjectType } from '../domain/entities/project-type.ts';
 
 export const rejectUnknownFlags = (
   flags: FlagValues,
@@ -39,6 +40,21 @@ export const parsePmFlag = (raw: unknown): PM | undefined => {
     throw new UsageError(`Unknown package manager: ${raw} (expected one of: ${PMS.join(', ')})`);
   }
   return raw;
+};
+
+export const parseProjectTypeFlag = (raw: unknown): ProjectType | undefined => {
+  if (typeof raw === 'undefined') {
+    return;
+  }
+  if (raw === true) {
+    throw new UsageError(`--project-type requires a value (expected ${PROJECT_TYPES.join('|')})`);
+  }
+  if (typeof raw === 'string' && isProjectType(raw)) {
+    return raw;
+  }
+  throw new UsageError(
+    `Unknown project type: ${String(raw)} (expected ${PROJECT_TYPES.join('|')})`,
+  );
 };
 
 export const parseSeverityFlag = (raw: unknown): Severity | undefined => {

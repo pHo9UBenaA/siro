@@ -11,6 +11,7 @@ import { codecFor } from '../../adapters/codecs/store.ts';
 import { DEFAULT_REPORTER_NAME, createRegistry } from '../../adapters/reporters/registry.ts';
 import { prepareRun } from '../prepare-context.ts';
 import { runLint } from '../run-lint.ts';
+import type { ProjectType } from '../../domain/entities/project-type.ts';
 
 export interface LintOptions {
   /**
@@ -21,6 +22,8 @@ export interface LintOptions {
   cwd: AbsPath;
   /** Restrict to a single PM; otherwise PMs are auto-detected. */
   pm?: PM;
+  /** Select application or published-package policy; otherwise infer it. */
+  projectType?: ProjectType;
   /** Reporter name or instance; defaults to `pretty`. */
   reporter?: string | Reporter;
   /** Extra reporters to make available by name (merged with the user config). */
@@ -112,6 +115,7 @@ export const lintCommand = (options: LintOptions, io: IO): Promise<number> =>
     cwd: options.cwd,
     fs: options.fs,
     pm: options.pm,
+    projectType: options.projectType,
   }).then(({ userConfig, ctx, pms, ruleSet }) => {
     validateEmbedderReporters(options.reporters);
     const configReporters = userConfig?.reporters ?? [];

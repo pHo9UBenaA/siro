@@ -8,6 +8,7 @@ import { detectHelpFlag, detectVersionFlag } from './cli/scanners.ts';
 import {
   ensureNodeVersion,
   parsePmFlag,
+  parseProjectTypeFlag,
   parseSeverityFlag,
   rejectUnknownFlags,
   resolveReporter,
@@ -21,12 +22,20 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { renderHelp } from './cli/help.ts';
 import { version } from './version.ts';
+import type { ProjectType } from './domain/entities/project-type.ts';
 
 type ParsedCommand =
   | { kind: 'help'; target?: CommandName }
   | { kind: 'version' }
   | { kind: 'usage'; reason?: string }
-  | { kind: 'lint'; cwd: AbsPath; pm?: PM; reporter: string; severity?: Severity };
+  | {
+      kind: 'lint';
+      cwd: AbsPath;
+      pm?: PM;
+      projectType?: ProjectType;
+      reporter: string;
+      severity?: Severity;
+    };
 
 const EXIT_SUCCESS = 0;
 const EXIT_USAGE = 2;
@@ -102,6 +111,7 @@ const buildLintCommand = (
     cwd: resolveCwd(positionalCwd),
     kind: 'lint',
     pm: parsePmFlag(flags.pm),
+    projectType: parseProjectTypeFlag(flags.projectType),
     reporter: resolveReporter(flags),
     severity: parseSeverityFlag(flags.severity),
   };

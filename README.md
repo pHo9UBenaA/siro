@@ -62,6 +62,7 @@ that backs those suffixes.
 siro <lint|check> [path] [options]
 
  --pm <npm|pnpm|yarn|bun|deno|aube> Target a specific package manager (auto-detected; required if detection finds nothing)
+ --project-type <application|package> Select application or published-package policy (default auto)
  --reporter <pretty|json|github> Output format (default pretty)
  --severity <error|warn|info> Show and fail on findings at or above this level
  --json Shortcut for --reporter json

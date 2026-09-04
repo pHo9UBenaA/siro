@@ -1,5 +1,6 @@
 import type { AbsPath, RelPath } from '../../shared/paths.ts';
 import type { PackageJson } from '../schemas/package-json.ts';
+import type { ProjectType } from '../entities/project-type.ts';
 
 /** Read-only view of a repository, passed to every rule's `check` and `fix`. */
 export interface RepoContext {
@@ -7,4 +8,5 @@ export interface RepoContext {
   exists: (relPath: RelPath) => boolean;
   readText: (relPath: RelPath) => string | undefined;
   readonly packageJson: PackageJson | undefined;
+  readonly projectType?: ProjectType;
 }

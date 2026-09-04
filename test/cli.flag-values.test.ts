@@ -47,4 +47,13 @@ describe('value flags with a missing value token', () => {
       expect(err.join('\n')).toContain('--severity requires a value');
     });
   });
+
+  it('rejects --project-type without a value (exit 2)', () => {
+    expect.hasAssertions();
+    const { io, err } = makeIO();
+    return run(['lint', '--project-type'], io).then((code) => {
+      expect(code).toBe(EXIT_USAGE);
+      expect(err.join('\n')).toContain('--project-type requires a value');
+    });
+  });
 });

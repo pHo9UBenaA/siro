@@ -8,6 +8,7 @@ import type {
 import type { PM, Severity } from './pms.ts';
 import type { RelPath } from '../../shared/paths.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
+import type { ProjectType } from './project-type.ts';
 
 /**
  * What a rule binding points at on disk: a parsed config file or an existence
@@ -114,6 +115,8 @@ export interface Rule<Id extends string = string> {
   readonly description: string;
   readonly severity: Severity;
   readonly docs?: string;
+  /** Project types this rule applies to; omission means both types. */
+  readonly projectTypes?: readonly ProjectType[];
   /** Absence of a PM key means the rule does not apply (N/A) to that PM. */
   readonly bindings: Partial<Record<PM, RuleBinding>>;
 }

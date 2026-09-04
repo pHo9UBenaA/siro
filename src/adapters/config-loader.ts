@@ -12,6 +12,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateRuleIds } from '../domain/services/validate-rule-ids.ts';
 import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../shared/node-version.ts';
+import { PROJECT_TYPES } from '../domain/entities/project-type.ts';
 
 // Array order IS the precedence: if more than one exists, the first match
 // wins and the rest are ignored. This is deliberate (a single deterministic
@@ -45,6 +46,7 @@ const ConfigSchema = vb.strictObject(
         ),
       ),
     ),
+    projectType: vb.optional(vb.picklist(PROJECT_TYPES)),
     // Validate reporter SHAPE (name + format) even though the Rule/Reporter
     // contracts are otherwise compile-time only: a malformed reporter from a
     // hand-written config would otherwise crash at format-call time with a

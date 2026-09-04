@@ -45,6 +45,23 @@ describe('lint command — flags', () => {
     });
   });
 
+  it('omits publish-only findings for an application project', () => {
+    expect.hasAssertions();
+    const { io, out } = captureIO();
+    return run(
+      ['lint', '--project-type', 'application', '--json', path.join(FIXTURES, 'npm-bad')],
+      io,
+    ).then(() => {
+      const parsed: { findings: { ruleId: string }[] } = JSON.parse(out());
+      const publishOnly = new Set(['files-field', 'provenance', 'publish-access']);
+      const ids = parsed.findings.map((finding) => finding.ruleId);
+      expect({
+        keepsSharedRules: ids.includes('disable-lifecycle-scripts'),
+        publishOnly: ids.filter((id) => publishOnly.has(id)),
+      }).toStrictEqual({ keepsSharedRules: true, publishOnly: [] });
+    });
+  });
+
   it('emits parseable JSON with --json', () => {
     expect.hasAssertions();
     const { io, out } = captureIO();

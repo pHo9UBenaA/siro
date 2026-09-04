@@ -92,6 +92,7 @@ Drop a `siro.config.{ts,mjs,js}` next to `package.json` to customize behavior:
 import { defineConfig } from '@pho9ubenaa/siro';
 
 export default defineConfig({
+  projectType: 'application', // or 'package'; omit to infer from publish metadata
   pms: ['npm', 'pnpm'], // restrict detection to a subset
   rules: {
     provenance: 'off', // disable a rule
@@ -101,6 +102,12 @@ export default defineConfig({
   reporters: [], // register custom Reporter implementations
 });
 ```
+
+`projectType` separates published packages from applications that only consume
+dependencies. `application` skips `files-field`, `publish-access`, and `provenance`;
+`package` evaluates them even when package metadata is temporarily private. A CLI or
+programmatic `projectType` takes precedence over this config value. When neither is set,
+siro keeps its existing inference from `private`/`name` (and the Deno publish signal).
 
 `.ts` configs are loaded via Node's native type stripping (requires Node `^22.18.0 || ^23.6.0 || >=24`);
 no extra build step. Only erasable TypeScript syntax is supported (no `enum`, `namespace`, or

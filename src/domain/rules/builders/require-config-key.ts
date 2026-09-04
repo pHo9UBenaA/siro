@@ -64,6 +64,7 @@ export interface RequireConfigKeyOptions<Id extends string = string> {
   readonly description: string;
   readonly severity: Severity;
   readonly docs?: string;
+  readonly projectTypes?: Rule['projectTypes'];
   /** Bindings keyed by PM. PMs absent from this map are treated as N/A. */
   readonly bindings: Partial<Record<PM, RequireConfigKeySpec>>;
   /** Return false to short-circuit `check` as N/A (e.g. private packages). */
@@ -199,6 +200,7 @@ export const requireConfigKey = <const Id extends string>(
     description: options.description,
     docs: options.docs,
     id: options.id,
+    projectTypes: options.projectTypes,
     severity: options.severity,
     title: options.title,
   };

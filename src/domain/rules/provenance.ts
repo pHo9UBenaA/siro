@@ -47,6 +47,7 @@ export const provenance = requireConfigKey({
     'Provenance statements (via Sigstore) tie a release to its source and build, letting consumers verify it was not tampered with.',
   docs: 'https://github.com/bodadotsh/npm-security-best-practices#10-generate-provenance-statements',
   id: 'provenance',
+  projectTypes: ['package'],
   severity: 'warn',
   title: 'Publish with provenance',
 });

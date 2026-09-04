@@ -133,6 +133,14 @@ const describeUsageErrors = (): void => {
     });
   });
 
+  test('exits 2 for an unknown --project-type', () => {
+    expect.hasAssertions();
+    return runExpectCode(['lint', '--project-type', 'service']).then(({ code, err }) => {
+      expect(code).toBe(EXIT_USAGE);
+      expect(err).toMatch(/unknown project type/iu);
+    });
+  });
+
   test('exits 2 for an unknown flag (typo guard)', () => {
     expect.hasAssertions();
     return runExpectCode(['lint', '--repoter', 'pretty']).then(({ code, err }) => {
@@ -248,5 +256,10 @@ describe('public API surface', () => {
   it('exposes detectPMs for embedders authoring custom rules', () => {
     expect.hasAssertions();
     expect(publicApi.detectPMs).toBeTypeOf('function');
+  });
+
+  it('exposes the canonical project types for embedders', () => {
+    expect.hasAssertions();
+    expect(publicApi.PROJECT_TYPES).toStrictEqual(['application', 'package']);
   });
 });

@@ -43,6 +43,15 @@ npx @pho9ubenaa/siro lint --reporter github          # GitHub Actions annotation
 npx @pho9ubenaa/siro@v0.2.0 lint --pm pnpm
 ```
 
+## Select application or package policy
+
+```sh
+npx @pho9ubenaa/siro@v0.2.0 lint --project-type application # skip published-artifact rules
+npx @pho9ubenaa/siro@v0.2.0 lint --project-type package     # require artifact safeguards
+```
+
+Omit the flag to infer the policy from the repository's publish metadata.
+
 ## Install as a dev dependency (optional)
 
 ```sh

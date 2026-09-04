@@ -1,7 +1,7 @@
 import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
-import { isPublishable } from './publishable.ts';
+import { isPackageProject, isPublishable } from './publishable.ts';
 
 const { packageJson, denoJson } = CONFIG_FILES;
 
@@ -43,8 +43,8 @@ const packageJsonFilesBinding: AdvisoryRuleBinding = {
 // deno repos — mirroring the `isPublishable` guard used by the package.json
 // binding (whose privacy signal is `private: true` rather than missing name).
 const denoPublishBinding: AdvisoryRuleBinding = {
-  check(_ctx, config) {
-    if (typeof getByPath(config, ['name']) !== 'string') {
+  check(ctx, config) {
+    if (!isPackageProject(ctx, typeof getByPath(config, ['name']) === 'string')) {
       return { state: 'na' };
     }
     const include = getByPath(config, ['publish', 'include']);
@@ -84,6 +84,7 @@ export const filesField = defineRule({
     'An explicit `files` array in package.json restricts what gets published, preventing accidental inclusion of secrets or local files.',
   docs: 'https://github.com/bodadotsh/npm-security-best-practices#11-review-published-files',
   id: 'files-field',
+  projectTypes: ['package'],
   severity: 'info',
   title: 'Declare a published files allow-list',
 });

@@ -19,6 +19,7 @@ const buildCli = (): ReturnType<typeof cac> => {
   const cli = cac('siro');
   cli
     .option('--pm <name>', 'Target a specific package manager')
+    .option('--project-type <type>', 'Project type (application|package)')
     .option('--reporter <name>', `Reporter (${BUILTIN_REPORTER_NAMES.join('|')})`)
     .option('--json', 'Shortcut for --reporter json')
     .option('--severity <level>', `Display/fail threshold (${SEVERITIES.join('|')})`)

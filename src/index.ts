@@ -25,6 +25,7 @@ export type {
 } from './domain/entities/config-value.ts';
 export { getByPath } from './domain/entities/config-value.ts';
 export type { ConfigReadValue, Finding, LintResult } from './domain/entities/lint-result.ts';
+export { type ProjectType, PROJECT_TYPES } from './domain/entities/project-type.ts';
 export {
   isPM,
   isSeverity,
