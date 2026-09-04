@@ -2,6 +2,8 @@ import { isRuleShape } from '../../../src/domain/entities/rule.ts';
 
 vi.setConfig({ testTimeout: 5000 });
 
+const SPARSE_ARRAY_LENGTH = 1;
+
 const validRule = {
   bindings: {
     npm: {
@@ -54,5 +56,11 @@ describe(isRuleShape, () => {
       false,
       false,
     ]);
+  });
+
+  it('rejects a sparse projectTypes array', () => {
+    expect.hasAssertions();
+    const projectTypes = new Array(SPARSE_ARRAY_LENGTH);
+    expect(isRuleShape({ ...validRule, projectTypes })).toBe(false);
   });
 });

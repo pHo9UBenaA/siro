@@ -169,7 +169,8 @@ const isProjectTypeValue = (value: unknown): value is ProjectType =>
 
 const isProjectTypesShape = (value: unknown): value is readonly ProjectType[] | undefined =>
   typeof value === 'undefined' ||
-  (Array.isArray(value) && value.every((projectType) => isProjectTypeValue(projectType)));
+  (Array.isArray(value) &&
+    Array.from(value).every((projectType) => isProjectTypeValue(projectType)));
 
 export const isRuleShape = (value: unknown): value is Rule => {
   if (!isRecord(value)) {
