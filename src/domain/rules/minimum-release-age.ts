@@ -43,10 +43,10 @@ const isNonDisabledDenoDuration = (value: unknown): boolean => {
         (DENO_DATE.test(value) || !Number.isNaN(Date.parse(value))))
     );
   }
-  if (typeof value !== 'object' || value === null || Array.isArray(value) || !('age' in value)) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return false;
   }
-  return isNonDisabledDenoDuration(value.age);
+  return !('age' in value) || isNonDisabledDenoDuration(value.age);
 };
 
 export const minimumReleaseAge = requireConfigKey({
@@ -77,7 +77,10 @@ export const minimumReleaseAge = requireConfigKey({
       keyPath: ['minimumDependencyAge'],
       message: `Set minimumDependencyAge (e.g. "P3D" for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in deno.json.`,
       value: 'P3D',
-      versionNote: { defaultSafeSince: 'deno 2.9.0 (1440 minutes)' },
+      versionNote: {
+        defaultSafeSince: 'deno 2.9.0 (1440 minutes)',
+        note: 'object age optional since deno 2.9.4',
+      },
     },
     npm: {
       accept: isPositiveNumber,
