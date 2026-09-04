@@ -53,7 +53,7 @@ Upstream: <https://pnpm.io/settings#blockexoticsubdeps>
 
 | PM | Target | Reference |
 | --- | --- | --- |
-| `npm` | `.npmrc` | [official docs](https://docs.npmjs.com/cli/v11/using-npm/config#allow-git) |
+| `npm` | `.npmrc` | [official docs](https://docs.npmjs.com/cli/v12/using-npm/config#allow-git) |
 | `pnpm` | `pnpm-workspace.yaml` | [official docs](https://pnpm.io/settings#blockexoticsubdeps) |
 | `aube` | `aube-workspace.yaml` | [official docs](https://aube.jdx.dev/security.html) |
 
@@ -82,7 +82,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lo
 
 | PM | Target | Reference |
 | --- | --- | --- |
-| `npm` | `package-lock.json` | [official docs](https://docs.npmjs.com/cli/v11/configuring-npm/package-lock-json) |
+| `npm` | `package-lock.json` | [official docs](https://docs.npmjs.com/cli/v12/configuring-npm/package-lock-json) |
 | `pnpm` | `pnpm-lock.yaml` | [official docs](https://pnpm.io/git#lockfiles) |
 | `yarn` | `yarn.lock` | [official docs](https://yarnpkg.com/getting-started/qa#should-lockfiles-be-committed-to-the-repository) |
 | `bun` | `bun.lock` | [official docs](https://bun.com/docs/install/lockfile) |
@@ -147,7 +147,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lo
 | `yarn` | `.yarnrc.yml` | [official docs](https://yarnpkg.com/configuration/yarnrc#enableImmutableInstalls) |
 | `bun` | `bunfig.toml` | [official docs](https://bun.com/docs/runtime/bunfig#install-frozenlockfile) |
 | `deno` | `deno.json` | [official docs](https://docs.deno.com/runtime/fundamentals/configuration/#lock) |
-| `aube` | `aube-workspace.yaml` | [official docs](https://aube.en.dev/settings/) |
+| `aube` | `aube-workspace.yaml` | [official docs](https://github.com/aubepkg/aube/blob/main/docs/cli/ci.md) |
 
 ## `frozen-store` — info
 
@@ -258,11 +258,11 @@ Upstream: <https://pnpm.io/settings#userunningStoreserver>
 ## `strict-allow-scripts` — warn
 
 Turn install-script policy warnings into hard errors so unapproved lifecycle scripts block installation.
-Upstream: <https://docs.npmjs.com/cli/v11/using-npm/config#strict-allow-scripts>
+Upstream: <https://docs.npmjs.com/cli/v12/using-npm/config#strict-allow-scripts>
 
 | PM | Target | Reference |
 | --- | --- | --- |
-| `npm` | `.npmrc` | [official docs](https://docs.npmjs.com/cli/v11/using-npm/config#strict-allow-scripts) |
+| `npm` | `.npmrc` | [official docs](https://docs.npmjs.com/cli/v12/using-npm/config#strict-allow-scripts) |
 
 ## `strict-release-age` — info
 

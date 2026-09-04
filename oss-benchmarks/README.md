@@ -2,6 +2,12 @@
 
 Real-world config validation benchmarks using leading OSS projects.
 
+## What the results establish
+
+These selected repositories and saved snapshots exercise package-manager detection and configuration compatibility. They are not a representative sample of the ecosystem, independently labeled security ground truth, or evidence that those repositories use siro.
+
+Counts from this harness must not be presented as vulnerability prevalence, precision/recall, security ratings, or market adoption. A security-posture study would additionally need pinned repository revisions, applicable-rule denominators, effective defaults and overrides, and manual false-positive review. Snapshot dates and missing configuration must remain visible.
+
 ## Setup (sparse clones)
 
 Coverage checks require locally cloned repos. The clone script uses

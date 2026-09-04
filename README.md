@@ -20,6 +20,20 @@ npx @pho9ubenaa/siro lint
 npx @pho9ubenaa/siro lint --reporter json # machine-readable output with fix ops (see docs/json-output.md)
 ```
 
+## A concrete example
+
+For maintainers and CI owners, siro makes package-manager policy gaps visible during review. For example, change an unsafe npm script setting:
+
+```diff
+# .npmrc
+-ignore-scripts=false
++ignore-scripts=true
+```
+
+Run `siro lint --pm npm --project-type application` before and after the edit. The `disable-lifecycle-scripts` error clears when this setting is enabled; other findings remain until addressed. Review required build scripts before changing their execution policy.
+
+The CLI reads `siro.config.*` as executable code. Review repository configuration before running it, particularly in CI. See the [threat model](docs/threat-model.md) and [security reporting policy](SECURITY.md).
+
 ## Features
 
 - **27 rules across 6 managers.** Covering lifecycle scripts, version pinning, lockfiles
@@ -29,7 +43,7 @@ npx @pho9ubenaa/siro lint --reporter json # machine-readable output with fix ops
   package manager (`.npmrc`, `pnpm-workspace.yaml`, `.yarnrc.yml`, `bunfig.toml`, `deno.json`,
   `aube-workspace.yaml`, `package.json`).
 - **PM-aware severities.** When a manager's documented default already satisfies a rule (e.g.
-  Yarn's `enableScripts: false`, aube's `preferFrozenLockfile: true`), the finding is demoted
+  Yarn's `enableScripts: false`, pnpm's `strictDepBuilds: true`), the finding is demoted
   to `info` so CI noise stays proportional to real risk.
 - **Machine-readable remediation.** Every finding carries `fix` operations or `manualSteps` in the
   JSON output — hand it to an agent skill or editor plugin that edits the files and re-runs
@@ -82,7 +96,7 @@ Different layer of the supply-chain pipeline; you want both.
 | `npm audit` · osv-scanner · Snyk · Dependabot | **Known CVEs** in your installed dependency tree                                                                                             | GHSA / OSV.dev / vendor feeds                                                                                                        |
 | `siro`                                        | **Your install pipeline's configuration** — postinstall scripts, version ranges, lockfile policy, publish provenance, files allow-list, etc. | Static analysis of `.npmrc`, `pnpm-workspace.yaml`, `.yarnrc.yml`, `bunfig.toml`, `deno.json`, `aube-workspace.yaml`, `package.json` |
 
-`npm audit` tells you "this dependency has a known vulnerability". `siro` tells you "even if a brand-new vulnerability lands tomorrow, your install settings can't trust it without review". Run both in CI.
+`npm audit` reports known vulnerabilities. `siro` reports supported configuration gaps that can increase exposure to malicious dependencies. Neither a clean result nor a cooldown window guarantees safety. Run both in CI.
 
 ## Contributing
 
