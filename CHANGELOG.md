@@ -10,6 +10,8 @@
 ### Fixes
 
 - Programmatic `lintCommand` calls reject unsupported project type, package manager, and severity values instead of returning misleading results.
+- Malformed custom rules from config files or untyped programmatic callers are rejected before rule merging and evaluation.
+- Empty and whitespace-only package names no longer activate published-package policy.
 - Unscoped Deno rules no longer read `deno.json` solely for project-type inference.
 - The published `package.json#bin` preserves exit code 70 when a reporter or custom rule crashes, and subprocess tests now execute that declared bin directly.
 
