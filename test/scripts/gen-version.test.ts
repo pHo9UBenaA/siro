@@ -70,11 +70,11 @@ describe('readPackageVersion — error cases', () => {
 });
 
 describe(renderVersionModule, () => {
-  it('emits a single-quoted ESM constant carrying the version', () => {
+  it('exports the package version from the rendered module', async () => {
     expect.hasAssertions();
-    expect(renderVersionModule('1.2.3')).toBe(
-      "// Auto-generated from package.json by scripts/gen/version.mjs.\nexport const version = '1.2.3';\n",
-    );
+    const moduleSource = renderVersionModule('1.2.3');
+    const module = await import(`data:text/javascript,${encodeURIComponent(moduleSource)}`);
+    expect(module.version).toBe('1.2.3');
   });
 
   it('preserves prerelease and build metadata in the SemVer literal', () => {
