@@ -47,19 +47,15 @@ const rewriteBindingsForSeverityOverride = (rule: Rule, override: Severity): Rul
   return { ...rule, bindings, severity: override };
 };
 
-/**
- * Merge a user `SiroConfig` into the base ruleset, returning a fresh array
- * (the inputs are not mutated). `base` is the already-resolved rule list —
- * typically builtins plus any programmatic `customRules` — and `config` is
- * the loaded `SiroConfig` whose `customRules` extend `base` and whose
- * `rules` map applies severity overrides (or `'off'` to drop).
- */
 const applyOverride = (
   rule: Rule,
   overrides: NonNullable<SiroConfig['rules']>,
   out: Rule[],
 ): void => {
-  const override = overrides[rule.id];
+  let override: Severity | 'off' | undefined = void 0;
+  if (Object.hasOwn(overrides, rule.id)) {
+    override = overrides[rule.id];
+  }
   if (override === 'off') {
     return;
   }

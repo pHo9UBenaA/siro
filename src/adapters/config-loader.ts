@@ -5,7 +5,7 @@ import { type Reporter, isReporterShape } from '../domain/ports/reporter.ts';
 import { ConfigError } from '../shared/errors.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import { type Rule, isRuleShape } from '../domain/entities/rule.ts';
-import type { SiroConfig } from '../domain/entities/siro-config.ts';
+import type { RuleSetting, SiroConfig } from '../domain/entities/siro-config.ts';
 import { rules as builtinRules } from '../domain/builtin-rules.ts';
 import { nodeFileSystem } from './node-file-system.ts';
 import path from 'node:path';
@@ -52,7 +52,30 @@ const ConfigSchema = vb.strictObject(
       vb.array(vb.custom<Reporter>(isReporterShape, 'must be a { name, format } reporter')),
     ),
     rules: vb.optional(
-      vb.record(vb.string(), vb.union([vb.picklist(SEVERITIES), vb.literal('off')])),
+      vb.pipe(
+        vb.custom<Record<string, unknown>>(
+          (value) => typeof value === 'object' && value !== null,
+          'must be an object of rule settings',
+        ),
+        vb.rawTransform(({ dataset, addIssue }) => {
+          const entries: [string, RuleSetting][] = [];
+          for (const [key, value] of Object.entries(dataset.value)) {
+            const result = vb.safeParse(
+              vb.union([vb.picklist(SEVERITIES), vb.literal('off')]),
+              value,
+            );
+            if (result.success) {
+              entries.push([key, result.output]);
+            } else {
+              addIssue({
+                message: result.issues[0].message,
+                path: [{ input: dataset.value, key, origin: 'value', type: 'object', value }],
+              });
+            }
+          }
+          return Object.fromEntries(entries);
+        }),
+      ),
     ),
   },
   'unknown config key (check for a typo)',

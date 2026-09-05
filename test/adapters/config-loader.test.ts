@@ -61,6 +61,22 @@ describe('loadConfig — loading', () => {
     });
   });
 
+  it('retains own prototype-named settings while ignoring inherited settings', () => {
+    expect.hasAssertions();
+    writeFileSync(
+      path.join(td.dir, 'siro.config.mjs'),
+      `export default {
+        rules: Object.create({ constructor: 'off', inherited: 'fatal' }, {
+          ['__proto__']: { value: 'warn', enumerable: true },
+          ordinary: { value: 'off', enumerable: true },
+        }),
+      };\n`,
+    );
+    return loadConfig(td.dir).then((config) => {
+      expect(config?.rules).toStrictEqual({ ['__proto__']: 'warn', ordinary: 'off' });
+    });
+  });
+
   it('accepts a customRules entry whose id does not collide with any builtin', () => {
     expect.hasAssertions();
     writeFileSync(
@@ -189,20 +205,20 @@ describe('loadConfig — schema validation', () => {
       });
   });
 
-  it('rejects a config whose rules map has a severity outside the allowed picklist', () => {
-    expect.hasAssertions();
-    writeFileSync(
-      path.join(td.dir, 'siro.config.mjs'),
-      "export default { rules: { provenance: 'fatal' } };\n",
-    );
-    return loadConfig(td.dir)
-      .catch((error) => error)
-      .then((err) => {
-        expect(err).toBeInstanceOf(ConfigError);
-        assert(err instanceof Error, 'expected Error');
-        expect(err.message).toMatch(/rules\.provenance/u);
+  it.each(['provenance', 'constructor', 'prototype', '__proto__'])(
+    'rejects an invalid own severity for %s with its config path',
+    (id) => {
+      expect.hasAssertions();
+      writeFileSync(
+        path.join(td.dir, 'siro.config.mjs'),
+        `export default { rules: { [${JSON.stringify(id)}]: 'fatal' } };\n`,
+      );
+      return expect(loadConfig(td.dir)).rejects.toMatchObject({
+        message: expect.stringContaining(`rules.${id}`),
+        name: 'ConfigError',
       });
-  });
+    },
+  );
 });
 
 describe('loadConfig — customRules — happy path', () => {

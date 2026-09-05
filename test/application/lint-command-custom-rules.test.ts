@@ -2,6 +2,7 @@ import { ConfigError, UsageError } from '../../src/shared/errors.ts';
 import { asAbsPath, asRelPath } from '../../src/shared/paths.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import type { Rule } from '../../src/domain/entities/rule.ts';
+import type { LintResult } from '../../src/domain/entities/lint-result.ts';
 import { captureIO } from '../helpers/io.ts';
 import { lintCommand } from '../../src/application/commands/lint.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
@@ -247,22 +248,51 @@ describe('lintCommand customRules — disk-loaded config: cross-source', () => {
     rmSync(dir, { force: true, recursive: true });
   });
 
-  it('accepts a `rules` override referencing a programmatic custom rule', () => {
-    expect.hasAssertions();
-    writeFileSync(
-      path.join(dir, 'siro.config.mjs'),
-      `export default {
-        rules: { 'custom-always-violates': 'warn' },
+  it.each(['constructor', 'toString', 'hasOwnProperty'])(
+    'preserves error findings for %s when rules overrides are empty',
+    (id) => {
+      expect.hasAssertions();
+      writeFileSync(path.join(dir, 'siro.config.mjs'), 'export default { rules: {} };\n');
+      writeFileSync(
+        path.join(dir, '.npmrc'),
+        'ignore-scripts=true\nsave-exact=true\nsave-prefix=\n',
+      );
+      writeFileSync(path.join(dir, 'package-lock.json'), '{}\n');
+      const { io, out } = captureIO();
+      return lintCommand(
+        { customRules: [ruleWithId(id)], cwd: asAbsPath(dir), reporter: 'json' },
+        io,
+      ).then((code) => {
+        const result: LintResult = JSON.parse(out());
+        const severities = result.findings
+          .filter((finding) => finding.ruleId === id)
+          .map((finding) => finding.severity);
+        expect({ code, severities }).toStrictEqual({ code: EXIT_VIOLATION, severities: ['error'] });
+      });
+    },
+  );
+
+  it.each(['custom-always-violates', 'constructor', 'prototype', '__proto__', 'toString'])(
+    'accepts an own rules override for the %s programmatic custom rule',
+    (id) => {
+      expect.hasAssertions();
+      writeFileSync(
+        path.join(dir, 'siro.config.mjs'),
+        `export default {
+        rules: { [${JSON.stringify(id)}]: 'warn' },
       };\n`,
-    );
-    const { io } = captureIO();
-    return lintCommand(
-      { customRules: [customAlwaysViolates], cwd: asAbsPath(dir), reporter: 'json' },
-      io,
-    ).then((code) => {
-      expect(code).toBe(EXIT_VIOLATION);
-    });
-  });
+      );
+      const { io, out } = captureIO();
+      return lintCommand(
+        { customRules: [ruleWithId(id)], cwd: asAbsPath(dir), reporter: 'json' },
+        io,
+      ).then((code) => {
+        const result: LintResult = JSON.parse(out());
+        const severity = result.findings.find((finding) => finding.ruleId === id)?.severity;
+        expect({ code, severity }).toStrictEqual({ code: EXIT_VIOLATION, severity: 'warn' });
+      });
+    },
+  );
 
   it('throws ConfigError when a programmatic rule id collides with a config customRule', () => {
     expect.hasAssertions();
