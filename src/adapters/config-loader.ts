@@ -156,7 +156,7 @@ const validateCandidateShape = (candidate: unknown, name: string): object => {
 };
 
 const validateSchema = (candidate: object, name: string): SiroConfig => {
-  const result = vb.safeParse(ConfigSchema, candidate);
+  const result = vb.safeParse(ConfigSchema, Object.fromEntries(Object.entries(candidate)));
   if (!result.success) {
     throw new ConfigError(`${name}: ${formatIssues(result.issues)}`);
   }

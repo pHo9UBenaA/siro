@@ -77,6 +77,17 @@ describe('loadConfig — loading', () => {
     });
   });
 
+  it('ignores inherited top-level options', () => {
+    expect.hasAssertions();
+    writeFileSync(
+      path.join(td.dir, 'siro.config.mjs'),
+      "export default Object.create({ pms: ['npm'] });\n",
+    );
+    return loadConfig(td.dir).then((config) => {
+      expect(config).toStrictEqual({});
+    });
+  });
+
   it('accepts a customRules entry whose id does not collide with any builtin', () => {
     expect.hasAssertions();
     writeFileSync(
