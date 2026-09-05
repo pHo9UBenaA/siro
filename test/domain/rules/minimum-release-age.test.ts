@@ -3,6 +3,8 @@ import {
   expectMessageContainsAndAvoids,
 } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
+import { codecFor } from '../../../src/adapters/codecs/store.ts';
+import { runLint } from '../../../src/application/run-lint.ts';
 import { minimumReleaseAge } from '../../../src/domain/rules/minimum-release-age.ts';
 
 vi.setConfig({ testTimeout: 5000 });
@@ -30,6 +32,37 @@ describe('minimum-release-age (npm)', () => {
     expect.hasAssertions();
     expect(npm.check(ctx, { 'min-release-age': 7 }).state).toBe('ok');
   });
+
+  it.each(['0.5', '.5', '3.0', '3'])('accepts the positive release age %s from .npmrc', (value) => {
+    expect.hasAssertions();
+    const result = runLint({
+      codecFor,
+      ctx: makeCtx({
+        readText: () => `min-release-age=${value}\n`,
+      }),
+      pms: ['npm'],
+      ruleSet: [minimumReleaseAge],
+    });
+    expect(result.findings).toStrictEqual([]);
+  });
+
+  it.each(['0', '0.0', '-0.5', 'Infinity', '-Infinity', '1e309', 'NaN'])(
+    'flags the inactive or invalid release age %s from .npmrc',
+    (value) => {
+      expect.hasAssertions();
+      const result = runLint({
+        codecFor,
+        ctx: makeCtx({
+          readText: () => `min-release-age=${value}\n`,
+        }),
+        pms: ['npm'],
+        ruleSet: [minimumReleaseAge],
+      });
+      expect(result.findings.map((finding) => finding.ruleId)).toStrictEqual([
+        'minimum-release-age',
+      ]);
+    },
+  );
 
   it('fixes by setting a positive min-release-age', () => {
     expect.hasAssertions();

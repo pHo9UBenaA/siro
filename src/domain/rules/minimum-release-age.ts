@@ -91,7 +91,13 @@ export const minimumReleaseAge = requireConfigKey({
       },
     },
     npm: {
-      accept: isPositiveNumber,
+      accept: (value: unknown): boolean => {
+        if (typeof value !== 'number' && typeof value !== 'string') {
+          return false;
+        }
+        const age = Number(value);
+        return Number.isFinite(age) && age > 0;
+      },
       docs: 'https://docs.npmjs.com/cli/v11/using-npm/config#min-release-age',
       file: npmrc,
       keyPath: ['min-release-age'],
