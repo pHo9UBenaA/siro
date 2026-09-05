@@ -53,10 +53,17 @@ const ConfigSchema = vb.strictObject(
     ),
     rules: vb.optional(
       vb.pipe(
-        vb.custom<Record<string, unknown>>(
-          (value) => typeof value === 'object' && value !== null,
-          'must be an object of rule settings',
-        ),
+        vb.custom<Record<string, unknown>>((value) => {
+          if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+            return false;
+          }
+          const prototype = Object.getPrototypeOf(value);
+          if (prototype === null) {
+            return true;
+          }
+          const constructor = Object.getOwnPropertyDescriptor(prototype, 'constructor')?.value;
+          return typeof constructor !== 'function' || constructor.name === 'Object';
+        }, 'must be an object of rule settings'),
         vb.rawTransform(({ dataset, addIssue }) => {
           const entries: [string, RuleSetting][] = [];
           for (const [key, value] of Object.entries(dataset.value)) {

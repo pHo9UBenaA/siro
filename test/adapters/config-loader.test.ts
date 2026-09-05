@@ -178,6 +178,15 @@ describe('loadConfig — export shape validation', () => {
 describe('loadConfig — schema validation', () => {
   const td = useTempDir();
 
+  it('rejects a rules array with its config path', () => {
+    expect.hasAssertions();
+    writeFileSync(path.join(td.dir, 'siro.config.mjs'), 'export default { rules: [] };\n');
+    return expect(loadConfig(td.dir)).rejects.toMatchObject({
+      message: expect.stringContaining('rules'),
+      name: 'ConfigError',
+    });
+  });
+
   it('rejects a config whose pms array contains an unknown package manager', () => {
     expect.hasAssertions();
     writeFileSync(path.join(td.dir, 'siro.config.mjs'), "export default { pms: ['rubygems'] };\n");
