@@ -4,6 +4,11 @@
 
 ### Fixes
 
+- Preserve errors from custom rules whose names match inherited object properties when the severity override map is empty.
+- Honor explicit severity settings for prototype-named custom rules and reject invalid values with their configuration paths.
+- Detect Deno partial and wildcard versions before import subpaths while preserving exact versions.
+- Accept positive fractional npm release-age settings parsed from `.npmrc`.
+- Run related tests for staged TypeScript files in the pre-commit hook.
 - Accept documented Deno minute strings and Yarn duration strings in release-age settings.
 - Honor npm script-policy bypass and ignore-scripts precedence; bypass remediation remains manual.
 - Treat npm 12's default URL restrictions as safe informational pins and recommend `none` without weakening defaults.
@@ -16,6 +21,7 @@
 - Pin workflow Actions to verified full commit SHAs, disable persisted checkout credentials, and configure Dependabot Action updates.
 - Add security reporting guidance, a threat model, and a concrete before/after example.
 - Refresh cited package-manager metadata and clarify static-analysis and OSS benchmark limitations.
+- Align Aube frozen-lockfile examples with its unconditional command advisory.
 
 ## [0.3.0]
 

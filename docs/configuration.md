@@ -137,8 +137,7 @@ A rule's severity is its default; an individual PM binding can override it. Two 
   - `block-exotic-subdeps × pnpm` (`blockExoticSubdeps` defaults to `true`),
     `× aube` (`blockExoticSubdeps` defaults to `true`).
   - `frozen-lockfile × pnpm` (`frozenLockfile: true`),
-    `× yarn` (`enableImmutableInstalls: true`),
-    `× aube` (`preferFrozenLockfile: true`).
+    `× yarn` (`enableImmutableInstalls: true`).
   - `minimum-release-age × pnpm` (`minimumReleaseAge: 1440`),
     `× yarn` (`npmMinimalAgeGate: 1440`),
     `× deno` (`minimumDependencyAge: 1440`),
@@ -147,12 +146,16 @@ A rule's severity is its default; an individual PM binding can override it. Two 
     PRs on public repositories).
     The user is told "the PM default already covers you, but please
     pin it explicitly".
-    Some documented defaults are conditional (pnpm's `frozenLockfile` and aube's
-    `preferFrozenLockfile` auto-enable only under CI; yarn's `enableHardenedMode` only for
+    Some documented defaults are conditional (pnpm's `frozenLockfile` auto-enables
+    only under CI; yarn's `enableHardenedMode` only for
     PRs on public repositories); they still qualify for the advisory downgrade, and the
     binding's message names the condition.
     Reporters render these as ordinary `info` findings — they participate in
     `--severity info` thresholds and exit codes.
+
+`frozen-lockfile × aube` always emits an informational command advisory: use
+`aube ci` or `aube install --frozen-lockfile`. Its `preferFrozenLockfile` setting
+prefers a headless install but does not enforce a frozen lockfile.
 
 Bindings with `documentedDefault` accept an additional `defaultSatisfiedSeverity` field that
 controls the severity of the advisory finding emitted when the key is unset and the PM default

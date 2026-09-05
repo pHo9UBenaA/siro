@@ -261,10 +261,12 @@ informational by design:
 - **`documentedDefault`** — the key's _own_ default already satisfies the rule. The builder
   emits an `info` finding for unset keys, telling the user "the PM default covers you, but
   pin it explicitly". Examples: `disable-lifecycle-scripts × yarn` (`enableScripts: false`),
-  `frozen-lockfile × aube` (`preferFrozenLockfile: true`),
   `minimum-release-age × aube` (`minimumReleaseAge: 1440`).
 - **Both apply** — prefer `documentedDefault`; static `severity` cannot distinguish "unset
   but safe by default" from "user explicitly weakened it".
+
+`frozen-lockfile × aube` instead uses an unconditional `info` advisory for
+`aube ci` or `aube install --frozen-lockfile`; `preferFrozenLockfile` is only a preference.
 
 ### Hand-written bindings
 
