@@ -1,5 +1,8 @@
 import { makeCtx } from '../../helpers/ctx.ts';
+import { codecFor } from '../../../src/adapters/codecs/store.ts';
+import { exitCodeForLint } from '../../../src/domain/services/filter.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
+import { runLint } from '../../../src/application/run-lint.ts';
 
 vi.setConfig({ testTimeout: 5000 });
 
@@ -53,5 +56,65 @@ describe('pin-exact-versions (npm)', () => {
       op: 'setKey',
       value: '',
     });
+  });
+});
+
+describe('pin-exact-versions (deno subpaths)', () => {
+  it.each([
+    'npm:lodash@4/fp',
+    'npm:lodash@4.x/fp',
+    'npm:@scope/pkg@1/subpath',
+    'npm:@scope/pkg@1.x/subpath',
+    'jsr:@std/path@1/posix',
+    'jsr:@std/path@1.x/posix',
+  ])('fails lint for the version range in %s', (specifier) => {
+    expect.hasAssertions();
+    const result = runLint({
+      codecFor,
+      ctx: makeCtx({
+        readText: () => JSON.stringify({ imports: { dependency: specifier } }),
+      }),
+      pms: ['deno'],
+      ruleSet: [pinExactVersions],
+    });
+    const FAILURE = 1;
+    expect(exitCodeForLint(result)).toBe(FAILURE);
+  });
+
+  it.each([
+    'npm:lodash@4.17.21/fp',
+    'npm:@scope/pkg@1.2.3/subpath',
+    'jsr:@std/path@1.0.0/posix',
+    'npm:foo@1.0.0-x.1/subpath',
+  ])('accepts the exact version in %s', (specifier) => {
+    expect.hasAssertions();
+    const result = runLint({
+      codecFor,
+      ctx: makeCtx({
+        readText: () => JSON.stringify({ imports: { dependency: specifier } }),
+      }),
+      pms: ['deno'],
+      ruleSet: [pinExactVersions],
+    });
+    expect(result.findings).toStrictEqual([]);
+  });
+
+  it.each([
+    'npm:react',
+    'npm:react/jsx-runtime',
+    'npm:@scope/pkg/subpath',
+    'jsr:@scope/pkg',
+    'jsr:@std/path/posix',
+  ])('retains no-range behavior for the unversioned import %s', (specifier) => {
+    expect.hasAssertions();
+    const result = runLint({
+      codecFor,
+      ctx: makeCtx({
+        readText: () => JSON.stringify({ imports: { dependency: specifier } }),
+      }),
+      pms: ['deno'],
+      ruleSet: [pinExactVersions],
+    });
+    expect(result.findings).toStrictEqual([]);
   });
 });

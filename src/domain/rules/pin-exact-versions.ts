@@ -34,10 +34,15 @@ const isRangeSpec = (spec: string): boolean =>
   hasWildcardSegment(spec);
 
 const AFTER_AT_SIGN = 1;
+const REGISTRY_VERSION = /^(?:npm|jsr):(?:@[^/@]+\/)?[^/@]+@(?<version>[^/]*)/u;
 
 const hasSemverRange = (specifier: string): boolean => {
   if (specifier.startsWith('http://') || specifier.startsWith('https://')) {
     return false;
+  }
+  if (specifier.startsWith('npm:') || specifier.startsWith('jsr:')) {
+    const version = REGISTRY_VERSION.exec(specifier)?.groups?.version;
+    return version !== void 0 && isRangeSpec(version);
   }
   const at = specifier.lastIndexOf('@');
   if (at <= 0) {
