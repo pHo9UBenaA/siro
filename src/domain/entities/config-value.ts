@@ -68,10 +68,7 @@ export const getByPath = (
 };
 
 /**
- * Single trust boundary between an external parser and siro's types — the
- * `as ParsedConfig` cast lives here only, after a runtime shape check.
- * Casting in each codec would scatter the boundary and let runtime checks
- * drift out of sync. A deep sanitiser (recursing to keep only known scalars)
+ * A deep sanitiser (recursing to keep only known scalars)
  * was rejected because YAML legitimately yields `Date` and other host values
  * that rules can inspect — silently dropping them would look like missing
  * config keys. Throwing on non-objects was rejected so a root-level array or

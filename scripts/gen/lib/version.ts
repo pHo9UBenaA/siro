@@ -53,12 +53,6 @@ const validateVersion = (version: string, pkgPath: string): void => {
   }
 };
 
-/**
- * Read the `version` field from the repo's package.json. Wraps every
- * recoverable failure — missing file, malformed JSON, non-string version
- * — in a single `Error` whose message starts with `package.json:` so the
- * caller can surface a uniform diagnostic without sniffing errno codes.
- */
 export const readPackageVersion = (root: string): string => {
   const pkgPath = path.join(root, 'package.json');
   const raw = readFileSafe(pkgPath);

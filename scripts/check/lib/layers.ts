@@ -108,7 +108,6 @@ export const defaultTopLevelLayer = (relPath: string): Layer | undefined => {
   return void 0;
 };
 
-/** Yield every imported specifier in source order. */
 const importSpecs = function* importSpecs(content: string): Generator<string> {
   for (const match of content.matchAll(STATIC_IMPORT_RE)) {
     const { groups } = match;

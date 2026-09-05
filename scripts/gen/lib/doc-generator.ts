@@ -31,8 +31,6 @@ interface RenderBindingRowOptions {
 
 const renderBindingRow = (opts: RenderBindingRowOptions): string => {
   const target = `\`${opts.file.path}\``;
-  // Prefer the PM-native anchor. When upstream has no anchor yet, link the
-  // rule-level guide as a fallback — keeps `—` reserved for "no binding".
   const link = resolveLink(opts.bindingDocs, opts.ruleDocs);
   return `| \`${opts.pm}\` | ${target} | ${link} |`;
 };

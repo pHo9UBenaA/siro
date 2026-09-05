@@ -1,8 +1,3 @@
-// Type-only sidecar for script-runtime.mjs. The driver scripts are .mjs
-// so they can import the helper without a jiti bootstrap (chicken-and-egg
-// with the helper that constructs jiti), but the test surface and TS-aware
-// editors still want types — hence this declaration file.
-//
 // Drivers may live at any depth under `scripts/` (top-level or nested
 // per-context dirs like `scripts/gen/` and `scripts/bench/`). See the
 // implementation file for how root and name are derived from the path.
@@ -27,12 +22,6 @@ export interface ScriptContextDeps {
 }
 
 export interface LoadLibOptions {
-  /**
-   * When true, use a fresh jiti instance with both transform and module
-   * caches disabled, so files the default instance already saw are re-read.
-   * Needed by gen-rule, which writes a TS file then immediately imports a
-   * lib that transitively reads it.
-   */
   fresh?: boolean;
 }
 
