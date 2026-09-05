@@ -18,8 +18,6 @@ import { hardenedMode } from '../../../src/domain/rules/hardened-mode.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
 import { provenance } from '../../../src/domain/rules/provenance.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('yarn bindings — disable-lifecycle-scripts', () => {
   it('requires enableScripts: false', () => {
     expect.hasAssertions();

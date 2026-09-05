@@ -8,11 +8,8 @@ import { makeCtx } from '../../../helpers/ctx.ts';
 import { requireConfigKey } from '../../../../src/domain/rules/builders/require-config-key.ts';
 import { runLint } from '../../../../src/application/run-lint.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const SINGLE_FINDING = 1;
 const NO_FINDINGS = 0;
-const FIRST_ELEMENT = 0;
 
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
 
@@ -69,7 +66,7 @@ describe('documentedDefault — basic behaviour', () => {
       ruleSet: [rule],
     });
     expect(findings).toHaveLength(SINGLE_FINDING);
-    const firstFinding1 = findings[FIRST_ELEMENT];
+    const firstFinding1 = findings[0];
     assert(firstFinding1, 'expected finding');
     expect(firstFinding1.severity).toBe('info');
     expect(summary).toStrictEqual({ error: NO_FINDINGS, info: SINGLE_FINDING, warn: NO_FINDINGS });
@@ -102,7 +99,7 @@ describe('documentedDefault — basic behaviour', () => {
       ruleSet: [rule],
     });
     expect(findings).toHaveLength(SINGLE_FINDING);
-    const firstFinding3 = findings[FIRST_ELEMENT];
+    const firstFinding3 = findings[0];
     assert(firstFinding3, 'expected finding');
     expect(firstFinding3.severity).toBe('error');
     expect(summary).toStrictEqual({ error: SINGLE_FINDING, info: NO_FINDINGS, warn: NO_FINDINGS });
@@ -145,7 +142,7 @@ describe('documentedDefault — explicit-value cases', () => {
       ruleSet: [rule],
     });
     expect(findings).toHaveLength(SINGLE_FINDING);
-    const firstFinding5b = findings[FIRST_ELEMENT];
+    const firstFinding5b = findings[0];
     assert(firstFinding5b, 'expected finding');
     expect(firstFinding5b.severity).toBe('info');
   });
@@ -166,7 +163,7 @@ describe('documentedDefault — override', () => {
       severityOverrides: adjusted.severityOverrides,
     });
     expect(findings).toHaveLength(SINGLE_FINDING);
-    const firstFinding6 = findings[FIRST_ELEMENT];
+    const firstFinding6 = findings[0];
     assert(firstFinding6, 'expected finding');
     expect(firstFinding6.severity).toBe('warn');
     expect(summary).toStrictEqual({ error: NO_FINDINGS, info: NO_FINDINGS, warn: SINGLE_FINDING });

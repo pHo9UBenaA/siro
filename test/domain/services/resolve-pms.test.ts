@@ -5,8 +5,6 @@ import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
 import { resolvePMs } from '../../../src/domain/services/resolve-pms.ts';
 import { UsageError } from '../../../src/shared/errors.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const ctx = (files: readonly string[] = []): RepoContext => makeCtx({ files });
 
 const captureThrow = (fn: () => unknown): unknown => {

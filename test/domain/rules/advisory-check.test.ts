@@ -5,8 +5,6 @@ import { expectMessageContains } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { advisoryCheck } from '../../../src/domain/rules/advisory-check.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { aube } = advisoryCheck.bindings;
 assert(aube, 'expected aube binding');
 const aubeBinding = aube;

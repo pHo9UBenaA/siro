@@ -4,8 +4,6 @@ import { checksumVerification } from '../../../src/domain/rules/checksum-verific
 import { expectDocumentedDefaultDynamicInfo } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const yarnBinding = checksumVerification.bindings.yarn;
 assert(yarnBinding, 'expected yarn binding');
 

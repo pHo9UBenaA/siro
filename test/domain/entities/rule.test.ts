@@ -1,7 +1,5 @@
 import { isRuleShape } from '../../../src/domain/entities/rule.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const SPARSE_ARRAY_LENGTH = 1;
 
 class Container {

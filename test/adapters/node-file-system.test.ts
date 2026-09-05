@@ -3,10 +3,7 @@ import { captureIO } from '../helpers/io.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 import { lintCommand } from '../../src/application/commands/lint.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const EXIT_SUCCESS = 0;
-const EMPTY = 0;
 
 describe('fileSystem abstraction (memfs)', () => {
   it('lint reads through the injected FS and returns 0 for a fully compliant repo', () => {
@@ -41,7 +38,7 @@ describe('fileSystem abstraction (memfs)', () => {
     const { io, out } = captureIO();
     return lintCommand({ cwd: asAbsPath('/repo'), fs, reporter: 'pretty' }, io).then((code) => {
       expect(code).toBe(EXIT_SUCCESS);
-      expect(out().length).toBeGreaterThan(EMPTY);
+      expect(out().length).toBeGreaterThan(0);
     });
   });
 });

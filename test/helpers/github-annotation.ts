@@ -29,13 +29,11 @@ export interface GithubAnnotation {
 // so any literal colon must be the start of the `::body` separator.
 const LINE_RE = /^::(?<command>[a-z][a-z-]*)(?: (?<propString>[^:]*))?::(?<body>.*)$/u;
 
-const EMPTY = 0;
 const NOT_FOUND = -1;
-const AFTER_SEPARATOR = 1;
 
 const parseProps = (raw: string): Record<string, string> => {
   const props: Record<string, string> = {};
-  if (raw.length === EMPTY) {
+  if (raw.length === 0) {
     return props;
   }
   for (const entry of raw.split(',')) {
@@ -43,7 +41,7 @@ const parseProps = (raw: string): Record<string, string> => {
     if (eq === NOT_FOUND) {
       throw new Error(`Malformed property in annotation: ${JSON.stringify(entry)}`);
     }
-    props[entry.slice(EMPTY, eq)] = entry.slice(eq + AFTER_SEPARATOR);
+    props[entry.slice(0, eq)] = entry.slice(eq + 1);
   }
   return props;
 };

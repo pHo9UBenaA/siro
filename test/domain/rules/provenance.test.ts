@@ -4,8 +4,6 @@ import { expectMessageContains } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { provenance } from '../../../src/domain/rules/provenance.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const ctxWith = (packageJson?: PackageJson): RepoContext => makeCtx({ packageJson });
 
 const { npm } = provenance.bindings;

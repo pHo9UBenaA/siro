@@ -4,9 +4,7 @@ import { codecFor } from '../src/adapters/codecs/store.ts';
 import path from 'node:path';
 import { safeParsePackageJson } from '../src/domain/schemas/package-json.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
-const MISSING: undefined = JSON.parse('{}')._;
+const MISSING: undefined = undefined;
 const FIXTURES = path.join(import.meta.dirname, 'fixtures');
 
 const EXACT_CODEC_MAP: Record<string, CodecKind> = {

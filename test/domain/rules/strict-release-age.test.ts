@@ -4,8 +4,6 @@ import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts'
 import { makeCtx } from '../../helpers/ctx.ts';
 import { strictReleaseAge } from '../../../src/domain/rules/strict-release-age.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { aube } = strictReleaseAge.bindings;
 assert(aube, 'expected aube binding');
 const aubeBinding = aube;

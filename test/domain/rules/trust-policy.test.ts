@@ -5,8 +5,6 @@ import { expectMessageContains } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { trustPolicy } from '../../../src/domain/rules/trust-policy.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { pnpm } = trustPolicy.bindings;
 assert(pnpm, 'expected pnpm binding');
 const pnpmBinding = pnpm;

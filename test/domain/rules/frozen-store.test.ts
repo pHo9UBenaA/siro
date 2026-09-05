@@ -3,8 +3,6 @@ import assert from 'node:assert';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { frozenStore } from '../../../src/domain/rules/frozen-store.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { pnpm } = frozenStore.bindings;
 assert(pnpm, 'expected pnpm binding');
 const pnpmBinding = pnpm;

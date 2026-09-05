@@ -16,8 +16,6 @@ import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
 import { provenance } from '../../../src/domain/rules/provenance.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('pnpm bindings — disable-lifecycle-scripts', () => {
   it('requires strictDepBuilds', () => {
     expect.hasAssertions();

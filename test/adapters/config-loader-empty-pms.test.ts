@@ -4,8 +4,6 @@ import { loadConfig } from '../../src/adapters/config-loader.ts';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('loadConfig rejects an empty pms array', () => {
   let dir = '';
   afterEach(() => {

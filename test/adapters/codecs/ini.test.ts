@@ -1,7 +1,5 @@
 import { iniCodec } from '../../../src/adapters/codecs/ini.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('iniCodec.parse', () => {
   it('treats an empty document as an empty mapping', () => {
     expect.hasAssertions();

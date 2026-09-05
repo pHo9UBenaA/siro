@@ -3,8 +3,6 @@ import assert from 'node:assert';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { dependencyOverrides } from '../../../src/domain/rules/dependency-overrides.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('dependency-overrides: pnpm binding', () => {
   const { pnpm } = dependencyOverrides.bindings;
   assert(pnpm, 'expected pnpm binding');

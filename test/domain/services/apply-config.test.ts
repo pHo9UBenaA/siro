@@ -2,8 +2,6 @@ import { applyConfig } from '../../../src/domain/services/apply-config.ts';
 import { defineConfig } from '../../../src/domain/entities/siro-config.ts';
 import { rules } from '../../../src/domain/builtin-rules.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('applyConfig (registry)', () => {
   it('preserves the base rule order when no user config is provided', () => {
     expect.hasAssertions();

@@ -8,8 +8,6 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { object, parse, string } from 'valibot';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const parseJsonOutput = (
   stdout: string,
   stderr: string,

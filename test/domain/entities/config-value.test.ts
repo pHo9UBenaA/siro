@@ -1,8 +1,6 @@
 import { getByPath, toParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import { expectTypeOf } from 'vitest';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const NESTED_NUM = 1;
 const SAMPLE_A = 1;
 const SAMPLE_B = 2;

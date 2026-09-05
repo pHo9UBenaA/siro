@@ -1,8 +1,6 @@
 import { isPublishable } from '../../../src/domain/rules/publishable.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe(isPublishable, () => {
   it('treats a missing package.json as non-publishable', () => {
     expect.hasAssertions();

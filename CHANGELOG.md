@@ -8,6 +8,7 @@
 - **Explicit library configuration**: `lint` returns results without executing repository configuration. Pass extensions inside `config`; use `loadConfig` to opt into trusted file execution. `LintCommandOptions` adds reporting options to `LintOptions`.
 - **Validated extension boundaries**: parsed values and `getByPath()` results are `unknown`. Configuration maps, rules, bindings, and reporters require ordinary or null-prototype objects. Path constructors reject invalid roots and repository paths with parent traversal.
 - **Simpler rule bindings**: remove `fileGlob`, separate writable-reference and automatic/advisory binding types, `requireConfigKey.extraFix`, and `KeyAssignment`. Repository checks omit `file`; multi-setting policies use direct bindings.
+- **Focused public entry**: remove internal codec, detection, registry, filtering, and rendering helpers from package exports. Use `lint`, `lintCommand`, and the documented extension contracts.
 
 ### Fixes
 
@@ -21,6 +22,9 @@
 - Preserve severity overrides for prototype-named custom rules, reject non-record rule settings, and bypass detection for an explicit `--pm` selection.
 - Consolidate CLI argument parsing while preserving injected output and exit codes. Run related tests for staged TypeScript files in the pre-commit hook.
 - Limit frozen-store guidance to pre-populated read-only deployments and correct patch-integrity and strict release-age explanations.
+- Validate native library targets as well as CLI targets; compute the exit decision before custom reporters run.
+- Emit Aube install-command guidance without parsing unrelated workspace settings.
+- Reject incomplete benchmark runs and invalid OSS snapshots, including duplicate entries and inconsistent project counts.
 
 ### Refactoring
 
@@ -28,6 +32,8 @@
 - Replace custom script loading, rule scaffolding and rollback, and layer-whitelist tooling with native Node scripts and ordinary verification commands.
 - Read version metadata from the package manifest, generate rule documentation with one script, and check generated documents and unused code in CI.
 - Replace syntax and size restrictions with correctness-focused linting; document the runtime responsibilities, migration path, and verification limits.
+- Consolidate test timeouts and remove numeric aliases, single-use wrappers, and JSON round trips used to bypass types.
+- Run the complete verification command before pushing or publishing, including a fresh build for executable tests.
 
 ### Security and documentation
 

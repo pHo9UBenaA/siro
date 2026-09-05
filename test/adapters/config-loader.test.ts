@@ -8,8 +8,6 @@ const SINGLE = 1;
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const useTempDir = (): { readonly dir: AbsPath } => {
   let dir = asAbsPath('/placeholder');
   beforeEach(() => {

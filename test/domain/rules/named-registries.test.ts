@@ -3,8 +3,6 @@ import assert from 'node:assert';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { namedRegistries } from '../../../src/domain/rules/named-registries.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { pnpm } = namedRegistries.bindings;
 assert(pnpm, 'expected pnpm binding');
 const pnpmBinding = pnpm;

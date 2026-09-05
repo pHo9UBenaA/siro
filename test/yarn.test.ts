@@ -2,8 +2,6 @@ import { captureIO } from './helpers/io.ts';
 import path from 'node:path';
 import { run } from '../src/cli.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const EXIT_SUCCESS = 0;
 
 const FIXTURES = path.join(import.meta.dirname, 'fixtures');

@@ -1,12 +1,10 @@
 import { manualSteps } from '../../helpers/remediation.ts';
-const FIRST_ELEMENT = 0;
+
 import { makeCtx, makePublishableCtx } from '../../helpers/ctx.ts';
 import type { PM } from '../../../src/domain/entities/pms.ts';
 import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
 import { commitLockfile } from '../../../src/domain/rules/commit-lockfile.ts';
 import assert from 'node:assert';
-
-vi.setConfig({ testTimeout: 5000 });
 
 const ctxWith = (files: readonly string[]): RepoContext => makeCtx({ files });
 
@@ -37,7 +35,7 @@ describe('commit-lockfile (npm)', () => {
   it('provides manual remediation', () => {
     expect.hasAssertions();
     const ops = manualSteps(npmBinding.check(ctxWith([]), {}))!;
-    const firstOp = ops[FIRST_ELEMENT];
+    const firstOp = ops[0];
     assert(firstOp, 'expected at least one fix op');
     expect(firstOp).toContain('generate package-lock.json');
   });

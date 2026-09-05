@@ -1,11 +1,8 @@
 import { asRelPath } from '../../../src/shared/paths.ts';
-import assert from 'node:assert';
 import type { IO } from '../../../src/domain/ports/io.ts';
 import type { LintResult } from '../../../src/domain/entities/lint-result.ts';
 import { jsonReporter } from '../../../src/adapters/reporters/json.ts';
 import { version } from '../../../src/version.ts';
-
-vi.setConfig({ testTimeout: 5000 });
 
 const render = (result: LintResult): unknown => {
   const lines: string[] = [];
@@ -55,17 +52,15 @@ describe('json reporter contract', () => {
   });
   it('round-trips automatic remediation through JSON', () => {
     expect.hasAssertions();
-    const parsed: {
-      findings: {
-        remediation: { kind: 'automatic'; operations: { keyPath: string[]; value: unknown }[] };
-      }[];
-    } = JSON.parse((() => JSON.stringify(render(result)))());
-    const FIRST = 0;
-    const finding = parsed.findings[FIRST];
-    assert(finding, 'expected finding');
-    expect(finding.remediation.operations[FIRST]).toMatchObject({
-      keyPath: ['save-exact'],
-      value: true,
+    expect(render(result)).toMatchObject({
+      findings: [
+        {
+          remediation: {
+            kind: 'automatic',
+            operations: [{ keyPath: ['save-exact'], value: true }],
+          },
+        },
+      ],
     });
   });
 });

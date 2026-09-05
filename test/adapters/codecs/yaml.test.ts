@@ -1,7 +1,5 @@
 import { yamlCodec } from '../../../src/adapters/codecs/yaml.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const MINIMUM_RELEASE_AGE_MINUTES = 1440;
 
 describe('yamlCodec.parse (shallow)', () => {

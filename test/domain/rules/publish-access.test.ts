@@ -3,8 +3,6 @@ import assert from 'node:assert';
 import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
 import { publishAccess } from '../../../src/domain/rules/publish-access.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { npm } = publishAccess.bindings;
 if (!npm) {
   throw new TypeError('expected npm binding');
@@ -38,8 +36,8 @@ describe('publish-access (npm)', () => {
   it('provides manual remediation', () => {
     expect.hasAssertions();
     const ops = manualSteps(npm.check(ctx(), {}))!;
-    const FIRST_ELEMENT = 0;
-    const firstOp = ops[FIRST_ELEMENT];
+
+    const firstOp = ops[0];
     assert(firstOp, 'expected at least one fix op');
     expect(firstOp).toContain('publishConfig');
   });

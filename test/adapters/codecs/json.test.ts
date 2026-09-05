@@ -1,8 +1,6 @@
 import { getByPath } from '../../../src/domain/entities/config-value.ts';
 import { jsonCodec } from '../../../src/adapters/codecs/json.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('jsonCodec.parse', () => {
   it('parses JSON into a nested object', () => {
     expect.hasAssertions();

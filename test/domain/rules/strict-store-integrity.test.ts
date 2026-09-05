@@ -4,8 +4,6 @@ import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts'
 import { makeCtx } from '../../helpers/ctx.ts';
 import { strictStoreIntegrity } from '../../../src/domain/rules/strict-store-integrity.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { aube } = strictStoreIntegrity.bindings;
 assert(aube, 'expected aube binding');
 const aubeBinding = aube;

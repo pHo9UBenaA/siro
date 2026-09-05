@@ -15,15 +15,11 @@ import type { RepoContext } from '../../../../src/domain/ports/repo-context.ts';
 import { applyConfig } from '../../../../src/domain/services/apply-config.ts';
 import { makeCtx } from '../../../helpers/ctx.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
-
-const INCREMENT = 1;
 
 let vnCounter = 0;
 const vnRule = (versionNote?: VersionNote): Rule => {
-  vnCounter += INCREMENT;
+  vnCounter += 1;
   return requireConfigKey({
     bindings: {
       npm: {

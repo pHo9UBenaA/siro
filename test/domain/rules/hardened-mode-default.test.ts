@@ -3,8 +3,6 @@ import assert from 'node:assert';
 import { hardenedMode } from '../../../src/domain/rules/hardened-mode.ts';
 import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('hardened-mode × yarn: conditional documentedDefault (D22)', () => {
   const ctx: RepoContext = {
     exists: () => false,

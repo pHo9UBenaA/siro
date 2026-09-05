@@ -10,13 +10,10 @@ import assert from 'node:assert';
 import { captureIO } from '../helpers/io.ts';
 import { parseGithubAnnotation } from '../helpers/github-annotation.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const ESC_OPEN = '[';
 const FINDING_COUNT = 3;
 const SINGLE_FINDING = 1;
 const FIRST_LINE = 0;
-const EMPTY = 0;
 
 const firstLineOf = (text: string): string => {
   const line = text.split('\n')[FIRST_LINE];
@@ -124,7 +121,7 @@ describe('githubReporter — basic annotations', () => {
     githubReporter.format(result, io);
     const lines = out()
       .split('\n')
-      .filter((line) => line.length > EMPTY);
+      .filter((line) => line.length > 0);
     expect(lines).toHaveLength(SINGLE_FINDING);
     const firstLine = lines[FIRST_LINE];
     assert(firstLine, 'expected at least one line');
@@ -247,7 +244,7 @@ describe('prettyReporter — colour handling', () => {
   it('emits ANSI colour codes when FORCE_COLOR is set', () => {
     expect.hasAssertions();
     vi.stubEnv('FORCE_COLOR', '1');
-    vi.stubEnv('NO_COLOR', JSON.parse('{}')._);
+    vi.stubEnv('NO_COLOR', undefined);
     const { io, out } = captureIO();
     prettyReporter.format(result, io);
     expect(out()).toContain(ESC_OPEN);

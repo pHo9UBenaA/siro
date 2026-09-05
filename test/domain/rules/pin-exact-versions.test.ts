@@ -5,8 +5,6 @@ import { exitCodeForLint } from '../../../src/domain/services/filter.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
 import { runLint } from '../../../src/application/run-lint.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('pin-exact-versions (npm)', () => {
   const ctx = makeCtx();
   const { npm } = pinExactVersions.bindings;

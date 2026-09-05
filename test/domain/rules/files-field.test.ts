@@ -5,8 +5,6 @@ import { makeCtx } from '../../helpers/ctx.ts';
 import type { PackageJson } from '../../../src/domain/schemas/package-json.ts';
 import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const ctxWith = (packageJson?: PackageJson): RepoContext => makeCtx({ packageJson });
 
 describe('files-field (npm)', () => {
@@ -39,8 +37,8 @@ describe('files-field (npm)', () => {
   it('provides manual remediation', () => {
     expect.hasAssertions();
     const ops = manualSteps(npmBinding.check(ctxWith({ name: 'x' }), {}))!;
-    const FIRST_ELEMENT = 0;
-    const firstOp = ops[FIRST_ELEMENT];
+
+    const firstOp = ops[0];
     assert(firstOp, 'expected at least one fix op');
     expect(firstOp).toContain('npm pack --dry-run');
   });

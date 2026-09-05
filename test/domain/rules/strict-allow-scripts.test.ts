@@ -4,8 +4,6 @@ import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts'
 import { makeCtx } from '../../helpers/ctx.ts';
 import { strictAllowScripts } from '../../../src/domain/rules/strict-allow-scripts.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { npm } = strictAllowScripts.bindings;
 assert(npm, 'expected npm binding');
 

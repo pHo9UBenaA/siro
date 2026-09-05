@@ -3,8 +3,6 @@ import assert from 'node:assert';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { patchedDependencies } from '../../../src/domain/rules/patched-dependencies.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { pnpm } = patchedDependencies.bindings;
 assert(pnpm, 'expected pnpm binding');
 const pnpmBinding = pnpm;

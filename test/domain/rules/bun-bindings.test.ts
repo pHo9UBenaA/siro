@@ -12,8 +12,6 @@ import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
 import { provenance } from '../../../src/domain/rules/provenance.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('bun bindings — install config rules', () => {
   describe('pin-exact-versions', () => {
     it('pin-exact-versions requires [install] exact=true', () => {

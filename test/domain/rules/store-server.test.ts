@@ -3,8 +3,6 @@ import assert from 'node:assert';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { storeServer } from '../../../src/domain/rules/store-server.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { pnpm } = storeServer.bindings;
 assert(pnpm, 'expected pnpm binding');
 const pnpmBinding = pnpm;

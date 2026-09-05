@@ -1,7 +1,5 @@
 import { ensureNodeVersion } from '../src/cli/parsers.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('node.js version requirement', () => {
   it('rejects Node 20', () => {
     expect.hasAssertions();

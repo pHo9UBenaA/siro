@@ -4,8 +4,6 @@ import { enforceStrictSsl } from '../../../src/domain/rules/enforce-strict-ssl.t
 import { expectDocumentedDefaultDynamicInfo } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const npmBinding = enforceStrictSsl.bindings.npm;
 assert(npmBinding, 'expected npm binding');
 const yarnBinding = enforceStrictSsl.bindings.yarn;
@@ -92,9 +90,9 @@ describe('enforce-strict-ssl (yarn) — whitelist and fix', () => {
     });
     assert(status.state === 'violation');
     expect(manualSteps(status)).toBeDefined();
-    const FIRST_ELEMENT = 0;
+
     assert(manualSteps(status), 'expected manualSteps');
-    expect(manualSteps(status)![FIRST_ELEMENT]).toMatch(/unsafeHttpWhitelist/u);
+    expect(manualSteps(status)![0]).toMatch(/unsafeHttpWhitelist/u);
   });
 
   it('requires both HTTP exception removal and TLS restoration', () => {

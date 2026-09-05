@@ -3,8 +3,6 @@ import { asAbsPath } from '../../../src/shared/paths.ts';
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';
 import { safeParsePackageJson } from '../../../src/domain/schemas/package-json.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const ctxWithPackageJson = (pkg: unknown): RepoContext => ({
   exists: (): boolean => false,
   packageJson: safeParsePackageJson(pkg),

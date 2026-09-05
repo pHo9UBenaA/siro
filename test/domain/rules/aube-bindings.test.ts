@@ -13,8 +13,6 @@ import { expectDocumentedDefaultDynamicInfo } from '../../helpers/binding-expect
 import { filesField } from '../../../src/domain/rules/files-field.ts';
 import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('aube bindings: lifecycle and lockfile rules', () => {
   describe('disable-lifecycle-scripts', () => {
     it.each<ParsedConfig>([{}, { jailBuilds: false, strictDepBuilds: false }])(

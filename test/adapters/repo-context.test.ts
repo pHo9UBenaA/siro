@@ -4,8 +4,6 @@ import { ConfigError } from '../../src/shared/errors.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 import { createRepoContext } from '../../src/adapters/repo-context.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 // createRepoContext is the only adapter that touches both `FileSystem` and
 // `PackageJson` parsing in the same factory. Both behaviours were previously
 // observable only end-to-end (e2e.test.ts), so a refactor of resolveIn /

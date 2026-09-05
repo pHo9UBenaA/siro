@@ -7,8 +7,6 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('project type selection', () => {
   it('evaluates publish-only rules when a private package is explicitly a package project', () => {
     expect.hasAssertions();

@@ -4,8 +4,6 @@ import { expectMessageContains } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { approvedGitRepos } from '../../../src/domain/rules/approved-git-repos.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { yarn } = approvedGitRepos.bindings;
 assert(yarn, 'expected yarn binding');
 const yarnBinding = yarn;

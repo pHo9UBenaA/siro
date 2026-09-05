@@ -3,8 +3,6 @@ import path from 'node:path';
 import { run } from '../src/cli.ts';
 import { tmpdir } from 'node:os';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const EXIT_USAGE = 2;
 
 // ENOTDIR (path under a regular file) is POSIX-deterministic; Windows

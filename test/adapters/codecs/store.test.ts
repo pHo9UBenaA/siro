@@ -1,8 +1,6 @@
 import { CODEC_KINDS } from '../../../src/domain/entities/config-value.ts';
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe(codecFor, () => {
   it('returns a codec for every declared CodecKind', () => {
     expect.hasAssertions();

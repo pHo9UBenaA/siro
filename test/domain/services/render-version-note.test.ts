@@ -1,7 +1,5 @@
 import { renderVersionNoteMessage } from '../../../src/domain/services/render-version-note.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe(renderVersionNoteMessage, () => {
   it('returns the message unchanged without metadata', () => {
     expect.hasAssertions();

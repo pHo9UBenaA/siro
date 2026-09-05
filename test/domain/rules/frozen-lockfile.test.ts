@@ -5,8 +5,6 @@ import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import type { PM } from '../../../src/domain/entities/pms.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('frozen-lockfile rule identity', () => {
   it('ships at warn severity', () => {
     expect.hasAssertions();

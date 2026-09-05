@@ -3,8 +3,6 @@ import assert from 'node:assert';
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('disable-lifecycle-scripts (npm)', () => {
   const ctx = makeCtx();
   const npmBinding = disableLifecycleScripts.bindings.npm;
@@ -100,9 +98,9 @@ describe('disable-lifecycle-scripts (pnpm): bypass and fix', () => {
     });
     assert(status.state === 'violation');
     expect(manualSteps(status)).toBeDefined();
-    const FIRST_ELEMENT = 0;
+
     assert(manualSteps(status), 'expected manualSteps');
-    expect(manualSteps(status)![FIRST_ELEMENT]).toMatch(/dangerouslyAllowAllBuilds/u);
+    expect(manualSteps(status)![0]).toMatch(/dangerouslyAllowAllBuilds/u);
   });
 
   it('proposes strictDepBuilds when no bypass is present', () => {

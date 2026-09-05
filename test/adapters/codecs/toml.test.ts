@@ -1,8 +1,6 @@
 import { getByPath } from '../../../src/domain/entities/config-value.ts';
 import { tomlCodec } from '../../../src/adapters/codecs/toml.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('tomlCodec.parse', () => {
   it('treats an empty document as an empty mapping', () => {
     expect.hasAssertions();

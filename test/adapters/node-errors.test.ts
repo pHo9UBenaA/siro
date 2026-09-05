@@ -1,8 +1,6 @@
 import assert from 'node:assert';
 import { isNodeError } from '../../src/adapters/node-errors.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe(isNodeError, () => {
   it('accepts an Error whose code is a string (NodeJS.ErrnoException shape)', () => {
     expect.hasAssertions();
@@ -22,7 +20,7 @@ describe(isNodeError, () => {
     expect(isNodeError('ENOENT')).toBe(false);
     expect(isNodeError({ code: 'ENOENT' })).toBe(false);
     expect(isNodeError(void 0)).toBe(false);
-    const nullValue: unknown = JSON.parse('null');
+    const nullValue: unknown = null;
     expect(isNodeError(nullValue)).toBe(false);
   });
 

@@ -5,11 +5,6 @@ import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
-const EMPTY = 0;
-const FIRST_ELEMENT = 0;
-
 describe('deno bindings target deno.json', () => {
   const ctx = makeCtx();
   it('frozen-lockfile requires lock.frozen=true and fixes it', () => {
@@ -43,7 +38,7 @@ describe('deno bindings target deno.json', () => {
     expect(res).toMatchObject({ state: 'violation' });
     assert(res.state === 'violation', 'expected violation');
     assert(manualSteps(res), 'expected manualSteps');
-    expect(manualSteps(res)!.length).toBeGreaterThan(EMPTY);
+    expect(manualSteps(res)!.length).toBeGreaterThan(0);
   });
   it('frozen-lockfile flags a false lock as manual (will not clobber it)', () => {
     expect.hasAssertions();
@@ -53,7 +48,7 @@ describe('deno bindings target deno.json', () => {
     expect(res).toMatchObject({ state: 'violation' });
     assert(res.state === 'violation', 'expected violation');
     assert(manualSteps(res), 'expected manualSteps');
-    expect(manualSteps(res)!.length).toBeGreaterThan(EMPTY);
+    expect(manualSteps(res)!.length).toBeGreaterThan(0);
   });
   it('files-field uses deno.json publish.include for publishable repos', () => {
     expect.hasAssertions();
@@ -87,8 +82,8 @@ describe('pin-exact-versions × deno — binding shape', () => {
   it('fix returns an advisory note (manual remediation)', () => {
     expect.hasAssertions();
     const ops = manualSteps(bd.check(ctx, { imports: { x: 'npm:x@^1.0.0' } }))!;
-    expect(ops.length).toBeGreaterThan(EMPTY);
-    const firstOp = ops[FIRST_ELEMENT];
+    expect(ops.length).toBeGreaterThan(0);
+    const firstOp = ops[0];
     assert(firstOp, 'expected first op');
     expect(firstOp).toContain('deno add --save-exact');
   });

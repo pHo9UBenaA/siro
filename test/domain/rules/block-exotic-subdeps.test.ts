@@ -8,8 +8,6 @@ import {
 import { blockExoticSubdeps } from '../../../src/domain/rules/block-exotic-subdeps.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { pnpm } = blockExoticSubdeps.bindings;
 assert(pnpm, 'expected pnpm binding');
 

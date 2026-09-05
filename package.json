@@ -54,7 +54,7 @@
     "gen": "pnpm gen:docs && pnpm gen:api",
     "gen:api": "typedoc",
     "knip": "knip",
-    "prepublishOnly": "pnpm typecheck && pnpm build && pnpm test",
+    "prepublishOnly": "pnpm verify",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",

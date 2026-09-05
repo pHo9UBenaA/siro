@@ -3,8 +3,6 @@ import assert from 'node:assert';
 import { blockAutoInstall } from '../../../src/domain/rules/block-auto-install.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { bun } = blockAutoInstall.bindings;
 assert(bun, 'expected bun binding');
 

@@ -7,8 +7,6 @@ import { asRelPath } from '../../../src/shared/paths.ts';
 import { createConfigParser } from '../../../src/domain/services/parse-config-file.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const PARSE_ONCE = 1;
 const PARSE_TWICE = 2;
 

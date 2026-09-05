@@ -3,8 +3,6 @@ import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { rules } from '../../src/domain/builtin-rules.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const RULES_DOC = path.join(import.meta.dirname, '..', '..', 'docs', 'rules.md');
 const COMPARISON_DOC = path.join(import.meta.dirname, '..', '..', 'docs', 'comparison.md');
 const VERSION_MATRIX_DOC = path.join(import.meta.dirname, '..', '..', 'docs', 'version-matrix.md');

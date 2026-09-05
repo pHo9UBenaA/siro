@@ -3,8 +3,6 @@ import assert from 'node:assert';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { auditSuppression } from '../../../src/domain/rules/audit-suppression.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { yarn } = auditSuppression.bindings;
 assert(yarn, 'expected yarn binding');
 const yarnBinding = yarn;

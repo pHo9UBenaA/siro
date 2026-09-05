@@ -1,7 +1,5 @@
 import { ConfigError, wrapCodecError } from '../../src/shared/errors.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 /** Throws a non-Error value to exercise code paths handling bare throws. */
 const throwValue = (value: unknown): never => {
   throw value;

@@ -7,11 +7,8 @@ import { makeCtx } from '../helpers/ctx.ts';
 import { runLint } from '../../src/application/run-lint.ts';
 import { blockExoticSubdeps } from '../../src/domain/rules/block-exotic-subdeps.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const SINGLE_FINDING = 1;
 const NO_FINDINGS = 0;
-const FIRST_ELEMENT = 0;
 
 // runLint calls parseConfigFile before invoking each binding's `check`. Tests
 // here use synthetic bindings whose `check` ignores `config`, so any codec
@@ -57,7 +54,7 @@ describe('per-binding severity — basic resolution', () => {
       ruleSet: [rule],
     });
     expect(findings).toHaveLength(SINGLE_FINDING);
-    const first = findings[FIRST_ELEMENT];
+    const first = findings[0];
     assert(first, 'expected finding');
     expect(first.severity).toBe('info');
     expect(summary).toStrictEqual({ error: NO_FINDINGS, info: SINGLE_FINDING, warn: NO_FINDINGS });
@@ -73,7 +70,7 @@ describe('per-binding severity — basic resolution', () => {
       ruleSet: [rule],
     });
     expect(findings).toHaveLength(SINGLE_FINDING);
-    const first = findings[FIRST_ELEMENT];
+    const first = findings[0];
     assert(first, 'expected finding');
     expect(first.severity).toBe('error');
     expect(summary).toStrictEqual({ error: SINGLE_FINDING, info: NO_FINDINGS, warn: NO_FINDINGS });
@@ -92,7 +89,7 @@ describe('per-binding severity — basic resolution', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    const first = findings[FIRST_ELEMENT];
+    const first = findings[0];
     assert(first, 'expected finding');
     expect(first.severity).toBe('info');
   });
@@ -114,7 +111,7 @@ describe('version notes', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    const first = findings[FIRST_ELEMENT];
+    const first = findings[0];
     assert(first, 'expected finding');
     expect(first.message).toBe(
       'always violates (available since npm 9.0.0; default safe since npm 11.0.0)',
@@ -129,7 +126,7 @@ describe('version notes', () => {
       pms: ['pnpm'],
       ruleSet: [blockExoticSubdeps],
     });
-    const first = findings[FIRST_ELEMENT];
+    const first = findings[0];
     assert(first, 'expected finding');
     expect(first.message).toContain('available since pnpm 10.26.0');
     expect(first.message).toContain('default safe since pnpm 10.26.0');
@@ -148,7 +145,7 @@ describe('per-binding severity — user config override', () => {
       ruleSet: adjusted.rules,
       severityOverrides: adjusted.severityOverrides,
     });
-    const first = findings[FIRST_ELEMENT];
+    const first = findings[0];
     assert(first, 'expected finding');
     expect(first.severity).toBe('warn');
   });
@@ -164,7 +161,7 @@ describe('per-binding severity — user config override', () => {
       ruleSet: adjusted.rules,
       severityOverrides: adjusted.severityOverrides,
     });
-    const first = findings[FIRST_ELEMENT];
+    const first = findings[0];
     assert(first, 'expected finding');
     expect(first.severity).toBe('info');
     expect(summary).toStrictEqual({ error: NO_FINDINGS, info: SINGLE_FINDING, warn: NO_FINDINGS });
@@ -193,7 +190,7 @@ describe('per-binding severity — user config override', () => {
       ruleSet: adjusted.rules,
       severityOverrides: adjusted.severityOverrides,
     });
-    const first = findings[FIRST_ELEMENT];
+    const first = findings[0];
     assert(first, 'expected finding');
     expect(first.severity).toBe('warn');
   });

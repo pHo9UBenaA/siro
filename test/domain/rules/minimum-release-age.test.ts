@@ -8,8 +8,6 @@ import { codecFor } from '../../../src/adapters/codecs/store.ts';
 import { runLint } from '../../../src/application/run-lint.ts';
 import { minimumReleaseAge } from '../../../src/domain/rules/minimum-release-age.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('minimum-release-age (npm)', () => {
   const ctx = makeCtx();
   const { npm } = minimumReleaseAge.bindings;

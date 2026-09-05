@@ -1,8 +1,6 @@
 import assert from 'node:assert';
 import { safeParsePackageJson } from '../../../src/domain/schemas/package-json.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe(safeParsePackageJson, () => {
   it('passes well-formed manifests through unchanged', () => {
     expect.hasAssertions();
@@ -42,7 +40,7 @@ describe(safeParsePackageJson, () => {
 
   it('returns undefined only for non-objects', () => {
     expect.hasAssertions();
-    expect(safeParsePackageJson(JSON.parse('null'))).toBeUndefined();
+    expect(safeParsePackageJson(null)).toBeUndefined();
     expect(safeParsePackageJson('not an object')).toBeUndefined();
   });
 });
@@ -73,7 +71,7 @@ describe('packageJsonSchema publishConfig.access', () => {
   });
 
   const NON_STRING_NUMBER = 42;
-  it.each([NON_STRING_NUMBER, JSON.parse('null'), true, false])(
+  it.each([NON_STRING_NUMBER, null, true, false])(
     'falls back to undefined for non-string value %p',
     (access: unknown) => {
       expect.hasAssertions();

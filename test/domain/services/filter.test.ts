@@ -1,8 +1,6 @@
 import { exitCodeForLint, filterBySeverity } from '../../../src/domain/services/filter.ts';
 import type { LintResult } from '../../../src/domain/entities/lint-result.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
 

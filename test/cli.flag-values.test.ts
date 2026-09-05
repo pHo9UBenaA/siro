@@ -1,8 +1,6 @@
 import type { IO } from '../src/domain/ports/io.ts';
 import { run } from '../src/cli.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const EXIT_USAGE = 2;
 
 const makeIO = (): { io: IO; err: string[] } => {

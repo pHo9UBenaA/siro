@@ -1,7 +1,5 @@
 import { SEVERITIES, SEVERITY_RANK } from '../../../src/domain/entities/pms.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('severity rank', () => {
   it('orders error > warn > info so filter and exit-code logic can share one source of truth', () => {
     expect.hasAssertions();
