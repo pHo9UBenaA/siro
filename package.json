@@ -68,6 +68,7 @@
     "cac": "catalog:",
     "ini": "catalog:",
     "picocolors": "catalog:",
+    "semver": "catalog:",
     "smol-toml": "catalog:",
     "valibot": "catalog:",
     "yaml": "catalog:"
@@ -77,6 +78,7 @@
     "@commitlint/config-conventional": "catalog:",
     "@types/ini": "catalog:",
     "@types/node": "catalog:",
+    "@types/semver": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "knip": "catalog:",
     "memfs": "catalog:",

@@ -151,74 +151,6 @@ describe(overrideBindings, () => {
   });
 });
 
-// A binding with BOTH a documentedDefault (unset primary -> advisory) AND an
-// extraFix. The extra must be checked unconditionally: a default-satisfied
-// primary must not let an unmet extra pass as advisory, or the fix ops would
-// re-write the extra every run while lint reported "fine".
-const buildExtraFixBinding = (): AutoRuleBinding => {
-  const bd = requireConfigKey({
-    bindings: {
-      npm: {
-        documentedDefault: true,
-        extraFix: [{ keyPath: ['save-prefix'], value: '' }],
-        file: npmrc,
-        keyPath: ['save-exact'],
-        message: 'm',
-        value: true,
-      },
-    },
-    description: 'd',
-    id: 'c16',
-    severity: 'warn',
-    title: 't',
-  }).bindings.npm;
-  assert(bd?.fixKind === 'auto', 'expected auto binding');
-  return bd;
-};
-
-describe('extraFix — default-satisfied primary with extraFix (D15)', () => {
-  it('full violation when the primary is default-satisfied but an extra is unmet', () => {
-    expect.hasAssertions();
-    const res = buildExtraFixBinding().check(makeCtx(), { 'save-prefix': 'tilde' });
-    assert(res.state === 'violation');
-    expect(res.severity).toBeUndefined();
-  });
-
-  it('advisory when the primary is default-satisfied and the extra is met', () => {
-    expect.hasAssertions();
-    const res = buildExtraFixBinding().check(makeCtx(), { 'save-prefix': '' });
-    expect(res).toMatchObject({ severity: 'info', state: 'violation' });
-  });
-});
-
-describe('extraFix — primary key surfacing without documentedDefault (D15)', () => {
-  it('surfaces the primary key (not an extra) when both are unset and no documentedDefault', () => {
-    expect.hasAssertions();
-    const bdRaw = requireConfigKey({
-      bindings: {
-        npm: {
-          extraFix: [{ keyPath: ['save-prefix'], value: '' }],
-          file: npmrc,
-          keyPath: ['save-exact'],
-          message: 'm',
-          value: true,
-        },
-      },
-      description: 'd',
-      id: 'primary-first',
-      severity: 'error',
-      title: 't',
-    }).bindings.npm;
-    assert(bdRaw?.fixKind === 'auto', 'expected auto binding');
-    const bd: AutoRuleBinding = bdRaw;
-    expect(bd.check(makeCtx(), {})).toMatchObject({
-      actual: void 0,
-      expected: true,
-      state: 'violation',
-    });
-  });
-});
-
 describe("defaultSatisfiedSeverity 'off' under a user rules override", () => {
   const ctx: RepoContext = {
     exists: () => false,
@@ -252,4 +184,23 @@ describe("defaultSatisfiedSeverity 'off' under a user rules override", () => {
     assert(overriddenBd, 'expected npm binding');
     expect(overriddenBd.check(ctx, {})).toStrictEqual({ state: 'ok' });
   });
+});
+
+it('rejects legacy extraFix options instead of silently discarding part of a policy', () => {
+  const spec = {
+    file: CONFIG_FILES.npmrc,
+    keyPath: ['enabled'] as const,
+    value: true,
+    message: 'Enable the policy.',
+    extraFix: [{ keyPath: ['second'], value: true }],
+  };
+  expect(() =>
+    requireConfigKey({
+      id: 'legacy-options',
+      title: 'Legacy',
+      description: 'Legacy options',
+      severity: 'error',
+      bindings: { npm: spec },
+    }),
+  ).toThrow(/extraFix.*custom binding/u);
 });

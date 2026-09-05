@@ -136,13 +136,11 @@ describe('pin-exact-versions × deno — ok: boundary cases', () => {
   const bd = pinExactVersions.bindings.deno;
   assert(bd, 'expected binding');
 
-  it('treats specifiers without explicit version as no-range (current behaviour)', () => {
+  it('leaves relative paths and bare import-map aliases outside the registry policy', () => {
     expect.hasAssertions();
     const config = {
       imports: {
         'bare-prefix': '@std/path',
-        'no-version-jsr': 'jsr:@scope/pkg',
-        'no-version-npm': 'npm:react',
         relative: './local/path.ts',
       },
     };
@@ -210,7 +208,7 @@ describe('pin-exact-versions × deno — aggregation and truncation', () => {
       },
     };
     expect(bd.check(ctx, config)).toMatchObject({
-      message: expect.stringMatching(/4 deno imports use semver ranges/u),
+      message: expect.stringMatching(/4 deno imports are not pinned/u),
       state: 'violation',
     });
   });

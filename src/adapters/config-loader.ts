@@ -9,7 +9,7 @@ import type { RuleSetting, SiroConfig } from '../domain/entities/siro-config.ts'
 import { rules as builtinRules } from '../domain/builtin-rules.ts';
 import { nodeFileSystem } from './node-file-system.ts';
 import path from 'node:path';
-import { isRecord } from '../shared/records.ts';
+import { isPlainRecord } from '../shared/records.ts';
 import { pathToFileURL } from 'node:url';
 import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../shared/node-version.ts';
 import { validateRuleIds } from '../domain/services/validate-rule-ids.ts';
@@ -36,7 +36,7 @@ const ConfigSchema = vb.strictObject(
     ),
     rules: vb.optional(
       vb.pipe(
-        vb.custom<Record<string, unknown>>(isRecord, 'must be an object of rule settings'),
+        vb.custom<Record<string, unknown>>(isPlainRecord, 'must be an object of rule settings'),
         // record() drops own keys such as constructor, which are valid custom rule IDs.
         vb.rawTransform(({ dataset, addIssue }) => {
           const entries: [string, RuleSetting][] = [];
@@ -85,7 +85,7 @@ const formatIssues = (
 const validateCandidateShape = (candidate: unknown, name: string): Record<string, unknown> => {
   // Built-ins and arrays are objects but not config maps; an empty own-key set
   // would otherwise be accepted as an empty config.
-  if (!isRecord(candidate)) {
+  if (!isPlainRecord(candidate)) {
     let got: string = typeof candidate;
     if (Array.isArray(candidate)) {
       got = 'an array';

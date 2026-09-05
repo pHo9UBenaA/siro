@@ -61,31 +61,33 @@ describe('loadConfig — loading', () => {
     });
   });
 
-  it('retains own prototype-named settings while ignoring inherited settings', () => {
+  it('retains prototype-named own settings in a null-prototype dictionary', () => {
     expect.hasAssertions();
     writeFileSync(
       path.join(td.dir, 'siro.config.mjs'),
       `export default {
-        rules: Object.create({ constructor: 'off', inherited: 'fatal' }, {
+        rules: Object.create(null, {
           ['__proto__']: { value: 'warn', enumerable: true },
+          constructor: { value: 'off', enumerable: true },
           ordinary: { value: 'off', enumerable: true },
         }),
       };\n`,
     );
     return loadConfig(td.dir).then((config) => {
-      expect(config?.rules).toStrictEqual({ ['__proto__']: 'warn', ordinary: 'off' });
+      expect(config?.rules).toStrictEqual({
+        ['__proto__']: 'warn',
+        constructor: 'off',
+        ordinary: 'off',
+      });
     });
   });
 
-  it('ignores inherited top-level options', () => {
-    expect.hasAssertions();
+  it('rejects a config with a custom prototype instead of discarding its options', async () => {
     writeFileSync(
       path.join(td.dir, 'siro.config.mjs'),
       "export default Object.create({ pms: ['npm'] });\n",
     );
-    return loadConfig(td.dir).then((config) => {
-      expect(config).toStrictEqual({});
-    });
+    await expect(loadConfig(td.dir)).rejects.toThrow(/must export a config object/u);
   });
 
   it('accepts a customRules entry whose id does not collide with any builtin', () => {
@@ -283,6 +285,9 @@ const nonRecordContainers = [
   ['regexp', '/settings/'],
   ['iterator', '[][Symbol.iterator]()'],
   ['class instance', 'new (class Config {})()'],
+  ['class named Object', 'new (class Object {})()'],
+  ['custom prototype', 'Object.create({})'],
+  ['cross-realm object', "(await import('node:vm')).runInNewContext('({})')"],
   ['function', '() => ({})'],
 ] as const;
 

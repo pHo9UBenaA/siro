@@ -1,12 +1,14 @@
+import { isNonBlankString } from './config-predicates.ts';
 import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
 const { bunfig } = CONFIG_FILES;
+
 const bunScannerBinding: AdvisoryRuleBinding = {
   check(_ctx, config) {
     const scanner = getByPath(config, ['install', 'security', 'scanner']);
-    if (typeof scanner === 'string' && scanner.length > 0) {
+    if (isNonBlankString(scanner)) {
       return { state: 'ok' };
     }
     return {

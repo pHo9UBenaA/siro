@@ -1,3 +1,4 @@
+import { isStringList } from './config-predicates.ts';
 import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
@@ -10,7 +11,7 @@ const message =
 const yarnBinding: AdvisoryRuleBinding = {
   check(_ctx, config) {
     const value = getByPath(config, ['approvedGitRepositories']);
-    if (Array.isArray(value)) {
+    if (isStringList(value)) {
       return { state: 'ok' };
     }
     return {

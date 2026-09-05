@@ -10,7 +10,7 @@ import { PMS, type PM, type Severity, isPM, isSeverity } from './pms.ts';
 import type { RelPath } from '../../shared/paths.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
 import { type ProjectType, isProjectType } from './project-type.ts';
-import { isRecord } from '../../shared/records.ts';
+import { isPlainRecord } from '../../shared/records.ts';
 
 /**
  * What a rule binding points at on disk: a parsed config file or an existence
@@ -133,7 +133,7 @@ const isOptionalString = (value: unknown): boolean =>
 const CONFIG_FILE_KINDS: ReadonlySet<string> = new Set([...CODEC_KINDS, 'fileGlob']);
 
 const isConfigFileRefShape = (value: unknown): value is ConfigFileRef => {
-  if (!isRecord(value) || typeof value.kind !== 'string' || typeof value.path !== 'string') {
+  if (!isPlainRecord(value) || typeof value.kind !== 'string' || typeof value.path !== 'string') {
     return false;
   }
   return CONFIG_FILE_KINDS.has(value.kind);
@@ -151,7 +151,7 @@ const isDenseStringArray = (value: unknown): value is readonly string[] =>
   Array.isArray(value) && Array.from(value).every((item) => typeof item === 'string');
 
 export const isCheckStatusShape = (value: unknown): value is CheckStatus => {
-  if (!isRecord(value)) {
+  if (!isPlainRecord(value)) {
     return false;
   }
   if (value.state === 'ok' || value.state === 'na') {
@@ -168,7 +168,7 @@ export const isCheckStatusShape = (value: unknown): value is CheckStatus => {
 };
 
 const isFixOpShape = (value: unknown): value is FixOp => {
-  if (!isRecord(value)) {
+  if (!isPlainRecord(value)) {
     return false;
   }
   if (value.op === 'setKey') {
@@ -201,13 +201,13 @@ export const isFixResultShape = (value: unknown, fixKind: FixKind): value is rea
 
 const isVersionNoteShape = (value: unknown): value is VersionNote | undefined =>
   typeof value === 'undefined' ||
-  (isRecord(value) &&
+  (isPlainRecord(value) &&
     isOptionalString(value.configAvailableSince) &&
     isOptionalString(value.defaultSafeSince) &&
     isOptionalString(value.note));
 
 const isRuleBindingShape = (value: unknown): value is RuleBinding => {
-  if (!isRecord(value)) {
+  if (!isPlainRecord(value)) {
     return false;
   }
   return (
@@ -223,7 +223,7 @@ const isRuleBindingShape = (value: unknown): value is RuleBinding => {
 };
 
 const isBindingsShape = (value: unknown): value is Rule['bindings'] =>
-  isRecord(value) &&
+  isPlainRecord(value) &&
   Object.keys(value).every(isPM) &&
   PMS.every((pm) => value[pm] === undefined || isRuleBindingShape(value[pm]));
 
@@ -236,7 +236,7 @@ const isProjectTypesShape = (value: unknown): value is readonly ProjectType[] | 
     Array.from(value).every((projectType) => isProjectTypeValue(projectType)));
 
 export const isRuleShape = (value: unknown): value is Rule => {
-  if (!isRecord(value)) {
+  if (!isPlainRecord(value)) {
     return false;
   }
   return (

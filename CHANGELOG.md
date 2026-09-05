@@ -7,11 +7,19 @@
 - **Unvalidated configuration values**: `ParsedConfig` values, `ConfigReadValue`, and `getByPath()` results are `unknown`. Custom rules must narrow values before using them.
 - **Writable fix targets**: `setKey` operations and `requireConfigKey` bindings require `WritableConfigFileRef`; file-existence references cannot be written as configuration keys.
 
+- **Plain configuration containers**: configuration maps, rules, bindings, and reporters accept ordinary or null-prototype objects; custom prototypes, class instances, and foreign-realm containers are rejected.
+- **Single-key builder**: remove `requireConfigKey.extraFix` and `KeyAssignment`. Multi-setting policies use custom bindings with matching checks and remediation.
+
 ### Fixes
+
+- Accept npm `save-exact=true` regardless of `save-prefix`, or an exact prefix alone; remediation changes only `save-exact`.
+- Recognize pnpm equality prefixes and Aube `.npmrc` prefix settings, with manual guidance for conflicting Aube aliases.
+- Flag unversioned and tagged Deno registry imports; use the standard semver parser for exact-version validation.
+- Reject non-finite release ages, malformed Deno age objects and allowlists, and blank scanner names.
+- Restrict frozen-store guidance to pre-populated read-only deployments and correct patch-integrity and strict release-age explanations.
 
 - Reject non-mapping JSON/YAML roots and present empty JSON files instead of treating them as missing settings.
 - Reject malformed custom-rule results, invalid remediation operations, sparse arrays, and non-finite expected or fix values with a configuration error.
-- Reject built-in objects used as custom-rule containers and validate inherited package-manager bindings before execution.
 - Skip package-manager detection when `--pm` explicitly selects a manager.
 - Parse CLI help, version, and value options through one parser while preserving injected output and exit codes.
 - Preserve errors from custom rules whose names match inherited object properties when the severity override map is empty.

@@ -1,3 +1,5 @@
+import { isPlainRecord } from '../../shared/records.ts';
+import { isStringList } from './config-predicates.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { requireConfigKey } from './builders/require-config-key.ts';
 
@@ -17,7 +19,6 @@ const { npmrc, pnpmWorkspace, yarnrc, bunfig, denoJson, aubeWorkspace } = CONFIG
 // exists", and a user who set a shorter window than the recommended 3 days
 // made an explicit trade-off siro should not relitigate. Do not tighten
 // this to `>= RECOMMENDED_*` — that breaks deliberate short windows.
-const isPositiveNumber = (value: unknown): boolean => typeof value === 'number' && value > 0;
 const DENO_DURATION =
   /^P(?=.*\d)(?:\d+(?:[.,]\d+)?Y)?(?:\d+(?:[.,]\d+)?M)?(?:\d+(?:[.,]\d+)?W)?(?:\d+(?:[.,]\d+)?D)?(?:T(?=\d)(?:\d+(?:[.,]\d+)?H)?(?:\d+(?:[.,]\d+)?M)?(?:\d+(?:[.,]\d+)?S)?)?$/u;
 const DENO_ZERO_DURATION = /^P(?=.*\d)(?:0+(?:[.,]0+)?[YMWD])*(?:T(?:0+(?:[.,]0+)?[HMS])*)?$/u;
@@ -26,6 +27,9 @@ const DENO_RFC3339_TIMESTAMP =
   /^\d{4}-\d{2}-\d{2}[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/u;
 const DENO_DATE_LENGTH = 10;
 
+const isPositiveNumber = (value: unknown): boolean =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0;
+
 const isPositiveYarnDuration = (value: unknown): boolean =>
   isPositiveNumber(value) ||
   (typeof value === 'string' &&
@@ -33,9 +37,9 @@ const isPositiveYarnDuration = (value: unknown): boolean =>
     Number.isFinite(Number.parseFloat(value)) &&
     Number.parseFloat(value) > 0);
 
-const isNonDisabledDenoDuration = (value: unknown): boolean => {
+const isActiveDenoAge = (value: unknown): boolean => {
   if (typeof value === 'number') {
-    return value > 0;
+    return isPositiveNumber(value);
   }
   if (typeof value === 'string') {
     const isDuration = DENO_DURATION.test(value);
@@ -51,10 +55,13 @@ const isNonDisabledDenoDuration = (value: unknown): boolean => {
         (DENO_DATE.test(value) || !Number.isNaN(Date.parse(value))))
     );
   }
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return false;
-  }
-  return !('age' in value) || isNonDisabledDenoDuration(value.age);
+  return false;
+};
+
+const isNonDisabledDenoDuration = (value: unknown): boolean => {
+  if (!isPlainRecord(value)) return isActiveDenoAge(value);
+  if (value.exclude !== undefined && !isStringList(value.exclude)) return false;
+  return !Object.hasOwn(value, 'age') || isActiveDenoAge(value.age);
 };
 
 export const minimumReleaseAge = requireConfigKey({

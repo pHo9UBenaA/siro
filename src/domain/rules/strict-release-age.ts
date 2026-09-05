@@ -16,7 +16,7 @@ const builtRule = requireConfigKey({
     },
   },
   description:
-    'Make the minimum release age gate a hard failure instead of falling back to the next-oldest satisfying version.',
+    'Fail when no satisfying version meets the release age, instead of falling back to the lowest satisfying version.',
   docs: 'https://aube.jdx.dev/security.html',
   id: 'strict-release-age',
   severity: 'info',

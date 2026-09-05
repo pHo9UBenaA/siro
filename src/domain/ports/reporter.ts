@@ -1,5 +1,6 @@
 import type { IO } from './io.ts';
 import type { LintResult } from '../entities/lint-result.ts';
+import { isPlainRecord } from '../../shared/records.ts';
 
 /**
  * Renderer from `LintResult` to user-facing output.
@@ -28,11 +29,7 @@ export interface Reporter<Name extends string = string> {
  * called on something that isn't a function.
  */
 export const isReporterShape = (value: unknown): value is Reporter => {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-  if (!('name' in value) || typeof value.name !== 'string') {
-    return false;
-  }
-  return 'format' in value && typeof value.format === 'function';
+  return (
+    isPlainRecord(value) && typeof value.name === 'string' && typeof value.format === 'function'
+  );
 };

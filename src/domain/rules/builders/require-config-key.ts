@@ -8,7 +8,6 @@ import type {
 } from '../../entities/rule.ts';
 import {
   type ConfigValue,
-  type KeyAssignment,
   type KeyPath,
   type ParsedConfig,
   getByPath,
@@ -26,16 +25,6 @@ interface RequireConfigKeySpec {
   readonly docs?: string;
   readonly severity?: Severity;
   accept?: (actual: unknown) => boolean;
-  /**
-   * Extra key writes appended after the auto-generated one (e.g. clearing
-   * save-prefix alongside save-exact on the same .npmrc). The target file
-   * is implicitly `spec.file` — extras can't redirect to a different file
-   * because `check` would then never validate them, leaving the fix ops
-   * and `lint` permanently out of step. A rule that legitimately needs to write
-   * across multiple files belongs in a hand-written binding (see
-   * `disable-lifecycle-scripts` → `overrideBindings`).
-   */
-  readonly extraFix?: readonly KeyAssignment[];
   /**
    * PM-documented default for this key. When the user has not set the key
    * AND this default would satisfy `accept`/`value`, the finding is
@@ -95,19 +84,6 @@ const checkKeyValue = (spec: RequireConfigKeySpec, config: ParsedConfig): CheckS
     return { actual, expected: spec.value, message: spec.message, state: 'violation' };
   }
 
-  // A safe primary default does not satisfy the independently required extra keys.
-  for (const extra of spec.extraFix ?? []) {
-    const extraActual = getByPath(config, extra.keyPath);
-    if (extraActual !== extra.value) {
-      return {
-        actual: extraActual,
-        expected: extra.value,
-        message: spec.message,
-        state: 'violation',
-      };
-    }
-  }
-
   if (coveredByDefault) {
     const severity = spec.defaultSatisfiedSeverity ?? 'info';
     if (severity !== 'off') {
@@ -130,13 +106,7 @@ const buildBinding = (
   docs: spec.docs,
   file: spec.file,
   fix(): SetKeyOp[] {
-    const ops: SetKeyOp[] = [
-      { file: spec.file, keyPath: spec.keyPath, op: 'setKey', value: spec.value },
-    ];
-    for (const extra of spec.extraFix ?? []) {
-      ops.push({ file: spec.file, keyPath: extra.keyPath, op: 'setKey', value: extra.value });
-    }
-    return ops;
+    return [{ file: spec.file, keyPath: spec.keyPath, op: 'setKey', value: spec.value }];
   },
   fixKind: 'auto',
   severity: spec.severity,
@@ -151,6 +121,9 @@ export const requireConfigKey = <const Id extends string>(
   for (const pm of PMS) {
     const spec = options.bindings[pm];
     if (typeof spec !== 'undefined') {
+      if ('extraFix' in spec) {
+        throw new TypeError('extraFix is no longer supported; use a custom binding.');
+      }
       bindings[pm] = buildBinding(spec, options.applies);
     }
   }

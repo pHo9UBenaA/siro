@@ -2,20 +2,17 @@
 
 ## Versioning policy
 
-`siro` is **version-agnostic by design**. The `packageManager` field is parsed for the manager
-_name_ (e.g. `pnpm@10.9.0` → `pnpm`); the version segment is intentionally discarded, and `engines`
-is never consulted. Every rule is written against the **latest stable major** of each manager, and
-findings always describe what that latest version expects — not what a pinned older version might
-get away with.
+`siro` evaluates repository settings against the documented policy snapshot in
+[version-matrix.md](version-matrix.md). It detects the package-manager name, but
+never branches on the installed or declared version. Upstream behavior can change;
+the matrix records verified sources and unresolved release-history details.
 
-Why no version branching? Two reasons:
-
-1. **One source of truth.** A rule with multiple version-conditional code paths quickly drifts
-   from the manager's actual release history. Pinning the spec to "latest stable" keeps the
-   surface area small and reviewable.
-2. **Upgrades are part of hardening.** Most rules already require a setting that newer majors
-   ship safely by default. Asking projects to upgrade is the same answer as asking them to pin
-   the setting explicitly.
+An informational finding based on a documented default does not establish that
+an older installation uses that default. CI-only defaults also depend on the
+actual invocation environment. Enable a compatible explicit setting, or evaluate
+an upgrade, before relying on that protection. CLI flags, environment variables,
+user/global config files, and workspace children are outside the effective-config
+model: a successful run is not an installation-security attestation.
 
 When a binding has authoritative version data, it surfaces it in the message as a parenthesised
 suffix — `(available since pnpm 10.16.0; default safe since pnpm 11.0.0 (1440 minutes))` —
@@ -73,6 +70,7 @@ reads for a given PM, with the number of rules that reference it.
 | deno | `deno.json`           |     4 |
 | deno | lockfiles             |     1 |
 | aube | `aube-workspace.yaml` |    10 |
+| aube | `.npmrc`              |     1 |
 | aube | `package.json`        |     2 |
 | aube | lockfiles             |     1 |
 
@@ -130,6 +128,11 @@ Unknown rule IDs are caught at startup: siro exits with code 2 and prints
 
 ### Custom rule input and output
 
+Configuration, rule, binding, and reporter containers must be ordinary objects
+or null-prototype dictionaries. Custom prototypes, class instances, and objects
+from another JavaScript realm are rejected. Own keys such as `constructor` remain
+valid rule IDs. Executable configuration is trusted code, not a sandbox.
+
 `ParsedConfig` values and `getByPath()` results are `unknown`: parsing a file does
 not validate a rule's expected value type. Narrow each value before using it:
 
@@ -144,6 +147,20 @@ parsed config files (`WritableConfigFileRef`); advisory fixes contain only notes
 or tracking guidance. Expected values and fix values must be finite numbers,
 strings, or booleans. Malformed extension results are configuration errors (exit 2),
 while unexpected exceptions thrown by extensions remain crashes (exit 70).
+
+`requireConfigKey` describes one key and emits one key write. The former
+`extraFix` option and `KeyAssignment` type were removed in v0.4.0; passing
+`extraFix` throws instead of silently dropping a policy requirement. Use a custom
+binding when acceptance depends on multiple settings; its check and remediation
+must express the same policy.
+
+The pinning rule checks save defaults for npm, pnpm, Yarn, Bun, and Aube. It does
+not audit all existing manifest ranges or override explicit add-command flags.
+For Deno it inspects `npm:`/`jsr:` entries in `deno.json#imports`, including tags,
+missing versions, and subpaths. Relative/URL imports, scoped import maps, and
+external import-map files are outside that check. Aube uses `.npmrc`; conflicting
+`save-prefix`/`savePrefix` aliases require manual reconciliation because their
+line order is not retained by the parsed configuration model.
 
 ## Per-PM severity and PM defaults
 
@@ -244,5 +261,5 @@ reporters via `siro.config.ts` (`reporters: [myReporter]`).
 This repository configures itself with the same recommendations: `save-exact` and `provenance`
 in `.npmrc`, install-origin controls (`allow-git`, `allow-file`, `allow-remote`, `allow-directory`),
 a committed lockfile, a `pnpm-workspace.yaml` with security settings (`frozenLockfile`,
-`frozenStore`, `blockExoticSubdeps`, `strictDepBuilds`, `trustPolicy`, `minimumReleaseAge`),
+`blockExoticSubdeps`, `strictDepBuilds`, `trustPolicy`, `minimumReleaseAge`),
 and repo-local git hooks. See [contributing.md](contributing.md).

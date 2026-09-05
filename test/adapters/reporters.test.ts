@@ -40,6 +40,11 @@ const result: LintResult = {
 };
 
 describe('reporters registry', () => {
+  it('rejects an array masquerading as a reporter', () => {
+    const reporter = Object.assign([], { name: 'array', format: () => {} });
+    expect(() => createRegistry([reporter])).toThrow(/reporter/u);
+  });
+
   it('ships pretty / json / github as builtins', () => {
     expect.hasAssertions();
     expect(BUILTIN_REPORTER_NAMES).toStrictEqual(['pretty', 'json', 'github']);

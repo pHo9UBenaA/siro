@@ -114,6 +114,9 @@ composition roots in `application/` — `application/commands/lint.ts`
 and its shared preamble `application/prepare-context.ts` — which may import concrete
 adapters to wire them (see the `allowList` in `scripts/check/layers.mjs`).
 
+The domain may use pure parsing libraries (`valibot`, `semver`) without an I/O
+port. The semver parser replaces a local approximation of registry-version syntax.
+
 Placement by responsibility:
 
 - **adapters/** — implements a port for a concrete runtime, format, or sink (Node FS,

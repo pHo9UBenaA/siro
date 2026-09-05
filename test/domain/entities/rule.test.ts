@@ -28,12 +28,12 @@ const validRule = {
 };
 
 describe(isRuleShape, () => {
-  it('validates inherited bindings that the evaluator can read', () => {
+  it('rejects inherited binding maps even when their entries are valid', () => {
     expect.hasAssertions();
     const invalidBindings = Object.create({ npm: { check: 'not-a-function' } });
     const validBindings = Object.create({ npm: validRule.bindings.npm });
     expect(isRuleShape({ ...validRule, bindings: invalidBindings })).toBe(false);
-    expect(isRuleShape({ ...validRule, bindings: validBindings })).toBe(true);
+    expect(isRuleShape({ ...validRule, bindings: validBindings })).toBe(false);
   });
 
   it.each(NON_RECORD_OBJECTS)('rejects a %s bindings container', (bindings) => {

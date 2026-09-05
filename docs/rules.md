@@ -151,12 +151,12 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lo
 
 ## `frozen-store` — info
 
-Recommend enabling frozenStore to prevent mutations to the content-addressable store, strengthening supply-chain integrity in CI and deploy environments.
-Upstream: <https://pnpm.io/settings#frozenstore>
+Consider read-only store access for deployments whose dependencies are already present.
+Upstream: <https://pnpm.io/settings/store#frozenstore>
 
 | PM | Target | Reference |
 | --- | --- | --- |
-| `pnpm` | `pnpm-workspace.yaml` | [official docs](https://pnpm.io/settings#frozenstore) |
+| `pnpm` | `pnpm-workspace.yaml` | [official docs](https://pnpm.io/settings/store#frozenstore) |
 
 ## `hardened-mode` — warn
 
@@ -201,7 +201,7 @@ Upstream: <https://aube.jdx.dev/security.html>
 
 ## `patched-dependencies` — info
 
-Flag patched dependencies whose source code is modified by local patch files, bypassing registry integrity verification.
+Review local patches separately from the registry artifacts they modify.
 Upstream: <https://pnpm.io/settings#patcheddependencies>
 
 | PM | Target | Reference |
@@ -215,11 +215,12 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#1-pin-depend
 
 | PM | Target | Reference |
 | --- | --- | --- |
-| `npm` | `.npmrc` | [official docs](https://docs.npmjs.com/cli/v11/using-npm/config#save-exact) |
-| `pnpm` | `pnpm-workspace.yaml` | [official docs](https://pnpm.io/settings#saveprefix) |
+| `npm` | `.npmrc` | [official docs](https://docs.npmjs.com/cli/v12/using-npm/config#save-exact) |
+| `pnpm` | `pnpm-workspace.yaml` | [official docs](https://pnpm.io/settings/other#saveprefix) |
 | `yarn` | `.yarnrc.yml` | [official docs](https://yarnpkg.com/configuration/yarnrc#defaultSemverRangePrefix) |
 | `bun` | `bunfig.toml` | [official docs](https://bun.com/docs/runtime/bunfig#install-exact) |
 | `deno` | `deno.json` | [official docs](https://docs.deno.com/runtime/reference/cli/add/) |
+| `aube` | `.npmrc` | [official docs](https://aube.jdx.dev/settings/#saveprefix) |
 
 ## `provenance` — warn
 
@@ -266,7 +267,7 @@ Upstream: <https://docs.npmjs.com/cli/v12/using-npm/config#strict-allow-scripts>
 
 ## `strict-release-age` — info
 
-Make the minimum release age gate a hard failure instead of falling back to the next-oldest satisfying version.
+Fail when no satisfying version meets the release age, instead of falling back to the lowest satisfying version.
 Upstream: <https://aube.jdx.dev/security.html>
 
 | PM | Target | Reference |

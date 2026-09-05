@@ -19,7 +19,6 @@ export { CONFIG_FILES } from './domain/entities/config-files.ts';
 export type {
   ConfigScalar,
   ConfigValue,
-  KeyAssignment,
   KeyPath,
   ParsedConfig,
 } from './domain/entities/config-value.ts';

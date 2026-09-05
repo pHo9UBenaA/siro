@@ -1,3 +1,4 @@
+import { isStringList } from './config-predicates.ts';
 import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
@@ -15,7 +16,7 @@ const packageJsonFilesBinding: AdvisoryRuleBinding = {
       return { state: 'na' };
     }
     const files = ctx.packageJson?.files;
-    if (Array.isArray(files) && files.length > 0) {
+    if (isStringList(files) && files.length > 0) {
       return { state: 'ok' };
     }
     return {
@@ -49,7 +50,7 @@ const denoPublishBinding: AdvisoryRuleBinding = {
       return { state: 'na' };
     }
     const include = getByPath(config, ['publish', 'include']);
-    if (Array.isArray(include) && include.length > 0) {
+    if (isStringList(include) && include.length > 0) {
       return { state: 'ok' };
     }
     return {
@@ -64,7 +65,8 @@ const denoPublishBinding: AdvisoryRuleBinding = {
     return [
       {
         file: denoJson,
-        message: 'Add `publish.include` (and/or `publish.exclude`) to deno.json.',
+        message:
+          'Add a non-empty `publish.include` array to deno.json; use `publish.exclude` for additional exclusions.',
         op: 'note',
       },
     ];

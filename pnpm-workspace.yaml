@@ -6,6 +6,7 @@ catalog:
   '@commitlint/config-conventional': 21.0.2
   '@types/ini': 4.1.1
   '@types/node': 25.9.1
+  '@types/semver': 7.7.1
   '@vitest/coverage-v8': 4.1.7
   cac: 7.0.0
   ini: 7.0.0
@@ -14,6 +15,7 @@ catalog:
   oxfmt: 0.53.0
   oxlint: 1.68.0
   picocolors: 1.1.1
+  semver: 7.8.1
   smol-toml: 1.6.1
   tinybench: 6.0.2
   tsdown: 0.22.1
@@ -32,8 +34,6 @@ catalogMode: strict
 cleanupUnusedCatalogs: true
 
 frozenLockfile: true
-
-frozenStore: true
 
 minimumReleaseAge: 4320
 
