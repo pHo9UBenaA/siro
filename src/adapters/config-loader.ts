@@ -57,6 +57,9 @@ const ConfigSchema = vb.strictObject(
           if (typeof value !== 'object' || value === null || Array.isArray(value)) {
             return false;
           }
+          if (Object.prototype.toString.call(value) !== '[object Object]') {
+            return false;
+          }
           const prototype = Object.getPrototypeOf(value);
           if (prototype === null) {
             return true;
