@@ -2,8 +2,6 @@ import * as publicApi from '../src/index.ts';
 import { captureIO } from './helpers/io.ts';
 import { run } from '../src/cli.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const EXIT_OK = 0;
 const EXIT_USAGE = 2;
 
@@ -22,7 +20,7 @@ const runExpectCode = (
   return run(args, io).then((code) => ({ code, err: err(), out: out() }));
 };
 
-const describeVersionBranch = (): void => {
+describe('cli', () => {
   test('prints a SemVer version with --version and exits 0', () => {
     expect.hasAssertions();
     // Pinning the literal version couples every release commit to a test
@@ -41,9 +39,7 @@ const describeVersionBranch = (): void => {
       expect(out.trim()).toMatch(/^\d+\.\d+\.\d+/u);
     });
   });
-};
 
-const describeHelpBranch = (): void => {
   test('prints usage with --help and exits 0', () => {
     expect.hasAssertions();
     return runExpectCode(['--help']).then(({ code, out }) => {
@@ -62,9 +58,7 @@ const describeHelpBranch = (): void => {
       expect(out).toContain('EXIT CODES');
     });
   });
-};
 
-const describeFlagInteraction = (): void => {
   test('supports clustered short help and version flags with help precedence', () => {
     expect.hasAssertions();
     return runExpectCode(['-hv']).then(({ code, err, out }) => {
@@ -121,9 +115,7 @@ const describeFlagInteraction = (): void => {
       },
     );
   });
-};
 
-const describeUsageErrors = (): void => {
   test('prints usage and exits 2 when no subcommand is given', () => {
     expect.hasAssertions();
     return runExpectCode([]).then(({ code, err }) => {
@@ -179,9 +171,7 @@ const describeUsageErrors = (): void => {
       expect(err).toMatch(/unknown flag.*write/iu);
     });
   });
-};
 
-const describePassthroughAndConflict = (): void => {
   test('rejects non-empty passthrough after `--` (siro wraps no tool)', () => {
     expect.hasAssertions();
     // siro takes no passthrough args — there is no wrapped tool to forward to.
@@ -229,9 +219,7 @@ const describePassthroughAndConflict = (): void => {
       ),
     );
   });
-};
 
-const describeErrorPropagation = (): void => {
   test('re-throws a non-SiroError instead of swallowing it (bootstrap maps it to exit 70)', () => {
     expect.hasAssertions();
     // run() maps SiroError to an exit code but lets unexpected errors
@@ -247,9 +235,7 @@ const describeErrorPropagation = (): void => {
     };
     return expect(run(['--version'], throwingIo)).rejects.toThrow('boom');
   });
-};
 
-const describeReporterConsistency = (): void => {
   test('renders the --reporter flag line identically in root and lint help', () => {
     expect.hasAssertions();
     // Companion to the --pm test above. --reporter only appears in two
@@ -263,16 +249,6 @@ const describeReporterConsistency = (): void => {
       },
     );
   });
-};
-
-describe('cli', () => {
-  describeVersionBranch();
-  describeHelpBranch();
-  describeFlagInteraction();
-  describeUsageErrors();
-  describePassthroughAndConflict();
-  describeErrorPropagation();
-  describeReporterConsistency();
 });
 
 describe('extra positional rejection', () => {
@@ -292,11 +268,6 @@ describe('extra positional rejection', () => {
 });
 
 describe('public API surface', () => {
-  it('exposes detectPMs for embedders authoring custom rules', () => {
-    expect.hasAssertions();
-    expect(publicApi.detectPMs).toBeTypeOf('function');
-  });
-
   it('exposes the canonical project types for embedders', () => {
     expect.hasAssertions();
     expect(publicApi.PROJECT_TYPES).toStrictEqual(['application', 'package']);

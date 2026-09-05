@@ -116,3 +116,21 @@ it('rejects legacy extension options instead of silently ignoring their policies
     /inside the config option/u,
   );
 });
+
+it('keeps the lint exit decision independent of reporter mutations', async () => {
+  const exitCode = await lintCommand(
+    {
+      cwd: asAbsPath('/virtual'),
+      pm: 'npm',
+      fs: { exists: () => false, readText: () => undefined },
+      reporter: {
+        name: 'mutating',
+        format(result) {
+          for (const finding of result.findings) Reflect.set(finding, 'severity', 'info');
+        },
+      },
+    },
+    captureIO().io,
+  );
+  expect(exitCode).toBe(1);
+});

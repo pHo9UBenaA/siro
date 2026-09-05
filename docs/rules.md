@@ -147,7 +147,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lo
 | `yarn` | `.yarnrc.yml` | [official docs](https://yarnpkg.com/configuration/yarnrc#enableImmutableInstalls) |
 | `bun` | `bunfig.toml` | [official docs](https://bun.com/docs/runtime/bunfig#install-frozenlockfile) |
 | `deno` | `deno.json` | [official docs](https://docs.deno.com/runtime/fundamentals/configuration/#lock) |
-| `aube` | `aube-workspace.yaml` | [official docs](https://github.com/aubepkg/aube/blob/main/docs/cli/ci.md) |
+| `aube` | Repository | [official docs](https://github.com/aubepkg/aube/blob/main/docs/cli/ci.md) |
 
 ## `frozen-store` — info
 

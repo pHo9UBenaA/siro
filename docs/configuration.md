@@ -79,7 +79,8 @@ The former top-level extension options were removed in v0.4.0. `LintOptions`
 describes evaluation; `LintCommandOptions` adds `reporter` and `severity`.
 Path constructors validate their input: roots must be absolute; repository paths
 must be relative and contain no parent traversal. Filesystem symlinks still follow
-normal Node behavior.
+normal Node behavior. Native filesystem targets must be existing directories;
+an injected `FileSystem` defines its own virtual repository namespace.
 
 ## Custom checks and remediation
 
@@ -134,7 +135,7 @@ override cannot resurrect a finding the check did not emit.
 `pretty` prints findings and manual steps, `json` emits the versioned document,
 and `github` emits workflow annotations. Configured reporters register by name;
 later registrations replace earlier ones. An explicit reporter object is also
-accepted by `lintCommand`.
+accepted by `lintCommand`. The exit decision is computed before the reporter runs.
 
 By default all findings are displayed and only `error` fails. `--severity warn`
 or `--severity info` changes both display and failure thresholds.
@@ -147,3 +148,12 @@ or `--severity info` changes both display and failure thresholds.
 | `1`  | Findings at or above the failure threshold                              |
 | `2`  | Invalid options, configuration, extension results, or filesystem access |
 | `70` | Unexpected exception, including a throwing custom rule or reporter      |
+
+## Public API scope
+
+The package entry exposes evaluation and reporting, explicit configuration loading,
+rule and reporter contracts, rule-authoring helpers, validated paths, and error types.
+Internal codec selection, detection signals, reporter registries, severity/exit-code
+helpers, and metadata/error rendering helpers are not public API in v0.4.0.
+Use `lint` for results and `lintCommand` for built-in reporting and thresholds.
+Custom checks use `RepoContext` and `getByPath`; custom reporters consume `LintResult`.

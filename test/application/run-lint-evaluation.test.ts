@@ -5,8 +5,6 @@ import type { ParsedConfig } from '../../src/domain/entities/config-value.ts';
 import type { RepoContext } from '../../src/domain/ports/repo-context.ts';
 import { runLint } from '../../src/application/run-lint.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const noopCtx: RepoContext = {
   exists: () => false,
   packageJson: undefined,
@@ -162,4 +160,22 @@ describe('runLint repository checks', () => {
     expect(captured).toStrictEqual([{}]);
     expect(parse).not.toHaveBeenCalled();
   });
+});
+
+it('reports Aube install-command guidance without reading workspace configuration', async () => {
+  const { frozenLockfile } = await import('../../src/domain/rules/frozen-lockfile.ts');
+  const result = runLint({
+    ctx: {
+      ...noopCtx,
+      readText() {
+        throw new Error('Workspace configuration is not needed');
+      },
+    },
+    pms: ['aube'],
+    ruleSet: [frozenLockfile],
+    codecFor: noopCodecFor,
+  });
+  expect(result.findings).toMatchObject([
+    { ruleId: 'frozen-lockfile', remediation: { kind: 'manual' } },
+  ]);
 });

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { statSync } from 'node:fs';
+import { assertDirectory } from './adapters/node-file-system.ts';
 import { loadConfig } from './adapters/config-loader.ts';
 import { type AbsPath, asAbsPath } from './shared/paths.ts';
 import { type CommandName, isCommandName } from './cli/commands.ts';
@@ -143,8 +143,7 @@ const dispatch = (cmd: ParsedCommand, io: IO): number | Promise<number> => {
       return EXIT_USAGE;
     }
     case 'lint': {
-      if (!statSync(cmd.cwd).isDirectory())
-        throw new UsageError('The lint target must be a directory.');
+      assertDirectory(cmd.cwd);
       return loadConfig(cmd.cwd).then((config) => lintCommand({ ...cmd, config }, io));
     }
     default: {
@@ -192,9 +191,8 @@ export const runMain = async (argv: readonly string[]): Promise<void> => {
   }
 };
 
-const ARGV_SKIP = 2;
 const [, invokedPath] = process.argv;
 const isDirectInvocation = invokedPath && import.meta.url === pathToFileURL(invokedPath).href;
 if (isDirectInvocation) {
-  await runMain(process.argv.slice(ARGV_SKIP));
+  await runMain(process.argv.slice(2));
 }

@@ -6,9 +6,6 @@ export type CodecKind = (typeof CODEC_KINDS)[number];
 /** Scalar value that can be written back to a config file. */
 export type ConfigValue = string | number | boolean;
 
-/** Scalar value as it appears when reading (codecs may produce `null`). */
-export type ConfigScalar = ConfigValue | null;
-
 /** Parsed keys are unvalidated; each rule narrows the values it reads. */
 export interface ParsedConfig {
   readonly [key: string]: unknown;
@@ -20,14 +17,7 @@ export type KeyPath = readonly [string, ...string[]];
 /** Parser values may include nested arrays and TOML dates. */
 export type ConfigReadValue = unknown;
 
-/**
- * Look up a nested value by key path; `undefined` if any segment is missing.
- *
- * Part of the public surface (re-exported from `src/index.ts`): embedders
- * writing custom rules receive the same `config: ParsedConfig` shape that
- * built-in rules see, so they need the canonical traversal helper rather
- * than re-implementing `null`-vs-missing semantics per rule.
- */
+/** Read an own key path; absent or non-mapping parents yield undefined. */
 export const getByPath = (config: ParsedConfig, keyPath: KeyPath): ConfigReadValue => {
   let current: unknown = config;
   for (const key of keyPath) {

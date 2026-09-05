@@ -1,5 +1,6 @@
+import { UsageError } from '../shared/errors.ts';
 import { type AbsPath, type RelPath, asRelPath, asAbsPath } from '../shared/paths.ts';
-import { accessSync, constants, readFileSync } from 'node:fs';
+import { accessSync, constants, readFileSync, statSync } from 'node:fs';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import { isNodeError } from './node-errors.ts';
 import path from 'node:path';
@@ -35,3 +36,7 @@ export const nodeFileSystem: FileSystem = {
 
 export const resolveIn = (root: AbsPath, relPath: RelPath): AbsPath =>
   asAbsPath(path.join(root, asRelPath(relPath)));
+
+export const assertDirectory = (root: AbsPath): void => {
+  if (!statSync(root).isDirectory()) throw new UsageError('The lint target must be a directory.');
+};

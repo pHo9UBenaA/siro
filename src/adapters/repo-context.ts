@@ -1,6 +1,6 @@
 import { type AbsPath, type RelPath, asRelPath } from '../shared/paths.ts';
 import { type PackageJson, safeParsePackageJson } from '../domain/schemas/package-json.ts';
-import { nodeFileSystem, resolveIn } from './node-file-system.ts';
+import { nodeFileSystem, resolveIn, assertDirectory } from './node-file-system.ts';
 import { ConfigError } from '../shared/errors.ts';
 import { isPlainRecord } from '../shared/records.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
@@ -35,6 +35,7 @@ export const createRepoContext = (
   fs: FileSystem = nodeFileSystem,
   projectType?: ProjectType,
 ): RepoContext => {
+  if (fs === nodeFileSystem) assertDirectory(root);
   const readText = (relPath: RelPath): string | undefined => fs.readText(resolveIn(root, relPath));
   const exists = (relPath: RelPath): boolean => fs.exists(resolveIn(root, relPath));
 
