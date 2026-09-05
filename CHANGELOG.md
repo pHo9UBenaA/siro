@@ -6,6 +6,7 @@
 
 - Preserve errors from custom rules whose names match inherited object properties when the severity override map is empty.
 - Honor explicit severity settings for prototype-named custom rules and reject invalid values with their configuration paths.
+- Reject non-record `rules` values instead of silently treating them as an empty override map.
 - Detect Deno partial and wildcard versions before import subpaths while preserving exact versions.
 - Accept positive fractional npm release-age settings parsed from `.npmrc`.
 - Run related tests for staged TypeScript files in the pre-commit hook.
