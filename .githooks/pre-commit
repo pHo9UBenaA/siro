@@ -18,5 +18,5 @@ pnpm run typecheck
 # Run tests related to the staged TypeScript files.
 if [ -n "$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts')" ]; then
   git diff --cached --name-only -z --diff-filter=ACMR -- '*.ts' \
-    | xargs -0 pnpm exec vitest related --run --
+    | xargs -0 pnpm exec vitest related --run
 fi
