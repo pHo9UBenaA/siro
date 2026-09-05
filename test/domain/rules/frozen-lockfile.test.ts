@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { expectDocumentedDefaultDynamicInfo } from '../../helpers/binding-expectations.ts';
 import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
@@ -52,7 +53,9 @@ describe('frozen-lockfile rule identity', () => {
     // entirely (e.g. a rename gone wrong) fails this test.
     const bunBinding = frozenLockfile.bindings.bun;
     assert(bunBinding, 'expected bun binding');
-    const setKey = bunBinding.fix(makeCtx()).find((op) => op.op === 'setKey');
+    const setKey = automaticOperations(bunBinding.check(makeCtx(), {})).find(
+      (op) => op.op === 'setKey',
+    );
     expect(setKey).toMatchObject({ keyPath: ['install', 'frozenLockfile'], value: true });
   });
 });

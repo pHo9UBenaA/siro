@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { statSync } from 'node:fs';
+import { loadConfig } from './adapters/config-loader.ts';
 import { type AbsPath, asAbsPath } from './shared/paths.ts';
 import { type CommandName, isCommandName } from './cli/commands.ts';
 import type { PM, Severity } from './domain/entities/pms.ts';
@@ -34,8 +36,6 @@ type ParsedCommand =
       reporter: string;
       severity?: Severity;
     };
-
-const EMPTY = 0;
 const EXIT_SUCCESS = 0;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
@@ -43,7 +43,7 @@ const EXIT_CRASH = 70;
 const rejectPassthrough = (flags: Record<string, unknown>): void => {
   // siro wraps no downstream tool, so anything after `--` has nowhere to go.
   const passthrough = flags['--'];
-  if (Array.isArray(passthrough) && passthrough.length > EMPTY) {
+  if (Array.isArray(passthrough) && passthrough.length > 0) {
     throw new UsageError('siro takes no passthrough arguments after `--`.');
   }
 };
@@ -58,7 +58,7 @@ const resolveCommandUsage = (
     return {
       kind: 'usage',
       reason:
-        "The 'init' command was removed: siro is lint-only. Run `siro lint --reporter json` and apply each finding's `fix` operations with your editor or an agent skill.",
+        "The 'init' command was removed: siro is lint-only. Run `siro lint --reporter json` and apply each finding's `remediation` instructions with your editor or an agent skill.",
     };
   }
   if (typeof commandCandidate !== 'string' || !isCommandName(commandCandidate)) {
@@ -66,12 +66,10 @@ const resolveCommandUsage = (
   }
 };
 
-const SINGLE = 1;
-
 const rejectExtraPositionals = (extraPositionals: readonly unknown[]): void => {
-  if (extraPositionals.length > EMPTY) {
+  if (extraPositionals.length > 0) {
     let plural = '';
-    if (extraPositionals.length > SINGLE) {
+    if (extraPositionals.length > 1) {
       plural = 's';
     }
     throw new UsageError(`Unexpected extra argument${plural}: ${extraPositionals.join(' ')}`);
@@ -145,7 +143,9 @@ const dispatch = (cmd: ParsedCommand, io: IO): number | Promise<number> => {
       return EXIT_USAGE;
     }
     case 'lint': {
-      return lintCommand(cmd, io);
+      if (!statSync(cmd.cwd).isDirectory())
+        throw new UsageError('The lint target must be a directory.');
+      return loadConfig(cmd.cwd).then((config) => lintCommand({ ...cmd, config }, io));
     }
     default: {
       const exhaustiveCheck: never = cmd;

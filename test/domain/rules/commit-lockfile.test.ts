@@ -1,3 +1,4 @@
+import { manualSteps } from '../../helpers/remediation.ts';
 const FIRST_ELEMENT = 0;
 import { makeCtx, makePublishableCtx } from '../../helpers/ctx.ts';
 import type { PM } from '../../../src/domain/entities/pms.ts';
@@ -33,13 +34,12 @@ describe('commit-lockfile (npm)', () => {
     expect(npmBinding.check(ctxWith(['npm-shrinkwrap.json']), {}).state).toBe('violation');
   });
 
-  it('fix is advisory (ensureFileTracked), not auto-writable', () => {
+  it('provides manual remediation', () => {
     expect.hasAssertions();
-    const ops = npmBinding.fix(ctxWith([]));
-    expect(ops.every((op) => op.op !== 'setKey')).toBe(true);
+    const ops = manualSteps(npmBinding.check(ctxWith([]), {}))!;
     const firstOp = ops[FIRST_ELEMENT];
     assert(firstOp, 'expected at least one fix op');
-    expect(firstOp.op).toBe('ensureFileTracked');
+    expect(firstOp).toContain('generate package-lock.json');
   });
 });
 
@@ -47,22 +47,15 @@ describe('commit-lockfile (npm)', () => {
 // — the rule decides which lockfile to look for given a PM, so the assertion
 // belongs next to the rule. The table also makes it impossible to add a new
 // PM and silently forget to wire the lockfile name through.
-const LOCKFILE_BY_PM = [
+const LOCKFILE_BY_PM: readonly { pm: PM; lockfile: string }[] = [
   { lockfile: 'pnpm-lock.yaml', pm: 'pnpm' },
   { lockfile: 'yarn.lock', pm: 'yarn' },
   { lockfile: 'bun.lock', pm: 'bun' },
   { lockfile: 'deno.lock', pm: 'deno' },
   { lockfile: 'aube-lock.yaml', pm: 'aube' },
-] as const satisfies readonly { pm: PM; lockfile: string }[];
+];
 
 describe('commit-lockfile per-PM lockfile detection', () => {
-  it('records when deno.lock auto-discovery became available', () => {
-    expect.hasAssertions();
-    expect(commitLockfile.bindings.deno?.versionNote).toStrictEqual({
-      configAvailableSince: 'deno 1.28.0',
-    });
-  });
-
   it.each(LOCKFILE_BY_PM)(
     '$pm: ok when $lockfile exists, violation when absent',
     ({ pm, lockfile }) => {
@@ -85,5 +78,11 @@ describe('commit-lockfile per-PM lockfile detection', () => {
     expect(
       aubeBinding.check(makePublishableCtx({ exists: (fp) => fp === 'bun.lockb' }), {}).state,
     ).toBe('ok');
+  });
+});
+
+it('records when Deno lockfile auto-discovery became available', () => {
+  expect(commitLockfile.bindings.deno?.versionNote).toStrictEqual({
+    configAvailableSince: 'deno 1.28.0',
   });
 });

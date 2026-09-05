@@ -25,8 +25,6 @@ const ruleWith = (id: string, pms: readonly ('npm' | 'pnpm')[], status: CheckSta
       {
         check: (): CheckStatus => status,
         file: { kind: 'npmrc', path: asRelPath('.npmrc') } as const,
-        fix: (): readonly [] => [],
-        fixKind: 'auto' as const,
       },
     ]),
   ),
@@ -95,8 +93,6 @@ describe('runLint project selection', () => {
         deno: {
           check: () => ({ message: 'x', state: 'violation' }),
           file: { kind: 'json', path: asRelPath('custom.json') },
-          fix: () => [],
-          fixKind: 'auto',
         },
       },
       description: 'package-only-deno',
@@ -123,8 +119,6 @@ describe('runLint project selection', () => {
         deno: {
           check: () => ({ state: 'ok' }),
           file: { kind: 'json', path: asRelPath('custom.json') },
-          fix: () => [],
-          fixKind: 'auto',
         },
       },
       description: 'unscoped-deno',
@@ -137,7 +131,7 @@ describe('runLint project selection', () => {
   });
 });
 
-describe('runLint fileGlob bindings', () => {
+describe('runLint repository checks', () => {
   it('passes an empty parsed view without invoking a codec', () => {
     expect.hasAssertions();
     const parse = vi.fn<ConfigCodec['parse']>();
@@ -149,9 +143,6 @@ describe('runLint fileGlob bindings', () => {
             captured.push(parsed);
             return { message: 'no lockfile', state: 'violation' };
           },
-          file: { kind: 'fileGlob', path: asRelPath('*.lock') },
-          fix: () => [],
-          fixKind: 'advisory',
         },
       },
       description: 'glob-rule',

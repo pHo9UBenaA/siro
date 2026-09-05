@@ -1,3 +1,4 @@
+import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { auditSuppression } from '../../../src/domain/rules/audit-suppression.ts';
@@ -67,16 +68,11 @@ describe('audit-suppression: scope, metadata, and fix', () => {
     expect(yarnBinding.file).toStrictEqual({ kind: 'yaml', path: '.yarnrc.yml' });
   });
 
-  it('is an advisory binding', () => {
+  it('provides actionable manual remediation', () => {
     expect.hasAssertions();
-    expect(yarnBinding.fixKind).toBe('advisory');
-  });
-
-  it('fix returns a note op', () => {
-    expect.hasAssertions();
-    const ops = yarnBinding.fix(makeCtx());
+    const ops = manualSteps(yarnBinding.check(makeCtx(), { npmAuditIgnoreAdvisories: ['*'] }))!;
     const SINGLE = 1;
     expect(ops).toHaveLength(SINGLE);
-    expect(ops[0]).toMatchObject({ op: 'note' });
+    expect(ops[0]).toContain('remove stale suppressions');
   });
 });

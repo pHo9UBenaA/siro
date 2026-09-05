@@ -1,5 +1,5 @@
 import { lintCommand } from '../../src/application/commands/lint.ts';
-import { UsageError } from '../../src/shared/errors.ts';
+import { ConfigError, UsageError } from '../../src/shared/errors.ts';
 import { asAbsPath } from '../../src/shared/paths.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
 import { captureIO } from '../helpers/io.ts';
@@ -13,7 +13,15 @@ describe('lintCommand option validation', () => {
     const projectType = JSON.parse('"service"');
 
     return expect(
-      lintCommand({ cwd: asAbsPath('/repo'), fs: npmGoodFs(), projectType, reporter: 'json' }, io),
+      lintCommand(
+        {
+          cwd: asAbsPath('/repo'),
+          fs: npmGoodFs(),
+          projectType,
+          reporter: 'json',
+        },
+        io,
+      ),
     ).rejects.toBeInstanceOf(UsageError);
   });
 
@@ -43,7 +51,10 @@ describe('lintCommand option validation', () => {
     const customRules = JSON.parse('[null]');
 
     return expect(
-      lintCommand({ customRules, cwd: asAbsPath('/repo'), fs: npmGoodFs(), reporter: 'json' }, io),
-    ).rejects.toBeInstanceOf(UsageError);
+      lintCommand(
+        { config: { customRules }, cwd: asAbsPath('/repo'), fs: npmGoodFs(), reporter: 'json' },
+        io,
+      ),
+    ).rejects.toBeInstanceOf(ConfigError);
   });
 });

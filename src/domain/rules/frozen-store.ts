@@ -1,16 +1,22 @@
-import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
+import { type RuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
 const { pnpmWorkspace } = CONFIG_FILES;
 
-const pnpmBinding: AdvisoryRuleBinding = {
+const pnpmBinding: RuleBinding = {
   check(_ctx, config) {
     const value = getByPath(config, ['frozenStore']);
     if (value === true) {
       return { state: 'ok' };
     }
     return {
+      remediation: {
+        kind: 'manual',
+        steps: [
+          'Populate the store before enabling `frozenStore: true`. Use it for read-only deployments; it is incompatible with --force and a configured pnpr server.',
+        ],
+      },
       actual: value,
       message:
         'For a pre-populated read-only store, consider `frozenStore` in pnpm-workspace.yaml. Normal installs need a writable store.',
@@ -19,17 +25,7 @@ const pnpmBinding: AdvisoryRuleBinding = {
   },
   docs: 'https://pnpm.io/settings/store#frozenstore',
   file: pnpmWorkspace,
-  fix() {
-    return [
-      {
-        file: pnpmWorkspace,
-        message:
-          'Populate the store before enabling `frozenStore: true`. Use it for read-only deployments; it is incompatible with --force and a configured pnpr server.',
-        op: 'note' as const,
-      },
-    ];
-  },
-  fixKind: 'advisory',
+
   versionNote: { configAvailableSince: 'pnpm 11.7.0' },
 };
 

@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { blockAutoInstall } from '../../../src/domain/rules/block-auto-install.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
@@ -59,7 +60,7 @@ describe('block-auto-install: scope, metadata, and fix', () => {
 
   it('fix returns setKey op for install.auto: disable', () => {
     expect.hasAssertions();
-    const ops = bun.fix(makeCtx());
+    const ops = automaticOperations(bun.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'toml', path: 'bunfig.toml' },

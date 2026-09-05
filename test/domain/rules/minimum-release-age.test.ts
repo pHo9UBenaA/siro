@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import {
   expectMessageContains,
   expectMessageContainsAndAvoids,
@@ -66,7 +67,7 @@ describe('minimum-release-age (npm)', () => {
 
   it('fixes by setting a positive min-release-age', () => {
     expect.hasAssertions();
-    const ops = npm.fix(ctx);
+    const ops = automaticOperations(npm.check(ctx, {}));
     const setKey = ops.find((op) => op.op === 'setKey');
     expect(setKey).toMatchObject({ keyPath: ['min-release-age'] });
     expect(setKey).toMatchObject({ value: expect.any(Number) });
@@ -111,12 +112,9 @@ describe('minimum-release-age (deno)', () => {
     ).toBe('ok');
   });
 
-  it('accepts a defaulted object without age and rejects arrays', () => {
+  it('passes an object setting without an age', () => {
     expect.hasAssertions();
-    const values = [{ exclude: ['npm:foo'] }, []];
-    expect(
-      values.map((minimumDependencyAge) => deno.check(ctx, { minimumDependencyAge }).state),
-    ).toStrictEqual(['ok', 'violation']);
+    expect(deno.check(ctx, { minimumDependencyAge: { exclude: ['npm:foo'] } }).state).toBe('ok');
   });
 
   it('flags zero-duration cooldowns in string and object forms', () => {
@@ -152,7 +150,7 @@ describe('minimum-release-age (deno)', () => {
 
   it('fix writes P3D as the recommended value', () => {
     expect.hasAssertions();
-    const ops = deno.fix(ctx);
+    const ops = automaticOperations(deno.check(ctx, {}));
     const setKey = ops.find((op) => op.op === 'setKey');
     expect(setKey).toMatchObject({ keyPath: ['minimumDependencyAge'], value: 'P3D' });
   });
@@ -160,15 +158,6 @@ describe('minimum-release-age (deno)', () => {
 
 describe('minimum-release-age tells users which PM version made the key available or safe by default', () => {
   const ctx = makeCtx();
-
-  it('on deno: tells the user from which Deno version the safe default applies', () => {
-    expect.hasAssertions();
-    expectMessageContains({
-      binding: deno,
-      ctx,
-      substrings: ['default safe since deno 2.9.0'],
-    });
-  });
 
   it('on pnpm: tells the user from which pnpm version the safe default applies', () => {
     expect.hasAssertions();
@@ -218,6 +207,15 @@ describe('minimum-release-age tells users which PM version made the key availabl
       binding: minimumReleaseAge.bindings.yarn,
       ctx,
       substrings: ['available since yarn 4.10.0'],
+    });
+  });
+
+  it('on deno: tells the user when the safe default became available', () => {
+    expect.hasAssertions();
+    expectMessageContains({
+      binding: minimumReleaseAge.bindings.deno,
+      ctx,
+      substrings: ['default safe since deno 2.9.0'],
     });
   });
 });

@@ -1,3 +1,4 @@
+import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
 import { publishAccess } from '../../../src/domain/rules/publish-access.ts';
@@ -34,12 +35,12 @@ describe('publish-access (npm)', () => {
     expect(passes('restricted')).toBe('ok');
   });
 
-  it('fix is advisory (a note)', () => {
+  it('provides manual remediation', () => {
     expect.hasAssertions();
-    const ops = npm.fix(ctx());
+    const ops = manualSteps(npm.check(ctx(), {}))!;
     const FIRST_ELEMENT = 0;
     const firstOp = ops[FIRST_ELEMENT];
     assert(firstOp, 'expected at least one fix op');
-    expect(firstOp.op).toBe('note');
+    expect(firstOp).toContain('publishConfig');
   });
 });

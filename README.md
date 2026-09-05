@@ -17,7 +17,7 @@ can apply the fixes.
 
 ```sh
 npx @pho9ubenaa/siro lint
-npx @pho9ubenaa/siro lint --reporter json # machine-readable output with fix ops (see docs/json-output.md)
+npx @pho9ubenaa/siro lint --reporter json # machine-readable remediation (see docs/json-output.md)
 ```
 
 ## A concrete example
@@ -45,9 +45,9 @@ The CLI reads `siro.config.*` as executable code. Review repository configuratio
 - **PM-aware severities.** When a manager's documented default already satisfies a rule (e.g.
   Yarn's `enableScripts: false`, pnpm's `strictDepBuilds: true`), the finding is demoted
   to `info` so CI noise stays proportional to real risk.
-- **Machine-readable remediation.** Every finding carries `fix` operations or `manualSteps` in the
-  JSON output — hand it to an agent skill or editor plugin that edits the files and re-runs
-  `siro lint` until it exits `0`. See [JSON output](docs/json-output.md).
+- **Machine-readable remediation.** A finding can carry automatic key operations or manual
+  instructions. Review proposed changes and rerun the linter after editing.
+  See [docs/json-output.md](docs/json-output.md).
 - **Lint with severities.** `error` fails CI by default; `--severity warn` tightens the gate.
 - **Reporters.** `pretty` (default), `json` for CI, `github` for PR annotations; register your own.
 - **Configurable.** Drop a `siro.config.ts` to disable rules, override severities, restrict PMs,
@@ -58,17 +58,10 @@ See the [rule reference](docs/rules.md) for what each check does and why, and th
 
 ## Versioning policy
 
-`siro` is **version-agnostic**: it never inspects the actual version of npm / pnpm / yarn / bun /
-deno your project is running. Every rule is written against the **latest stable major** of each
-manager — that's the configuration surface we lint and the defaults we trust.
-
-When a rule's binding knows that a key was introduced or had its default tightened in a specific
-version, the finding's message carries a `(available since pnpm 10.16.0; default safe since pnpm 11.0.0 (1440 minutes))`
-suffix as documentation — but siro does not branch on it. If your project pins an older PM, the
-right move is usually to upgrade; the lint output stays the same either way.
-
-See [version matrix](docs/version-matrix.md) for the per-rule × per-PM version table
-that backs those suffixes.
+siro evaluates the recorded policy snapshot in [docs/version-matrix.md](docs/version-matrix.md).
+It detects package-manager names, not effective runtime versions. Version annotations describe
+verified upstream facts; they do not change rule behavior. See [configuration](docs/configuration.md)
+for defaults, applicability, and limits.
 
 ## Usage
 

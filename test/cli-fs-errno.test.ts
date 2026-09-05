@@ -15,7 +15,7 @@ describe.skipIf(process.platform === 'win32')('run maps filesystem errno errors 
     rmSync(dir, { force: true, recursive: true });
   });
 
-  test('exits 2 with a named error when the target path is a regular file (ENOTDIR)', () => {
+  test('exits 2 with a named error when the target has a non-directory parent (ENOTDIR)', () => {
     expect.hasAssertions();
     dir = mkdtempSync(path.join(tmpdir(), 'siro-errno-'));
     const filePath = path.join(dir, 'not-a-dir');
@@ -29,7 +29,7 @@ describe.skipIf(process.platform === 'win32')('run maps filesystem errno errors 
         // no-op
       },
     };
-    return run(['lint', filePath], io).then((code) => {
+    return run(['lint', path.join(filePath, 'child')], io).then((code) => {
       expect(code).toBe(EXIT_USAGE);
       expect(errLines.join('\n')).toContain('File system error');
     });

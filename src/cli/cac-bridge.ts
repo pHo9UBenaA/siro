@@ -3,9 +3,6 @@ import { COMMANDS } from './commands.ts';
 import { SEVERITIES } from '../domain/entities/pms.ts';
 import { cac } from 'cac';
 
-const FIRST_INDEX = 0;
-const STEP = 1;
-
 export interface CacOutput {
   readonly commandCandidate: unknown;
   readonly flags: Record<string, unknown>;
@@ -42,8 +39,8 @@ export const parseCacOutput = (argv: readonly string[]): CacOutput => {
     '--',
     ...cli.globalCommand.options.flatMap((option) => option.names),
   ]);
-  const commandCandidate = cli.matchedCommandName ?? parsed.args[FIRST_INDEX];
-  const positionals = cli.matchedCommandName ? parsed.args : parsed.args.slice(STEP);
+  const commandCandidate = cli.matchedCommandName ?? parsed.args[0];
+  const positionals = cli.matchedCommandName ? parsed.args : parsed.args.slice(1);
 
   return { commandCandidate, flags, knownFlags, positionals };
 };

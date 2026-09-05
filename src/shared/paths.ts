@@ -1,15 +1,4 @@
-/**
- * Branded path types. Surface the distinction between
- *   - `AbsPath`: absolute filesystem paths handed to the FS boundary
- *     (`FileSystem.readText` etc.), and
- *   - `RelPath`: paths relative to a repo root, accepted by
- *     `RepoContext` and resolved via `resolveIn`.
- *
- * The brand is a structural tag with no runtime footprint — the cast in
- * `asAbsPath` / `asRelPath` is the only place either type is minted, so
- * passing a raw `string` to an FS or repo API now requires the caller to
- * declare intent rather than silently mixing the two flavours.
- */
+import path from 'node:path';
 
 declare const AbsPathBrand: unique symbol;
 declare const RelPathBrand: unique symbol;
@@ -17,8 +6,25 @@ declare const RelPathBrand: unique symbol;
 export type AbsPath = string & { readonly [AbsPathBrand]: true };
 export type RelPath = string & { readonly [RelPathBrand]: true };
 
-/** Tag a string as absolute. The caller vouches for the shape. */
-export const asAbsPath = (path: string): AbsPath => path as AbsPath;
+export const isAbsPath = (value: unknown): value is AbsPath =>
+  typeof value === 'string' && !value.includes('\0') && path.isAbsolute(value);
 
-/** Tag a string as repo-root-relative. The caller vouches for the shape. */
-export const asRelPath = (path: string): RelPath => path as RelPath;
+export const isRelPath = (value: unknown): value is RelPath =>
+  typeof value === 'string' &&
+  value.length > 0 &&
+  !value.includes('\0') &&
+  !path.posix.isAbsolute(value) &&
+  !path.win32.isAbsolute(value) &&
+  !/^[a-z]:/iu.test(value) &&
+  !value.split(/[\\/]/u).includes('..');
+
+export const asAbsPath = (value: string): AbsPath => {
+  if (!isAbsPath(value)) throw new TypeError('Expected an absolute filesystem path.');
+  return value;
+};
+
+export const asRelPath = (value: string): RelPath => {
+  if (!isRelPath(value))
+    throw new TypeError('Expected a repository-relative path without parent traversal.');
+  return value;
+};

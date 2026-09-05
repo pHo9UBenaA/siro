@@ -1,4 +1,6 @@
+import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
+import { expectMessageContains } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { approvedGitRepos } from '../../../src/domain/rules/approved-git-repos.ts';
 
@@ -48,22 +50,21 @@ describe('approved-git-repos: scope, metadata, and fix', () => {
     expect(yarnBinding.file).toStrictEqual({ kind: 'yaml', path: '.yarnrc.yml' });
   });
 
-  it('is an advisory binding', () => {
+  it('includes version note in violation message', () => {
     expect.hasAssertions();
-    expect(yarnBinding.fixKind).toBe('advisory');
+    expectMessageContains({
+      binding: yarnBinding,
+      ctx: makeCtx(),
+      substrings: ['yarn 4.14.0'],
+    });
   });
 
-  it('records when the setting became available', () => {
+  it('provides actionable manual remediation', () => {
     expect.hasAssertions();
-    expect(yarnBinding.versionNote).toStrictEqual({ configAvailableSince: 'yarn 4.14.0' });
-  });
-
-  it('fix returns a note op', () => {
-    expect.hasAssertions();
-    const ops = yarnBinding.fix(makeCtx());
+    const ops = manualSteps(yarnBinding.check(makeCtx(), {}))!;
     const SINGLE = 1;
     expect(ops).toHaveLength(SINGLE);
     const [first] = ops;
-    expect(first).toMatchObject({ op: 'note' });
+    expect(first).toContain('approvedGitRepositories');
   });
 });

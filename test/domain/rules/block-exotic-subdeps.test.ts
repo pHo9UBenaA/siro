@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import {
@@ -57,7 +58,7 @@ describe('block-exotic-subdeps', () => {
 
   it('fix returns setKey op for blockExoticSubdeps: true', () => {
     expect.hasAssertions();
-    const ops = pnpm.fix(makeCtx());
+    const ops = automaticOperations(pnpm.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'pnpm-workspace.yaml' },
@@ -97,7 +98,7 @@ describe('block-exotic-subdeps (aube)', () => {
 
   it('fix returns setKey op for blockExoticSubdeps: true', () => {
     expect.hasAssertions();
-    const ops = aube.fix(makeCtx());
+    const ops = automaticOperations(aube.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },
@@ -159,7 +160,7 @@ describe('block-exotic-subdeps (npm)', () => {
 
   it('fix preserves default restrictions by setting both keys to none', () => {
     expect.hasAssertions();
-    const ops = npm.fix(makeCtx());
+    const ops = automaticOperations(npm.check(makeCtx(), {}));
     const npmrcFile = { kind: 'npmrc', path: '.npmrc' };
     expect(ops).toStrictEqual([
       { file: npmrcFile, keyPath: ['allow-git'], op: 'setKey', value: 'none' },

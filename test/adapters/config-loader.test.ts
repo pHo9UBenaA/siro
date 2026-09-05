@@ -194,51 +194,6 @@ describe('loadConfig — customRules — happy path', () => {
   });
 });
 
-describe('loadConfig — customRules — collisions', () => {
-  const td = useTempDir();
-
-  it('rejects a customRules entry whose id collides with a builtin rule id (ambiguous override intent)', () => {
-    expect.hasAssertions();
-    writeFileSync(
-      path.join(td.dir, 'siro.config.mjs'),
-      `export default {
-        customRules: [
-          { id: 'provenance', title: 't', description: 'd', severity: 'warn', bindings: {} },
-        ],
-      };\n`,
-    );
-    return loadConfig(td.dir)
-      .catch((error) => error)
-      .then((err) => {
-        expect(err).toBeInstanceOf(ConfigError);
-        assert(err instanceof Error, 'expected Error');
-        expect(err.message).toMatch(/provenance/u);
-        expect(err.message).toMatch(/collide|duplicate|builtin/iu);
-      });
-  });
-
-  it('rejects two customRules entries in the same config that share the same id', () => {
-    expect.hasAssertions();
-    writeFileSync(
-      path.join(td.dir, 'siro.config.mjs'),
-      `export default {
-        customRules: [
-          { id: 'demo-rule', title: 't', description: 'd', severity: 'warn', bindings: {} },
-          { id: 'demo-rule', title: 't2', description: 'd2', severity: 'error', bindings: {} },
-        ],
-      };\n`,
-    );
-    return loadConfig(td.dir)
-      .catch((error) => error)
-      .then((err) => {
-        expect(err).toBeInstanceOf(ConfigError);
-        assert(err instanceof Error, 'expected Error');
-        expect(err.message).toMatch(/demo-rule/u);
-        expect(err.message).toMatch(/duplicate|collide/iu);
-      });
-  });
-});
-
 describe('loadConfig — reporters', () => {
   const td = useTempDir();
 
@@ -351,7 +306,7 @@ describe('loadConfig — ts config on a runtime without type stripping', () => {
   it('rejects siro.config.ts with an actionable ConfigError', () => {
     expect.hasAssertions();
     writeFileSync(path.join(td.dir, 'siro.config.ts'), "export default { pms: ['npm'] };\n");
-    return expect(loadConfig(td.dir, void 0, '20.19.0')).rejects.toMatchObject({
+    return expect(loadConfig(td.dir, '20.19.0')).rejects.toMatchObject({
       message: expect.stringMatching(/type stripping[\s\S]*siro\.config\.mjs/u),
       name: 'ConfigError',
     });

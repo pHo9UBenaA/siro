@@ -1,3 +1,4 @@
+import { proposeChanges } from './remediation.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { defineRule } from '../entities/rule.ts';
 import { getByPath } from '../entities/config-value.ts';
@@ -16,9 +17,12 @@ export const strictAllowScripts = defineRule({
           return {
             actual: bypass,
             expected: false,
-            manualSteps: [
-              'Remove `dangerously-allow-all-scripts=true` from .npmrc (or set it to false), then set `strict-allow-scripts=true`. The bypass overrides strict script approval.',
-            ],
+            remediation: {
+              kind: 'manual',
+              steps: [
+                'Remove `dangerously-allow-all-scripts=true` from .npmrc (or set it to false), then set `strict-allow-scripts=true`. The bypass overrides strict script approval.',
+              ],
+            },
             message:
               '`dangerously-allow-all-scripts=true` bypasses script approval even when `strict-allow-scripts=true`.',
             state: 'violation',
@@ -29,6 +33,9 @@ export const strictAllowScripts = defineRule({
           return { state: 'ok' };
         }
         return {
+          remediation: proposeChanges(config, [
+            { file: npmrc, keyPath: ['strict-allow-scripts'], op: 'setKey', value: true },
+          ]),
           actual: strict,
           expected: true,
           message:
@@ -38,10 +45,6 @@ export const strictAllowScripts = defineRule({
       },
       docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#strict-allow-scripts',
       file: npmrc,
-      fix() {
-        return [{ file: npmrc, keyPath: ['strict-allow-scripts'], op: 'setKey', value: true }];
-      },
-      fixKind: 'auto',
     },
   },
   description:

@@ -2,7 +2,7 @@ import { asRelPath } from '../../../src/shared/paths.ts';
 import assert from 'node:assert';
 import type { IO } from '../../../src/domain/ports/io.ts';
 import type { LintResult } from '../../../src/domain/entities/lint-result.ts';
-import { SCHEMA_VERSION, jsonReporter } from '../../../src/adapters/reporters/json.ts';
+import { jsonReporter } from '../../../src/adapters/reporters/json.ts';
 import { version } from '../../../src/version.ts';
 
 vi.setConfig({ testTimeout: 5000 });
@@ -23,15 +23,18 @@ const result: LintResult = {
       actual: void 0,
       expected: true,
       file: '.npmrc',
-      fix: [
-        {
-          file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-          keyPath: ['save-exact'],
-          op: 'setKey',
-          value: true,
-        },
-      ],
-      fixable: true,
+      remediation: {
+        kind: 'automatic',
+        operations: [
+          {
+            file: { kind: 'npmrc', path: asRelPath('.npmrc') },
+            keyPath: ['save-exact'],
+            op: 'setKey',
+            value: true,
+          },
+        ],
+      },
+
       message: 'Set `save-exact=true` in .npmrc.',
       pm: 'npm',
       ruleId: 'pin-exact-versions',
@@ -44,20 +47,25 @@ const result: LintResult = {
 describe('json reporter contract', () => {
   it('stamps the schema version on the document root', () => {
     expect.hasAssertions();
-    expect(render(result)).toHaveProperty('schemaVersion', SCHEMA_VERSION);
+    expect(render(result)).toHaveProperty('schemaVersion', 2);
   });
   it('stamps the running siro version on the document root', () => {
     expect.hasAssertions();
     expect(render(result)).toHaveProperty('siroVersion', version);
   });
-  it('round-trips a finding fix op through JSON', () => {
+  it('round-trips automatic remediation through JSON', () => {
     expect.hasAssertions();
     const parsed: {
-      findings: { fix: { keyPath: string[]; value: unknown }[] }[];
+      findings: {
+        remediation: { kind: 'automatic'; operations: { keyPath: string[]; value: unknown }[] };
+      }[];
     } = JSON.parse((() => JSON.stringify(render(result)))());
     const FIRST = 0;
     const finding = parsed.findings[FIRST];
     assert(finding, 'expected finding');
-    expect(finding.fix[FIRST]).toMatchObject({ keyPath: ['save-exact'], value: true });
+    expect(finding.remediation.operations[FIRST]).toMatchObject({
+      keyPath: ['save-exact'],
+      value: true,
+    });
   });
 });

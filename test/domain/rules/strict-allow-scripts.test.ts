@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
@@ -21,7 +22,10 @@ describe('strict-allow-scripts', () => {
       'strict-allow-scripts': true,
     });
     expect(status).toMatchObject({
-      manualSteps: [expect.stringContaining('dangerously-allow-all-scripts')],
+      remediation: {
+        kind: 'manual',
+        steps: [expect.stringContaining('dangerously-allow-all-scripts')],
+      },
       state: 'violation',
     });
   });
@@ -71,7 +75,7 @@ describe('strict-allow-scripts', () => {
 
   it('fix returns setKey op for strict-allow-scripts: true', () => {
     expect.hasAssertions();
-    const ops = npm.fix(makeCtx());
+    const ops = automaticOperations(npm.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'npmrc', path: '.npmrc' },

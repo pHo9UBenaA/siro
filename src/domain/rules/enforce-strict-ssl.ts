@@ -1,4 +1,5 @@
-import type { AutoRuleBinding, CheckStatus } from '../entities/rule.ts';
+import { proposeChanges } from './remediation.ts';
+import type { RuleBinding, CheckStatus } from '../entities/rule.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
@@ -8,47 +9,39 @@ const { npmrc, yarnrc } = CONFIG_FILES;
 const yarnMessage =
   'Set `enableStrictSsl: true` in .yarnrc.yml to enforce SSL certificate validation for registry connections.';
 
-const yarnBinding: AutoRuleBinding = {
+const yarnBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
     const strictSsl = getByPath(config, ['enableStrictSsl']);
-    if (typeof strictSsl !== 'undefined' && strictSsl !== true) {
-      return {
-        actual: strictSsl,
-        expected: true,
-        message: yarnMessage,
-        state: 'violation',
-      };
-    }
     const whitelist = getByPath(config, ['unsafeHttpWhitelist']);
     if (Array.isArray(whitelist) && whitelist.length > 0) {
       return {
         actual: whitelist,
         expected: '',
-        manualSteps: [
-          'Review and remove entries from `unsafeHttpWhitelist` in .yarnrc.yml. Each entry permits unencrypted HTTP to that hostname.',
-        ],
+        remediation: {
+          kind: 'manual',
+          steps: [
+            'Review and remove entries from `unsafeHttpWhitelist` in .yarnrc.yml. Each entry permits unencrypted HTTP to that hostname. Also set `enableStrictSsl: true`.',
+          ],
+        },
         message:
           '`unsafeHttpWhitelist` in .yarnrc.yml allows unencrypted HTTP connections — remove entries or clear the list to enforce HTTPS-only registry access.',
         state: 'violation',
       };
     }
-    if (typeof strictSsl === 'undefined') {
-      return {
-        actual: strictSsl,
-        expected: true,
-        message: yarnMessage,
-        severity: 'info',
-        state: 'violation',
-      };
-    }
-    return { state: 'ok' };
+    if (strictSsl === true) return { state: 'ok' };
+    return {
+      state: 'violation',
+      actual: strictSsl,
+      expected: true,
+      message: yarnMessage,
+      ...(strictSsl === undefined ? { severity: 'info' as const } : {}),
+      remediation: proposeChanges(config, [
+        { file: yarnrc, keyPath: ['enableStrictSsl'], op: 'setKey', value: true },
+      ]),
+    };
   },
   docs: 'https://yarnpkg.com/configuration/yarnrc#enableStrictSsl',
   file: yarnrc,
-  fix() {
-    return [{ file: yarnrc, keyPath: ['enableStrictSsl'], op: 'setKey', value: true }];
-  },
-  fixKind: 'auto',
 };
 
 const builtRule = requireConfigKey({

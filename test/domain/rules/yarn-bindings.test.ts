@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import {
   DOCUMENTED_DEFAULT_MINUTES,
   RECOMMENDED_RELEASE_AGE_MINUTES,
@@ -92,7 +93,7 @@ describe('yarn bindings — pin-exact-versions and minimum-release-age', () => {
     const bd = minimumReleaseAge.bindings.yarn;
     assert(bd, 'expected binding');
     expect(bd.check(ctx(), { npmMinimalAgeGate: DOCUMENTED_DEFAULT_MINUTES }).state).toBe('ok');
-    const setKey = bd.fix(ctx()).find((op) => op.op === 'setKey');
+    const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
     assert(setKey, 'expected setKey op');
     expect(setKey).toMatchObject({
       keyPath: ['npmMinimalAgeGate'],
@@ -152,7 +153,7 @@ describe('yarn bindings — hardened-mode', () => {
     expect.hasAssertions();
     const bd = hardenedMode.bindings.yarn;
     assert(bd, 'expected binding');
-    const setKey = bd.fix(ctx()).find((op) => op.op === 'setKey');
+    const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
     assert(setKey, 'expected setKey op');
     expect(setKey).toMatchObject({ keyPath: ['enableHardenedMode'], value: true });
   });

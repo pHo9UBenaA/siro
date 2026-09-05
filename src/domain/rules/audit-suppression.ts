@@ -1,4 +1,4 @@
-import { type AdvisoryRuleBinding, type CheckStatus, defineRule } from '../entities/rule.ts';
+import { type RuleBinding, type CheckStatus, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { type ConfigReadValue, type ParsedConfig, getByPath } from '../entities/config-value.ts';
 
@@ -19,26 +19,21 @@ const checkSuppression = (config: ParsedConfig): CheckStatus => {
     actual,
     message: `Review audit suppression in .yarnrc.yml (${present.join(', ')}). Broad glob patterns can silently hide future vulnerabilities.`,
     state: 'violation',
+    remediation: {
+      kind: 'manual',
+      steps: [
+        'Review entries in `npmAuditIgnoreAdvisories` and `npmAuditExcludePackages` — remove stale suppressions and overly broad glob patterns.',
+      ],
+    },
   };
 };
 
-const yarnBinding: AdvisoryRuleBinding = {
+const yarnBinding: RuleBinding = {
   check(_ctx, config) {
     return checkSuppression(config);
   },
   docs: 'https://yarnpkg.com/configuration/yarnrc#npmAuditIgnoreAdvisories',
   file: yarnrc,
-  fix() {
-    return [
-      {
-        file: yarnrc,
-        message:
-          'Review entries in `npmAuditIgnoreAdvisories` and `npmAuditExcludePackages` — remove stale suppressions and overly broad glob patterns.',
-        op: 'note' as const,
-      },
-    ];
-  },
-  fixKind: 'advisory',
 };
 
 export const auditSuppression = defineRule({

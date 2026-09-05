@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
@@ -18,7 +19,10 @@ describe('strict-store-integrity: check states', () => {
     expect(aubeBinding.check(makeCtx(), config)).toMatchObject({
       actual: false,
       expected: true,
-      manualSteps: [expect.stringMatching(/verifyStoreIntegrity: true/u)],
+      remediation: {
+        kind: 'manual',
+        steps: [expect.stringMatching(/verifyStoreIntegrity: true/u)],
+      },
       state: 'violation',
     });
   });
@@ -80,7 +84,7 @@ describe('strict-store-integrity: scope, metadata, and fix', () => {
 
   it('fix returns setKey op for strictStoreIntegrity: true', () => {
     expect.hasAssertions();
-    const ops = aubeBinding.fix(makeCtx());
+    const ops = automaticOperations(aubeBinding.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },

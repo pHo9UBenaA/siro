@@ -66,9 +66,6 @@ catalogs:
     typescript:
       specifier: 6.0.3
       version: 6.0.3
-    unrun:
-      specifier: 0.3.1
-      version: 0.3.1
     valibot:
       specifier: 1.4.2
       version: 1.4.2
@@ -150,9 +147,6 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
-      unrun:
-        specifier: 'catalog:'
-        version: 0.3.1
       vitest:
         specifier: 'catalog:'
         version: 4.1.7(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(yaml@2.9.0))
@@ -3740,6 +3734,7 @@ snapshots:
   unrun@0.3.1:
     dependencies:
       rolldown: 1.0.3
+    optional: true
 
   valibot@1.4.2(typescript@6.0.3):
     optionalDependencies:

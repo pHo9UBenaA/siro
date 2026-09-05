@@ -28,5 +28,6 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm check
       - run: pnpm knip
+      - run: pnpm check:docs
       - run: pnpm build
       - run: pnpm test

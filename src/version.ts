@@ -1,2 +1,3 @@
-// Auto-generated from package.json by scripts/gen/version.mjs.
-export const version = '0.4.0';
+import pkg from '../package.json' with { type: 'json' };
+
+export const version = pkg.version;

@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import { expectMessageContains } from '../../helpers/binding-expectations.ts';
@@ -75,7 +76,7 @@ describe('advisory-check: scope, metadata, and fix', () => {
 
   it('fix returns setKey op for advisoryCheck: on', () => {
     expect.hasAssertions();
-    const ops = aubeBinding.fix(makeCtx());
+    const ops = automaticOperations(aubeBinding.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },

@@ -1,3 +1,4 @@
+import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { frozenStore } from '../../../src/domain/rules/frozen-store.ts';
@@ -46,16 +47,11 @@ describe('frozen-store: scope, metadata, and fix', () => {
     expect(pnpmBinding.file).toStrictEqual({ kind: 'yaml', path: 'pnpm-workspace.yaml' });
   });
 
-  it('is an advisory binding', () => {
+  it('provides actionable manual remediation', () => {
     expect.hasAssertions();
-    expect(pnpmBinding.fixKind).toBe('advisory');
-  });
-
-  it('fix returns a note op', () => {
-    expect.hasAssertions();
-    const ops = pnpmBinding.fix(makeCtx());
+    const ops = manualSteps(pnpmBinding.check(makeCtx(), {}))!;
     const SINGLE = 1;
     expect(ops).toHaveLength(SINGLE);
-    expect(ops[0]).toMatchObject({ op: 'note' });
+    expect(ops[0]).toContain('Populate the store');
   });
 });

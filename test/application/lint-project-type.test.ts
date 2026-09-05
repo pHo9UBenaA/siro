@@ -1,3 +1,4 @@
+import { run } from '../../src/cli.ts';
 import { asAbsPath } from '../../src/shared/paths.ts';
 import { captureIO } from '../helpers/io.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
@@ -47,7 +48,7 @@ describe('project type selection', () => {
     );
     const { io, out } = captureIO();
 
-    return lintCommand({ cwd: asAbsPath(dir), reporter: 'json' }, io)
+    return run(['lint', dir, '--reporter', 'json'], io)
       .then(() => {
         const result: { findings: { ruleId: string }[] } = JSON.parse(out());
         const ids = result.findings.map((finding) => finding.ruleId);
@@ -74,7 +75,7 @@ describe('project type selection', () => {
     );
     const { io, out } = captureIO();
 
-    return lintCommand({ cwd: asAbsPath(dir), projectType: 'application', reporter: 'json' }, io)
+    return run(['lint', dir, '--project-type', 'application', '--reporter', 'json'], io)
       .then(() => {
         const result: { findings: { ruleId: string }[] } = JSON.parse(out());
         const packageRules = new Set(['files-field', 'provenance', 'publish-access']);

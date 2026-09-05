@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
 import { exitCodeForLint } from '../../../src/domain/services/filter.ts';
@@ -37,7 +38,7 @@ describe('pin-exact-versions (npm)', () => {
   });
 
   it('fixes only save-exact, preserving the configured prefix', () => {
-    expect(npm.fix(ctx)).toStrictEqual([
+    expect(automaticOperations(npm.check(ctx, {}))).toStrictEqual([
       {
         file: { kind: 'npmrc', path: '.npmrc' },
         keyPath: ['save-exact'],
@@ -126,7 +127,7 @@ describe('exact save prefixes', () => {
       pms: ['aube'],
       ruleSet: [pinExactVersions],
     });
-    expect(pinExactVersions.bindings.aube?.file.path).toBe('.npmrc');
+    expect(pinExactVersions.bindings.aube?.file?.path).toBe('.npmrc');
     expect(result.findings).toStrictEqual([]);
   });
 });

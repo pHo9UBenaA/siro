@@ -1,4 +1,4 @@
-import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
+import { type RuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
@@ -10,13 +10,19 @@ const isNonEmptyObject = (value: unknown): boolean =>
   !Array.isArray(value) &&
   Object.keys(value).length > 0;
 
-const pnpmBinding: AdvisoryRuleBinding = {
+const pnpmBinding: RuleBinding = {
   check(_ctx, config) {
     const value = getByPath(config, ['patchedDependencies']);
     if (!isNonEmptyObject(value)) {
       return { state: 'ok' };
     }
     return {
+      remediation: {
+        kind: 'manual',
+        steps: [
+          'Review each entry in `patchedDependencies` — verify patches address a known issue and have not been tampered with.',
+        ],
+      },
       actual: value,
       message:
         'Review `patchedDependencies` in pnpm-workspace.yaml. Local patches modify dependency code after the registry artifact is verified; review the patch files separately.',
@@ -25,17 +31,6 @@ const pnpmBinding: AdvisoryRuleBinding = {
   },
   docs: 'https://pnpm.io/settings#patcheddependencies',
   file: pnpmWorkspace,
-  fix() {
-    return [
-      {
-        file: pnpmWorkspace,
-        message:
-          'Review each entry in `patchedDependencies` — verify patches address a known issue and have not been tampered with.',
-        op: 'note' as const,
-      },
-    ];
-  },
-  fixKind: 'advisory',
 };
 
 export const patchedDependencies = defineRule({

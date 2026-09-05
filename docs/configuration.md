@@ -1,265 +1,149 @@
-# Configuration & behavior
+# Configuration and behavior
 
 ## Versioning policy
 
-`siro` evaluates repository settings against the documented policy snapshot in
-[version-matrix.md](version-matrix.md). It detects the package-manager name, but
-never branches on the installed or declared version. Upstream behavior can change;
-the matrix records verified sources and unresolved release-history details.
+siro evaluates repository settings against the recorded policy snapshot in
+[version-matrix.md](version-matrix.md). It detects package-manager names and does
+not change rules based on installed or declared versions. Version annotations
+are display metadata. Check compatibility before relying on a documented default;
+some defaults apply only in CI or public pull requests.
 
-An informational finding based on a documented default does not establish that
-an older installation uses that default. CI-only defaults also depend on the
-actual invocation environment. Enable a compatible explicit setting, or evaluate
-an upgrade, before relying on that protection. CLI flags, environment variables,
-user/global config files, and workspace children are outside the effective-config
-model: a successful run is not an installation-security attestation.
+The checks do not resolve command-line flags, environment variables, user/global
+configuration, or workspace children into an effective installation policy.
+A clean result is not a security attestation. See [threat-model.md](threat-model.md).
 
-When a binding has authoritative version data, it surfaces it in the message as a parenthesised
-suffix — `(available since pnpm 10.16.0; default safe since pnpm 11.0.0 (1440 minutes))` —
-generated from a structured `versionNote`. The suffix is **display-only**; no severity or applicability check
-reads it. See [version-matrix.md](version-matrix.md) for the per-rule × per-PM table that backs
-these suffixes (and the cells still marked TBD pending upstream-docs research).
+## Selection and input
 
-## Package manager detection
+Detection combines `package.json#packageManager`, lockfiles, and manager-specific
+configuration files. All detected managers are checked. `.npmrc` alone identifies
+no manager because several managers read it. With no detection signal, the CLI
+exits `2`; `--pm` selects one manager explicitly and bypasses detection.
 
-`siro` combines the following detection signals; none suppresses the others:
+`projectType: 'application'` skips published-artifact rules. `'package'` evaluates
+them even when metadata is temporarily private. An explicit option overrides
+configuration; otherwise siro infers the type from publish metadata (`private`
+and `name` in package.json, or `name` in deno.json).
 
-1. The `packageManager` field in `package.json` (e.g. `pnpm@10.9.0`). The version segment is
-   parsed off and discarded — see [versioning policy](#versioning-policy).
-2. Lockfiles (`package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `yarn.lock`,
-   `bun.lock`, `bun.lockb`, `deno.lock`, `aube-lock.yaml`).
-3. Manager config files (`.yarnrc.yml`, `bunfig.toml`, `pnpm-workspace.yaml`, `deno.json`,
-   `aube-workspace.yaml`).
+Inspected JSON and YAML files must have object roots. Arrays, scalars, and `null`
+are errors. Missing files and empty YAML documents provide no settings; empty
+JSON is invalid. `package.json`, when present, must be an object. Supported targets
+are listed in [rules.md](rules.md). Lockfile checks inspect presence, not git
+tracking or lockfile contents. Deno currently supports strict `deno.json`, not
+`deno.jsonc` or external import maps.
 
-`.npmrc` is deliberately **not** a detection signal: npm, pnpm, and bun all read it, so its
-presence identifies no single manager (every detection signal is owned by exactly one PM). An
-npm repo is detected via `package-lock.json` / `npm-shrinkwrap.json` or the `packageManager`
-field; with neither present, pass `--pm npm`.
+## Executable CLI configuration
 
-`deno.jsonc` is **not supported**: detection and parsing target `deno.json` only (the JSON codec
-reads strict JSON). On a `deno.jsonc`-only repo, deno is detected only via `deno.lock`,
-and the deno rules see an absent config file. Migrate the config to `deno.json` before relying on the deno rules; JSONC
-support is tracked as future work.
-
-Multiple managers may be detected (monorepos, migrations); all are evaluated. Use `--pm <name>` to
-force a single one. If nothing is detected, `lint` exits 2 — pass `--pm <name>` to
-be explicit. (No silent fallback: linting a deno-only repo as `npm` would surface findings the user
-can't act on.)
-
-## Files inspected per package manager
-
-Each rule binding declares one primary config file. The table below lists every file siro
-reads for a given PM, with the number of rules that reference it.
-
-| PM   | Config file           | Rules |
-| ---- | --------------------- | ----: |
-| npm  | `.npmrc`              |     7 |
-| npm  | `package.json`        |     2 |
-| npm  | lockfiles             |     1 |
-| pnpm | `pnpm-workspace.yaml` |    11 |
-| pnpm | `.npmrc`              |     1 |
-| pnpm | `package.json`        |     2 |
-| pnpm | lockfiles             |     1 |
-| yarn | `.yarnrc.yml`         |    10 |
-| yarn | `package.json`        |     2 |
-| yarn | lockfiles             |     1 |
-| bun  | `bunfig.toml`         |     6 |
-| bun  | `.npmrc`              |     1 |
-| bun  | `package.json`        |     3 |
-| bun  | lockfiles             |     1 |
-| deno | `deno.json`           |     4 |
-| deno | lockfiles             |     1 |
-| aube | `aube-workspace.yaml` |    10 |
-| aube | `.npmrc`              |     1 |
-| aube | `package.json`        |     2 |
-| aube | lockfiles             |     1 |
-
-"lockfiles" is always `commit-lockfile`, which checks for the PM's native lockfile(s) via
-`ctx.exists()` — it does not parse file contents. `package.json` rules
-(`files-field`, `publish-access`, and `disable-lifecycle-scripts × bun`'s
-`trustedDependencies` fallback) read the typed valibot view from `ctx.packageJson`.
-
-See [rules.md](rules.md) for per-rule target files and
-[comparison.md](comparison.md) for the full rule × PM support matrix.
-
-Inspected JSON and YAML files must have mapping roots. Explicit arrays, scalars,
-and `null` are configuration errors. Missing files provide no settings; an empty
-or comment-only YAML document also provides no settings. A present empty JSON
-file is invalid. A present `package.json` must be a JSON object, even when no
-published-package rules apply.
-
-## `siro.config.ts`
-
-Drop a `siro.config.{ts,mjs,js}` next to `package.json` to customize behavior:
+The CLI loads the first existing `siro.config.ts`, `siro.config.mjs`, or
+`siro.config.js` in that order. These files run with the caller's privileges.
+TypeScript must use erasable syntax supported by the required Node version.
 
 ```ts
 import { defineConfig } from '@pho9ubenaa/siro';
 
 export default defineConfig({
-  projectType: 'application', // or 'package'; omit to infer from publish metadata
-  pms: ['npm', 'pnpm'], // restrict detection to a subset
-  rules: {
-    provenance: 'off', // disable a rule
-    'pin-exact-versions': 'warn', // override severity
-  },
-  customRules: [], // append project-specific rules
-  reporters: [], // register custom Reporter implementations
+  projectType: 'application',
+  pms: ['npm', 'pnpm'],
+  rules: { provenance: 'off', 'pin-exact-versions': 'warn' },
+  customRules: [],
+  reporters: [],
 });
 ```
 
-`projectType` separates published packages from applications that only consume
-dependencies. `application` skips `files-field`, `publish-access`, and `provenance`;
-`package` evaluates them even when package metadata is temporarily private. A CLI or
-programmatic `projectType` takes precedence over this config value. When neither is set,
-siro infers each PM binding from `private`/`name`; Deno bindings use the `name` in
-`deno.json`. The inferred result also filters `projectTypes` on custom rules, so a
-package-only custom rule does not run for an inferred application. Untyped programmatic
-calls that pass an unsupported project type, PM, or severity reject with `UsageError`
-instead of returning a potentially clean result.
+`pms` restricts detection and must be non-empty when present. Rule IDs must be
+known and unique across built-in and custom rules. Unknown config keys and
+malformed extension objects are errors. Config maps must be ordinary objects
+or objects with a null prototype; class instances and inherited maps are rejected.
 
-`.ts` configs use Node's native type stripping (Node `^22.18.0 || ^23.6.0 || >=24`).
-Only erasable TypeScript syntax is supported, so enums and parameter properties
-require a separate build step. Without `"type": "module"` in package.json, Node
-may print a `MODULE_TYPELESS_PACKAGE_JSON` notice on stderr.
-Each load re-evaluates the config entry. Its imported modules retain Node's normal
-module cache; restart the process when changing those dependencies.
-Unknown rule IDs are caught at startup: siro exits with code 2 and prints
-`siro.config: unknown rule id '…'` (or `unknown rule ids` for multiple) so typos fail fast.
+Each call reloads the config entry module. Node still caches its imported
+dependencies. This is not a sandbox or a general hot-reload mechanism.
 
-### Custom rule input and output
+## Library use
 
-Configuration, rule, binding, and reporter containers must be ordinary objects
-or null-prototype dictionaries. Custom prototypes, class instances, and objects
-from another JavaScript realm are rejected. Own keys such as `constructor` remain
-valid rule IDs. Executable configuration is trusted code, not a sandbox.
-
-`ParsedConfig` values and `getByPath()` results are `unknown`: parsing a file does
-not validate a rule's expected value type. Narrow each value before using it:
+The library never discovers or executes repository configuration implicitly.
+Pass a `config` object to `lint` for results, or to `lintCommand` for reporting
+and an exit code. `fs` supplies all package-manager file reads.
 
 ```ts
-const value = getByPath(config, ['minimumReleaseAge']);
-const enabled = typeof value === 'number' && Number.isFinite(value) && value > 0;
+import { asAbsPath, lint, lintCommand, loadConfig, nodeIO } from '@pho9ubenaa/siro';
+
+const cwd = asAbsPath(process.cwd());
+const result = lint({ cwd, config: { projectType: 'application' } });
+
+// Opt into executing a trusted repository's configuration.
+const config = await loadConfig(cwd);
+const exitCode = await lintCommand({ cwd, config, reporter: 'json' }, nodeIO);
 ```
 
-Nested arrays and TOML dates remain available to custom rules. A rule must return
-a valid `CheckStatus`. Automatic fixes contain only `setKey` operations targeting
-parsed config files (`WritableConfigFileRef`); advisory fixes contain only notes
-or tracking guidance. Expected values and fix values must be finite numbers,
-strings, or booleans. Malformed extension results are configuration errors (exit 2),
-while unexpected exceptions thrown by extensions remain crashes (exit 70).
+Custom rules and reporters belong in `config.customRules` and `config.reporters`.
+The former top-level extension options were removed in v0.4.0. `LintOptions`
+describes evaluation; `LintCommandOptions` adds `reporter` and `severity`.
+Path constructors validate their input: roots must be absolute; repository paths
+must be relative and contain no parent traversal. Filesystem symlinks still follow
+normal Node behavior.
 
-`requireConfigKey` describes one key and emits one key write. The former
-`extraFix` option and `KeyAssignment` type were removed in v0.4.0; passing
-`extraFix` throws instead of silently dropping a policy requirement. Use a custom
-binding when acceptance depends on multiple settings; its check and remediation
-must express the same policy.
+## Custom checks and remediation
 
-The pinning rule checks save defaults for npm, pnpm, Yarn, Bun, and Aube. It does
-not audit all existing manifest ranges or override explicit add-command flags.
-For Deno it inspects `npm:`/`jsr:` entries in `deno.json#imports`, including tags,
-missing versions, and subpaths. Relative/URL imports, scoped import maps, and
-external import-map files are outside that check. Aube uses `.npmrc`; conflicting
-`save-prefix`/`savePrefix` aliases require manual reconciliation because their
-line order is not retained by the parsed configuration model.
+```ts
+import { CONFIG_FILES, defineRule, getByPath } from '@pho9ubenaa/siro';
 
-## Per-PM severity and PM defaults
+const approval = defineRule({
+  id: 'local-approval',
+  title: 'Require approval',
+  description: 'Require the project approval setting.',
+  severity: 'error',
+  bindings: {
+    npm: {
+      file: CONFIG_FILES.npmrc,
+      check(_ctx, config) {
+        if (getByPath(config, ['local-approval']) === true) return { state: 'ok' };
+        return {
+          state: 'violation',
+          message: 'Enable local approval.',
+          remediation: {
+            kind: 'automatic',
+            operations: [
+              { op: 'setKey', file: CONFIG_FILES.npmrc, keyPath: ['local-approval'], value: true },
+            ],
+          },
+        };
+      },
+    },
+  },
+});
+```
 
-A rule's severity is its default; an individual PM binding can override it. Two mechanisms:
+A check returns `ok`, `na`, or one violation, optionally with automatic operations
+or manual steps. The engine validates untyped results before reporting them.
+A binding may omit `file` when it only needs the repository context.
+`fix`, `fixKind`, `AutoRuleBinding`, `AdvisoryRuleBinding`, and `fileGlob` were removed
+in v0.4.0. See [json-output.md](json-output.md) for schema 2.
 
-- **Static override** (`spec.severity`): a single PM is informational by design — e.g.
-  `disable-lifecycle-scripts` × bun is `info` because Bun 1.3+ already blocks postinstall for
-  untrusted packages outside the bunfig key.
-- **`documentedDefault` advisory**: when the key is unset _and_ the PM's own documented
-  default would satisfy the rule, the finding is emitted at `info` with the original message
-  (plus the `versionNote` suffix when the binding declares one).
-  Used today by:
-  - `disable-lifecycle-scripts × yarn` (`enableScripts: false`).
-  - `enforce-strict-ssl × npm` (`strict-ssl` defaults to `true`).
-  - `checksum-verification × yarn` (`checksumBehavior` defaults to `'throw'`).
-  - `block-exotic-subdeps × pnpm` (`blockExoticSubdeps` defaults to `true`),
-    `× aube` (`blockExoticSubdeps` defaults to `true`).
-  - `frozen-lockfile × pnpm` (`frozenLockfile: true`),
-    `× yarn` (`enableImmutableInstalls: true`).
-  - `minimum-release-age × pnpm` (`minimumReleaseAge: 1440`),
-    `× yarn` (`npmMinimalAgeGate: 1440`),
-    `× deno` (`minimumDependencyAge: 1440`),
-    `× aube` (`minimumReleaseAge: 1440`).
-  - `hardened-mode × yarn` (`enableHardenedMode: true`, auto-enabled only for
-    PRs on public repositories).
-    The user is told "the PM default already covers you, but please
-    pin it explicitly".
-    Some documented defaults are conditional (pnpm's `frozenLockfile` auto-enables
-    only under CI; yarn's `enableHardenedMode` only for
-    PRs on public repositories); they still qualify for the advisory downgrade, and the
-    binding's message names the condition.
-    Reporters render these as ordinary `info` findings — they participate in
-    `--severity info` thresholds and exit codes.
+`requireConfigKey` describes one setting and its proposed scalar replacement.
+Use a direct binding for multiple settings or precedence-dependent remediation.
+The former `extraFix` option is rejected. For example, a bypass may require manual
+removal even when setting another key would normally be sufficient.
 
-`frozen-lockfile × aube` always emits an informational command advisory: use
-`aube ci` or `aube install --frozen-lockfile`. Its `preferFrozenLockfile` setting
-prefers a headless install but does not enforce a frozen lockfile.
+## Severity and reporters
 
-Bindings with `documentedDefault` accept an additional `defaultSatisfiedSeverity` field that
-controls the severity of the advisory finding emitted when the key is unset and the PM default
-already satisfies the rule. The default is `'info'` (educational notice, still surfaced by
-reporters and `--severity info` thresholds). Setting `defaultSatisfiedSeverity: 'off'` makes
-the silent case truly silent — no finding is produced when the key is unset and the PM default
-covers the rule. Use the default (`'info'`) when you want to nudge users toward an explicit
-pin even though they are safe today; use `'off'` when the CI noise is not worth it and you
-trust the PM default to keep covering the case. Note that `'off'` removes the finding
-entirely (the check reports ok): a user `rules` severity override re-levels findings but
-does not resurrect a case `'off'` has silenced.
+User `rules` overrides take precedence over result, binding, and rule severities.
+`'off'` removes a rule. A `requireConfigKey` binding may use `documentedDefault`
+to emit `info` when an omitted key is already safe under the recorded default.
+Its `defaultSatisfiedSeverity: 'off'` suppresses that case entirely; a severity
+override cannot resurrect a finding the check did not emit.
 
-A user override (`rules: { 'rule-id': 'warn' }`) is the highest-priority signal and replaces
-both static and `documentedDefault` overrides for that rule across every PM. Per-PM user
-overrides (`'rule-id@pnpm'`) are not yet supported.
+`pretty` prints findings and manual steps, `json` emits the versioned document,
+and `github` emits workflow annotations. Configured reporters register by name;
+later registrations replace earlier ones. An explicit reporter object is also
+accepted by `lintCommand`.
 
-### Rules with multi-key logic
-
-Four bindings ship hand-written check logic instead of the single-key `requireConfigKey` shape:
-
-- `disable-lifecycle-scripts × pnpm` also checks `dangerouslyAllowAllBuilds`. If that bypass is
-  `true` the rule reports a full-severity violation even when `strictDepBuilds: true` is also
-  set — the combination is misleading. When neither key is set, the binding emits the finding
-  at `info` (the hand-written equivalent of `documentedDefault`: pnpm 11+ gates dependency
-  builds by default).
-- `disable-lifecycle-scripts × bun` accepts **two equivalent opt-outs**:
-  `install.ignoreScripts = true` in bunfig.toml _or_ `package.json#/trustedDependencies: []` —
-  the check reads both, so either yields `ok`. The fix op targets only the bunfig key
-  (builtin rules never emit a package.json setKey op).
-- `enforce-strict-ssl × yarn` checks both `enableStrictSsl` and `unsafeHttpWhitelist` — if
-  either `enableStrictSsl: false` or a non-empty `unsafeHttpWhitelist` list is present, the
-  binding reports a violation. When `enableStrictSsl` is unset, the finding is emitted at `info`.
-- `block-exotic-subdeps × npm` checks both `allow-git` and `allow-remote` in `.npmrc` — both
-  must be set to `root` (or `none`) to satisfy the rule.
-
-`hardened-mode` (Yarn 4) is a separate rule that requires `enableHardenedMode: true` in
-`.yarnrc.yml`.
-
-## Reporters
-
-| Name               | Output                                                                 |
-| ------------------ | ---------------------------------------------------------------------- |
-| `pretty` (default) | Colored, human-readable summary.                                       |
-| `json`             | One JSON document containing `findings` and `summary`.                 |
-| `github`           | GitHub Actions workflow commands (`::error`, `::warning`, `::notice`). |
-
-Select with `--reporter <name>`. `--json` is a shortcut for `--reporter json`. Register additional
-reporters via `siro.config.ts` (`reporters: [myReporter]`).
+By default all findings are displayed and only `error` fails. `--severity warn`
+or `--severity info` changes both display and failure thresholds.
 
 ## Exit codes
 
-| Code | Meaning                                                                                                                                                            |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `0`  | No findings at or above the active threshold.                                                                                                                      |
-| `1`  | Findings at or above the threshold (default: `error`).                                                                                                             |
-| `2`  | Usage error (unknown command/PM/severity, broken `siro.config.ts`, a filesystem errno error such as `EACCES`/`ENOTDIR`, or `lint` with no detectable PM).          |
-| `70` | Uncaught exception — a siro bug or a throwing user extension (reporter / custom rule). Distinct from `1`/`2` so CI can tell a crash from findings or usage errors. |
-
-## Dogfooding
-
-This repository configures itself with the same recommendations: `save-exact` and `provenance`
-in `.npmrc`, install-origin controls (`allow-git`, `allow-file`, `allow-remote`, `allow-directory`),
-a committed lockfile, a `pnpm-workspace.yaml` with security settings (`frozenLockfile`,
-`blockExoticSubdeps`, `strictDepBuilds`, `trustPolicy`, `minimumReleaseAge`),
-and repo-local git hooks. See [contributing.md](contributing.md).
+| Code | Meaning                                                                 |
+| ---- | ----------------------------------------------------------------------- |
+| `0`  | No findings at or above the failure threshold                           |
+| `1`  | Findings at or above the failure threshold                              |
+| `2`  | Invalid options, configuration, extension results, or filesystem access |
+| `70` | Unexpected exception, including a throwing custom rule or reporter      |

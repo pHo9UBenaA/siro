@@ -1,4 +1,4 @@
-import { type AbsPath, type RelPath, asAbsPath } from '../shared/paths.ts';
+import { type AbsPath, type RelPath, asRelPath, asAbsPath } from '../shared/paths.ts';
 import { accessSync, constants, readFileSync } from 'node:fs';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import { isNodeError } from './node-errors.ts';
@@ -34,4 +34,4 @@ export const nodeFileSystem: FileSystem = {
 };
 
 export const resolveIn = (root: AbsPath, relPath: RelPath): AbsPath =>
-  asAbsPath(path.join(root, relPath));
+  asAbsPath(path.join(root, asRelPath(relPath)));

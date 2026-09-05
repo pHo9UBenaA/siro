@@ -1,5 +1,6 @@
+import { proposeChanges } from './remediation.ts';
 import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
-import type { AutoRuleBinding, CheckStatus, VersionNote } from '../entities/rule.ts';
+import type { RuleBinding, CheckStatus, VersionNote } from '../entities/rule.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
@@ -7,28 +8,23 @@ import { getByPath } from '../entities/config-value.ts';
 const { npmrc, pnpmWorkspace, yarnrc, aubeWorkspace, bunfig } = CONFIG_FILES;
 
 const pnpmStrictDepBuildsDocs = 'https://pnpm.io/settings#strictdepbuilds';
-// Why not let `requireConfigKey` own this binding too? The builder models
-// exactly one key per binding; pnpm's lifecycle-script story needs both
-// `strictDepBuilds` (the gate) and `dangerouslyAllowAllBuilds` (the bypass).
 const pnpmVersionNote: VersionNote = {
   configAvailableSince: 'pnpm 10.3.0',
   defaultSafeSince: 'pnpm 11.0.0',
 };
-const pnpmBinding: AutoRuleBinding = {
+const pnpmBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
     const bypass = getByPath(config, ['dangerouslyAllowAllBuilds']);
     if (bypass === true) {
-      // Bypass wins over strictDepBuilds — explicit error even if the user
-      // also set strictDepBuilds: true (the two together are misleading).
       return {
         actual: bypass,
         expected: false,
-        // siro will not ask a fixer to silently delete an explicit user
-        // override, so the setKey fix op cannot resolve this case — the
-        // manual steps carry the remediation and `fix` is suppressed.
-        manualSteps: [
-          'Remove `dangerouslyAllowAllBuilds: true` from pnpm-workspace.yaml (or set it to `false`). Setting `strictDepBuilds: true` alone has no effect while the bypass remains.',
-        ],
+        remediation: {
+          kind: 'manual',
+          steps: [
+            'Remove `dangerouslyAllowAllBuilds: true` from pnpm-workspace.yaml (or set it to `false`). Setting `strictDepBuilds: true` alone has no effect while the bypass remains.',
+          ],
+        },
         message:
           '`dangerouslyAllowAllBuilds: true` in pnpm-workspace.yaml bypasses strictDepBuilds — remove it (or set it to false) to restore lifecycle-script gating.',
         state: 'violation',
@@ -38,82 +34,53 @@ const pnpmBinding: AutoRuleBinding = {
     if (strict === true) {
       return { state: 'ok' };
     }
-    if (typeof strict === 'undefined') {
-      // strictDepBuilds defaults to true on the version recorded in pnpmVersionNote — advisory-only (documentedDefault parity).
-      return {
-        actual: strict,
-        expected: true,
-        message:
-          'Set `strictDepBuilds: true` in pnpm-workspace.yaml to pin lifecycle-script gating across versions.',
-        severity: 'info',
-        state: 'violation',
-      };
-    }
     return {
+      state: 'violation',
       actual: strict,
       expected: true,
       message:
-        'Set `strictDepBuilds: true` in pnpm-workspace.yaml to block silent skips of un-approved dep builds.',
-      state: 'violation',
+        strict === undefined
+          ? 'Set `strictDepBuilds: true` in pnpm-workspace.yaml to pin lifecycle-script gating across versions.'
+          : 'Set `strictDepBuilds: true` in pnpm-workspace.yaml to block silent skips of un-approved dep builds.',
+      ...(strict === undefined ? { severity: 'info' as const } : {}),
+      remediation: proposeChanges(config, [
+        { file: pnpmWorkspace, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
+      ]),
     };
   },
   docs: pnpmStrictDepBuildsDocs,
   file: pnpmWorkspace,
-  fix() {
-    // Intentionally do not auto-remove `dangerouslyAllowAllBuilds` — it
-    // signals an explicit user override; surfacing the violation lets them
-    // decide whether to drop it rather than having siro erase it silently.
-    return [{ file: pnpmWorkspace, keyPath: ['strictDepBuilds'], op: 'setKey', value: true }];
-  },
-  fixKind: 'auto',
+
   versionNote: pnpmVersionNote,
 };
 
-const aubeBinding: AutoRuleBinding = {
+const aubeBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
     const jail = getByPath(config, ['jailBuilds']);
-    if (jail !== true) {
-      return {
-        actual: jail,
-        expected: true,
-        message: 'Set `jailBuilds: true` in aube-workspace.yaml to sandbox build scripts.',
-        state: 'violation',
-      };
-    }
     const strict = getByPath(config, ['strictDepBuilds']);
-    if (strict !== true) {
-      return {
-        actual: strict,
-        expected: true,
-        message:
-          'Set `strictDepBuilds: true` in aube-workspace.yaml to require explicit allow/deny for lifecycle scripts.',
-        state: 'violation',
-      };
-    }
-    return { state: 'ok' };
+    if (jail === true && strict === true) return { state: 'ok' };
+    return {
+      state: 'violation',
+      actual: jail !== true ? jail : strict,
+      expected: true,
+      message:
+        jail !== true
+          ? 'Set `jailBuilds: true` in aube-workspace.yaml to sandbox build scripts.'
+          : 'Set `strictDepBuilds: true` in aube-workspace.yaml to require explicit allow/deny for lifecycle scripts.',
+      remediation: proposeChanges(config, [
+        { file: aubeWorkspace, keyPath: ['jailBuilds'], op: 'setKey', value: true },
+        { file: aubeWorkspace, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
+      ]),
+    };
   },
   docs: 'https://aube.jdx.dev/security.html',
   file: aubeWorkspace,
-  fix() {
-    return [
-      { file: aubeWorkspace, keyPath: ['jailBuilds'], op: 'setKey', value: true },
-      { file: aubeWorkspace, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
-    ];
-  },
-  fixKind: 'auto',
 };
 
 const bunMessage =
   'Set `ignoreScripts = true` under [install] in bunfig.toml — or set `"trustedDependencies": []` in package.json — to opt out of the curated allow-list (postinstall is already blocked for untrusted packages by default).';
 
-// Hand-written for the same reason as pnpm: the rule's bun story spans two
-// files. `install.ignoreScripts = true` (bunfig) and `"trustedDependencies":
-// []` (package.json) are equivalent opt-outs, and the check must accept
-// either — otherwise users who chose the package.json route keep seeing a
-// violation whose fix op then adds a bunfig key they never
-// wanted. The fix op targets only the bunfig key (builtin rules
-// never emit a package.json setKey).
-const bunBinding: AutoRuleBinding = {
+const bunBinding: RuleBinding = {
   check(ctx, config): CheckStatus {
     const ignoreScripts = getByPath(config, ['install', 'ignoreScripts']);
     if (ignoreScripts === true) {
@@ -123,14 +90,19 @@ const bunBinding: AutoRuleBinding = {
     if (typeof trusted !== 'undefined' && trusted.length === 0) {
       return { state: 'ok' };
     }
-    return { actual: ignoreScripts, expected: true, message: bunMessage, state: 'violation' };
+    return {
+      remediation: proposeChanges(config, [
+        { file: bunfig, keyPath: ['install', 'ignoreScripts'], op: 'setKey', value: true },
+      ]),
+      actual: ignoreScripts,
+      expected: true,
+      message: bunMessage,
+      state: 'violation',
+    };
   },
   docs: 'https://bun.com/docs/pm/lifecycle',
   file: bunfig,
-  fix() {
-    return [{ file: bunfig, keyPath: ['install', 'ignoreScripts'], op: 'setKey', value: true }];
-  },
-  fixKind: 'auto',
+
   severity: 'info',
   versionNote: { configAvailableSince: 'bun 1.2.0' },
 };
@@ -164,10 +136,6 @@ const builtRule = requireConfigKey({
 // Coverage notes:
 // - deno: no binding — dependency scripts are blocked by default;
 //   explicit allowScripts opt-ins are not audited here.
-//
-// `requireConfigKey`'s single-key model can't express the strictDepBuilds +
-// dangerouslyAllowAllBuilds combo pnpm needs, nor bun's two-file opt-out, so
-// those slots are overridden post-hoc via `overrideBindings`.
 export const disableLifecycleScripts = withAubeParanoid(
   overrideBindings(builtRule, {
     aube: aubeBinding,

@@ -1,17 +1,23 @@
 import { isNonBlankString } from './config-predicates.ts';
-import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
+import { type RuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
 const { bunfig } = CONFIG_FILES;
 
-const bunScannerBinding: AdvisoryRuleBinding = {
+const bunScannerBinding: RuleBinding = {
   check(_ctx, config) {
     const scanner = getByPath(config, ['install', 'security', 'scanner']);
     if (isNonBlankString(scanner)) {
       return { state: 'ok' };
     }
     return {
+      remediation: {
+        kind: 'manual',
+        steps: [
+          'Add `[install.security] scanner = "@socketsecurity/bun-security-scanner"` (or another bun-compatible scanner) to bunfig.toml.',
+        ],
+      },
       actual: scanner,
       message:
         'Configure `[install.security] scanner = "..."` in bunfig.toml (e.g. `@socketsecurity/bun-security-scanner`) to scan new packages on install.',
@@ -20,17 +26,7 @@ const bunScannerBinding: AdvisoryRuleBinding = {
   },
   docs: 'https://bun.com/docs/pm/security-scanner-api',
   file: bunfig,
-  fix() {
-    return [
-      {
-        file: bunfig,
-        message:
-          'Add `[install.security] scanner = "@socketsecurity/bun-security-scanner"` (or another bun-compatible scanner) to bunfig.toml.',
-        op: 'note',
-      },
-    ];
-  },
-  fixKind: 'advisory',
+
   versionNote: { configAvailableSince: 'bun 1.3.0' },
 };
 

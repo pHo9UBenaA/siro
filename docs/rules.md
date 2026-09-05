@@ -1,4 +1,4 @@
-<!-- AUTO-GENERATED from the rule registry. Run `pnpm gen:rules` to update. -->
+<!-- AUTO-GENERATED from the rule registry. Run `pnpm gen:docs` to update. -->
 # Rule reference
 
 Each rule encodes one security intent and maps it per package manager. See the
@@ -82,12 +82,12 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lo
 
 | PM | Target | Reference |
 | --- | --- | --- |
-| `npm` | `package-lock.json` | [official docs](https://docs.npmjs.com/cli/v12/configuring-npm/package-lock-json) |
-| `pnpm` | `pnpm-lock.yaml` | [official docs](https://pnpm.io/git#lockfiles) |
-| `yarn` | `yarn.lock` | [official docs](https://yarnpkg.com/getting-started/qa#should-lockfiles-be-committed-to-the-repository) |
-| `bun` | `bun.lock` | [official docs](https://bun.com/docs/install/lockfile) |
-| `deno` | `deno.lock` | [official docs](https://docs.deno.com/runtime/fundamentals/modules/#integrity-checking-and-lock-files) |
-| `aube` | `aube-lock.yaml` | [official docs](https://aube.en.dev/package-manager/lockfiles) |
+| `npm` | Repository | [official docs](https://docs.npmjs.com/cli/v12/configuring-npm/package-lock-json) |
+| `pnpm` | Repository | [official docs](https://pnpm.io/git#lockfiles) |
+| `yarn` | Repository | [official docs](https://yarnpkg.com/getting-started/qa#should-lockfiles-be-committed-to-the-repository) |
+| `bun` | Repository | [official docs](https://bun.com/docs/install/lockfile) |
+| `deno` | Repository | [official docs](https://docs.deno.com/runtime/fundamentals/modules/#integrity-checking-and-lock-files) |
+| `aube` | Repository | [official docs](https://aube.en.dev/package-manager/lockfiles) |
 
 ## `dependency-overrides` — info
 

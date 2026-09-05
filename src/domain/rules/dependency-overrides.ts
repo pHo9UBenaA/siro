@@ -1,5 +1,5 @@
 import {
-  type AdvisoryRuleBinding,
+  type RuleBinding,
   type CheckStatus,
   type ConfigFileRef,
   defineRule,
@@ -24,26 +24,21 @@ const checkOverrides = (config: ParsedConfig, file: string): CheckStatus => {
     actual: value,
     message: `Review \`overrides\` in ${file}. Overrides can replace transitive dependencies with arbitrary versions or forks.`,
     state: 'violation',
+    remediation: {
+      kind: 'manual',
+      steps: [
+        'Review each entry in `overrides` — verify pinned versions address a known CVE and are not redirecting to untrusted packages.',
+      ],
+    },
   };
 };
 
-const makeBinding = (file: ConfigFileRef, fileName: string, docs: string): AdvisoryRuleBinding => ({
+const makeBinding = (file: ConfigFileRef, fileName: string, docs: string): RuleBinding => ({
   check(_ctx, config) {
     return checkOverrides(config, fileName);
   },
   docs,
   file,
-  fix() {
-    return [
-      {
-        file,
-        message:
-          'Review each entry in `overrides` — verify pinned versions address a known CVE and are not redirecting to untrusted packages.',
-        op: 'note' as const,
-      },
-    ];
-  },
-  fixKind: 'advisory',
 });
 
 export const dependencyOverrides = defineRule({

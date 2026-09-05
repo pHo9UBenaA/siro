@@ -3,6 +3,8 @@
  * anything siro itself can do is reachable from the library entry point.
  */
 
+export { lint, type LintOptions } from './application/lint.ts';
+export { loadConfig } from './adapters/config-loader.ts';
 export { nodeFileSystem } from './adapters/node-file-system.ts';
 export { nodeIO } from './adapters/node-io.ts';
 export {
@@ -14,7 +16,7 @@ export {
   prettyReporter,
   type ReporterRegistry,
 } from './adapters/reporters/registry.ts';
-export { type LintOptions, lintCommand } from './application/commands/lint.ts';
+export { type LintCommandOptions, lintCommand } from './application/commands/lint.ts';
 export { CONFIG_FILES } from './domain/entities/config-files.ts';
 export type {
   ConfigScalar,
@@ -33,17 +35,15 @@ export {
   SEVERITIES,
   type Severity,
 } from './domain/entities/pms.ts';
+export { defineRule } from './domain/entities/rule.ts';
 export type {
-  AdvisoryRuleBinding,
-  AutoRuleBinding,
   CheckStatus,
   ConfigFileRef,
-  FixKind,
-  FixOp,
+  Remediation,
+  SetKeyOperation,
   Rule,
   RuleBinding,
   VersionNote,
-  WritableConfigFileRef,
 } from './domain/entities/rule.ts';
 export { PM_SIGNALS, type PMSignals } from './domain/entities/signals.ts';
 export { defineConfig, type RuleSetting, type SiroConfig } from './domain/entities/siro-config.ts';

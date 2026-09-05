@@ -4,50 +4,36 @@
 
 ### Breaking Changes
 
-- **Unvalidated configuration values**: `ParsedConfig` values, `ConfigReadValue`, and `getByPath()` results are `unknown`. Custom rules must narrow values before using them.
-- **Writable fix targets**: `setKey` operations and `requireConfigKey` bindings require `WritableConfigFileRef`; file-existence references cannot be written as configuration keys.
-
-- **Plain configuration containers**: configuration maps, rules, bindings, and reporters accept ordinary or null-prototype objects; custom prototypes, class instances, and foreign-realm containers are rejected.
-- **Single-key builder**: remove `requireConfigKey.extraFix` and `KeyAssignment`. Multi-setting policies use custom bindings with matching checks and remediation.
+- **One remediation per check**: replace binding `fix`/`fixKind` and finding `fix`/`fixable`/`manualSteps` with `remediation`, containing either automatic operations or manual steps. JSON output uses schema 2.
+- **Explicit library configuration**: `lint` returns results without executing repository configuration. Pass extensions inside `config`; use `loadConfig` to opt into trusted file execution. `LintCommandOptions` adds reporting options to `LintOptions`.
+- **Validated extension boundaries**: parsed values and `getByPath()` results are `unknown`. Configuration maps, rules, bindings, and reporters require ordinary or null-prototype objects. Path constructors reject invalid roots and repository paths with parent traversal.
+- **Simpler rule bindings**: remove `fileGlob`, separate writable-reference and automatic/advisory binding types, `requireConfigKey.extraFix`, and `KeyAssignment`. Repository checks omit `file`; multi-setting policies use direct bindings.
 
 ### Fixes
 
-- Accept npm `save-exact=true` regardless of `save-prefix`, or an exact prefix alone; remediation changes only `save-exact`.
-- Recognize pnpm equality prefixes and Aube `.npmrc` prefix settings, with manual guidance for conflicting Aube aliases.
-- Flag unversioned and tagged Deno registry imports; use the standard semver parser for exact-version validation.
-- Reject non-finite release ages, malformed Deno age objects and allowlists, and blank scanner names.
-- Restrict frozen-store guidance to pre-populated read-only deployments and correct patch-integrity and strict release-age explanations.
-
-- Reject non-mapping JSON/YAML roots and present empty JSON files instead of treating them as missing settings.
-- Reject malformed custom-rule results, invalid remediation operations, sparse arrays, and non-finite expected or fix values with a configuration error.
-- Skip package-manager detection when `--pm` explicitly selects a manager.
-- Parse CLI help, version, and value options through one parser while preserving injected output and exit codes.
-- Preserve errors from custom rules whose names match inherited object properties when the severity override map is empty.
-- Honor explicit severity settings for prototype-named custom rules and reject invalid values with their configuration paths.
-- Reject non-record `rules` values instead of silently treating them as an empty override map.
-- Detect Deno partial and wildcard versions before import subpaths while preserving exact versions.
-- Accept positive fractional npm release-age settings parsed from `.npmrc`.
-- Run related tests for staged TypeScript files in the pre-commit hook.
-- Accept documented Deno minute strings and Yarn duration strings in release-age settings.
-- Honor npm script-policy bypass and ignore-scripts precedence; bypass remediation remains manual.
-- Treat npm 12's default URL restrictions as safe informational pins and recommend `none` without weakening defaults.
-- Stop accepting `npm-shrinkwrap.json` as lockfile protection under the latest npm policy; preserve npm detection from that legacy file.
-- Treat Aube frozen-lockfile enforcement as command guidance, not an automatic `preferFrozenLockfile` fix.
-- Honor Aube's `paranoid` switch across its six forced security controls; explicitly disabled integrity verification still requires manual remediation.
+- Align npm 12 script-policy precedence, URL restrictions, release-age values, and lockfile guidance with the recorded upstream policy.
+- Honor Aube's forced `paranoid` controls while keeping explicitly disabled integrity verification and frozen-lockfile commands as manual guidance.
+- Correct npm exact-save precedence, recognize pnpm equality prefixes and Aube `.npmrc` aliases, and reject conflicting Aube prefix settings.
+- Require exact versions for Deno registry imports, including tags, omitted versions, partial versions, and subpaths, using the standard semver parser.
+- Accept documented Deno and Yarn release-age forms; reject non-finite ages, malformed exclusion lists, and blank scanner names. Preserve Deno age exclusions when proposing a correction.
+- Require HTTP exception removal alongside Yarn TLS restoration. Avoid automatic writes that discard settings containers or replace non-object parents.
+- Reject non-mapping JSON/YAML roots, empty JSON files, malformed extension results, and missing or non-directory CLI targets with actionable errors.
+- Preserve severity overrides for prototype-named custom rules, reject non-record rule settings, and bypass detection for an explicit `--pm` selection.
+- Consolidate CLI argument parsing while preserving injected output and exit codes. Run related tests for staged TypeScript files in the pre-commit hook.
+- Limit frozen-store guidance to pre-populated read-only deployments and correct patch-integrity and strict release-age explanations.
 
 ### Refactoring
 
-- Resolve severity overrides as explicit data without rewriting rule callbacks.
-- Simplify rule evaluation, configuration loading, and parsed-file caching while preserving finding order and remediation behavior.
-- Replace syntax and size restrictions with correctness-focused linting, and run the unused-code check in CI.
-- Clarify custom-rule value contracts and the limits of a successful lint run.
+- Return remediation from the same check that finds a violation, centralize configuration and rule-ID validation, and bind each parsed-file cache to one repository.
+- Replace custom script loading, rule scaffolding and rollback, and layer-whitelist tooling with native Node scripts and ordinary verification commands.
+- Read version metadata from the package manifest, generate rule documentation with one script, and check generated documents and unused code in CI.
+- Replace syntax and size restrictions with correctness-focused linting; document the runtime responsibilities, migration path, and verification limits.
 
 ### Security and documentation
 
-- Pin workflow Actions to verified full commit SHAs, disable persisted checkout credentials, and configure Dependabot Action updates.
-- Add security reporting guidance, a threat model, and a concrete before/after example.
-- Refresh cited package-manager metadata and clarify static-analysis and OSS benchmark limitations.
-- Align Aube frozen-lockfile examples with its unconditional command advisory.
+- Pin workflow Actions to full commit SHAs, disable persisted checkout credentials, and configure Dependabot Action updates.
+- Add security reporting guidance, a threat model, and a before/after example; clarify static-analysis and OSS benchmark limitations.
+- Refresh cited package-manager metadata and align Aube frozen-lockfile examples with its command advisory.
 
 ## [0.3.0]
 

@@ -1,4 +1,4 @@
-import { renderComparison, renderRulesDoc } from '../../scripts/gen/lib/doc-generator.ts';
+import { renderComparison, renderRulesDoc } from '../../scripts/docs.ts';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { rules } from '../../src/domain/builtin-rules.ts';
@@ -89,7 +89,7 @@ const findConfirmedFactsWithoutMetadata = (markdown: string): readonly string[] 
   });
 
 describe('docs/rules.md', () => {
-  it('stays in sync with the rule registry (run `pnpm gen:rules`)', () => {
+  it('stays in sync with the rule registry (run `pnpm gen:docs`)', () => {
     expect.hasAssertions();
     expect(readFileSync(RULES_DOC, 'utf8')).toBe(renderRulesDoc());
   });

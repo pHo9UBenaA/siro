@@ -1,4 +1,4 @@
-import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
+import { type RuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
@@ -10,13 +10,19 @@ const isNonEmptyObject = (value: unknown): boolean =>
   !Array.isArray(value) &&
   Object.keys(value).length > 0;
 
-const pnpmBinding: AdvisoryRuleBinding = {
+const pnpmBinding: RuleBinding = {
   check(_ctx, config) {
     const value = getByPath(config, ['namedRegistries']);
     if (!isNonEmptyObject(value)) {
       return { state: 'ok' };
     }
     return {
+      remediation: {
+        kind: 'manual',
+        steps: [
+          'Verify each named registry points to a trusted source and that scoped packages cannot be hijacked via a public registry of the same name.',
+        ],
+      },
       actual: value,
       message:
         'Review `namedRegistries` in pnpm-workspace.yaml. Custom registry mappings can redirect package resolution away from the public registry, enabling dependency confusion attacks.',
@@ -25,17 +31,6 @@ const pnpmBinding: AdvisoryRuleBinding = {
   },
   docs: 'https://pnpm.io/settings#namedregistries',
   file: pnpmWorkspace,
-  fix() {
-    return [
-      {
-        file: pnpmWorkspace,
-        message:
-          'Verify each named registry points to a trusted source and that scoped packages cannot be hijacked via a public registry of the same name.',
-        op: 'note' as const,
-      },
-    ];
-  },
-  fixKind: 'advisory',
 };
 
 export const namedRegistries = defineRule({

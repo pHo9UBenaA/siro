@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import type {
-  AutoRuleBinding,
+  RuleBinding,
   ConfigFileRef,
   Rule,
   VersionNote,
@@ -110,11 +110,9 @@ describe('versionNote metadata', () => {
 });
 
 describe(overrideBindings, () => {
-  const yarnBinding: AutoRuleBinding = {
+  const yarnBinding: RuleBinding = {
     check: () => ({ state: 'ok' }),
     file: { kind: 'yaml', path: asRelPath('.yarnrc.yml') },
-    fix: () => [],
-    fixKind: 'auto',
   };
   const baseRule = requireConfigKey({
     bindings: {

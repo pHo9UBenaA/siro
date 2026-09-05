@@ -1,56 +1,63 @@
-# JSON output contract (`--reporter json`)
+# JSON output
 
-The json reporter is siro's machine-readable surface, consumed by external
-fixers (editor tooling, agent skills). **Contract scope:** this document, the
-JSON shape, and the exit codes (docs/configuration.md §Exit codes) are stable
-interfaces. Human-readable stderr/stdout prose is NOT a contract — never
-parse it.
+`--reporter json` emits one document. Consumers must check `schemaVersion`
+before processing it. Human-readable messages are not stable identifiers.
+A custom reporter registered as `json` can replace this output.
 
-`schemaVersion` is bumped on any breaking shape change. Consumers must check
-it before reading further fields. Embedders that shadow the `json` reporter
-name via `reporters: [...]` void this contract — the replacement reporter's
-output is not guaranteed to match this specification.
+| Root field      | Meaning                                                                        |
+| --------------- | ------------------------------------------------------------------------------ |
+| `schemaVersion` | `2`                                                                            |
+| `siroVersion`   | Running package version                                                        |
+| `findings`      | Findings at or above the display threshold                                     |
+| `summary`       | `{ "error": number, "warn": number, "info": number }` counts of those findings |
 
-## Document root
+Each finding has `ruleId`, `pm`, `severity`, and `message`. Optional fields are
+`file` (repository-relative path), `docs` (reference URL), `expected` (string,
+finite number, or boolean), `actual` (observed data), and `remediation`.
+Undefined fields are omitted. Repository-wide checks may omit `file`.
 
-| Field           | Type      | Meaning                                       |
-| --------------- | --------- | --------------------------------------------- |
-| `schemaVersion` | number    | Currently `1`.                                |
-| `siroVersion`   | string    | The siro version that produced the document.  |
-| `findings`      | Finding[] | Violations at or above the display threshold. |
-| `summary`       | object    | `{ error, warn, info }` counts of `findings`. |
+## Remediation
 
-## Finding
+A remediation has exactly one of these forms:
 
-| Field         | Type                          | Meaning                                                             |
-| ------------- | ----------------------------- | ------------------------------------------------------------------- |
-| `ruleId`      | string                        | Rule identifier (see docs/rules.md).                                |
-| `pm`          | string                        | Package manager the binding evaluated.                              |
-| `severity`    | `"error" \| "warn" \| "info"` | Resolved severity.                                                  |
-| `message`     | string                        | Human message. Not a contract; do not parse.                        |
-| `file`        | string?                       | Repo-relative target file, absent for existence checks.             |
-| `fixable`     | boolean                       | True when `fix` contains setKey ops a fixer can apply mechanically. |
-| `fix`         | FixOp[]                       | Remediation ops (below). Empty when `manualSteps` is present.       |
-| `manualSteps` | string[]?                     | Steps a human/agent must perform; supersedes `fix`.                 |
-| `expected`    | scalar?                       | Value the rule requires at the key, when applicable.                |
-| `actual`      | any?                          | Value observed at the key (may be `null`, arrays, objects).         |
-| `docs`        | string?                       | Official documentation URL.                                         |
+```json
+{
+  "kind": "automatic",
+  "operations": [
+    {
+      "op": "setKey",
+      "file": { "kind": "npmrc", "path": ".npmrc" },
+      "keyPath": ["save-exact"],
+      "value": true
+    }
+  ]
+}
+```
 
-## FixOp
+`operations` is non-empty. Each operation names a configuration file (`npmrc`,
+`yaml`, `toml`, or `json`), a non-empty key path, and a scalar replacement value.
 
-One of:
+```json
+{
+  "kind": "manual",
+  "steps": ["Remove the script-approval bypass before enabling strict approval."]
+}
+```
 
-- `{ "op": "setKey", "file": { "kind": "npmrc" | "yaml" | "toml" | "json", "path": "<repo-relative>" }, "keyPath": string[], "value": string | number | boolean }`
-  — set the (possibly nested) key to the value, preserving comments and
-  unrelated keys in the target file.
-- `{ "op": "ensureFileTracked", "file": { "kind": "npmrc" | "yaml" | "toml" | "json" | "fileGlob", "path": "<repo-relative>" }, "message": string }`
-  — the named file must exist and be committed.
-- `{ "op": "note", "message": string, "file"?: { ... } }` — prose-only advice.
+`steps` is non-empty. Manual remediation never carries write operations. Built-in proposals also use
+manual guidance when a scalar write would discard a settings container or replace
+a non-object parent.
+A finding without `remediation` makes no proposed change.
 
-## Fixer loop
+siro does not apply changes. An external consumer must review the proposed edit,
+preserve unrelated content and comments, resolve conflicts, and rerun lint.
+Automatic describes the representation of the remedy, not authorization to edit.
+Exit `0` means no finding meets the failure threshold; lower-severity findings
+may remain. See [configuration.md](configuration.md#exit-codes).
 
-1. `siro lint --reporter json` → apply `fix` ops / surface `manualSteps`.
-2. Re-run `siro lint`. Exit code `0` means no finding meets the active failure
-   threshold; lower-severity findings can still remain. Inspect those findings
-   separately. A passing run verifies the configured static checks, not the
-   package manager's runtime behavior or the safety of installed dependencies.
+## Migration from schema 1
+
+The `fix`, `fixable`, and `manualSteps` finding fields were replaced by
+`remediation`. `setKey` operations move under `remediation.operations`;
+`note` and `ensureFileTracked` messages become manual `steps`. A manual remedy
+is chosen by the check itself, so there is no second operation list to suppress.

@@ -1,4 +1,4 @@
-<!-- AUTO-GENERATED from the rule registry. Run `pnpm gen:comparison` to update. -->
+<!-- AUTO-GENERATED from the rule registry. Run `pnpm gen:docs` to update. -->
 # Package manager comparison
 
 Which security rules `siro` can check for each package manager.

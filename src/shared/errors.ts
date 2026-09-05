@@ -1,8 +1,25 @@
-import { ConfigError } from './config-error.ts';
-import { SiroError } from './siro-error.ts';
-import { UsageError } from './usage-error.ts';
+export class SiroError extends Error {
+  public readonly exitCode: number;
+  public constructor(message: string, exitCode: number) {
+    super(message);
+    this.name = 'SiroError';
+    this.exitCode = exitCode;
+  }
+}
 
-export { ConfigError, SiroError, UsageError };
+export class ConfigError extends SiroError {
+  public constructor(message: string) {
+    super(message, 2);
+    this.name = 'ConfigError';
+  }
+}
+
+export class UsageError extends SiroError {
+  public constructor(message: string) {
+    super(message, 2);
+    this.name = 'UsageError';
+  }
+}
 
 /**
  * Run `fn` and wrap any non-`ConfigError` failure as a `ConfigError` prefixed

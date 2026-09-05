@@ -5,16 +5,16 @@ import type { RepoContext } from '../ports/repo-context.ts';
 import { wrapCodecError } from '../../shared/errors.ts';
 
 /** A command-scoped parser that memoizes each `(kind, path)` read. */
-export type ConfigParser = (ctx: RepoContext, file: ConfigFileRef) => ParsedConfig;
+export type ConfigParser = (file?: ConfigFileRef) => ParsedConfig;
 
 const EMPTY_FILE: ParsedConfig = Object.freeze({});
 
 /** Create a fresh parser and cache for one lint command. */
-export const createConfigParser = (codecFor: CodecFor): ConfigParser => {
+export const createConfigParser = (codecFor: CodecFor, ctx: RepoContext): ConfigParser => {
   const cache = new Map<string, ParsedConfig>();
 
-  return (ctx, file) => {
-    if (file.kind === 'fileGlob') {
+  return (file) => {
+    if (file === undefined) {
       return EMPTY_FILE;
     }
 

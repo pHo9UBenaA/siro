@@ -1,7 +1,10 @@
+import { getByPath } from '../entities/config-value.ts';
+import { proposeChanges } from './remediation.ts';
+import type { RuleBinding } from '../entities/rule.ts';
 import { isPlainRecord } from '../../shared/records.ts';
 import { isStringList } from './config-predicates.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
-import { requireConfigKey } from './builders/require-config-key.ts';
+import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 
 const HOURS_PER_DAY = 24;
 const MINUTES_PER_HOUR = 60;
@@ -64,7 +67,7 @@ const isNonDisabledDenoDuration = (value: unknown): boolean => {
   return !Object.hasOwn(value, 'age') || isActiveDenoAge(value.age);
 };
 
-export const minimumReleaseAge = requireConfigKey({
+const baseRule = requireConfigKey({
   bindings: {
     aube: {
       accept: isPositiveNumber,
@@ -83,19 +86,6 @@ export const minimumReleaseAge = requireConfigKey({
       message: `Set install.minimumReleaseAge (bun) to ~${RECOMMENDED_RELEASE_AGE_SECONDS} seconds to quarantine brand-new releases.`,
       value: RECOMMENDED_RELEASE_AGE_SECONDS,
       versionNote: { configAvailableSince: 'bun 1.3.0' },
-    },
-    deno: {
-      accept: isNonDisabledDenoDuration,
-      docs: 'https://docs.deno.com/runtime/reference/deno_json/',
-      documentedDefault: DOCUMENTED_DEFAULT_MINUTES,
-      file: denoJson,
-      keyPath: ['minimumDependencyAge'],
-      message: `Set minimumDependencyAge (e.g. "P3D" for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in deno.json.`,
-      value: 'P3D',
-      versionNote: {
-        defaultSafeSince: 'deno 2.9.0 (1440 minutes)',
-        note: 'object age optional since deno 2.9.4',
-      },
     },
     npm: {
       accept: (value: unknown): boolean => {
@@ -118,9 +108,6 @@ export const minimumReleaseAge = requireConfigKey({
       documentedDefault: DOCUMENTED_DEFAULT_MINUTES,
       file: pnpmWorkspace,
       keyPath: ['minimumReleaseAge'],
-      // Why not bake the version string into `message`? It used to be inline
-      // ("pnpm 11+ defaults..."); the structured versionNote keeps the body
-      // about *what to do* and lets one renderer own the *when* across rules.
       message: `Set minimumReleaseAge (~${RECOMMENDED_RELEASE_AGE_MINUTES} minutes for a 3-day cooldown) in pnpm-workspace.yaml.`,
       value: RECOMMENDED_RELEASE_AGE_MINUTES,
       versionNote: {
@@ -149,3 +136,43 @@ export const minimumReleaseAge = requireConfigKey({
   severity: 'warn',
   title: 'Set a minimum release age',
 });
+
+const denoBinding: RuleBinding = {
+  file: denoJson,
+  docs: 'https://docs.deno.com/runtime/reference/deno_json/',
+  versionNote: {
+    defaultSafeSince: 'deno 2.9.0 (1440 minutes)',
+    note: 'object age optional since deno 2.9.4',
+  },
+  check(_ctx, config) {
+    const actual = getByPath(config, ['minimumDependencyAge']);
+    if (isNonDisabledDenoDuration(actual)) return { state: 'ok' };
+    const objectAge = isPlainRecord(actual);
+    const invalidExclusions =
+      objectAge && actual.exclude !== undefined && !isStringList(actual.exclude);
+    return {
+      state: 'violation',
+      actual,
+      expected: 'P3D',
+      message: `Set minimumDependencyAge (e.g. "P3D" for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in deno.json.`,
+      ...(actual === undefined ? { severity: 'info' as const } : {}),
+      remediation: invalidExclusions
+        ? {
+            kind: 'manual',
+            steps: [
+              'Make minimumDependencyAge.exclude a list of package names and set minimumDependencyAge.age to a positive duration.',
+            ],
+          }
+        : proposeChanges(config, [
+            {
+              file: denoJson,
+              op: 'setKey',
+              keyPath: objectAge ? ['minimumDependencyAge', 'age'] : ['minimumDependencyAge'],
+              value: 'P3D',
+            },
+          ]),
+    };
+  },
+};
+
+export const minimumReleaseAge = overrideBindings(baseRule, { deno: denoBinding });

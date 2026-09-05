@@ -1,3 +1,4 @@
+import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { filesField } from '../../../src/domain/rules/files-field.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
@@ -35,13 +36,13 @@ describe('files-field (npm)', () => {
     expect(npmBinding.check(ctxWith({ files: ['dist'], name: 'x' }), {}).state).toBe('ok');
   });
 
-  it('fix is advisory (a note), not auto-writable', () => {
+  it('provides manual remediation', () => {
     expect.hasAssertions();
-    const ops = npmBinding.fix(ctxWith({ name: 'x' }));
+    const ops = manualSteps(npmBinding.check(ctxWith({ name: 'x' }), {}))!;
     const FIRST_ELEMENT = 0;
     const firstOp = ops[FIRST_ELEMENT];
     assert(firstOp, 'expected at least one fix op');
-    expect(firstOp.op).toBe('note');
+    expect(firstOp).toContain('npm pack --dry-run');
   });
 });
 

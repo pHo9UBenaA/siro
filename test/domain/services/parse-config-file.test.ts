@@ -23,10 +23,10 @@ describe('createConfigParser — same-instance memoization', () => {
     const codecFor: CodecFor = () => makeCodec(parse);
     const ctx = makeCtx({ readText: () => 'raw=text' });
     const file: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
-    const parseConfig = createConfigParser(codecFor);
+    const parseConfig = createConfigParser(codecFor, ctx);
 
-    const first = parseConfig(ctx, file);
-    parseConfig(ctx, file);
+    const first = parseConfig(file);
+    parseConfig(file);
 
     expect(first).toStrictEqual({ val: 1 });
     expect(parse).toHaveBeenCalledTimes(PARSE_ONCE);
@@ -39,10 +39,10 @@ describe('createConfigParser — same-instance memoization', () => {
     const codecFor: CodecFor = () => makeCodec(parse);
     const ctx = makeCtx({ readText });
     const file: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
-    const parseConfig = createConfigParser(codecFor);
+    const parseConfig = createConfigParser(codecFor, ctx);
 
-    parseConfig(ctx, file);
-    parseConfig(ctx, file);
+    parseConfig(file);
+    parseConfig(file);
 
     expect(readText).toHaveBeenCalledTimes(PARSE_ONCE);
   });
@@ -56,8 +56,8 @@ describe('createConfigParser — cross-instance isolation', () => {
     const ctx = makeCtx({ readText: () => 'raw=text' });
     const file: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
 
-    createConfigParser(codecFor)(ctx, file);
-    createConfigParser(codecFor)(ctx, file);
+    createConfigParser(codecFor, ctx)(file);
+    createConfigParser(codecFor, ctx)(file);
 
     expect(parse).toHaveBeenCalledTimes(PARSE_TWICE);
   });
@@ -71,7 +71,7 @@ describe('createConfigParser — error handling', () => {
     const ctx = makeCtx({ readText: () => undefined });
     const file: ConfigFileRef = { kind: 'json', path: asRelPath('deno.json') };
 
-    expect(createConfigParser(codecFor)(ctx, file)).toStrictEqual({});
+    expect(createConfigParser(codecFor, ctx)(file)).toStrictEqual({});
     expect(parse).not.toHaveBeenCalled();
   });
 
@@ -83,11 +83,11 @@ describe('createConfigParser — error handling', () => {
       });
     const ctx = makeCtx({ readText: () => 'garbage' });
     const file: ConfigFileRef = { kind: 'yaml', path: asRelPath('pnpm-workspace.yaml') };
-    const parseConfig = createConfigParser(codecFor);
+    const parseConfig = createConfigParser(codecFor, ctx);
 
-    expect(() => parseConfig(ctx, file)).toThrow(ConfigError);
-    expect(() => parseConfig(ctx, file)).toThrow(/pnpm-workspace\.yaml/u);
-    expect(() => parseConfig(ctx, file)).toThrow(/unexpected token/u);
+    expect(() => parseConfig(file)).toThrow(ConfigError);
+    expect(() => parseConfig(file)).toThrow(/pnpm-workspace\.yaml/u);
+    expect(() => parseConfig(file)).toThrow(/unexpected token/u);
   });
 
   it('rejects cyclic YAML aliases as ConfigError', () => {
@@ -95,21 +95,21 @@ describe('createConfigParser — error handling', () => {
     const codecFor: CodecFor = () => yamlCodec;
     const ctx = makeCtx({ readText: () => 'root: &root\n  self: *root' });
     const file: ConfigFileRef = { kind: 'yaml', path: asRelPath('pnpm-workspace.yaml') };
-    const parseConfig = createConfigParser(codecFor);
+    const parseConfig = createConfigParser(codecFor, ctx);
 
-    expect(() => parseConfig(ctx, file)).toThrow(ConfigError);
+    expect(() => parseConfig(file)).toThrow(ConfigError);
   });
 });
 
-describe('createConfigParser — fileGlob', () => {
-  it('returns an empty object for fileGlob bindings without invoking the codec', () => {
+describe('createConfigParser — repository checks', () => {
+  it('returns an empty object for bindings without a config file without invoking the codec', () => {
     expect.hasAssertions();
     const parse = vi.fn<ConfigCodec['parse']>();
     const codecFor: CodecFor = () => makeCodec(parse);
     const ctx = makeCtx();
-    const file: ConfigFileRef = { kind: 'fileGlob', path: asRelPath('**/*.lock') };
+    const file = undefined;
 
-    const result = createConfigParser(codecFor)(ctx, file);
+    const result = createConfigParser(codecFor, ctx)(file);
 
     expect(result).toStrictEqual({});
     expect(parse).not.toHaveBeenCalled();

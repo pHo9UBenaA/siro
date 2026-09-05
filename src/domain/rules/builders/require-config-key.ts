@@ -1,10 +1,10 @@
+import { proposeChanges } from '../remediation.ts';
 import type {
-  AutoRuleBinding,
+  RuleBinding,
   CheckStatus,
-  FixOp,
   Rule,
   VersionNote,
-  WritableConfigFileRef,
+  ConfigFileRef,
 } from '../../entities/rule.ts';
 import {
   type ConfigValue,
@@ -15,27 +15,16 @@ import {
 import { type PM, PMS, type Severity } from '../../entities/pms.ts';
 import type { RepoContext } from '../../ports/repo-context.ts';
 
-type SetKeyOp = Extract<FixOp, { op: 'setKey' }>;
 interface RequireConfigKeySpec {
-  readonly file: WritableConfigFileRef;
+  readonly file: ConfigFileRef;
   readonly keyPath: KeyPath;
-  /** Value `fix` will write and (when no `accept` predicate is given) the value `check` expects. */
+  /** Expected value and proposed replacement; `accept` may allow other values. */
   readonly value: ConfigValue;
   readonly message: string;
   readonly docs?: string;
   readonly severity?: Severity;
   accept?: (actual: unknown) => boolean;
-  /**
-   * PM-documented default for this key. When the user has not set the key
-   * AND this default would satisfy `accept`/`value`, the finding is
-   * downgraded to {@link defaultSatisfiedSeverity} (default `'info'`) — the
-   * threat is mitigated by the PM but explicit pinning is still recommended.
-   * - unset: no PM-default protection (legacy behaviour).
-   *
-   * A CONDITIONAL default (e.g. CI-only: pnpm `frozenLockfile`) may use this field, but the binding's `message`
-   * MUST name the condition — the downgrade then reads "covered where it
-   * matters most", not "covered unconditionally".
-   */
+  /** A safe omitted value emits info; conditional defaults must be explained in the message. */
   readonly documentedDefault?: ConfigValue;
   /**
    * Severity used when `documentedDefault` satisfies the requirement. Defaults
@@ -58,13 +47,6 @@ export interface RequireConfigKeyOptions<Id extends string = string> {
   applies?: (ctx: RepoContext) => boolean;
 }
 
-/**
- * Replace one or more bindings on an existing rule, returning a fresh Rule
- * object. Used by rules whose shape outgrows {@link requireConfigKey} for a
- * subset of PMs — they build the simple slots via the builder, then splice
- * the hand-written bindings in via this helper rather than rebuilding from
- * scratch or mutating the source rule.
- */
 export const overrideBindings = <Id extends string>(
   rule: Rule<Id>,
   overrides: Partial<Rule['bindings']>,
@@ -80,23 +62,25 @@ const checkKeyValue = (spec: RequireConfigKeySpec, config: ParsedConfig): CheckS
     spec.documentedDefault !== undefined &&
     accepts(spec, spec.documentedDefault);
 
-  if (!coveredByDefault && !accepts(spec, actual)) {
-    return { actual, expected: spec.value, message: spec.message, state: 'violation' };
-  }
-
-  if (coveredByDefault) {
-    const severity = spec.defaultSatisfiedSeverity ?? 'info';
-    if (severity !== 'off') {
-      return { actual, expected: spec.value, message: spec.message, severity, state: 'violation' };
-    }
-  }
-  return { state: 'ok' };
+  if (!coveredByDefault && accepts(spec, actual)) return { state: 'ok' };
+  const severity = coveredByDefault ? (spec.defaultSatisfiedSeverity ?? 'info') : undefined;
+  if (severity === 'off') return { state: 'ok' };
+  return {
+    state: 'violation',
+    actual,
+    expected: spec.value,
+    message: spec.message,
+    ...(severity === undefined ? {} : { severity }),
+    remediation: proposeChanges(config, [
+      { file: spec.file, keyPath: spec.keyPath, op: 'setKey', value: spec.value },
+    ]),
+  };
 };
 
 const buildBinding = (
   spec: RequireConfigKeySpec,
   applies?: (ctx: RepoContext) => boolean,
-): AutoRuleBinding => ({
+): RuleBinding => ({
   check(ctx, config): CheckStatus {
     if (typeof applies !== 'undefined' && !applies(ctx)) {
       return { state: 'na' };
@@ -105,10 +89,7 @@ const buildBinding = (
   },
   docs: spec.docs,
   file: spec.file,
-  fix(): SetKeyOp[] {
-    return [{ file: spec.file, keyPath: spec.keyPath, op: 'setKey', value: spec.value }];
-  },
-  fixKind: 'auto',
+
   severity: spec.severity,
   versionNote: spec.versionNote,
 });
@@ -117,7 +98,7 @@ const buildBinding = (
 export const requireConfigKey = <const Id extends string>(
   options: RequireConfigKeyOptions<Id>,
 ): Rule<Id> => {
-  const bindings: Partial<Record<PM, AutoRuleBinding>> = {};
+  const bindings: Partial<Record<PM, RuleBinding>> = {};
   for (const pm of PMS) {
     const spec = options.bindings[pm];
     if (typeof spec !== 'undefined') {

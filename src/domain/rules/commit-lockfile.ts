@@ -1,4 +1,4 @@
-import { type AdvisoryRuleBinding, type VersionNote, defineRule } from '../entities/rule.ts';
+import { type RuleBinding, type VersionNote, defineRule } from '../entities/rule.ts';
 import { type PMSignals, PM_SIGNALS } from '../entities/signals.ts';
 import type { PM } from '../entities/pms.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
@@ -17,12 +17,9 @@ const LOCKFILE_VERSION_NOTES: Partial<Record<PM, VersionNote>> = {
   deno: { configAvailableSince: 'deno 1.28.0' },
 };
 
-const lockfileBinding = (pm: PM): AdvisoryRuleBinding => {
+const lockfileBinding = (pm: PM): RuleBinding => {
   const { lockfiles, reusesLockfiles }: PMSignals = PM_SIGNALS[pm];
   const [primary] = lockfiles;
-  // fileGlob refs aren't in CONFIG_FILES (the lockfile name is PM-derived), so
-  // mint the RelPath here — the one spot this rule crosses into a ConfigFileRef.
-  const primaryRef = { kind: 'fileGlob', path: asRelPath(primary) } as const;
   // npm-shrinkwrap.json still identifies npm, but npm 12 no longer reads it.
   const accepted = [...lockfiles, ...(reusesLockfiles ?? [])].filter(
     (lockfile) => pm !== 'npm' || lockfile === primary,
@@ -32,20 +29,16 @@ const lockfileBinding = (pm: PM): AdvisoryRuleBinding => {
       if (accepted.some((lf) => ctx.exists(asRelPath(lf)))) {
         return { state: 'ok' };
       }
-      return { message: `No lockfile found. Generate and commit ${primary}.`, state: 'violation' };
+      return {
+        remediation: {
+          kind: 'manual',
+          steps: [`Install dependencies to generate ${primary}, then commit it.`],
+        },
+        message: `No lockfile found. Generate and commit ${primary}.`,
+        state: 'violation',
+      };
     },
     docs: LOCKFILE_DOCS[pm],
-    file: primaryRef,
-    fix() {
-      return [
-        {
-          file: primaryRef,
-          message: `Install dependencies to generate ${primary}, then commit it.`,
-          op: 'ensureFileTracked',
-        },
-      ];
-    },
-    fixKind: 'advisory',
     versionNote: LOCKFILE_VERSION_NOTES[pm],
   };
 };

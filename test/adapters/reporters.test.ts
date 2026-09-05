@@ -28,8 +28,7 @@ const result: LintResult = {
   findings: [
     {
       file: '.npmrc',
-      fix: [],
-      fixable: true,
+
       message: 'set ignore-scripts',
       pm: 'npm',
       ruleId: 'disable-lifecycle-scripts',
@@ -104,9 +103,9 @@ describe('json reporter', () => {
     expect.hasAssertions();
     const tri: LintResult = {
       findings: [
-        { fix: [], fixable: true, message: 'm', pm: 'npm', ruleId: 'a', severity: 'error' },
-        { fix: [], fixable: true, message: 'm', pm: 'npm', ruleId: 'b', severity: 'warn' },
-        { fix: [], fixable: false, message: 'm', pm: 'npm', ruleId: 'c', severity: 'info' },
+        { message: 'm', pm: 'npm', ruleId: 'a', severity: 'error' },
+        { message: 'm', pm: 'npm', ruleId: 'b', severity: 'warn' },
+        { message: 'm', pm: 'npm', ruleId: 'c', severity: 'info' },
       ],
       summary: { error: 1, info: 1, warn: 1 },
     };
@@ -155,8 +154,7 @@ describe('githubReporter — docs links', () => {
         {
           docs: 'https://docs.npmjs.com/cli/v11/using-npm/config#ignore-scripts',
           file: '.npmrc',
-          fix: [],
-          fixable: true,
+
           message: 'set ignore-scripts',
           pm: 'npm',
           ruleId: 'disable-lifecycle-scripts',
@@ -187,8 +185,7 @@ describe('githubReporter — severity mapping', () => {
         findings: [
           {
             file: '.npmrc',
-            fix: [],
-            fixable: true,
+
             message: 'msg',
             pm: 'npm',
             ruleId: 'disable-lifecycle-scripts',
@@ -212,8 +209,7 @@ describe('githubReporter — special characters', () => {
       findings: [
         {
           file: 'path/with,comma.txt',
-          fix: [],
-          fixable: true,
+
           message: 'set foo=bar, baz: 100%\nnext line',
           pm: 'npm',
           ruleId: 'disable-lifecycle-scripts',
@@ -293,8 +289,7 @@ describe('prettyReporter — layout', () => {
         {
           docs: 'https://example.com/docs/ignore-scripts',
           file: '.npmrc',
-          fix: [],
-          fixable: true,
+
           message: 'set ignore-scripts',
           pm: 'npm',
           ruleId: 'disable-lifecycle-scripts',

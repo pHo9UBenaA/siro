@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import { expectMessageContains } from '../../helpers/binding-expectations.ts';
@@ -62,7 +63,7 @@ describe('trust-policy: scope, metadata, and fix', () => {
 
   it('fix returns setKey op for trustPolicy: no-downgrade', () => {
     expect.hasAssertions();
-    const ops = pnpmBinding.fix(makeCtx());
+    const ops = automaticOperations(pnpmBinding.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'pnpm-workspace.yaml' },
@@ -116,7 +117,7 @@ describe('trust-policy: aube binding', () => {
 
   it('fix returns setKey op for trustPolicy: no-downgrade', () => {
     expect.hasAssertions();
-    const ops = aubeBinding.fix(makeCtx());
+    const ops = automaticOperations(aubeBinding.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },

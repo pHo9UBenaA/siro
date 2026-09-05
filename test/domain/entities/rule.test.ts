@@ -15,8 +15,7 @@ const validRule = {
     npm: {
       check: () => ({ state: 'ok' }),
       file: { kind: 'npmrc', path: '.npmrc' },
-      fix: () => [],
-      fixKind: 'auto',
+
       versionNote: { note: 'display only' },
     },
   },

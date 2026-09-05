@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import {
   DOCUMENTED_DEFAULT_MINUTES,
   RECOMMENDED_RELEASE_AGE_MINUTES,
@@ -77,7 +78,7 @@ describe('pnpm bindings — age and lockfile', () => {
     assert(bd, 'expected binding');
     expect(bd.check(ctx(), {}).state).toBe('violation');
     expect(bd.check(ctx(), { minimumReleaseAge: DOCUMENTED_DEFAULT_MINUTES }).state).toBe('ok');
-    const setKey = bd.fix(ctx()).find((op) => op.op === 'setKey');
+    const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
     assert(setKey, 'expected setKey op');
     expect(setKey).toMatchObject({
       keyPath: ['minimumReleaseAge'],

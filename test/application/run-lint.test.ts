@@ -1,7 +1,7 @@
 import { applyConfig } from '../../src/domain/services/apply-config.ts';
 import { asRelPath } from '../../src/shared/paths.ts';
 import assert from 'node:assert';
-import type { AutoRuleBinding, Rule, VersionNote } from '../../src/domain/entities/rule.ts';
+import type { RuleBinding, Rule, VersionNote } from '../../src/domain/entities/rule.ts';
 import type { CodecFor, ConfigCodec } from '../../src/domain/ports/config-codec.ts';
 import { makeCtx } from '../helpers/ctx.ts';
 import { runLint } from '../../src/application/run-lint.ts';
@@ -26,15 +26,14 @@ const makeRule = (opts: {
   statusSeverity?: 'error' | 'warn' | 'info';
   versionNote?: VersionNote;
 }): Rule => {
-  const binding: AutoRuleBinding = {
+  const binding: RuleBinding = {
     check: () => ({
       message: 'always violates',
       severity: opts.statusSeverity,
       state: 'violation',
     }),
     file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-    fix: () => [],
-    fixKind: 'auto',
+
     severity: opts.bindingSeverity,
     versionNote: opts.versionNote,
   };

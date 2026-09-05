@@ -1,3 +1,4 @@
+import { proposeChanges } from './remediation.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { defineRule } from '../entities/rule.ts';
 import { getByPath } from '../entities/config-value.ts';
@@ -12,9 +13,12 @@ export const strictStoreIntegrity = defineRule({
           return {
             actual: false,
             expected: true,
-            manualSteps: [
-              'Set `verifyStoreIntegrity: true` (or remove `verifyStoreIntegrity: false`) in aube-workspace.yaml, and enable `strictStoreIntegrity: true` or `paranoid: true`.',
-            ],
+            remediation: {
+              kind: 'manual',
+              steps: [
+                'Set `verifyStoreIntegrity: true` (or remove `verifyStoreIntegrity: false`) in aube-workspace.yaml, and enable `strictStoreIntegrity: true` or `paranoid: true`.',
+              ],
+            },
             message:
               '`verifyStoreIntegrity: false` bypasses strict integrity checks, including when `paranoid: true`.',
             state: 'violation',
@@ -25,6 +29,9 @@ export const strictStoreIntegrity = defineRule({
           return { state: 'ok' };
         }
         return {
+          remediation: proposeChanges(config, [
+            { file: aubeWorkspace, keyPath: ['strictStoreIntegrity'], op: 'setKey', value: true },
+          ]),
           actual: strict,
           expected: true,
           message:
@@ -34,12 +41,6 @@ export const strictStoreIntegrity = defineRule({
       },
       docs: 'https://aube.jdx.dev/settings/',
       file: aubeWorkspace,
-      fix() {
-        return [
-          { file: aubeWorkspace, keyPath: ['strictStoreIntegrity'], op: 'setKey', value: true },
-        ];
-      },
-      fixKind: 'auto',
     },
   },
   description:

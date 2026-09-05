@@ -1,3 +1,4 @@
+import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { dependencyOverrides } from '../../../src/domain/rules/dependency-overrides.ts';
@@ -30,15 +31,14 @@ describe('dependency-overrides: pnpm binding', () => {
   it('targets pnpm-workspace.yaml and is advisory', () => {
     expect.hasAssertions();
     expect(pnpmBinding.file).toStrictEqual({ kind: 'yaml', path: 'pnpm-workspace.yaml' });
-    expect(pnpmBinding.fixKind).toBe('advisory');
   });
 
-  it('fix returns a note op', () => {
+  it('provides actionable manual remediation', () => {
     expect.hasAssertions();
-    const ops = pnpmBinding.fix(makeCtx());
+    const ops = manualSteps(pnpmBinding.check(makeCtx(), { overrides: { dep: '1.2.3' } }))!;
     const SINGLE = 1;
     expect(ops).toHaveLength(SINGLE);
-    expect(ops[0]).toMatchObject({ op: 'note' });
+    expect(ops[0]).toContain('Review each entry');
   });
 });
 
@@ -68,15 +68,14 @@ describe('dependency-overrides: aube binding', () => {
   it('targets aube-workspace.yaml and is advisory', () => {
     expect.hasAssertions();
     expect(aubeBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
-    expect(aubeBinding.fixKind).toBe('advisory');
   });
 
-  it('fix returns a note op', () => {
+  it('provides actionable manual remediation', () => {
     expect.hasAssertions();
-    const ops = aubeBinding.fix(makeCtx());
+    const ops = manualSteps(aubeBinding.check(makeCtx(), { overrides: { dep: '1.2.3' } }))!;
     const SINGLE = 1;
     expect(ops).toHaveLength(SINGLE);
-    expect(ops[0]).toMatchObject({ op: 'note' });
+    expect(ops[0]).toContain('Review each entry');
   });
 });
 

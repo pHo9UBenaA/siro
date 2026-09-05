@@ -1,6 +1,7 @@
+import { proposeChanges } from './remediation.ts';
 import valid from 'semver/functions/valid.js';
 import { isPlainRecord } from '../../shared/records.ts';
-import type { AdvisoryRuleBinding, AutoRuleBinding, CheckStatus } from '../entities/rule.ts';
+import type { RuleBinding, CheckStatus } from '../entities/rule.ts';
 import { type ParsedConfig, getByPath } from '../entities/config-value.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
@@ -34,6 +35,12 @@ const formatOffenders = (offenders: readonly string[]): CheckStatus => {
     more = ` (and ${offenders.length - MAX_SAMPLE_COUNT} more)`;
   }
   return {
+    remediation: {
+      kind: 'manual',
+      steps: [
+        'Run `deno add --save-exact <pkg>` for each unpinned registry import in deno.json, or rewrite the `imports` entries to use exact versions.',
+      ],
+    },
     message: `${offenders.length} deno imports are not pinned: ${sample}${more}. Use \`deno add --save-exact\` or pin manually.`,
     state: 'violation',
   };
@@ -49,7 +56,7 @@ const extractImportsRecord = (config: ParsedConfig): ParsedConfig | undefined =>
   return imports;
 };
 
-const denoBinding: AdvisoryRuleBinding = {
+const denoBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
     const imports = extractImportsRecord(config);
     if (!imports) {
@@ -63,21 +70,11 @@ const denoBinding: AdvisoryRuleBinding = {
   },
   docs: 'https://docs.deno.com/runtime/reference/cli/add/',
   file: denoJson,
-  fix() {
-    return [
-      {
-        file: denoJson,
-        message:
-          'Run `deno add --save-exact <pkg>` for each unpinned registry import in deno.json, or rewrite the `imports` entries to use exact versions.',
-        op: 'note',
-      },
-    ];
-  },
-  fixKind: 'advisory',
+
   versionNote: { configAvailableSince: 'deno 1.30.0' },
 };
 
-const npmBinding: AutoRuleBinding = {
+const npmBinding: RuleBinding = {
   file: npmrc,
   docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#save-exact',
   check(_ctx, config) {
@@ -85,17 +82,18 @@ const npmBinding: AutoRuleBinding = {
     const prefix = getByPath(config, ['save-prefix']);
     if (exact === true || prefix === '' || prefix === '=') return OK;
     return {
+      remediation: proposeChanges(config, [
+        { op: 'setKey', file: npmrc, keyPath: ['save-exact'], value: true },
+      ]),
       state: 'violation',
       actual: exact,
       expected: true,
       message: 'Set `save-exact=true` in .npmrc to save exact versions by default.',
     };
   },
-  fixKind: 'auto',
-  fix: () => [{ op: 'setKey', file: npmrc, keyPath: ['save-exact'], value: true }],
 };
 
-const aubeBinding: AdvisoryRuleBinding = {
+const aubeBinding: RuleBinding = {
   file: npmrc,
   docs: 'https://aube.jdx.dev/settings/#saveprefix',
   check(_ctx, config) {
@@ -104,19 +102,16 @@ const aubeBinding: AdvisoryRuleBinding = {
       .map((key) => config[key]);
     if (prefixes.length > 0 && prefixes.every((value) => value === '')) return OK;
     return {
+      remediation: {
+        kind: 'manual',
+        steps: [
+          'Use one `save-prefix=` entry in .npmrc. Aube resolves aliases by line order; reconcile conflicting entries before changing them.',
+        ],
+      },
       state: 'violation',
       message: 'Set `save-prefix=` in .npmrc; remove any conflicting `savePrefix` alias.',
     };
   },
-  fixKind: 'advisory',
-  fix: () => [
-    {
-      op: 'note',
-      file: npmrc,
-      message:
-        'Use one `save-prefix=` entry in .npmrc. Aube resolves aliases by line order; reconcile conflicting entries before changing them.',
-    },
-  ],
 };
 
 const baseRule = requireConfigKey({

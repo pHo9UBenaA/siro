@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import {
   DOCUMENTED_DEFAULT_MINUTES,
   RECOMMENDED_RELEASE_AGE_MINUTES,
@@ -50,7 +51,7 @@ describe('aube bindings: lifecycle and lockfile rules', () => {
       expect.hasAssertions();
       const bd = disableLifecycleScripts.bindings.aube;
       assert(bd, 'expected binding');
-      const ops = bd.fix(ctx());
+      const ops = automaticOperations(bd.check(ctx(), {}));
       const aubeFile = { kind: 'yaml', path: 'aube-workspace.yaml' };
       expect(ops).toStrictEqual([
         { file: aubeFile, keyPath: ['jailBuilds'], op: 'setKey', value: true },
@@ -84,21 +85,13 @@ describe('aube bindings: frozen-lockfile and minimum-release-age', () => {
         expect.hasAssertions();
         const bd = frozenLockfile.bindings.aube;
         assert(bd, 'expected binding');
-        expect({
-          fix: bd.fix(ctx()),
-          fixKind: bd.fixKind,
-          severity: bd.severity,
-          status: bd.check(ctx(), config),
-        }).toMatchObject({
-          fix: [
-            {
-              message: expect.stringMatching(/aube ci.*aube install --frozen-lockfile/u),
-              op: 'note',
-            },
-          ],
-          fixKind: 'advisory',
-          severity: 'info',
-          status: { state: 'violation' },
+        expect(bd.severity).toBe('info');
+        expect(bd.check(ctx(), config)).toMatchObject({
+          state: 'violation',
+          remediation: {
+            kind: 'manual',
+            steps: [expect.stringMatching(/aube ci.*aube install --frozen-lockfile/u)],
+          },
         });
       },
     );
@@ -121,7 +114,7 @@ describe('aube bindings: frozen-lockfile and minimum-release-age', () => {
       expect.hasAssertions();
       const bd = minimumReleaseAge.bindings.aube;
       assert(bd, 'expected binding');
-      const setKey = bd.fix(ctx()).find((op) => op.op === 'setKey');
+      const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
       assert(setKey, 'expected setKey op');
       expect(setKey).toMatchObject({
         keyPath: ['minimumReleaseAge'],
