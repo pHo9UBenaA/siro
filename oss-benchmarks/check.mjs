@@ -1,102 +1,33 @@
 #!/usr/bin/env node
-// Check siro's coverage against leading-edge OSS project configs.
-//
-// Usage:
-//   node oss-benchmarks/check.mjs            # check saved snapshot
-//   node oss-benchmarks/check.mjs --update   # rebuild snapshot from local clones
-//   node oss-benchmarks/check.mjs --local    # check directly from local clones
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { parseArgs } from 'node:util';
+import { checkCoverage, fetchSnapshotLocal, REPOS_DIR } from './coverage.ts';
 
-import path from 'node:path';
-
-const dir = import.meta.dirname;
-const snapshotPath = path.join(dir, 'snapshots.json');
-const isUpdate = process.argv.includes('--update');
-const isLocal = process.argv.includes('--local');
-
-const EXIT_FAILURE = 1;
-const JSON_INDENT = 2;
-const EMPTY = 0;
-
-const fail = (msg) => {
-  let text = msg;
-  if (msg instanceof Error) {
-    text = msg.message;
-  }
-  process.stderr.write(`check-oss-coverage: ${text}\n`);
-  process.exit(EXIT_FAILURE);
-};
-
-const skipMsg = (text) => {
-  process.stderr.write(`check-oss-coverage: skip — ${text}\n`);
-};
-
+const snapshotPath = new URL('./snapshots.json', import.meta.url);
 try {
-  const { checkCoverage, fetchSnapshotLocal, REPOS_DIR } = await import(
-    pathToFileURL(path.join(dir, 'coverage.ts')).href
-  );
-
-  const readFromLocal = () => {
-    const result = fetchSnapshotLocal(REPOS_DIR);
-
-    for (const skippedName of result.skipped) {
-      skipMsg(`no local clone for ${skippedName}`);
-    }
-
-    const ALL_SKIPPED = result.snapshot.entries.length === EMPTY;
-    if (ALL_SKIPPED) {
-      fail(
-        'all projects skipped — no local clones found. Set up clones as described in oss-benchmarks/README.md',
-      );
-    }
-
-    return result.snapshot;
-  };
-
-  let snapshot = null;
-
-  if (isUpdate) {
-    snapshot = readFromLocal();
-    writeFileSync(snapshotPath, `${JSON.stringify(snapshot, void 0, JSON_INDENT)}\n`);
-    process.stdout.write(
-      `Snapshot updated (${snapshot.entries.length} entries, ${snapshot.updatedAt}).\n`,
-    );
-  } else if (isLocal) {
-    snapshot = readFromLocal();
-  } else {
-    if (!existsSync(snapshotPath)) {
-      fail('No snapshot found. Run with --update first.');
-    }
-    snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
-  }
+  const { values, tokens } = parseArgs({
+    options: { update: { type: 'boolean' }, local: { type: 'boolean' } },
+    tokens: true,
+  });
+  if (tokens.length > 1) throw new Error('Use either --update or --local, once.');
+  let snapshot;
+  if (values.update || values.local) {
+    const local = fetchSnapshotLocal(REPOS_DIR);
+    for (const project of local.skipped) console.error(`No local config: ${project}`);
+    snapshot = local.snapshot;
+  } else snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8'));
 
   const result = checkCoverage(snapshot);
-
-  if (result.backlogHits.length > EMPTY) {
-    process.stderr.write('\nBacklog (security-relevant, not yet covered by siro):\n');
-    for (const hit of result.backlogHits) {
-      process.stderr.write(`  ${hit.file} → ${hit.key}: ${hit.reason}\n`);
-    }
-    process.stderr.write('\n');
-  }
-
-  if (result.gaps.length > EMPTY) {
-    const lines = result.gaps.map(
-      (gap) => `  ${gap.project} (${gap.file}): ${gap.keys.join(', ')}`,
-    );
-    fail(
-      [
-        'Uncovered config keys found. Add a siro rule (→ COVERED), mark as non-security (→ EXCLUDED), or track as future work (→ BACKLOG):',
-        '',
-        ...lines,
-      ].join('\n'),
-    );
-  }
-
-  process.stdout.write(
-    `OSS coverage: ${result.checked} configs checked, no gaps (snapshot: ${snapshot.updatedAt}).\n`,
+  if (values.update) writeFileSync(snapshotPath, `${JSON.stringify(snapshot, null, 2)}\n`);
+  for (const hit of result.backlogHits)
+    console.error(`Backlog: ${hit.project}/${hit.file}: ${hit.key} — ${hit.reason}`);
+  for (const gap of result.gaps)
+    console.error(`Unclassified: ${gap.project}/${gap.file}: ${gap.keys.join(', ')}`);
+  console.log(
+    `OSS coverage: ${result.checked} configs checked; ${result.gaps.length} gaps (snapshot: ${snapshot.updatedAt}).`,
   );
+  if (result.gaps.length) process.exitCode = 1;
 } catch (error) {
-  fail(error);
+  console.error(`OSS coverage: ${error instanceof Error ? error.message : String(error)}`);
+  process.exitCode = 1;
 }

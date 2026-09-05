@@ -43,3 +43,5 @@ Rebuild the snapshot from local clones:
 ```bash
 node oss-benchmarks/check.mjs --update
 ```
+
+Unknown or combined flags fail before work starts. Empty, malformed, duplicate, or inconsistent snapshots fail validation. Snapshot updates are written only after configuration parsing and coverage evaluation complete; unclassified keys still produce a failing exit code.
