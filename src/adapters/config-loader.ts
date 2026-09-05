@@ -21,6 +21,21 @@ import { PROJECT_TYPES } from '../domain/entities/project-type.ts';
 const MIN_PMS_LENGTH = 1;
 const CONFIG_NAMES = ['siro.config.ts', 'siro.config.mjs', 'siro.config.js'] as const;
 
+const isRecordContainer = (value: unknown): value is Record<string, unknown> => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+  if (Object.prototype.toString.call(value) !== '[object Object]') {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype === null) {
+    return true;
+  }
+  const constructor = Object.getOwnPropertyDescriptor(prototype, 'constructor')?.value;
+  return typeof constructor !== 'function' || constructor.name === 'Object';
+};
+
 // strictObject (not loose): an unknown top-level key is almost always a typo
 // (`rule` for `rules`, `customRule` for `customRules`) that a loose schema
 // would silently drop. siro fails fast on rule-id typos, so key typos fail
@@ -53,20 +68,7 @@ const ConfigSchema = vb.strictObject(
     ),
     rules: vb.optional(
       vb.pipe(
-        vb.custom<Record<string, unknown>>((value) => {
-          if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-            return false;
-          }
-          if (Object.prototype.toString.call(value) !== '[object Object]') {
-            return false;
-          }
-          const prototype = Object.getPrototypeOf(value);
-          if (prototype === null) {
-            return true;
-          }
-          const constructor = Object.getOwnPropertyDescriptor(prototype, 'constructor')?.value;
-          return typeof constructor !== 'function' || constructor.name === 'Object';
-        }, 'must be an object of rule settings'),
+        vb.custom<Record<string, unknown>>(isRecordContainer, 'must be an object of rule settings'),
         vb.rawTransform(({ dataset, addIssue }) => {
           const entries: [string, RuleSetting][] = [];
           for (const [key, value] of Object.entries(dataset.value)) {
@@ -141,15 +143,9 @@ const extractDefault = (mod: unknown): unknown => {
 };
 
 const validateCandidateShape = (candidate: unknown, name: string): object => {
-  // Arrays are `typeof === 'object'`, so the bare check lets `export default
-  // []` through to strictObject — where an empty array reads as a valid empty
-  // config and a non-empty one surfaces a misleading "unknown config key".
-  if (
-    typeof candidate === 'undefined' ||
-    candidate === null ||
-    typeof candidate !== 'object' ||
-    Array.isArray(candidate)
-  ) {
+  // Built-ins and arrays are objects but not config maps; an empty own-key set
+  // would otherwise be accepted as an empty config.
+  if (typeof candidate === 'undefined' || !isRecordContainer(candidate)) {
     let got: string = typeof candidate;
     if (Array.isArray(candidate)) {
       got = 'an array';

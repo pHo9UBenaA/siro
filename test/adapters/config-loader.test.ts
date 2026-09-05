@@ -162,6 +162,18 @@ describe('loadConfig — export shape validation', () => {
       });
   });
 
+  it('rejects a config that default-exports a Date with the export-shape error', () => {
+    expect.hasAssertions();
+    writeFileSync(path.join(td.dir, 'siro.config.mjs'), 'export default new Date(0);\n');
+    return loadConfig(td.dir)
+      .catch((error) => error)
+      .then((err) => {
+        expect(err).toBeInstanceOf(ConfigError);
+        assert(err instanceof Error, 'expected Error');
+        expect(err.message).toMatch(/config object/u);
+      });
+  });
+
   it('wraps a module-evaluation error as ConfigError naming the offending file', () => {
     expect.hasAssertions();
     writeFileSync(
