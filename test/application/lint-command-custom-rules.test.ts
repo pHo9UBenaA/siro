@@ -1,7 +1,7 @@
 import { ConfigError, UsageError } from '../../src/shared/errors.ts';
 import { asAbsPath, asRelPath } from '../../src/shared/paths.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import type { Rule } from '../../src/domain/entities/rule.ts';
+import type { CheckStatus, Rule } from '../../src/domain/entities/rule.ts';
 import type { LintResult } from '../../src/domain/entities/lint-result.ts';
 import { captureIO } from '../helpers/io.ts';
 import { lintCommand } from '../../src/application/commands/lint.ts';
@@ -14,6 +14,7 @@ vi.setConfig({ testTimeout: 5000 });
 const EXIT_VIOLATION = 1;
 const SINGLE_OCCURRENCE = 1;
 const SPARSE_ARRAY_LENGTH = 1;
+const sparseManualSteps = new Array<string>(SPARSE_ARRAY_LENGTH);
 
 const customAlwaysViolates: Rule = {
   bindings: {
@@ -129,6 +130,113 @@ describe('lintCommand customRules — injection and collision', () => {
     ).then((code) => {
       expect(code).toBe(EXIT_VIOLATION);
     });
+  });
+
+  it.each([
+    { message: 'missing state', status: {} },
+    {
+      message: 'invalid severity',
+      status: { message: 'x', severity: 'fatal', state: 'violation' },
+    },
+    {
+      message: 'non-scalar expected value',
+      status: { expected: { nested: true }, message: 'x', state: 'violation' },
+    },
+    {
+      message: 'non-finite expected value',
+      status: { expected: Number.NaN, message: 'x', state: 'violation' },
+    },
+    {
+      message: 'sparse manual steps',
+      status: { manualSteps: sparseManualSteps, message: 'x', state: 'violation' },
+    },
+  ])('rejects a custom rule check result with $message', ({ status }) => {
+    expect.hasAssertions();
+    const invalidRule: Rule = {
+      ...ruleWithId('invalid-check-result'),
+      bindings: {
+        npm: {
+          check: () => status as CheckStatus,
+          file: { kind: 'npmrc', path: asRelPath('.npmrc') },
+          fix: () => [],
+          fixKind: 'auto',
+        },
+      },
+    };
+    const fs = npmGoodFs();
+    const { io } = captureIO();
+    return expect(
+      lintCommand(
+        { customRules: [invalidRule], cwd: asAbsPath('/repo'), fs, reporter: 'json' },
+        io,
+      ),
+    ).rejects.toThrow("Rule 'invalid-check-result' returned an invalid check result.");
+  });
+
+  it.each([
+    { fixKind: 'auto', name: 'a non-array value', result: null },
+    {
+      fixKind: 'auto',
+      name: 'an advisory operation from an auto binding',
+      result: [{ message: 'manual', op: 'note' }],
+    },
+    {
+      fixKind: 'advisory',
+      name: 'a write operation from an advisory binding',
+      result: [
+        {
+          file: { kind: 'npmrc', path: asRelPath('.npmrc') },
+          keyPath: ['key'],
+          op: 'setKey',
+          value: true,
+        },
+      ],
+    },
+    {
+      fixKind: 'auto',
+      name: 'a write targeting a file glob',
+      result: [
+        {
+          file: { kind: 'fileGlob', path: asRelPath('*.lock') },
+          keyPath: ['key'],
+          op: 'setKey',
+          value: true,
+        },
+      ],
+    },
+    {
+      fixKind: 'auto',
+      name: 'a write with a non-finite value',
+      result: [
+        {
+          file: { kind: 'npmrc', path: asRelPath('.npmrc') },
+          keyPath: ['key'],
+          op: 'setKey',
+          value: Number.POSITIVE_INFINITY,
+        },
+      ],
+    },
+  ] as const)('rejects a custom rule that returns $name', ({ fixKind, result }) => {
+    expect.hasAssertions();
+    const invalidRule: Rule = {
+      ...ruleWithId('invalid-fix-result'),
+      bindings: {
+        npm: {
+          check: () => ({ message: 'x', state: 'violation' }),
+          file: { kind: 'npmrc', path: asRelPath('.npmrc') },
+          fix: () => result as never,
+          fixKind,
+        },
+      },
+    };
+    const fs = npmGoodFs();
+    const { io } = captureIO();
+    return expect(
+      lintCommand(
+        { customRules: [invalidRule], cwd: asAbsPath('/repo'), fs, reporter: 'json' },
+        io,
+      ),
+    ).rejects.toThrow("Rule 'invalid-fix-result' returned invalid fix operations.");
   });
 
   it('throws ConfigError when a programmatic rule id collides with a builtin', () => {

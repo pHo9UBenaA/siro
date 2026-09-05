@@ -11,7 +11,6 @@ import { exitCodeForLint, filterBySeverity } from '../../domain/services/filter.
 import type { AbsPath } from '../../shared/paths.ts';
 import type { FileSystem } from '../../domain/ports/file-system.ts';
 import type { IO } from '../../domain/ports/io.ts';
-import type { RepoContext } from '../../domain/ports/repo-context.ts';
 import { type Rule, isRuleShape } from '../../domain/entities/rule.ts';
 import { UsageError } from '../../shared/errors.ts';
 import { codecFor } from '../../adapters/codecs/store.ts';
@@ -52,7 +51,7 @@ export interface LintOptions {
   severity?: Severity;
   /**
    * Inject a non-default FS (e.g. memfs in tests). Caveat: `siro.config.{ts,mjs,js}`
-   * is imported from the REAL disk — only the config's existence is probed
+   * is imported from the real disk — only the config's existence is probed
    * through this FS. A config that lives solely in an injected FS won't load.
    */
   fs?: FileSystem;
@@ -143,27 +142,10 @@ const resolveAndValidateReporter = (
   return reporter;
 };
 
-interface FormatAndExitArgs {
-  readonly options: LintOptions;
-  readonly reporter: Reporter;
-  readonly ruleSet: readonly Rule[];
-  readonly ctx: RepoContext;
-  readonly pms: readonly PM[];
-  readonly io: IO;
-}
-
-const formatAndExit = (args: FormatAndExitArgs): number => {
-  const result = runLint({ codecFor, ctx: args.ctx, pms: args.pms, ruleSet: args.ruleSet });
-  const displayThreshold: Severity = args.options.severity ?? 'info';
-  const failThreshold: Severity = args.options.severity ?? 'error';
-  args.reporter.format(filterBySeverity(result, displayThreshold), args.io);
-  return exitCodeForLint(result, failThreshold);
-};
-
 /** `siro lint`: detect PMs, evaluate rules, report findings. */
 export const lintCommand = async (options: LintOptions, io: IO): Promise<number> => {
   validateLintOptions(options);
-  const { userConfig, ctx, pms, ruleSet } = await prepareRun({
+  const { userConfig, ctx, pms, ruleSet, severityOverrides } = await prepareRun({
     customRules: options.customRules,
     cwd: options.cwd,
     fs: options.fs,
@@ -174,5 +156,9 @@ export const lintCommand = async (options: LintOptions, io: IO): Promise<number>
   const configReporters = userConfig?.reporters ?? [];
   const registry = createRegistry([...(options.reporters ?? []), ...configReporters]);
   const reporter = resolveAndValidateReporter(options.reporter, registry);
-  return formatAndExit({ ctx, io, options, pms, reporter, ruleSet });
+  const result = runLint({ codecFor, ctx, pms, ruleSet, severityOverrides });
+  const displayThreshold: Severity = options.severity ?? 'info';
+  const failThreshold: Severity = options.severity ?? 'error';
+  reporter.format(filterBySeverity(result, displayThreshold), io);
+  return exitCodeForLint(result, failThreshold);
 };

@@ -36,19 +36,13 @@ const buildDetectionSignals = (): ReadonlyMap<PM, readonly string[]> => {
 
 const DETECTION_SIGNALS: ReadonlyMap<PM, readonly string[]> = buildDetectionSignals();
 
-const addDeclaredPM = (ctx: RepoContext, found: Set<PM>): void => {
-  const declared = ctx.packageJson?.packageManager;
-  if (typeof declared === 'string') {
-    const pm = parsePackageManagerField(declared);
-    if (typeof pm !== 'undefined') {
-      found.add(pm);
-    }
-  }
-};
-
 export const detectPMs = (ctx: RepoContext): PM[] => {
   const found = new Set<PM>();
-  addDeclaredPM(ctx, found);
+  const declared = ctx.packageJson?.packageManager;
+  const declaredPM = declared === undefined ? undefined : parsePackageManagerField(declared);
+  if (declaredPM !== undefined) {
+    found.add(declaredPM);
+  }
   for (const pm of PMS) {
     const signals = DETECTION_SIGNALS.get(pm);
     if (signals && signals.some((file) => ctx.exists(asRelPath(file)))) {

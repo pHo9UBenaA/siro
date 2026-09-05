@@ -3,6 +3,11 @@ import { iniCodec } from '../../../src/adapters/codecs/ini.ts';
 vi.setConfig({ testTimeout: 5000 });
 
 describe('iniCodec.parse', () => {
+  it('treats an empty document as an empty mapping', () => {
+    expect.hasAssertions();
+    expect(iniCodec.parse('')).toStrictEqual({});
+  });
+
   it('parses key=value pairs and coerces scalars', () => {
     expect.hasAssertions();
     const text = ['ignore-scripts=true', 'min-release-age=7', "save-prefix=''"].join('\n');

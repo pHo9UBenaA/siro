@@ -14,7 +14,7 @@ export const filterBySeverity = (result: LintResult, threshold: Severity): LintR
   for (const finding of result.findings) {
     if (meetsThreshold(finding.severity, threshold)) {
       findings.push(finding);
-      summary[finding.severity] += EXIT_FAILURE;
+      summary[finding.severity] += 1;
     }
   }
   return { findings, summary };

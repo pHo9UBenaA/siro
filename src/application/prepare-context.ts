@@ -1,6 +1,6 @@
 import type { AbsPath } from '../shared/paths.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
-import type { PM } from '../domain/entities/pms.ts';
+import type { PM, Severity } from '../domain/entities/pms.ts';
 import type { RepoContext } from '../domain/ports/repo-context.ts';
 import type { Rule } from '../domain/entities/rule.ts';
 import type { SiroConfig } from '../domain/entities/siro-config.ts';
@@ -26,35 +26,24 @@ export interface PreparedRun {
   readonly ctx: RepoContext;
   readonly pms: readonly PM[];
   readonly ruleSet: readonly Rule[];
+  readonly severityOverrides: ReadonlyMap<string, Severity>;
 }
 
-/**
- * Shared composition-root preamble for `lint` (kept separate so a future
- * command cannot drift from the load → context → resolve → merge → validate →
- * applyConfig protocol).
- */
-const resolveRuleSet = (
+const configureRuleSet = (
   userConfig: SiroConfig | undefined,
   customRules: readonly Rule[] | undefined,
-): readonly Rule[] => {
-  const configCustomRules = userConfig?.customRules;
-  const base = mergeProgrammaticRules(rules, customRules, configCustomRules);
+): ReturnType<typeof applyConfig> => {
+  const base = mergeProgrammaticRules(rules, customRules, userConfig?.customRules);
   assertConfigRuleIdsKnown(userConfig, customRules);
   return applyConfig(base, userConfig);
 };
 
-const buildRunResult = (
-  options: PrepareOptions,
-  userConfig: SiroConfig | undefined,
-): PreparedRun => {
+export const prepareRun = async (options: PrepareOptions): Promise<PreparedRun> => {
+  const userConfig = await loadConfig(options.cwd, options.fs);
   const { cwd, fs, pm, customRules } = options;
   const projectType = options.projectType ?? userConfig?.projectType;
   const ctx = createRepoContext(cwd, fs, projectType);
-  const allowedPms = userConfig?.pms;
-  const pms = resolvePMs(ctx, { allowed: allowedPms, pmOverride: pm });
-  const ruleSet = resolveRuleSet(userConfig, customRules);
-  return { ctx, pms, ruleSet, userConfig };
+  const pms = resolvePMs(ctx, { allowed: userConfig?.pms, pmOverride: pm });
+  const { rules: ruleSet, severityOverrides } = configureRuleSet(userConfig, customRules);
+  return { ctx, pms, ruleSet, severityOverrides, userConfig };
 };
-
-export const prepareRun = (options: PrepareOptions): Promise<PreparedRun> =>
-  loadConfig(options.cwd, options.fs).then((userConfig) => buildRunResult(options, userConfig));

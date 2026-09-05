@@ -20,6 +20,7 @@ vi.setConfig({ testTimeout: 5000 });
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
 
 const INCREMENT = 1;
+
 let vnCounter = 0;
 const vnRule = (versionNote?: VersionNote): Rule => {
   vnCounter += INCREMENT;
@@ -244,7 +245,8 @@ describe("defaultSatisfiedSeverity 'off' under a user rules override", () => {
       severity: 'warn',
       title: 't',
     });
-    const [overridden] = applyConfig([rule], { rules: { 'synthetic-off-override': 'error' } });
+    const configured = applyConfig([rule], { rules: { 'synthetic-off-override': 'error' } });
+    const [overridden] = configured.rules;
     assert(overridden, 'expected overridden rule');
     const overriddenBd = overridden.bindings.npm;
     assert(overriddenBd, 'expected npm binding');

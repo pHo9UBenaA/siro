@@ -10,10 +10,9 @@ import * as vb from 'valibot';
  * A malformed value reads as "absent" — EXCEPT `private`, which falls back to
  * `true`: a security tool must never flip a broken `private` into publishable.
  */
-const ABSENT = void 0;
-const optionalString = vb.fallback(vb.optional(vb.string()), ABSENT);
+const optionalString = vb.fallback(vb.optional(vb.string()), undefined);
 const PackageJsonSchema = vb.looseObject({
-  files: vb.fallback(vb.optional(vb.array(vb.string())), ABSENT),
+  files: vb.fallback(vb.optional(vb.array(vb.string())), undefined),
   name: optionalString,
   packageManager: optionalString,
   // optional-OUTSIDE-fallback: an absent key stays undefined (publishable),
@@ -28,16 +27,16 @@ const PackageJsonSchema = vb.looseObject({
       vb.looseObject({
         access: vb.fallback(
           vb.optional(vb.union([vb.literal('public'), vb.literal('restricted')])),
-          ABSENT,
+          undefined,
         ),
       }),
     ),
-    ABSENT,
+    undefined,
   ),
   // Read by disable-lifecycle-scripts × bun: an explicit empty allow-list
   // (`"trustedDependencies": []`) is the package.json-side opt-out equivalent
   // to bunfig `install.ignoreScripts = true`.
-  trustedDependencies: vb.fallback(vb.optional(vb.array(vb.string())), ABSENT),
+  trustedDependencies: vb.fallback(vb.optional(vb.array(vb.string())), undefined),
 });
 
 export type PackageJson = vb.InferOutput<typeof PackageJsonSchema>;

@@ -2,23 +2,13 @@ import type { ProjectType } from '../entities/project-type.ts';
 import { type ParsedConfig, getByPath } from '../entities/config-value.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
 
-const EMPTY = 0;
-
 const isPublishableName = (value: unknown): value is string =>
-  typeof value === 'string' && value.trim().length > EMPTY;
+  typeof value === 'string' && value.trim().length > 0;
 
 const resolveProjectType = (
   selected: ProjectType | undefined,
   inferredPackage: boolean,
-): ProjectType => {
-  if (typeof selected !== 'undefined') {
-    return selected;
-  }
-  if (inferredPackage) {
-    return 'package';
-  }
-  return 'application';
-};
+): ProjectType => selected ?? (inferredPackage ? 'package' : 'application');
 
 export const resolvePackageJsonProjectType = (ctx: RepoContext): ProjectType => {
   const pkg = ctx.packageJson;

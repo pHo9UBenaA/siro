@@ -28,7 +28,7 @@ describe('createConfigParser — same-instance memoization', () => {
     const first = parseConfig(ctx, file);
     parseConfig(ctx, file);
 
-    expect(first).toStrictEqual({ parsed: { val: 1 } });
+    expect(first).toStrictEqual({ val: 1 });
     expect(parse).toHaveBeenCalledTimes(PARSE_ONCE);
   });
 
@@ -64,6 +64,17 @@ describe('createConfigParser — cross-instance isolation', () => {
 });
 
 describe('createConfigParser — error handling', () => {
+  it('treats a missing optional config file as empty without invoking its codec', () => {
+    expect.hasAssertions();
+    const parse = vi.fn<ConfigCodec['parse']>();
+    const codecFor: CodecFor = () => makeCodec(parse);
+    const ctx = makeCtx({ readText: () => undefined });
+    const file: ConfigFileRef = { kind: 'json', path: asRelPath('deno.json') };
+
+    expect(createConfigParser(codecFor)(ctx, file)).toStrictEqual({});
+    expect(parse).not.toHaveBeenCalled();
+  });
+
   it('wraps codec errors as ConfigError, including file.path and the codec message', () => {
     expect.hasAssertions();
     const codecFor: CodecFor = () =>
@@ -100,7 +111,7 @@ describe('createConfigParser — fileGlob', () => {
 
     const result = createConfigParser(codecFor)(ctx, file);
 
-    expect(result).toStrictEqual({ parsed: {} });
+    expect(result).toStrictEqual({});
     expect(parse).not.toHaveBeenCalled();
   });
 });

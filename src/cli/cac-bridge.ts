@@ -1,18 +1,16 @@
 import { BUILTIN_REPORTER_NAMES } from '../adapters/reporters/registry.ts';
 import { COMMANDS } from './commands.ts';
-import type { FlagValues } from './flags.ts';
 import { SEVERITIES } from '../domain/entities/pms.ts';
 import { cac } from 'cac';
-import { version } from '../version.ts';
 
+const FIRST_INDEX = 0;
 const STEP = 1;
-const ARGS_OFFSET = 2;
 
 export interface CacOutput {
   readonly commandCandidate: unknown;
-  readonly extraPositionals: readonly unknown[];
-  readonly flags: FlagValues;
-  readonly positionalCwd: unknown;
+  readonly flags: Record<string, unknown>;
+  readonly knownFlags: ReadonlySet<string>;
+  readonly positionals: readonly unknown[];
 }
 
 const buildCli = (): ReturnType<typeof cac> => {
@@ -23,8 +21,8 @@ const buildCli = (): ReturnType<typeof cac> => {
     .option('--reporter <name>', `Reporter (${BUILTIN_REPORTER_NAMES.join('|')})`)
     .option('--json', 'Shortcut for --reporter json')
     .option('--severity <level>', `Display/fail threshold (${SEVERITIES.join('|')})`)
-    .help()
-    .version(version);
+    .option('-h, --help', 'Display help')
+    .option('-v, --version', 'Display version');
 
   for (const name of COMMANDS) {
     let desc = `${name} a repository`;
@@ -36,46 +34,16 @@ const buildCli = (): ReturnType<typeof cac> => {
   return cli;
 };
 
-const extractPositionalCwd = (
-  matchedCommand: string | undefined,
-  args: readonly unknown[],
-): unknown => {
-  if (matchedCommand) {
-    const [cwd] = args;
-    return cwd;
-  }
-  return args[STEP];
-};
-
-const extractCommandCandidate = (
-  matchedCommand: string | undefined,
-  args: readonly unknown[],
-): unknown => {
-  if (matchedCommand) {
-    return matchedCommand;
-  }
-  const [candidate] = args;
-  return candidate;
-};
-
-const extractExtraPositionals = (
-  matchedCommand: string | undefined,
-  args: readonly unknown[],
-): readonly unknown[] => {
-  if (matchedCommand) {
-    return args.slice(STEP);
-  }
-  return args.slice(ARGS_OFFSET);
-};
-
 export const parseCacOutput = (argv: readonly string[]): CacOutput => {
   const cli = buildCli();
   const parsed = cli.parse(['node', 'siro', ...argv], { run: false });
-  const flags: FlagValues = parsed.options;
-  const matchedCommand = cli.matchedCommandName;
-  const positionalCwd = extractPositionalCwd(matchedCommand, parsed.args);
-  const commandCandidate = extractCommandCandidate(matchedCommand, parsed.args);
-  const extraPositionals = extractExtraPositionals(matchedCommand, parsed.args);
+  const flags: Record<string, unknown> = parsed.options;
+  const knownFlags = new Set([
+    '--',
+    ...cli.globalCommand.options.flatMap((option) => option.names),
+  ]);
+  const commandCandidate = cli.matchedCommandName ?? parsed.args[FIRST_INDEX];
+  const positionals = cli.matchedCommandName ? parsed.args : parsed.args.slice(STEP);
 
-  return { commandCandidate, extraPositionals, flags, positionalCwd };
+  return { commandCandidate, flags, knownFlags, positionals };
 };

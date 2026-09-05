@@ -43,12 +43,14 @@ One of:
 - `{ "op": "setKey", "file": { "kind": "npmrc" | "yaml" | "toml" | "json", "path": "<repo-relative>" }, "keyPath": string[], "value": string | number | boolean }`
   — set the (possibly nested) key to the value, preserving comments and
   unrelated keys in the target file.
-- `{ "op": "ensureFileTracked", "file": { "kind": "fileGlob", "path": "<repo-relative>" }, "message": string }`
+- `{ "op": "ensureFileTracked", "file": { "kind": "npmrc" | "yaml" | "toml" | "json" | "fileGlob", "path": "<repo-relative>" }, "message": string }`
   — the named file must exist and be committed.
 - `{ "op": "note", "message": string, "file"?: { ... } }` — prose-only advice.
 
 ## Fixer loop
 
 1. `siro lint --reporter json` → apply `fix` ops / surface `manualSteps`.
-2. Re-run `siro lint`; exit code `0` confirms convergence. siro is the
-   deterministic verifier — fixers never need to re-implement rule logic.
+2. Re-run `siro lint`. Exit code `0` means no finding meets the active failure
+   threshold; lower-severity findings can still remain. Inspect those findings
+   separately. A passing run verifies the configured static checks, not the
+   package manager's runtime behavior or the safety of installed dependencies.

@@ -53,6 +53,19 @@ describe('createRepoContext — packageJson parsing', () => {
     expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(ConfigError);
     expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(/package\.json/u);
   });
+
+  it.each(['[]', 'null', 'true', '"package"', '42'])(
+    'throws ConfigError when package.json contains a non-object JSON root: %s',
+    (contents) => {
+      expect.hasAssertions();
+      const fs = createMemFileSystem({ 'package.json': contents });
+
+      expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(ConfigError);
+      expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(
+        /package\.json: expected an object/iu,
+      );
+    },
+  );
 });
 
 describe('createRepoContext — readText and exists', () => {

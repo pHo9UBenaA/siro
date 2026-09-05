@@ -1,25 +1,24 @@
 import type {
   AutoRuleBinding,
   CheckStatus,
-  ConfigFileRef,
   FixOp,
   Rule,
   VersionNote,
+  WritableConfigFileRef,
 } from '../../entities/rule.ts';
 import {
   type ConfigValue,
   type KeyAssignment,
   type KeyPath,
+  type ParsedConfig,
   getByPath,
 } from '../../entities/config-value.ts';
 import { type PM, PMS, type Severity } from '../../entities/pms.ts';
 import type { RepoContext } from '../../ports/repo-context.ts';
 
 type SetKeyOp = Extract<FixOp, { op: 'setKey' }>;
-type GetByPathConfig = Parameters<typeof getByPath>[0];
-
 interface RequireConfigKeySpec {
-  readonly file: ConfigFileRef;
+  readonly file: WritableConfigFileRef;
   readonly keyPath: KeyPath;
   /** Value `fix` will write and (when no `accept` predicate is given) the value `check` expects. */
   readonly value: ConfigValue;
@@ -82,79 +81,40 @@ export const overrideBindings = <Id extends string>(
   overrides: Partial<Rule['bindings']>,
 ): Rule<Id> => ({ ...rule, bindings: { ...rule.bindings, ...overrides } });
 
-const isDefaultOk = (spec: RequireConfigKeySpec): boolean => {
-  if (spec.accept) {
-    return spec.accept(spec.documentedDefault);
-  }
-  return spec.documentedDefault === spec.value;
-};
+const accepts = (spec: RequireConfigKeySpec, actual: unknown): boolean =>
+  spec.accept ? spec.accept(actual) : actual === spec.value;
 
-const checkDocumentedDefault = (
-  spec: RequireConfigKeySpec,
-  actual: ReturnType<typeof getByPath>,
-  message: string,
-): CheckStatus | undefined => {
-  if (typeof actual !== 'undefined' || typeof spec.documentedDefault === 'undefined') {
-    return void 0;
-  }
-  if (!isDefaultOk(spec)) {
-    return void 0;
-  }
-  const sev = spec.defaultSatisfiedSeverity ?? 'info';
-  if (sev === 'off') {
-    return { state: 'ok' };
-  }
-  return { actual, expected: spec.value, message, severity: sev, state: 'violation' };
-};
+const checkKeyValue = (spec: RequireConfigKeySpec, config: ParsedConfig): CheckStatus => {
+  const actual = getByPath(config, spec.keyPath);
+  const coveredByDefault =
+    actual === undefined &&
+    spec.documentedDefault !== undefined &&
+    accepts(spec, spec.documentedDefault);
 
-// extraFix keys are unconditionally required by `check`; see D15.
-const checkExtraFixes = (
-  spec: RequireConfigKeySpec,
-  config: GetByPathConfig,
-  message: string,
-): CheckStatus | undefined => {
+  if (!coveredByDefault && !accepts(spec, actual)) {
+    return { actual, expected: spec.value, message: spec.message, state: 'violation' };
+  }
+
+  // A safe primary default does not satisfy the independently required extra keys.
   for (const extra of spec.extraFix ?? []) {
     const extraActual = getByPath(config, extra.keyPath);
     if (extraActual !== extra.value) {
-      return { actual: extraActual, expected: extra.value, message, state: 'violation' };
+      return {
+        actual: extraActual,
+        expected: extra.value,
+        message: spec.message,
+        state: 'violation',
+      };
     }
   }
-  return void 0;
-};
 
-const checkPrimary = (
-  spec: RequireConfigKeySpec,
-  actual: ReturnType<typeof getByPath>,
-  message: string,
-): CheckStatus | undefined => {
-  let primaryOk = actual === spec.value;
-  if (spec.accept) {
-    primaryOk = spec.accept(actual);
-  }
-  if (!primaryOk) {
-    return { actual, expected: spec.value, message, state: 'violation' };
-  }
-  return void 0;
-};
-
-const checkKeyValue = (
-  spec: RequireConfigKeySpec,
-  config: GetByPathConfig,
-  message: string,
-): CheckStatus => {
-  const actual = getByPath(config, spec.keyPath);
-  // Ordering: advisory (documented-default) headline first, then unconditional
-  // extras (D15). A primary-key violation short-circuits before extras; an
-  // advisory still falls through so extras are validated even when the PM
-  // default covers the primary key.
-  const advisory = checkDocumentedDefault(spec, actual, message);
-  if (typeof advisory === 'undefined') {
-    const primary = checkPrimary(spec, actual, message);
-    if (typeof primary !== 'undefined') {
-      return primary;
+  if (coveredByDefault) {
+    const severity = spec.defaultSatisfiedSeverity ?? 'info';
+    if (severity !== 'off') {
+      return { actual, expected: spec.value, message: spec.message, severity, state: 'violation' };
     }
   }
-  return checkExtraFixes(spec, config, message) ?? advisory ?? { state: 'ok' };
+  return { state: 'ok' };
 };
 
 const buildBinding = (
@@ -165,7 +125,7 @@ const buildBinding = (
     if (typeof applies !== 'undefined' && !applies(ctx)) {
       return { state: 'na' };
     }
-    return checkKeyValue(spec, config, spec.message);
+    return checkKeyValue(spec, config);
   },
   docs: spec.docs,
   file: spec.file,

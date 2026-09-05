@@ -42,6 +42,7 @@ describe('runLint fixable vs manualSteps', () => {
 
   it('reports fixable=false when the violation carries manualSteps', () => {
     expect.hasAssertions();
+    const fix = vi.fn<() => []>(() => []);
     const ctx: RepoContext = {
       exists: () => false,
       packageJson: MISSING,
@@ -57,7 +58,7 @@ describe('runLint fixable vs manualSteps', () => {
             state: 'violation',
           }),
           file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-          fix: () => [],
+          fix,
           fixKind: 'auto',
         },
       },
@@ -70,5 +71,7 @@ describe('runLint fixable vs manualSteps', () => {
     const finding = result.findings[FIRST_INDEX];
     assert(finding, 'expected finding');
     expect(finding.fixable).toBe(false);
+    expect(finding.fix).toStrictEqual([]);
+    expect(fix).not.toHaveBeenCalled();
   });
 });

@@ -106,6 +106,20 @@ describe.skipIf(!DIST_PRESENT)('CLI binary — version and flags', () => {
 });
 
 describe.skipIf(!DIST_PRESENT)('CLI binary — error handling', () => {
+  test('exits 2 and names a JSON config whose root is not a mapping', () => {
+    expect.hasAssertions();
+    const dir = mkdtempSync(path.join(tmpdir(), 'siro-invalid-config-root-'));
+    try {
+      writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'demo' }));
+      writeFileSync(path.join(dir, 'deno.json'), '[]');
+      const result = spawnBin(['lint', dir]);
+      expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(EXIT_USAGE);
+      expect(result.stderr).toMatch(/deno\.json: config root must be a mapping/iu);
+    } finally {
+      rmSync(dir, { force: true, recursive: true });
+    }
+  });
+
   test('exits 2 when a config contains a malformed custom rule', () => {
     expect.hasAssertions();
     const dir = mkdtempSync(path.join(tmpdir(), 'siro-invalid-rule-'));

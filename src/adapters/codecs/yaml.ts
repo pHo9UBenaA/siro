@@ -14,6 +14,9 @@ export const yamlCodec: ConfigCodec = {
     if (document.errors.length > 0) {
       throw document.errors[0];
     }
+    if (document.contents === null) {
+      return {};
+    }
     return toParsedConfig(
       document.toJS({
         onAnchor: (value) => {

@@ -2,6 +2,7 @@ import { type AbsPath, type RelPath, asRelPath } from '../shared/paths.ts';
 import { type PackageJson, safeParsePackageJson } from '../domain/schemas/package-json.ts';
 import { nodeFileSystem, resolveIn } from './node-file-system.ts';
 import { ConfigError } from '../shared/errors.ts';
+import { isRecord } from '../shared/records.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import type { RepoContext } from '../domain/ports/repo-context.ts';
 import type { ProjectType } from '../domain/entities/project-type.ts';
@@ -23,6 +24,9 @@ const parsePackageJson = (raw: string): PackageJson | undefined => {
   // definition), matching how the json codec parses the same file and how
   // npm / pnpm / node's own require() treat BOM-prefixed package.json.
   const parsed = tryParseJson(raw.trim());
+  if (!isRecord(parsed)) {
+    throw new ConfigError('package.json: expected an object at the root.');
+  }
   return safeParsePackageJson(parsed);
 };
 

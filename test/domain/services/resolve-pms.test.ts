@@ -38,7 +38,13 @@ describe('resolvePMs — detection', () => {
 describe('resolvePMs — override', () => {
   it('honors a single-PM override and skips detection entirely', () => {
     expect.hasAssertions();
-    expect(resolvePMs(ctx(['pnpm-lock.yaml']), { pmOverride: 'npm' })).toStrictEqual(['npm']);
+    const repo = {
+      ...ctx(['pnpm-lock.yaml']),
+      exists: () => {
+        throw new Error('detection must not read the filesystem when a PM is forced');
+      },
+    };
+    expect(resolvePMs(repo, { pmOverride: 'npm' })).toStrictEqual(['npm']);
   });
 
   it('still applies the allowed restriction on top of an override', () => {

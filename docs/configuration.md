@@ -25,7 +25,7 @@ these suffixes (and the cells still marked TBD pending upstream-docs research).
 
 ## Package manager detection
 
-`siro` detects managers from these signals, strongest first:
+`siro` combines the following detection signals; none suppresses the others:
 
 1. The `packageManager` field in `package.json` (e.g. `pnpm@10.9.0`). The version segment is
    parsed off and discarded — see [versioning policy](#versioning-policy).
@@ -84,6 +84,12 @@ reads for a given PM, with the number of rules that reference it.
 See [rules.md](rules.md) for per-rule target files and
 [comparison.md](comparison.md) for the full rule × PM support matrix.
 
+Inspected JSON and YAML files must have mapping roots. Explicit arrays, scalars,
+and `null` are configuration errors. Missing files provide no settings; an empty
+or comment-only YAML document also provides no settings. A present empty JSON
+file is invalid. A present `package.json` must be a JSON object, even when no
+published-package rules apply.
+
 ## `siro.config.ts`
 
 Drop a `siro.config.{ts,mjs,js}` next to `package.json` to customize behavior:
@@ -113,12 +119,31 @@ package-only custom rule does not run for an inferred application. Untyped progr
 calls that pass an unsupported project type, PM, or severity reject with `UsageError`
 instead of returning a potentially clean result.
 
-`.ts` configs are loaded via Node's native type stripping (requires Node `^22.18.0 || ^23.6.0 || >=24`);
-no extra build step. Only erasable TypeScript syntax is supported (no `enum`, `namespace`, or
-parameter properties). On projects without `"type": "module"` in package.json, Node may print a
-harmless `MODULE_TYPELESS_PACKAGE_JSON` notice on stderr.
+`.ts` configs use Node's native type stripping (Node `^22.18.0 || ^23.6.0 || >=24`).
+Only erasable TypeScript syntax is supported, so enums and parameter properties
+require a separate build step. Without `"type": "module"` in package.json, Node
+may print a `MODULE_TYPELESS_PACKAGE_JSON` notice on stderr.
+Each load re-evaluates the config entry. Its imported modules retain Node's normal
+module cache; restart the process when changing those dependencies.
 Unknown rule IDs are caught at startup: siro exits with code 2 and prints
 `siro.config: unknown rule id '…'` (or `unknown rule ids` for multiple) so typos fail fast.
+
+### Custom rule input and output
+
+`ParsedConfig` values and `getByPath()` results are `unknown`: parsing a file does
+not validate a rule's expected value type. Narrow each value before using it:
+
+```ts
+const value = getByPath(config, ['minimumReleaseAge']);
+const enabled = typeof value === 'number' && Number.isFinite(value) && value > 0;
+```
+
+Nested arrays and TOML dates remain available to custom rules. A rule must return
+a valid `CheckStatus`. Automatic fixes contain only `setKey` operations targeting
+parsed config files (`WritableConfigFileRef`); advisory fixes contain only notes
+or tracking guidance. Expected values and fix values must be finite numbers,
+strings, or booleans. Malformed extension results are configuration errors (exit 2),
+while unexpected exceptions thrown by extensions remain crashes (exit 70).
 
 ## Per-PM severity and PM defaults
 

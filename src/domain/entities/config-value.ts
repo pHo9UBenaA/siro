@@ -1,3 +1,5 @@
+import { isRecord } from '../../shared/records.ts';
+
 export const CODEC_KINDS = ['json', 'npmrc', 'toml', 'yaml'] as const;
 export type CodecKind = (typeof CODEC_KINDS)[number];
 
@@ -7,9 +9,9 @@ export type ConfigValue = string | number | boolean;
 /** Scalar value as it appears when reading (codecs may produce `null`). */
 export type ConfigScalar = ConfigValue | null;
 
-/** Recursive, structurally typed view of a parsed config file. */
+/** Parsed keys are unvalidated; each rule narrows the values it reads. */
 export interface ParsedConfig {
-  readonly [key: string]: ConfigScalar | readonly ConfigScalar[] | ParsedConfig;
+  readonly [key: string]: unknown;
 }
 
 /** A (possibly nested) key path, guaranteed to have at least one segment. */
@@ -21,26 +23,8 @@ export interface KeyAssignment {
   readonly value: ConfigValue;
 }
 
-/**
- * Value a rule's `check` saw at the target key, as returned by `getByPath`.
- * Runtime caveat: YAML/TOML parsers can yield host values (e.g. `Date`)
- * nested inside `ParsedConfig` even though the type does not name them —
- * compare timestamps by `valueOf()`, not by type narrowing on this union.
- */
-export type ConfigReadValue = ConfigScalar | readonly ConfigScalar[] | ParsedConfig | undefined;
-
-const isParsedConfigObject = (value: unknown): value is ParsedConfig => {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return false;
-  }
-  // Plain object check: only `{}` and `Object.create(null)` count as a
-  // config root. Date / Map / Set / RegExp / class instances all satisfy
-  // `typeof === 'object'` but their enumerable keys aren't meaningful as
-  // config — letting them through would expose `getTime`-style noise to
-  // `getByPath` and obscure the real "root must be a mapping" contract.
-  const proto = Object.getPrototypeOf(value);
-  return proto === null || proto === Object.prototype;
-};
+/** Parser values may include nested arrays and TOML dates. */
+export type ConfigReadValue = unknown;
 
 /**
  * Look up a nested value by key path; `undefined` if any segment is missing.
@@ -50,13 +34,10 @@ const isParsedConfigObject = (value: unknown): value is ParsedConfig => {
  * built-in rules see, so they need the canonical traversal helper rather
  * than re-implementing `null`-vs-missing semantics per rule.
  */
-export const getByPath = (
-  config: ParsedConfig,
-  keyPath: KeyPath,
-): ConfigScalar | readonly ConfigScalar[] | ParsedConfig | undefined => {
-  let current: ConfigScalar | readonly ConfigScalar[] | ParsedConfig | undefined = config;
+export const getByPath = (config: ParsedConfig, keyPath: KeyPath): ConfigReadValue => {
+  let current: unknown = config;
   for (const key of keyPath) {
-    if (!isParsedConfigObject(current)) {
+    if (!isRecord(current)) {
       return;
     }
     if (!Object.hasOwn(current, key)) {
@@ -67,17 +48,10 @@ export const getByPath = (
   return current;
 };
 
-/**
- * A deep sanitiser (recursing to keep only known scalars)
- * was rejected because YAML legitimately yields `Date` and other host values
- * that rules can inspect — silently dropping them would look like missing
- * config keys. Throwing on non-objects was rejected so a root-level array or
- * scalar behaves the same as an empty file: `{}`, letting `getByPath` return
- * `undefined` instead of crashing every rule.
- */
+/** Accept only mapping roots while preserving unvalidated values inside them. */
 export const toParsedConfig = (value: unknown): ParsedConfig => {
-  if (isParsedConfigObject(value)) {
+  if (isRecord(value)) {
     return value;
   }
-  return {};
+  throw new TypeError('Config root must be a mapping.');
 };

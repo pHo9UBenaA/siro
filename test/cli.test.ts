@@ -35,9 +35,7 @@ const describeVersionBranch = (): void => {
 
   test('prints the version with -v (alias of --version)', () => {
     expect.hasAssertions();
-    // cac registers `-v` as an alias of --version; the pre-cac scanner must
-    // honor it too, or `siro -v` falls through to cac (bypassing injected IO)
-    // and lands in the usage/exit-2 branch.
+    // Keep cac's short alias on the same injected-IO path as --version.
     return runExpectCode(['-v']).then(({ code, out }) => {
       expect(code).toBe(EXIT_OK);
       expect(out.trim()).toMatch(/^\d+\.\d+\.\d+/u);
@@ -67,11 +65,27 @@ const describeHelpBranch = (): void => {
 };
 
 const describeFlagInteraction = (): void => {
+  test('supports clustered short help and version flags with help precedence', () => {
+    expect.hasAssertions();
+    return runExpectCode(['-hv']).then(({ code, err, out }) => {
+      expect(code).toBe(EXIT_OK);
+      expect(out).toMatch(/USAGE\n {2}siro <command>/u);
+      expect(err).toBe('');
+    });
+  });
+
+  test('does not treat repeated false help assignments as a help request', () => {
+    expect.hasAssertions();
+    return runExpectCode(['--help=false', '--help=false']).then(({ code, err, out }) => {
+      expect(code).toBe(EXIT_USAGE);
+      expect(out).toBe('');
+      expect(err).toMatch(/usage/iu);
+    });
+  });
+
   test('treats `--help` after a value-flag as the help request, not the flag value', () => {
     expect.hasAssertions();
-    // `--reporter --help` must show help: a `-`-prefixed token is never a
-    // flag's value, so the pre-cac scanner must not swallow `--help` as the
-    // reporter value (which would fall through to the lint/usage branch).
+    // A `-`-prefixed token is another option rather than --reporter's value.
     return runExpectCode(['--reporter', '--help']).then(({ code, out }) => {
       expect(code).toBe(EXIT_OK);
       expect(out).toMatch(/USAGE\n {2}siro <command>/u);
@@ -80,8 +94,7 @@ const describeFlagInteraction = (): void => {
 
   test('treats `--version` after a value-flag as the version request, not the flag value', () => {
     expect.hasAssertions();
-    // Companion to the --help case; the shared skip predicate must keep
-    // `--reporter --version` from eating --version as the reporter value.
+    // Companion to the --help case above.
     return runExpectCode(['--reporter', '--version']).then(({ code, out }) => {
       expect(code).toBe(EXIT_OK);
       expect(out.trim()).toMatch(/^\d+\.\d+\.\d+/u);
@@ -190,7 +203,7 @@ const describePassthroughAndConflict = (): void => {
     const cases = [
       ['lint', '--reporter', 'github', '--json'],
       ['lint', '--reporter', 'json', '--json'],
-    ] as const;
+    ];
     return Promise.all(
       cases.map((args) =>
         runExpectCode(args).then(({ code, err }) => {

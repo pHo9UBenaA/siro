@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 import { type AbsPath, asAbsPath } from './shared/paths.ts';
 import { type CommandName, isCommandName } from './cli/commands.ts';
-import { type FlagValues, KNOWN_FLAGS, flagsFor } from './cli/flags.ts';
 import type { PM, Severity } from './domain/entities/pms.ts';
 import { SiroError, UsageError } from './shared/errors.ts';
-import { detectHelpFlag, detectVersionFlag } from './cli/scanners.ts';
 import {
   ensureNodeVersion,
   parsePmFlag,
@@ -37,21 +35,22 @@ type ParsedCommand =
       severity?: Severity;
     };
 
+const EMPTY = 0;
 const EXIT_SUCCESS = 0;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
 
-const rejectPassthrough = (flags: FlagValues): void => {
+const rejectPassthrough = (flags: Record<string, unknown>): void => {
   // siro wraps no downstream tool, so anything after `--` has nowhere to go.
   const passthrough = flags['--'];
-  if (Array.isArray(passthrough) && passthrough.length > 0) {
+  if (Array.isArray(passthrough) && passthrough.length > EMPTY) {
     throw new UsageError('siro takes no passthrough arguments after `--`.');
   }
 };
 
-const resolveCommandCandidate = (
+const resolveCommandUsage = (
   commandCandidate: unknown,
-): { kind: 'usage'; reason?: string } | { kind: 'command'; name: CommandName } => {
+): { kind: 'usage'; reason?: string } | undefined => {
   if (typeof commandCandidate === 'undefined') {
     return { kind: 'usage' };
   }
@@ -65,13 +64,12 @@ const resolveCommandCandidate = (
   if (typeof commandCandidate !== 'string' || !isCommandName(commandCandidate)) {
     return { kind: 'usage', reason: `Unknown command: ${String(commandCandidate)}` };
   }
-  return { kind: 'command', name: commandCandidate };
 };
 
 const SINGLE = 1;
 
 const rejectExtraPositionals = (extraPositionals: readonly unknown[]): void => {
-  if (extraPositionals.length > 0) {
+  if (extraPositionals.length > EMPTY) {
     let plural = '';
     if (extraPositionals.length > SINGLE) {
       plural = 's';
@@ -88,25 +86,37 @@ const resolveCwd = (positionalCwd: unknown): AbsPath => {
   return asAbsPath(path.resolve(raw));
 };
 
-const checkPreScanFlags = (argv: readonly string[]): ParsedCommand | undefined => {
-  // cac calls console.log/exit on --help/--version itself; intercept those
-  // BEFORE handing argv to it so output stays inside the injected IO.
-  const preHelp = detectHelpFlag(argv);
-  if (typeof preHelp !== 'undefined') {
-    return { kind: 'help', target: preHelp.target };
+const isEnabledFlag = (value: unknown): boolean =>
+  value === true || (Array.isArray(value) && value.some((item) => item === true));
+
+const parseArgs = (argv: readonly string[]): ParsedCommand => {
+  const { commandCandidate, flags, knownFlags, positionals } = parseCacOutput(argv);
+  if (isEnabledFlag(flags.help)) {
+    return {
+      kind: 'help',
+      target:
+        typeof commandCandidate === 'string' && isCommandName(commandCandidate)
+          ? commandCandidate
+          : undefined,
+    };
   }
-  if (detectVersionFlag(argv)) {
+  if (isEnabledFlag(flags.version)) {
     return { kind: 'version' };
   }
-  return void 0;
-};
 
-const buildLintCommand = (
-  flags: FlagValues,
-  positionalCwd: unknown,
-  commandCandidate: CommandName,
-): ParsedCommand => {
-  rejectUnknownFlags(flags, flagsFor(commandCandidate), commandCandidate);
+  rejectUnknownFlags(flags, knownFlags);
+  rejectPassthrough(flags);
+
+  const usage = resolveCommandUsage(commandCandidate);
+  if (usage) {
+    return usage;
+  }
+  // Only one positional (the optional cwd) is meaningful after the command.
+  // Silently dropping extras would let `siro lint pnpm` (a typo'd `--pm pnpm`)
+  // run against a 'pnpm' directory — reject like the `--` passthrough above.
+  const [positionalCwd, ...extraPositionals] = positionals;
+  rejectExtraPositionals(extraPositionals);
+
   return {
     cwd: resolveCwd(positionalCwd),
     kind: 'lint',
@@ -117,61 +127,22 @@ const buildLintCommand = (
   };
 };
 
-const validateFlags = (flags: FlagValues): void => {
-  rejectUnknownFlags(flags, KNOWN_FLAGS);
-  rejectPassthrough(flags);
-};
-
-const parseArgs = (argv: readonly string[]): ParsedCommand => {
-  const preScan = checkPreScanFlags(argv);
-  if (typeof preScan !== 'undefined') {
-    return preScan;
-  }
-
-  const { commandCandidate, extraPositionals, flags, positionalCwd } = parseCacOutput(argv);
-
-  validateFlags(flags);
-
-  const resolved = resolveCommandCandidate(commandCandidate);
-  if (resolved.kind === 'usage') {
-    return resolved;
-  }
-  // Only one positional (the optional cwd) is meaningful after the command.
-  // Silently dropping extras would let `siro lint pnpm` (a typo'd `--pm pnpm`)
-  // run against a 'pnpm' directory — reject like the `--` passthrough above.
-  rejectExtraPositionals(extraPositionals);
-
-  return buildLintCommand(flags, positionalCwd, resolved.name);
-};
-
-const handleVersion = (io: IO): Promise<number> => {
-  io.stdout(version);
-  return Promise.resolve(EXIT_SUCCESS);
-};
-
-const handleHelp = (target: CommandName | undefined, io: IO): Promise<number> => {
-  io.stdout(renderHelp(target));
-  return Promise.resolve(EXIT_SUCCESS);
-};
-
-const handleUsage = (reason: string | undefined, io: IO): Promise<number> => {
-  if (typeof reason !== 'undefined') {
-    io.stderr(`${reason}\n`);
-  }
-  io.stderr(renderHelp());
-  return Promise.resolve(EXIT_USAGE);
-};
-
-const dispatch = (cmd: ParsedCommand, io: IO): Promise<number> => {
+const dispatch = (cmd: ParsedCommand, io: IO): number | Promise<number> => {
   switch (cmd.kind) {
     case 'version': {
-      return handleVersion(io);
+      io.stdout(version);
+      return EXIT_SUCCESS;
     }
     case 'help': {
-      return handleHelp(cmd.target, io);
+      io.stdout(renderHelp(cmd.target));
+      return EXIT_SUCCESS;
     }
     case 'usage': {
-      return handleUsage(cmd.reason, io);
+      if (cmd.reason) {
+        io.stderr(`${cmd.reason}\n`);
+      }
+      io.stderr(renderHelp());
+      return EXIT_USAGE;
     }
     case 'lint': {
       return lintCommand(cmd, io);
@@ -183,7 +154,7 @@ const dispatch = (cmd: ParsedCommand, io: IO): Promise<number> => {
   }
 };
 
-const handleAsyncError = (error: unknown, io: IO): number => {
+const handleError = (error: unknown, io: IO): number => {
   if (error instanceof SiroError) {
     io.stderr(error.message);
     return error.exitCode;
@@ -200,46 +171,26 @@ const handleAsyncError = (error: unknown, io: IO): number => {
   throw error;
 };
 
-const handleSyncError = (error: unknown, io: IO): Promise<number> => {
-  if (error instanceof SiroError) {
-    io.stderr(error.message);
-    return Promise.resolve(error.exitCode);
-  }
-  if (isNodeError(error) && typeof error.errno === 'number') {
-    io.stderr(`File system error: ${error.message}`);
-    return Promise.resolve(EXIT_USAGE);
-  }
-  return Promise.reject(error);
-};
-
-export const run = (argv: readonly string[], io: IO = nodeIO): Promise<number> => {
+export const run = async (argv: readonly string[], io: IO = nodeIO): Promise<number> => {
   try {
     ensureNodeVersion(process.versions.node);
     const cmd = parseArgs(argv);
-    return dispatch(cmd, io).catch((error: unknown) => handleAsyncError(error, io));
+    return await dispatch(cmd, io);
   } catch (error) {
-    return handleSyncError(error, io);
+    return handleError(error, io);
   }
 };
 
-const onRunFulfilled = (code: number): void => {
-  process.exitCode = code;
-};
-
-const onRunRejected = (error: unknown): void => {
-  // `run` re-throws non-SiroError; without this catch it becomes an
-  // unhandledRejection (Node exit 1), indistinguishable from "findings
-  // found". Use a dedicated code so CI can tell a crash from a result.
-  let errStr = String(error);
-  if (error instanceof Error) {
-    errStr = error.stack ?? error.message;
+export const runMain = async (argv: readonly string[]): Promise<void> => {
+  try {
+    process.exitCode = await run(argv);
+  } catch (error) {
+    // Keep unexpected failures distinct from the exit-1 "findings found" result.
+    const errStr = error instanceof Error ? (error.stack ?? error.message) : String(error);
+    process.stderr.write(`${errStr}\n`);
+    process.exitCode = EXIT_CRASH;
   }
-  process.stderr.write(`${errStr}\n`);
-  process.exitCode = EXIT_CRASH;
 };
-
-export const runMain = (argv: readonly string[]): Promise<void> =>
-  run(argv).then(onRunFulfilled, onRunRejected);
 
 const ARGV_SKIP = 2;
 const [, invokedPath] = process.argv;

@@ -162,7 +162,8 @@ describe('documentedDefault — override', () => {
       codecFor: stubCodecFor,
       ctx: makeCtx(),
       pms: ['npm'],
-      ruleSet: adjusted,
+      ruleSet: adjusted.rules,
+      severityOverrides: adjusted.severityOverrides,
     });
     expect(findings).toHaveLength(SINGLE_FINDING);
     const firstFinding6 = findings[FIRST_ELEMENT];

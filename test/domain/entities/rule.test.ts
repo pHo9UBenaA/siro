@@ -4,6 +4,12 @@ vi.setConfig({ testTimeout: 5000 });
 
 const SPARSE_ARRAY_LENGTH = 1;
 
+class Container {
+  public readonly marker = true;
+}
+
+const NON_RECORD_OBJECTS = [new Date(), new Map(), new Set(), /x/u, new Container()];
+
 const validRule = {
   bindings: {
     npm: {
@@ -22,6 +28,29 @@ const validRule = {
 };
 
 describe(isRuleShape, () => {
+  it('validates inherited bindings that the evaluator can read', () => {
+    expect.hasAssertions();
+    const invalidBindings = Object.create({ npm: { check: 'not-a-function' } });
+    const validBindings = Object.create({ npm: validRule.bindings.npm });
+    expect(isRuleShape({ ...validRule, bindings: invalidBindings })).toBe(false);
+    expect(isRuleShape({ ...validRule, bindings: validBindings })).toBe(true);
+  });
+
+  it.each(NON_RECORD_OBJECTS)('rejects a %s bindings container', (bindings) => {
+    expect.hasAssertions();
+    expect(isRuleShape({ ...validRule, bindings })).toBe(false);
+  });
+
+  it.each(NON_RECORD_OBJECTS)('rejects a %s versionNote container', (versionNote) => {
+    expect.hasAssertions();
+    expect(
+      isRuleShape({
+        ...validRule,
+        bindings: { npm: { ...validRule.bindings.npm, versionNote } },
+      }),
+    ).toBe(false);
+  });
+
   it('accepts a complete rule including its binding functions', () => {
     expect.hasAssertions();
     expect(isRuleShape(validRule)).toBe(true);

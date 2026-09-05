@@ -5,6 +5,12 @@ vi.setConfig({ testTimeout: 5000 });
 const MINIMUM_RELEASE_AGE_MINUTES = 1440;
 
 describe('yamlCodec.parse (shallow)', () => {
+  it('treats an empty or comment-only YAML document as an empty mapping', () => {
+    expect.hasAssertions();
+    expect(yamlCodec.parse('   \n')).toStrictEqual({});
+    expect(yamlCodec.parse('# workspace boundary\n')).toStrictEqual({});
+  });
+
   it('parses top-level scalars and coerces them', () => {
     expect.hasAssertions();
     const text = ['minimumReleaseAge: 1440', "savePrefix: ''", 'strictDepBuilds: true'].join('\n');
@@ -12,6 +18,11 @@ describe('yamlCodec.parse (shallow)', () => {
     expect(config.minimumReleaseAge).toBe(MINIMUM_RELEASE_AGE_MINUTES);
     expect(config.savePrefix).toBe('');
     expect(config.strictDepBuilds).toBe(true);
+  });
+
+  it.each(['- item', 'null', 'true', 'text', '42'])('rejects a non-mapping root: %s', (text) => {
+    expect.hasAssertions();
+    expect(() => yamlCodec.parse(text)).toThrow(/config root must be a mapping/iu);
   });
 
   it('rejects an alias bomb instead of expanding it unbounded', () => {

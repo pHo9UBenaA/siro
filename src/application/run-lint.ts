@@ -1,56 +1,103 @@
-import { type BindingVisit, evaluateBindings } from '../domain/services/evaluate-bindings.ts';
+import { CONFIG_FILES } from '../domain/entities/config-files.ts';
 import type { Finding, LintResult } from '../domain/entities/lint-result.ts';
-import type { FixOp, Rule } from '../domain/entities/rule.ts';
 import type { PM, Severity } from '../domain/entities/pms.ts';
+import type { ProjectType } from '../domain/entities/project-type.ts';
+import {
+  type CheckStatus,
+  type FixOp,
+  type Rule,
+  type RuleBinding,
+  isCheckStatusShape,
+  isFixResultShape,
+} from '../domain/entities/rule.ts';
 import type { CodecFor } from '../domain/ports/config-codec.ts';
 import type { RepoContext } from '../domain/ports/repo-context.ts';
-import { createConfigParser } from '../domain/services/parse-config-file.ts';
 import { decideSeverity } from '../domain/services/decide-severity.ts';
+import { createConfigParser, type ConfigParser } from '../domain/services/parse-config-file.ts';
+import {
+  resolveDenoProjectType,
+  resolvePackageJsonProjectType,
+} from '../domain/services/project-type.ts';
 import { renderVersionNoteMessage } from '../domain/services/render-version-note.ts';
-
-const EMPTY = 0;
+import { ConfigError } from '../shared/errors.ts';
 
 export interface RunLintOptions {
   readonly ctx: RepoContext;
   readonly pms: readonly PM[];
   readonly ruleSet: readonly Rule[];
+  readonly severityOverrides?: ReadonlyMap<string, Severity>;
   readonly codecFor: CodecFor;
 }
 
-const resolveManualSteps = (raw: readonly string[] | undefined): readonly string[] | undefined => {
-  if (typeof raw !== 'undefined' && raw.length > 0) {
-    return raw;
+type Violation = Extract<CheckStatus, { state: 'violation' }>;
+
+const resolveBindingProjectType = (
+  ctx: RepoContext,
+  pm: PM,
+  parseConfig: ConfigParser,
+): ProjectType => {
+  if (ctx.projectType !== undefined) {
+    return ctx.projectType;
   }
-  return void 0;
+  if (pm === 'deno') {
+    return resolveDenoProjectType(ctx, parseConfig(ctx, CONFIG_FILES.denoJson));
+  }
+  return resolvePackageJsonProjectType(ctx);
 };
 
-const buildFinding = (visit: BindingVisit, ctx: RepoContext): Finding => {
-  const { rule, pm, binding, status } = visit;
-  // User `rules` overrides are folded in by `applyConfig` upstream — by
-  // the time we reach decideSeverity, the only live sources are the
-  // dynamic status severity, the per-PM binding severity, and the
-  // rule-wide default.
-  const severity = decideSeverity(status, binding, rule);
-  const manualSteps = resolveManualSteps(status.manualSteps);
-  let filePath: string | undefined = void 0;
-  if (binding.file.kind !== 'fileGlob') {
-    filePath = binding.file.path;
-  }
+const appliesToProject = (
+  rule: Rule,
+  ctx: RepoContext,
+  pm: PM,
+  parseConfig: ConfigParser,
+): boolean =>
+  rule.projectTypes === undefined ||
+  rule.projectTypes.includes(resolveBindingProjectType(ctx, pm, parseConfig));
 
-  // A violation carrying manualSteps cannot be resolved by writing its
-  // setKey ops (the user state that produced the steps would defeat
-  // them), so `fix` is suppressed and the steps carry the remediation.
-  let fix: readonly FixOp[] = [];
-  if (typeof manualSteps === 'undefined') {
-    fix = binding.fix(ctx);
+const runFix = (rule: Rule, binding: RuleBinding, ctx: RepoContext): readonly FixOp[] => {
+  const fix: unknown = binding.fix(ctx);
+  if (!isFixResultShape(fix, binding.fixKind)) {
+    throw new ConfigError(`Rule '${rule.id}' returned invalid fix operations.`);
   }
+  return fix;
+};
+
+const checkBinding = (
+  rule: Rule,
+  binding: RuleBinding,
+  ctx: RepoContext,
+  parseConfig: ConfigParser,
+): CheckStatus => {
+  const status: unknown = binding.check(ctx, parseConfig(ctx, binding.file));
+  if (!isCheckStatusShape(status)) {
+    throw new ConfigError(`Rule '${rule.id}' returned an invalid check result.`);
+  }
+  return status;
+};
+
+const resolveManualSteps = (raw: readonly string[] | undefined): readonly string[] | undefined =>
+  raw && raw.length > 0 ? raw : undefined;
+
+const buildFinding = (
+  rule: Rule,
+  pm: PM,
+  binding: RuleBinding,
+  status: Violation,
+  ctx: RepoContext,
+  userOverride?: Severity,
+): Finding => {
+  const severity = decideSeverity(status, binding, rule, userOverride);
+  const manualSteps = resolveManualSteps(status.manualSteps);
+  const file = binding.file.kind === 'fileGlob' ? undefined : binding.file.path;
+  const fix: readonly FixOp[] = manualSteps ? [] : runFix(rule, binding, ctx);
+
   return {
     actual: status.actual,
     docs: binding.docs ?? rule.docs,
     expected: status.expected,
-    file: filePath,
+    file,
     fix,
-    fixable: binding.fixKind === 'auto' && typeof manualSteps === 'undefined' && fix.length > EMPTY,
+    fixable: binding.fixKind === 'auto' && !manualSteps && fix.length > 0,
     manualSteps,
     message: renderVersionNoteMessage(status.message, binding.versionNote),
     pm,
@@ -59,24 +106,30 @@ const buildFinding = (visit: BindingVisit, ctx: RepoContext): Finding => {
   };
 };
 
-/** Evaluate every rule binding for the given PMs and collect violations. */
+/** Evaluate every applicable rule binding and collect violations. */
 export const runLint = (opts: RunLintOptions): LintResult => {
-  const { ctx, pms, ruleSet, codecFor } = opts;
+  const { ctx, pms, ruleSet, severityOverrides, codecFor } = opts;
   const findings: Finding[] = [];
   const summary: Record<Severity, number> = { error: 0, info: 0, warn: 0 };
   const parseConfig = createConfigParser(codecFor);
 
-  evaluateBindings({
-    ctx,
-    onViolation: (visit) => {
-      const finding = buildFinding(visit, ctx);
+  for (const rule of ruleSet) {
+    for (const pm of pms) {
+      const binding = rule.bindings[pm];
+      if (!binding || !appliesToProject(rule, ctx, pm, parseConfig)) {
+        continue;
+      }
+
+      const status = checkBinding(rule, binding, ctx, parseConfig);
+      if (status.state !== 'violation') {
+        continue;
+      }
+
+      const finding = buildFinding(rule, pm, binding, status, ctx, severityOverrides?.get(rule.id));
       findings.push(finding);
       summary[finding.severity] += 1;
-    },
-    parseConfig,
-    pms,
-    ruleSet,
-  });
+    }
+  }
 
   return { findings, summary };
 };

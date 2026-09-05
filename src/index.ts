@@ -44,6 +44,7 @@ export type {
   Rule,
   RuleBinding,
   VersionNote,
+  WritableConfigFileRef,
 } from './domain/entities/rule.ts';
 export { PM_SIGNALS, type PMSignals } from './domain/entities/signals.ts';
 export { defineConfig, type RuleSetting, type SiroConfig } from './domain/entities/siro-config.ts';

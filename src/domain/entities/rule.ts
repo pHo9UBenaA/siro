@@ -6,10 +6,11 @@ import {
   type KeyPath,
   type ParsedConfig,
 } from './config-value.ts';
-import { type PM, type Severity, isPM, isSeverity } from './pms.ts';
+import { PMS, type PM, type Severity, isPM, isSeverity } from './pms.ts';
 import type { RelPath } from '../../shared/paths.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
 import { type ProjectType, isProjectType } from './project-type.ts';
+import { isRecord } from '../../shared/records.ts';
 
 /**
  * What a rule binding points at on disk: a parsed config file or an existence
@@ -20,6 +21,8 @@ import { type ProjectType, isProjectType } from './project-type.ts';
 export type ConfigFileRef =
   | { readonly kind: CodecKind; readonly path: RelPath }
   | { readonly kind: 'fileGlob'; readonly path: RelPath };
+
+export type WritableConfigFileRef = Exclude<ConfigFileRef, { readonly kind: 'fileGlob' }>;
 
 /** Result of evaluating a single rule binding against a repo. */
 export type CheckStatus =
@@ -53,7 +56,7 @@ export type CheckStatus =
 export type FixOp =
   | {
       readonly op: 'setKey';
-      readonly file: ConfigFileRef;
+      readonly file: WritableConfigFileRef;
       readonly keyPath: KeyPath;
       readonly value: ConfigValue;
     }
@@ -122,8 +125,7 @@ export interface Rule<Id extends string = string> {
   readonly bindings: Partial<Record<PM, RuleBinding>>;
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+export const defineRule = <const Id extends string>(rule: Rule<Id>): Rule<Id> => rule;
 
 const isOptionalString = (value: unknown): boolean =>
   typeof value === 'undefined' || typeof value === 'string';
@@ -136,6 +138,66 @@ const isConfigFileRefShape = (value: unknown): value is ConfigFileRef => {
   }
   return CONFIG_FILE_KINDS.has(value.kind);
 };
+
+const isWritableConfigFileRefShape = (value: unknown): value is WritableConfigFileRef =>
+  isConfigFileRefShape(value) && value.kind !== 'fileGlob';
+
+const isConfigValueShape = (value: unknown): value is ConfigValue =>
+  typeof value === 'string' ||
+  typeof value === 'boolean' ||
+  (typeof value === 'number' && Number.isFinite(value));
+
+const isDenseStringArray = (value: unknown): value is readonly string[] =>
+  Array.isArray(value) && Array.from(value).every((item) => typeof item === 'string');
+
+export const isCheckStatusShape = (value: unknown): value is CheckStatus => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (value.state === 'ok' || value.state === 'na') {
+    return true;
+  }
+  return (
+    value.state === 'violation' &&
+    typeof value.message === 'string' &&
+    (value.expected === undefined || isConfigValueShape(value.expected)) &&
+    (value.severity === undefined ||
+      (typeof value.severity === 'string' && isSeverity(value.severity))) &&
+    (value.manualSteps === undefined || isDenseStringArray(value.manualSteps))
+  );
+};
+
+const isFixOpShape = (value: unknown): value is FixOp => {
+  if (!isRecord(value)) {
+    return false;
+  }
+  if (value.op === 'setKey') {
+    return (
+      isWritableConfigFileRefShape(value.file) &&
+      isDenseStringArray(value.keyPath) &&
+      value.keyPath.length > 0 &&
+      isConfigValueShape(value.value)
+    );
+  }
+  if (value.op === 'ensureFileTracked') {
+    return isConfigFileRefShape(value.file) && typeof value.message === 'string';
+  }
+  return (
+    value.op === 'note' &&
+    typeof value.message === 'string' &&
+    (value.file === undefined || isConfigFileRefShape(value.file))
+  );
+};
+
+export const isFixResultShape = (value: unknown, fixKind: FixKind): value is readonly FixOp[] =>
+  Array.isArray(value) &&
+  Array.from(value).every(
+    (operation) =>
+      isFixOpShape(operation) &&
+      (fixKind === 'auto'
+        ? operation.op === 'setKey'
+        : operation.op === 'note' || operation.op === 'ensureFileTracked'),
+  );
 
 const isVersionNoteShape = (value: unknown): value is VersionNote | undefined =>
   typeof value === 'undefined' ||
@@ -162,7 +224,8 @@ const isRuleBindingShape = (value: unknown): value is RuleBinding => {
 
 const isBindingsShape = (value: unknown): value is Rule['bindings'] =>
   isRecord(value) &&
-  Object.entries(value).every(([pm, binding]) => isPM(pm) && isRuleBindingShape(binding));
+  Object.keys(value).every(isPM) &&
+  PMS.every((pm) => value[pm] === undefined || isRuleBindingShape(value[pm]));
 
 const isProjectTypeValue = (value: unknown): value is ProjectType =>
   typeof value === 'string' && isProjectType(value);
@@ -187,5 +250,3 @@ export const isRuleShape = (value: unknown): value is Rule => {
     isBindingsShape(value.bindings)
   );
 };
-
-export const defineRule = <const Id extends string>(rule: Rule<Id>): Rule<Id> => rule;

@@ -11,13 +11,12 @@ import {
   DEFAULT_REPORTER_NAME,
   JSON_REPORTER_NAME,
 } from '../adapters/reporters/registry.ts';
-import type { FlagValues } from './flags.ts';
+import { PROJECT_TYPES, type ProjectType, isProjectType } from '../domain/entities/project-type.ts';
 import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../shared/node-version.ts';
 import { UsageError } from '../shared/errors.ts';
-import { PROJECT_TYPES, type ProjectType, isProjectType } from '../domain/entities/project-type.ts';
 
 export const rejectUnknownFlags = (
-  flags: FlagValues,
+  flags: Record<string, unknown>,
   allowed: ReadonlySet<string>,
   scope?: string,
 ): void => {
@@ -74,7 +73,7 @@ export const parseSeverityFlag = (raw: unknown): Severity | undefined => {
   return raw;
 };
 
-export const resolveReporter = (flags: FlagValues): string => {
+export const resolveReporter = (flags: Record<string, unknown>): string => {
   if (flags.reporter === true) {
     // Cac yields `true` when --reporter has no value token; falling through
     // Would silently select 'pretty', unlike --pm / --severity which reject.

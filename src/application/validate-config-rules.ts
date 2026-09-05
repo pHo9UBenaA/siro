@@ -4,13 +4,8 @@ import type { SiroConfig } from '../domain/entities/siro-config.ts';
 import { rules as builtinRules } from '../domain/builtin-rules.ts';
 import { validateRuleIds } from '../domain/services/validate-rule-ids.ts';
 
-const SINGLE = 1;
-
 const throwUnknownIds = (unknown: readonly string[]): void => {
-  let plural = '';
-  if (unknown.length > SINGLE) {
-    plural = 's';
-  }
+  const plural = unknown.length === 1 ? '' : 's';
   throw new ConfigError(
     `siro.config: unknown rule id${plural} in rules: ${unknown.map((id: string) => `'${id}'`).join(', ')}`,
   );

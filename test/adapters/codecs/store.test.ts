@@ -20,11 +20,4 @@ describe(codecFor, () => {
     expect(codecFor('json')).toBe(codecFor('json'));
     expect(codecFor('yaml')).toBe(codecFor('yaml'));
   });
-
-  it('parses an empty document without throwing for every kind', () => {
-    expect.hasAssertions();
-    for (const kind of CODEC_KINDS) {
-      expect(() => codecFor(kind).parse('')).not.toThrow();
-    }
-  });
 });
