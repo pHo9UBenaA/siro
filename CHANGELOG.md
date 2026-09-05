@@ -1,9 +1,19 @@
 # Changelog
 
-## [0.3.1]
+## [0.4.0]
+
+### Breaking Changes
+
+- **Unvalidated configuration values**: `ParsedConfig` values, `ConfigReadValue`, and `getByPath()` results are `unknown`. Custom rules must narrow values before using them.
+- **Writable fix targets**: `setKey` operations and `requireConfigKey` bindings require `WritableConfigFileRef`; file-existence references cannot be written as configuration keys.
 
 ### Fixes
 
+- Reject non-mapping JSON/YAML roots and present empty JSON files instead of treating them as missing settings.
+- Reject malformed custom-rule results, invalid remediation operations, sparse arrays, and non-finite expected or fix values with a configuration error.
+- Reject built-in objects used as custom-rule containers and validate inherited package-manager bindings before execution.
+- Skip package-manager detection when `--pm` explicitly selects a manager.
+- Parse CLI help, version, and value options through one parser while preserving injected output and exit codes.
 - Preserve errors from custom rules whose names match inherited object properties when the severity override map is empty.
 - Honor explicit severity settings for prototype-named custom rules and reject invalid values with their configuration paths.
 - Reject non-record `rules` values instead of silently treating them as an empty override map.
@@ -16,6 +26,13 @@
 - Stop accepting `npm-shrinkwrap.json` as lockfile protection under the latest npm policy; preserve npm detection from that legacy file.
 - Treat Aube frozen-lockfile enforcement as command guidance, not an automatic `preferFrozenLockfile` fix.
 - Honor Aube's `paranoid` switch across its six forced security controls; explicitly disabled integrity verification still requires manual remediation.
+
+### Refactoring
+
+- Resolve severity overrides as explicit data without rewriting rule callbacks.
+- Simplify rule evaluation, configuration loading, and parsed-file caching while preserving finding order and remediation behavior.
+- Replace syntax and size restrictions with correctness-focused linting, and run the unused-code check in CI.
+- Clarify custom-rule value contracts and the limits of a successful lint run.
 
 ### Security and documentation
 
