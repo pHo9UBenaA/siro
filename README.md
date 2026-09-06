@@ -44,9 +44,9 @@ The CLI reads `siro.config.*` as executable code. Review repository configuratio
   Bun's security scanner API, and Yarn 4's hardened-mode — each mapped to the right setting per
   package manager (`.npmrc`, `pnpm-workspace.yaml`, `.yarnrc.yml`, `bunfig.toml`, `deno.json`,
   `aube-workspace.yaml`, `package.json`).
-- **PM-aware severities.** When a manager's documented default already satisfies a rule (e.g.
-  Yarn's `enableScripts: false`, pnpm's `strictDepBuilds: true`), the finding is demoted
-  to `info` according to the recorded policy. Installed versions are not checked.
+- **PM-aware severities.** When a manager's documented default satisfies a rule across every
+  supported version and target environment, the finding is demoted to `info`. Installed versions
+  and CI conditions are not checked, so defaults that depend on either retain the rule's severity.
 - **Machine-readable remediation.** A finding can carry automatic key operations or manual
   instructions. Review proposed changes and rerun the linter after editing.
   See [docs/json-output.md](docs/json-output.md).
@@ -62,8 +62,9 @@ See the [rule reference](docs/rules.md) for what each check does and why, and th
 
 siro evaluates the recorded policy snapshot in [docs/policy-sources.md](docs/policy-sources.md).
 It detects package-manager names, not effective runtime versions. Version annotations describe
-verified upstream facts; they do not change rule behavior. See [configuration](docs/configuration.md)
-for defaults, applicability, and limits.
+verified upstream facts. A version-dependent safe-default annotation prevents an unverified
+severity downgrade; it does not prove that the current version satisfies the rule. See
+[configuration](docs/configuration.md) for defaults, applicability, and limits.
 
 ## Usage
 

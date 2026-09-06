@@ -24,7 +24,10 @@ interface RequireConfigKeySpec {
   readonly docs?: string;
   readonly severity?: Severity;
   accept?: (actual: unknown) => boolean;
-  /** A safe omitted value emits info; conditional defaults must be explained in the message. */
+  /**
+   * An omitted value that is safe across every supported version and target
+   * environment emits info. Version-dependent defaults retain full severity.
+   */
   readonly documentedDefault?: ConfigValue;
   /**
    * Severity used when `documentedDefault` satisfies the requirement. Defaults
@@ -60,6 +63,7 @@ const checkKeyValue = (spec: RequireConfigKeySpec, config: ParsedConfig): CheckS
   const coveredByDefault =
     actual === undefined &&
     spec.documentedDefault !== undefined &&
+    spec.versionNote?.defaultSafeSince === undefined &&
     accepts(spec, spec.documentedDefault);
 
   if (!coveredByDefault && accepts(spec, actual)) return { state: 'ok' };

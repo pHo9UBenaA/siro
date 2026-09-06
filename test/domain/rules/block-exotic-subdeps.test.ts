@@ -17,9 +17,11 @@ describe('block-exotic-subdeps', () => {
     expect(pnpm.check(makeCtx(), { blockExoticSubdeps: true }).state).toBe('ok');
   });
 
-  it('treats unset key as a documentedDefault info advisory', () => {
+  it('keeps unset at full severity when the pnpm version is unverified', () => {
     expect.hasAssertions();
-    expectDocumentedDefaultDynamicInfo(pnpm, makeCtx());
+    const status = pnpm.check(makeCtx(), {});
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
   it('flags a warn violation when explicitly set to false', () => {
@@ -147,13 +149,12 @@ describe('block-exotic-subdeps (npm)', () => {
     { 'allow-git': 'none' },
     { 'allow-remote': 'root' },
     { 'allow-remote': 'none' },
-  ])('treats unset URL restrictions as a documented-default info advisory (%j)', (config) => {
+  ])('keeps unset URL restrictions at full severity when npm 12 is unverified (%j)', (config) => {
     expect.hasAssertions();
-    expect(npm.check(makeCtx(), config)).toMatchObject({
-      expected: 'none',
-      severity: 'info',
-      state: 'violation',
-    });
+    const status = npm.check(makeCtx(), config);
+    expect(status).toMatchObject({ expected: 'none', state: 'violation' });
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
   it('fix preserves default restrictions by setting both keys to none', () => {

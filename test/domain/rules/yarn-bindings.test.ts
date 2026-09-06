@@ -5,7 +5,6 @@ import {
   minimumReleaseAge,
 } from '../../../src/domain/rules/minimum-release-age.ts';
 import {
-  expectDocumentedDefaultDynamicInfo,
   expectMessageContains,
   expectMessageContainsAndAvoids,
 } from '../../helpers/binding-expectations.ts';
@@ -28,9 +27,13 @@ describe('yarn bindings — disable-lifecycle-scripts', () => {
     expect(bd.check(ctx(), { enableScripts: false }).state).toBe('ok');
   });
 
-  it('unset -> dynamic info via documentedDefault', () => {
+  it('keeps the rule severity when the version-dependent default is unverified', () => {
     expect.hasAssertions();
-    expectDocumentedDefaultDynamicInfo(disableLifecycleScripts.bindings.yarn, ctx());
+    const bd = disableLifecycleScripts.bindings.yarn;
+    assert(bd, 'expected binding');
+    const status = bd.check(ctx(), {});
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
   it('tells the user from which yarn version enableScripts is available and when it became safe by default', () => {
@@ -99,9 +102,13 @@ describe('yarn bindings — pin-exact-versions and minimum-release-age', () => {
     });
   });
 
-  it('unset -> dynamic info via documentedDefault', () => {
+  it('keeps the rule severity when the version-dependent age default is unverified', () => {
     expect.hasAssertions();
-    expectDocumentedDefaultDynamicInfo(minimumReleaseAge.bindings.yarn, ctx());
+    const bd = minimumReleaseAge.bindings.yarn;
+    assert(bd, 'expected binding');
+    const status = bd.check(ctx(), {});
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 });
 

@@ -71,10 +71,12 @@ describe('disable-lifecycle-scripts (pnpm): check states', () => {
     expect(status.severity).toBeUndefined();
   });
 
-  it('emits an info-severity violation when strictDepBuilds is unset (documentedDefault parity)', () => {
+  it('keeps full severity when the pnpm version-dependent default is unverified', () => {
     expect.hasAssertions();
     const status = pnpmBinding.check(ctx, {});
-    expect(status).toMatchObject({ severity: 'info', state: 'violation' });
+    expect(status).toMatchObject({ state: 'violation' });
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 });
 

@@ -93,7 +93,10 @@ it.each([
 ])('checks the npm cutoff through the executable: $npmrc', ({ npmrc, status }) => {
   const dir = mkdtempSync(path.join(tmpdir(), 'siro-npm-age-'));
   try {
-    writeFileSync(path.join(dir, '.npmrc'), `ignore-scripts=true\nsave-exact=true\n${npmrc}\n`);
+    writeFileSync(
+      path.join(dir, '.npmrc'),
+      `allow-git=none\nallow-remote=none\nignore-scripts=true\nsave-exact=true\n${npmrc}\n`,
+    );
     writeFileSync(path.join(dir, 'package-lock.json'), '{}');
     const result = spawnBin(['lint', dir, '--pm', 'npm', '--json', '--severity', 'warn']);
     expect(result.status).toBe(status);

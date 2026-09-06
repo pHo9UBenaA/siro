@@ -20,11 +20,8 @@ const npmBinding: RuleBinding = {
     return {
       state: 'violation',
       expected: 'none',
-      ...(invalid === undefined ? { severity: 'info' as const } : { actual: invalid }),
-      message:
-        invalid === undefined
-          ? `npm defaults unset URL restrictions to none. ${npmMessage}`
-          : npmMessage,
+      ...(invalid === undefined ? {} : { actual: invalid }),
+      message: npmMessage,
       remediation: proposeChanges(config, [
         { file: npmrc, keyPath: ['allow-git'], op: 'setKey', value: 'none' },
         { file: npmrc, keyPath: ['allow-remote'], op: 'setKey', value: 'none' },

@@ -4,10 +4,7 @@ import {
   RECOMMENDED_RELEASE_AGE_MINUTES,
   minimumReleaseAge,
 } from '../../../src/domain/rules/minimum-release-age.ts';
-import {
-  expectDocumentedDefaultDynamicInfo,
-  expectMessageContainsAndAvoids,
-} from '../../helpers/binding-expectations.ts';
+import { expectMessageContainsAndAvoids } from '../../helpers/binding-expectations.ts';
 import assert from 'node:assert';
 import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';
@@ -41,9 +38,13 @@ describe('pnpm bindings — disable-lifecycle-scripts', () => {
     );
   });
 
-  it('unset -> dynamic info via documentedDefault', () => {
+  it('keeps the rule severity when the version-dependent default is unverified', () => {
     expect.hasAssertions();
-    expectDocumentedDefaultDynamicInfo(disableLifecycleScripts.bindings.pnpm, ctx());
+    const bd = disableLifecycleScripts.bindings.pnpm;
+    assert(bd, 'expected binding');
+    const status = bd.check(ctx(), {});
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
   it('tells the user from which pnpm version strictDepBuilds is available and when it became the default', () => {
@@ -84,14 +85,22 @@ describe('pnpm bindings — age and lockfile', () => {
     });
   });
 
-  it('unset -> dynamic info via documentedDefault', () => {
+  it('keeps the rule severity when the version-dependent age default is unverified', () => {
     expect.hasAssertions();
-    expectDocumentedDefaultDynamicInfo(minimumReleaseAge.bindings.pnpm, ctx());
+    const bd = minimumReleaseAge.bindings.pnpm;
+    assert(bd, 'expected binding');
+    const status = bd.check(ctx(), {});
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
-  it('frozen-lockfile on pnpm: unset -> dynamic info via documentedDefault', () => {
+  it('keeps frozen-lockfile at rule severity when the CI default is unverified', () => {
     expect.hasAssertions();
-    expectDocumentedDefaultDynamicInfo(frozenLockfile.bindings.pnpm, ctx());
+    const bd = frozenLockfile.bindings.pnpm;
+    assert(bd, 'expected binding');
+    const status = bd.check(ctx(), {});
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 });
 

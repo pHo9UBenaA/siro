@@ -41,7 +41,6 @@ const builtRule = requireConfigKey({
     },
     pnpm: {
       docs: 'https://pnpm.io/settings#frozenlockfile',
-      documentedDefault: true,
       file: pnpmWorkspace,
       keyPath: ['frozenLockfile'],
       message:

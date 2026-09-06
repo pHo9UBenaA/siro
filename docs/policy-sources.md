@@ -2,7 +2,7 @@
 
 siro checks the supported files in one project root against a recorded policy. It does not calculate the effective configuration of an installed package-manager version. The [generated rule reference](rules.md) is the single list of live bindings, primary inputs, severity defaults, and version notes.
 
-A missing setting may produce an informational reminder when the recorded upstream default meets the policy. Conditional defaults, older versions, command flags, environment variables, user configuration, and alternate configuration files can change actual installation behavior. An informational finding is not evidence that those conditions hold. Pin the setting when that guarantee is required.
+A missing setting may produce an informational reminder only when the recorded upstream default meets the policy across every supported version and target environment. Version- and environment-dependent defaults retain the rule's configured severity because v0.4.0 does not establish that their conditions hold. Command flags, environment variables, user configuration, and alternate configuration files remain outside this static check. Pin the setting when that guarantee is required.
 
 ## Source review
 

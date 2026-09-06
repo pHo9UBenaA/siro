@@ -211,7 +211,6 @@ const denoBinding: RuleBinding = {
       actual,
       expected: 'P3D',
       message: `Set minimumDependencyAge (e.g. "P3D" for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in deno.json.`,
-      ...(actual == null ? { severity: 'info' as const } : {}),
       remediation: invalidObject
         ? {
             kind: 'manual',

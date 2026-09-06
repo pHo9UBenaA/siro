@@ -9,9 +9,11 @@ describe('hardened-mode × yarn: conditional documentedDefault (D22)', () => {
     throw new TypeError('yarn binding missing');
   }
 
-  it('downgrades the unset case to a dynamic info advisory', () => {
+  it('keeps the unset case at full severity when the PR environment is unverified', () => {
     expect.hasAssertions();
-    expect(yarn.check(ctx, {})).toMatchObject({ severity: 'info', state: 'violation' });
+    const status = yarn.check(ctx, {});
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
   it('keeps explicit false at full severity (no dynamic severity)', () => {

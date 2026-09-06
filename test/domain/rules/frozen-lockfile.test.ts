@@ -1,6 +1,5 @@
 import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
-import { expectDocumentedDefaultDynamicInfo } from '../../helpers/binding-expectations.ts';
 import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import type { PM } from '../../../src/domain/entities/pms.ts';
@@ -21,11 +20,13 @@ describe('frozen-lockfile rule identity', () => {
     expect(frozenLockfile.bindings[pm]).toBeDefined();
   });
 
-  it.each<PM>(['pnpm', 'yarn'])('on %s: unset → dynamic info via documentedDefault', (pm) => {
+  it.each<PM>(['pnpm', 'yarn'])('on %s: unset → full severity when CI is unverified', (pm) => {
     expect.hasAssertions();
-    // pnpm and yarn document a safe CI default,
-    // so an unset key is advisory rather than warn.
-    expectDocumentedDefaultDynamicInfo(frozenLockfile.bindings[pm], makeCtx());
+    const bd = frozenLockfile.bindings[pm];
+    assert(bd, `expected ${pm} binding`);
+    const status = bd.check(makeCtx(), {});
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
   it.each<PM>(['bun', 'deno'])(

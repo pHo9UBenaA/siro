@@ -11,6 +11,7 @@
 
 ### Fixes
 
+- Keep version- and environment-dependent defaults at the configured severity until their conditions can be established.
 - Align npm 12 script-policy precedence, URL restrictions, release-age values, and lockfile guidance with the cited upstream policy.
 - Read Aube `strictDepBuilds` from `.npmrc`, combine it with workspace `jailBuilds`, and report and propose changes in the correct files. Correct advisory/trust defaults, paranoid overrides, and supported lockfiles.
 - Honor pnpm `ignoreScripts` and Bun's boolean auto-install disable. Keep store, provenance, and frozen-install guidance within what configuration alone establishes.

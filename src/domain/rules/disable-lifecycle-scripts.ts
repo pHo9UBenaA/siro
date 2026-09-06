@@ -43,7 +43,6 @@ const pnpmBinding: RuleBinding = {
         strict === undefined
           ? 'Set `strictDepBuilds: true` in pnpm-workspace.yaml to pin lifecycle-script gating across versions.'
           : 'Set `strictDepBuilds: true` in pnpm-workspace.yaml to block silent skips of un-approved dep builds.',
-      ...(strict === undefined ? { severity: 'info' as const } : {}),
       remediation: proposeChanges(config, [
         { file: pnpmWorkspace, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
       ]),

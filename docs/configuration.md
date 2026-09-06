@@ -5,8 +5,9 @@
 siro evaluates repository settings against the recorded policy snapshot in
 [policy-sources.md](policy-sources.md). It detects package-manager names and does
 not change rules based on installed or declared versions. Version annotations
-are display metadata. Check compatibility before relying on a documented default;
-some defaults apply only in CI or public pull requests.
+record upstream facts, but do not establish the current version. Defaults that
+depend on a version, CI, or a public pull request retain the configured severity
+when their setting is absent.
 
 The checks do not resolve command-line flags, environment variables, user/global
 configuration, or workspace children into an effective installation policy.
@@ -136,9 +137,13 @@ removal even when setting another key would normally be sufficient.
 
 User `rules` overrides take precedence over result, binding, and rule severities.
 `'off'` removes a rule. A `requireConfigKey` binding may use `documentedDefault`
-to emit `info` when an omitted key is already safe under the recorded default.
-Its `defaultSatisfiedSeverity: 'off'` suppresses that case entirely; a severity
-override cannot resurrect a finding the check did not emit.
+to emit `info` only when an omitted key is safe across every supported package-manager
+version and target environment. A `defaultSafeSince` note does not establish that
+the current version satisfies the condition: siro does not detect package-manager
+versions in v0.4.0, so version- or environment-dependent defaults retain the rule's
+configured severity. `defaultSatisfiedSeverity: 'off'` suppresses only an
+unconditionally safe default; a severity override cannot resurrect a finding the
+check did not emit.
 
 `pretty` prints findings and manual steps, `json` emits the versioned document,
 and `github` emits workflow annotations. Configured reporters register by name;

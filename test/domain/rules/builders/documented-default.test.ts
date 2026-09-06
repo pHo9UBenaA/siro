@@ -2,7 +2,7 @@ import { applyConfig } from '../../../../src/domain/services/apply-config.ts';
 import { asRelPath } from '../../../../src/shared/paths.ts';
 import assert from 'node:assert';
 import type { CodecFor, ConfigCodec } from '../../../../src/domain/ports/config-codec.ts';
-import type { ConfigFileRef, Rule } from '../../../../src/domain/entities/rule.ts';
+import type { ConfigFileRef, Rule, VersionNote } from '../../../../src/domain/entities/rule.ts';
 import type { ConfigValue } from '../../../../src/domain/entities/config-value.ts';
 import { makeCtx } from '../../../helpers/ctx.ts';
 import { requireConfigKey } from '../../../../src/domain/rules/builders/require-config-key.ts';
@@ -22,6 +22,7 @@ const buildRule = (opts: {
   defaultSatisfiedSeverity?: 'error' | 'warn' | 'info' | 'off';
   accept?: (actual: unknown) => boolean;
   ruleSeverity?: 'error' | 'warn' | 'info';
+  versionNote?: VersionNote;
 }): Rule => {
   const npmBinding: {
     file: typeof npmrc;
@@ -31,6 +32,7 @@ const buildRule = (opts: {
     documentedDefault?: ConfigValue;
     defaultSatisfiedSeverity?: 'error' | 'warn' | 'info' | 'off';
     accept?: (actual: unknown) => boolean;
+    versionNote?: VersionNote;
   } = { file: npmrc, keyPath: ['ky'], message: 'pin it', value: true };
   if (typeof opts.documentedDefault !== 'undefined') {
     npmBinding.documentedDefault = opts.documentedDefault;
@@ -40,6 +42,9 @@ const buildRule = (opts: {
   }
   if (opts.accept) {
     npmBinding.accept = opts.accept;
+  }
+  if (opts.versionNote) {
+    npmBinding.versionNote = opts.versionNote;
   }
   return requireConfigKey({
     bindings: { npm: npmBinding },
@@ -99,6 +104,24 @@ describe('documentedDefault — basic behaviour', () => {
     const firstFinding3 = findings[0];
     assert(firstFinding3, 'expected finding');
     expect(firstFinding3.severity).toBe('error');
+    expect(summary).toStrictEqual({ error: 1, info: 0, warn: 0 });
+  });
+
+  it('keeps a version-dependent safe default at full severity when the version is unknown', () => {
+    expect.hasAssertions();
+    const rule = buildRule({
+      documentedDefault: true,
+      ruleSeverity: 'error',
+      versionNote: { defaultSafeSince: 'npm 12.0.0' },
+    });
+    const { findings, summary } = runLint({
+      codecFor: stubCodecFor,
+      ctx: makeCtx(),
+      pms: ['npm'],
+      ruleSet: [rule],
+    });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.severity).toBe('error');
     expect(summary).toStrictEqual({ error: 1, info: 0, warn: 0 });
   });
 });
