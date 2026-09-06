@@ -36,7 +36,16 @@ export const publishAccess = defineRule({
   bindings: {
     aube: publishAccessBinding,
     bun: publishAccessBinding,
-    npm: publishAccessBinding,
+    npm: {
+      ...publishAccessBinding,
+      docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#access',
+      check(ctx, config) {
+        if (isPublishable(ctx) && ctx.packageJson?.publishConfig?.access === 'private') {
+          return { state: 'ok' };
+        }
+        return publishAccessBinding.check(ctx, config);
+      },
+    },
     pnpm: publishAccessBinding,
     yarn: publishAccessBinding,
   },

@@ -10,7 +10,7 @@ const PackageJsonSchema = vb.looseObject({
   private: vb.optional(vb.boolean()),
   publishConfig: vb.optional(
     vb.looseObject({
-      access: vb.optional(vb.picklist(['public', 'restricted'])),
+      access: vb.optional(vb.picklist(['public', 'restricted', 'private'])),
     }),
   ),
   trustedDependencies: vb.optional(vb.array(vb.string())),

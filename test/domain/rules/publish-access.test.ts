@@ -41,4 +41,11 @@ describe('publish-access (npm)', () => {
     assert(firstOp, 'expected at least one fix op');
     expect(firstOp).toContain('publishConfig');
   });
+
+  it('accepts the private alias only for npm and preserves application scope', () => {
+    const packageJson = { name: '@scope/example', publishConfig: { access: 'private' as const } };
+    expect(npm.check(ctx({ packageJson }), {}).state).toBe('ok');
+    expect(npm.check(ctx({ packageJson, projectType: 'application' }), {}).state).toBe('na');
+    expect(publishAccess.bindings.yarn?.check(ctx({ packageJson }), {}).state).toBe('violation');
+  });
 });

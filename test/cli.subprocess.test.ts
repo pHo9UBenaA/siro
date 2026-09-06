@@ -36,6 +36,31 @@ const spawnBin = (args: readonly string[]) => {
   return spawnSync(DIST_BIN, args, { encoding: 'utf8' });
 };
 
+it.each(['application', 'package'])(
+  'lints npm private publish access under %s policy through the executable',
+  (projectType) => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'siro-npm-access-'));
+    try {
+      writeFileSync(
+        path.join(dir, 'package.json'),
+        JSON.stringify({
+          name: '@scope/example',
+          packageManager: 'npm@12.0.2',
+          publishConfig: { access: 'private' },
+        }),
+      );
+      writeFileSync(path.join(dir, '.npmrc'), 'ignore-scripts=true\nsave-exact=true\n');
+      writeFileSync(path.join(dir, 'package-lock.json'), '{}');
+      const result = spawnBin(['lint', dir, '--json', '--project-type', projectType]);
+      expect(result.status).toBe(EXIT_SUCCESS);
+      const parsed = parseJsonOutput(result.stdout, result.stderr);
+      expect(parsed.findings.some((finding) => finding.ruleId === 'publish-access')).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  },
+);
+
 describe('CLI binary — lint behaviour', () => {
   test('lints a known-bad fixture and exits 1 with structured JSON output', () => {
     expect.hasAssertions();

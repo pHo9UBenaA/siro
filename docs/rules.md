@@ -247,7 +247,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#for-maintain
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
-| `npm` | `package.json` | info | — | [official docs](https://docs.npmjs.com/cli/v11/configuring-npm/package-json#publishconfig) |
+| `npm` | `package.json` | info | — | [official docs](https://docs.npmjs.com/cli/v12/using-npm/config#access) |
 | `pnpm` | `package.json` | info | — | [official docs](https://docs.npmjs.com/cli/v11/configuring-npm/package-json#publishconfig) |
 | `yarn` | `package.json` | info | — | [official docs](https://docs.npmjs.com/cli/v11/configuring-npm/package-json#publishconfig) |
 | `bun` | `package.json` | info | — | [official docs](https://docs.npmjs.com/cli/v11/configuring-npm/package-json#publishconfig) |

@@ -22,6 +22,6 @@ it.each([null, [], 'text', 42].map((value) => ({ value })))(
   },
 );
 
-it.each(['public', 'restricted'])('accepts publish access %s', (access) => {
+it.each(['public', 'restricted', 'private'])('accepts publish access %s', (access) => {
   expect(parsePackageJson({ publishConfig: { access } }).publishConfig?.access).toBe(access);
 });
