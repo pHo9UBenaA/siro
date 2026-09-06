@@ -72,6 +72,21 @@ describe('CLI binary — lint behaviour', () => {
   });
 });
 
+it('reports a null npm save prefix through the executable', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-npm-prefix-'));
+  try {
+    writeFileSync(path.join(dir, '.npmrc'), 'save-prefix=null');
+    const result = spawnBin(['lint', dir, '--pm', 'npm', '--json']);
+    expect(result.status).toBe(EXIT_FAILURE);
+    const parsed = parseJsonOutput(result.stdout, result.stderr);
+    expect(parsed.findings).toContainEqual(
+      expect.objectContaining({ ruleId: 'pin-exact-versions', severity: 'error' }),
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 describe.skipIf(process.platform === 'win32')('CLI binary — installed symlink', () => {
   test('prints the version when invoked through an installation-style bin symlink', () => {
     expect.hasAssertions();

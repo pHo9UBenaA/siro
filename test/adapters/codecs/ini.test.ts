@@ -23,4 +23,9 @@ describe('iniCodec.parse', () => {
     expect(Object.keys(config)).toStrictEqual(['save-exact']);
     expect(config['save-exact']).toBe(true);
   });
+
+  it('preserves null separately from empty strings, including in arrays', () => {
+    const config = iniCodec.parse('value=null\nempty=\nquoted=""\nvalues[]=null\nvalues[]=\n');
+    expect(config).toStrictEqual({ value: null, empty: '', quoted: '', values: [null, ''] });
+  });
 });
