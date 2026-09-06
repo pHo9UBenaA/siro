@@ -2,7 +2,7 @@ const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
-import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -36,28 +36,7 @@ const spawnBin = (args: readonly string[]) => {
   return spawnSync(DIST_BIN, args, { encoding: 'utf8' });
 };
 
-// The rest of the suite drives `run()` from src/cli.ts in-process — fast,
-// but it never exercises the published bin: the shebang, `process.argv`
-// shape, exit code routing via `process.exitCode`, or anything tsdown's
-// bundler folds into dist/cli.mjs (module resolution, esm interop, etc.).
-// A real `spawnSync` against the built binary is the only check that
-// proves the npm-installable artefact still works.
-//
-// We can't always require the bin: a clean checkout has no dist/, so the
-// block opts out when the artefact is absent. CI=true makes that opt-out a
-// loud failure — a pipeline that runs `pnpm test` without `pnpm build` would
-// otherwise pass with the artefact smoke-test silently uncounted. Local
-// `pnpm test` after a fresh checkout still skips, with a visible it.skip
-// placeholder so the gap is at least visible in vitest's output instead of
-// looking like the file wasn't loaded at all.
-const DIST_PRESENT = existsSync(DIST_BIN);
-if (!DIST_PRESENT && process.env.CI === 'true') {
-  throw new Error(
-    `CI=true but ${DIST_BIN} not found. Run \`pnpm build\` before \`pnpm test\` so the binary smoke tests can run.`,
-  );
-}
-
-describe.skipIf(!DIST_PRESENT)('CLI binary — lint behaviour', () => {
+describe('CLI binary — lint behaviour', () => {
   test('lints a known-bad fixture and exits 1 with structured JSON output', () => {
     expect.hasAssertions();
     const result = spawnBin(['lint', '--reporter', 'json', path.join(FIXTURES, 'npm-bad')]);
@@ -68,26 +47,23 @@ describe.skipIf(!DIST_PRESENT)('CLI binary — lint behaviour', () => {
   });
 });
 
-describe.skipIf(!DIST_PRESENT || process.platform === 'win32')(
-  'CLI binary — installed symlink',
-  () => {
-    test('prints the version when invoked through an installation-style bin symlink', () => {
-      expect.hasAssertions();
-      const dir = mkdtempSync(path.join(tmpdir(), 'siro-bin-'));
-      try {
-        const installedBin = path.join(dir, 'siro');
-        symlinkSync(DIST_BIN, installedBin);
-        const result = spawnSync(installedBin, ['--version'], { encoding: 'utf8' });
-        expect(result.status, `stderr: ${result.stderr}`).toBe(EXIT_SUCCESS);
-        expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+(?:-[\w.]+)?(?:\+[\w.]+)?$/u);
-      } finally {
-        rmSync(dir, { force: true, recursive: true });
-      }
-    });
-  },
-);
+describe.skipIf(process.platform === 'win32')('CLI binary — installed symlink', () => {
+  test('prints the version when invoked through an installation-style bin symlink', () => {
+    expect.hasAssertions();
+    const dir = mkdtempSync(path.join(tmpdir(), 'siro-bin-'));
+    try {
+      const installedBin = path.join(dir, 'siro');
+      symlinkSync(DIST_BIN, installedBin);
+      const result = spawnSync(installedBin, ['--version'], { encoding: 'utf8' });
+      expect(result.status, `stderr: ${result.stderr}`).toBe(EXIT_SUCCESS);
+      expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+(?:-[\w.]+)?(?:\+[\w.]+)?$/u);
+    } finally {
+      rmSync(dir, { force: true, recursive: true });
+    }
+  });
+});
 
-describe.skipIf(!DIST_PRESENT)('CLI binary — version and flags', () => {
+describe('CLI binary — version and flags', () => {
   test('prints the version on --version and exits 0', () => {
     expect.hasAssertions();
     const result = spawnBin(['--version']);
@@ -103,7 +79,7 @@ describe.skipIf(!DIST_PRESENT)('CLI binary — version and flags', () => {
   });
 });
 
-describe.skipIf(!DIST_PRESENT)('CLI binary — error handling', () => {
+describe('CLI binary — error handling', () => {
   test('exits 2 and names a JSON config whose root is not a mapping', () => {
     expect.hasAssertions();
     const dir = mkdtempSync(path.join(tmpdir(), 'siro-invalid-config-root-'));

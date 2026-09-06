@@ -116,3 +116,13 @@ describe('disable-lifecycle-scripts (pnpm): bypass and fix', () => {
     ]);
   });
 });
+
+it('accepts pnpm ignoreScripts even when approval settings would otherwise allow builds', () => {
+  expect(
+    disableLifecycleScripts.bindings.pnpm?.check(makeCtx(), {
+      ignoreScripts: true,
+      strictDepBuilds: false,
+      dangerouslyAllowAllBuilds: true,
+    }),
+  ).toEqual({ state: 'ok' });
+});

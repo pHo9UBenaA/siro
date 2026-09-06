@@ -3,7 +3,7 @@
 ## Versioning policy
 
 siro evaluates repository settings against the recorded policy snapshot in
-[version-matrix.md](version-matrix.md). It detects package-manager names and does
+[policy-sources.md](policy-sources.md). It detects package-manager names and does
 not change rules based on installed or declared versions. Version annotations
 are display metadata. Check compatibility before relying on a documented default;
 some defaults apply only in CI or public pull requests.
@@ -30,6 +30,11 @@ JSON is invalid. `package.json`, when present, must be an object. Supported targ
 are listed in [rules.md](rules.md). Lockfile checks inspect presence, not git
 tracking or lockfile contents. Deno currently supports strict `deno.json`, not
 `deno.jsonc` or external import maps.
+
+Value options must be specified once with a non-empty value. Boolean flags
+(`--json`, `--help`, `--version`) take no values or `--no-` variants.
+`--help` takes precedence over other arguments; `--version` comes next.
+Arguments after `--` are rejected.
 
 ## Executable CLI configuration
 
@@ -115,7 +120,10 @@ const approval = defineRule({
 
 A check returns `ok`, `na`, or one violation, optionally with automatic operations
 or manual steps. The engine validates untyped results before reporting them.
-A binding may omit `file` when it only needs the repository context.
+The binding receives a `RuleContext`: `readConfig(file)` reads additional inputs
+through the same validated parsers and per-run cache. A violation may return
+`file` to identify a different repository-relative input. Otherwise the binding
+file is used. A binding may omit `file` when it only needs the repository context.
 `fix`, `fixKind`, `AutoRuleBinding`, `AdvisoryRuleBinding`, and `fileGlob` were removed
 in v0.4.0. See [json-output.md](json-output.md) for schema 2.
 
@@ -156,4 +164,8 @@ rule and reporter contracts, rule-authoring helpers, validated paths, and error 
 Internal codec selection, detection signals, reporter registries, severity/exit-code
 helpers, and metadata/error rendering helpers are not public API in v0.4.0.
 Use `lint` for results and `lintCommand` for built-in reporting and thresholds.
-Custom checks use `RepoContext` and `getByPath`; custom reporters consume `LintResult`.
+Custom checks use `RuleContext` and `getByPath`; custom reporters consume `LintResult`.
+
+## Invalid and unsupported data
+
+Malformed types in the `package.json` fields consumed by siro are configuration errors; they are not replaced with defaults. A Deno project using only `deno.jsonc` fails explicitly because the current parser supports strict `deno.json` only. Error exit code `2` means evaluation did not complete.

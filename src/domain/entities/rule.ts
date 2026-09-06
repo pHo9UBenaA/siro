@@ -8,7 +8,7 @@ import {
 } from './config-value.ts';
 import { PMS, type PM, type Severity, isPM, isSeverity } from './pms.ts';
 import { type RelPath, isRelPath } from '../../shared/paths.ts';
-import type { RepoContext } from '../ports/repo-context.ts';
+import type { RuleContext } from '../ports/repo-context.ts';
 import { type ProjectType, isProjectType } from './project-type.ts';
 import { isPlainRecord } from '../../shared/records.ts';
 
@@ -43,6 +43,8 @@ export type CheckStatus =
   | {
       readonly state: 'violation';
       readonly message: string;
+      /** Override the primary file when the violation concerns another input. */
+      readonly file?: RelPath;
       readonly expected?: ConfigValue;
       readonly actual?: ConfigReadValue;
       /** User configuration takes precedence over this per-result severity. */
@@ -62,7 +64,7 @@ export interface RuleBinding {
   readonly docs?: string;
   readonly severity?: Severity;
   readonly versionNote?: VersionNote;
-  check: (ctx: RepoContext, config: ParsedConfig) => CheckStatus;
+  check: (ctx: RuleContext, config: ParsedConfig) => CheckStatus;
 }
 
 /** A package-manager-agnostic security intent, realized per PM via `bindings`. */
@@ -110,10 +112,13 @@ export const isCheckStatusShape = (value: unknown): value is CheckStatus => {
   return (
     value.state === 'violation' &&
     typeof value.message === 'string' &&
+    (value.file === undefined || isRelPath(value.file)) &&
     (value.expected === undefined || isConfigValueShape(value.expected)) &&
     (value.severity === undefined ||
       (typeof value.severity === 'string' && isSeverity(value.severity))) &&
     !('manualSteps' in value) &&
+    !('fix' in value) &&
+    !('fixable' in value) &&
     (value.remediation === undefined || isRemediationShape(value.remediation))
   );
 };
@@ -155,6 +160,7 @@ const isRuleBindingShape = (value: unknown): value is RuleBinding => {
     (value.file === undefined || isConfigFileRefShape(value.file)) &&
     !('fix' in value) &&
     !('fixKind' in value) &&
+    !('fileGlob' in value) &&
     isOptionalString(value.docs) &&
     (typeof value.severity === 'undefined' ||
       (typeof value.severity === 'string' && isSeverity(value.severity))) &&

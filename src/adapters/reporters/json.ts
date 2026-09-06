@@ -9,7 +9,6 @@ import { version } from '../../version.ts';
  * breaking shape change and update that doc in the same commit.
  */
 const SCHEMA_VERSION = 2;
-const JSON_INDENT = 2;
 
 export const jsonReporter: Reporter<'json'> = {
   format(result: LintResult, io: IO): void {
@@ -22,7 +21,7 @@ export const jsonReporter: Reporter<'json'> = {
           summary: result.summary,
         },
         void 0,
-        JSON_INDENT,
+        2,
       ),
     );
   },

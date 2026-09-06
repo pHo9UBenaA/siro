@@ -12,6 +12,7 @@ export const blockAutoInstall = requireConfigKey({
       message:
         'Set `auto = "disable"` under [install] in bunfig.toml to prevent auto-install from bypassing security guards.',
       value: 'disable',
+      accept: (value) => value === 'disable' || value === false,
     },
   },
   description:

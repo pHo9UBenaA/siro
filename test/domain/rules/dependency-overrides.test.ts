@@ -34,8 +34,8 @@ describe('dependency-overrides: pnpm binding', () => {
   it('provides actionable manual remediation', () => {
     expect.hasAssertions();
     const ops = manualSteps(pnpmBinding.check(makeCtx(), { overrides: { dep: '1.2.3' } }))!;
-    const SINGLE = 1;
-    expect(ops).toHaveLength(SINGLE);
+
+    expect(ops).toHaveLength(1);
     expect(ops[0]).toContain('Review each entry');
   });
 });
@@ -71,8 +71,8 @@ describe('dependency-overrides: aube binding', () => {
   it('provides actionable manual remediation', () => {
     expect.hasAssertions();
     const ops = manualSteps(aubeBinding.check(makeCtx(), { overrides: { dep: '1.2.3' } }))!;
-    const SINGLE = 1;
-    expect(ops).toHaveLength(SINGLE);
+
+    expect(ops).toHaveLength(1);
     expect(ops[0]).toContain('Review each entry');
   });
 });

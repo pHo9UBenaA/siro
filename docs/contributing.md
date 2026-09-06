@@ -2,15 +2,17 @@
 
 Use the Node range in `package.json` and the pinned pnpm version. After cloning,
 run `pnpm install --frozen-lockfile` and `git config core.hooksPath .githooks`.
+Pre-commit typechecks and checks the working tree; pre-push and CI run `verify`.
+Partially staged changes are not validated as a separate tree.
 
-| Command         | Purpose                                                               |
-| --------------- | --------------------------------------------------------------------- |
-| `pnpm verify`   | Typecheck, lint, format, unused code, generated docs, build and tests |
-| `pnpm test`     | Run tests; build first to include the executable CLI tests            |
-| `pnpm build`    | Bundle the CLI and library with declarations                          |
-| `pnpm gen:docs` | Regenerate the rule reference and comparison matrix                   |
-| `pnpm gen:api`  | Generate the ignored API reference in `docs/api/`                     |
-| `pnpm bench`    | Measure evaluation with in-memory repositories                        |
+| Command         | Purpose                                                            |
+| --------------- | ------------------------------------------------------------------ |
+| `pnpm verify`   | Typecheck, lint, format, unused code, generated docs, build, tests |
+| `pnpm test`     | Build and run tests, including the executable CLI and library      |
+| `pnpm build`    | Bundle the CLI and library with declarations                       |
+| `pnpm gen:docs` | Regenerate the rule reference and comparison matrix                |
+| `pnpm gen:api`  | Generate the ignored API reference in `docs/api/`                  |
+| `pnpm bench`    | Measure evaluation with in-memory repositories                     |
 
 Reproduce a defect with a failing behavior test, fix it, then simplify. Test
 relevant defaults, precedence, malformed inputs, and failure paths. Keep tests
@@ -39,7 +41,7 @@ prescribed number of layers or files.
 ## Adding a rule
 
 1. Identify the policy and its limits from official documentation or source.
-   Record version-dependent facts in [version-matrix.md](version-matrix.md).
+   Keep version notes on the binding and cite their basis in [policy sources](policy-sources.md).
 2. Add a rule in `src/domain/rules/` and register it in `src/domain/builtin-rules.ts`.
    Use `requireConfigKey` for a single setting; use a direct binding for precedence,
    multiple settings, or manual remediation. See [configuration.md](configuration.md).
@@ -61,6 +63,4 @@ before a release; repository imports can hide missing dependencies or exports.
 snapshots with identical Node and dependencies, alternating repeated runs. Measure
 the built CLI separately before claiming a startup improvement.
 
-Optional OSS configuration examples live in `oss-benchmarks/`. Their snapshot
-checks inventory selected settings; they do not establish runtime security.
 Package contents should contain only distributed code and public package documents.

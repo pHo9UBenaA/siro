@@ -1,15 +1,9 @@
-import { asAbsPath } from '../../../src/shared/paths.ts';
+import { makeCtx } from '../../helpers/ctx.ts';
 import assert from 'node:assert';
 import { hardenedMode } from '../../../src/domain/rules/hardened-mode.ts';
-import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
 
 describe('hardened-mode × yarn: conditional documentedDefault (D22)', () => {
-  const ctx: RepoContext = {
-    exists: () => false,
-    packageJson: void 0,
-    readText: (): undefined => void 0,
-    root: asAbsPath('/repo'),
-  };
+  const ctx = makeCtx();
   const { yarn } = hardenedMode.bindings;
   if (typeof yarn === 'undefined') {
     throw new TypeError('yarn binding missing');

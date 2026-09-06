@@ -65,26 +65,16 @@ const formatIssues = (
     })
     .join('; ');
 
-const validateCandidateShape = (candidate: unknown, name: string): Record<string, unknown> => {
-  // Built-ins and arrays are objects but not config maps; an empty own-key set
-  // would otherwise be accepted as an empty config.
+export const parseConfig = (candidate: unknown, name = 'siro.config'): SiroConfig => {
   if (!isPlainRecord(candidate)) {
-    let got: string = typeof candidate;
-    if (Array.isArray(candidate)) {
-      got = 'an array';
-    }
-    throw new ConfigError(`${name} must export a config object (got ${got}).`);
+    throw new ConfigError(
+      `${name} must export a config object (got ${Array.isArray(candidate) ? 'an array' : typeof candidate}).`,
+    );
   }
-  return candidate;
-};
-
-const validateSchema = (candidate: object, name: string): SiroConfig => {
+  // Copy own properties only; inherited config values must not affect evaluation.
   const result = vb.safeParse(ConfigSchema, Object.fromEntries(Object.entries(candidate)));
   if (!result.success) {
     throw new ConfigError(`${name}: ${formatIssues(result.issues)}`);
   }
   return result.output;
 };
-
-export const parseConfig = (candidate: unknown, name = 'siro.config'): SiroConfig =>
-  validateSchema(validateCandidateShape(candidate, name), name);

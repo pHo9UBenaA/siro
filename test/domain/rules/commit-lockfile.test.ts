@@ -2,11 +2,11 @@ import { manualSteps } from '../../helpers/remediation.ts';
 
 import { makeCtx, makePublishableCtx } from '../../helpers/ctx.ts';
 import type { PM } from '../../../src/domain/entities/pms.ts';
-import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
+import type { RuleContext } from '../../../src/domain/ports/repo-context.ts';
 import { commitLockfile } from '../../../src/domain/rules/commit-lockfile.ts';
 import assert from 'node:assert';
 
-const ctxWith = (files: readonly string[]): RepoContext => makeCtx({ files });
+const ctxWith = (files: readonly string[]): RuleContext => makeCtx({ files });
 
 describe('commit-lockfile (npm)', () => {
   const npmBinding = commitLockfile.bindings.npm;
@@ -67,14 +67,12 @@ describe('commit-lockfile per-PM lockfile detection', () => {
     },
   );
 
-  it('aube is satisfied by a reused lockfile shape (e.g. bun.lockb)', () => {
+  it('aube is satisfied by a reused lockfile shape (e.g. bun.lock)', () => {
     expect.hasAssertions();
-    // aube writes aube-lock.yaml but reuses any pre-existing lockfile; a repo
-    // migrating from bun keeps its bun.lockb, and that should satisfy the rule.
     const aubeBinding = commitLockfile.bindings.aube;
     assert(aubeBinding, 'expected aube binding');
     expect(
-      aubeBinding.check(makePublishableCtx({ exists: (fp) => fp === 'bun.lockb' }), {}).state,
+      aubeBinding.check(makePublishableCtx({ exists: (fp) => fp === 'bun.lock' }), {}).state,
     ).toBe('ok');
   });
 });
@@ -82,5 +80,36 @@ describe('commit-lockfile per-PM lockfile detection', () => {
 it('records when Deno lockfile auto-discovery became available', () => {
   expect(commitLockfile.bindings.deno?.versionNote).toStrictEqual({
     configAvailableSince: 'deno 1.28.0',
+  });
+});
+
+it.each([
+  { lock: 'locks/custom.lock', files: ['locks/custom.lock'], state: 'ok' },
+  { lock: { path: 'locks/custom.lock' }, files: ['locks/custom.lock'], state: 'ok' },
+  { lock: 'locks/custom.lock', files: ['deno.lock'], state: 'violation' },
+  { lock: false, files: ['deno.lock'], state: 'violation' },
+  { lock: null, files: ['deno.lock'], state: 'ok' },
+  { lock: { path: null, frozen: null }, files: ['deno.lock'], state: 'ok' },
+  { lock: 42, files: ['deno.lock'], state: 'violation' },
+  { lock: [], files: ['deno.lock'], state: 'violation' },
+  { lock: { path: 42 }, files: ['deno.lock'], state: 'violation' },
+  { lock: { frozen: 'yes' }, files: ['deno.lock'], state: 'violation' },
+])('checks the Deno lockfile selected by configuration: %j', ({ lock, files, state }) => {
+  const ctx = makeCtx({ files });
+  expect(commitLockfile.bindings.deno?.check(ctx, { lock }).state).toBe(state);
+});
+
+it.each(['bun.lockb', 'deno.lock'])('does not treat %s as a reusable Aube lockfile', (file) => {
+  expect(commitLockfile.bindings.aube?.check(makeCtx({ files: [file] }), {}).state).toBe(
+    'violation',
+  );
+});
+
+it('requires conversion of a binary Bun lockfile even when an Aube lockfile exists', () => {
+  expect(
+    commitLockfile.bindings.aube?.check(makeCtx({ files: ['aube-lock.yaml', 'bun.lockb'] }), {}),
+  ).toMatchObject({
+    state: 'violation',
+    remediation: { kind: 'manual', steps: [expect.stringContaining('--save-text-lockfile')] },
   });
 });

@@ -25,12 +25,12 @@ describe('bun bindings — install config rules', () => {
       assert(setKey, 'expected setKey op');
       expect(setKey).toMatchObject({ keyPath: ['install', 'exact'], value: true });
     });
-    it('pin-exact-versions on bun: tells the user from which bun version install.exact is available', () => {
+    it('pin-exact-versions names a verified version for the install.exact setting', () => {
       expect.hasAssertions();
       expectMessageContains({
         binding: pinExactVersions.bindings.bun,
         ctx: ctx(),
-        substrings: ['available since bun 0.6.10'],
+        substrings: ['install.exact verified in bun 1.2.0'],
       });
     });
   });

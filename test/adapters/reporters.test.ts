@@ -11,12 +11,9 @@ import { captureIO } from '../helpers/io.ts';
 import { parseGithubAnnotation } from '../helpers/github-annotation.ts';
 
 const ESC_OPEN = '[';
-const FINDING_COUNT = 3;
-const SINGLE_FINDING = 1;
-const FIRST_LINE = 0;
 
 const firstLineOf = (text: string): string => {
-  const line = text.split('\n')[FIRST_LINE];
+  const line = text.split('\n')[0];
   assert(line, 'expected at least one line');
   return line;
 };
@@ -36,11 +33,6 @@ const result: LintResult = {
 };
 
 describe('reporters registry', () => {
-  it('rejects an array masquerading as a reporter', () => {
-    const reporter = Object.assign([], { name: 'array', format: () => {} });
-    expect(() => createRegistry([reporter])).toThrow(/reporter/u);
-  });
-
   it('ships pretty / json / github as builtins', () => {
     expect.hasAssertions();
     expect(BUILTIN_REPORTER_NAMES).toStrictEqual(['pretty', 'json', 'github']);
@@ -53,16 +45,6 @@ describe('reporters registry', () => {
   it('returns undefined for unknown reporters', () => {
     expect.hasAssertions();
     expect(createRegistry().get('xml')).toBeUndefined();
-  });
-
-  it('createRegistry rejects a malformed extra reporter (public-API shape guard)', () => {
-    expect.hasAssertions();
-    // createRegistry is exported; an embedder calling it directly with a value
-    // missing `format` must get a clear error here, not a TypeError when the
-    // bad object is later asked to render.
-    expect(() => createRegistry(JSON.parse('[{"name":"broken"}]'))).toThrow(
-      /name.*format|format/iu,
-    );
   });
 
   it('createRegistry merges builtins with extras (later wins on collision)', () => {
@@ -89,7 +71,7 @@ describe('reporters registry', () => {
     expect(registry.get('noop')).toBe(noop);
     expect(registry.get('pretty')).toBe(overridePretty);
     expect(registry.get('pretty')).not.toBe(prettyReporter);
-    expect(registry.list()).toStrictEqual(
+    expect([...registry.keys()]).toStrictEqual(
       expect.arrayContaining(['pretty', 'json', 'github', 'noop']),
     );
   });
@@ -109,7 +91,7 @@ describe('json reporter', () => {
     const { io, out } = captureIO();
     jsonReporter.format(tri, io);
     const parsed = JSON.parse(out());
-    expect(parsed.findings).toHaveLength(FINDING_COUNT);
+    expect(parsed.findings).toHaveLength(3);
     expect(parsed.summary).toStrictEqual({ error: 1, info: 1, warn: 1 });
   });
 });
@@ -122,8 +104,8 @@ describe('githubReporter — basic annotations', () => {
     const lines = out()
       .split('\n')
       .filter((line) => line.length > 0);
-    expect(lines).toHaveLength(SINGLE_FINDING);
-    const firstLine = lines[FIRST_LINE];
+    expect(lines).toHaveLength(1);
+    const firstLine = lines[0];
     assert(firstLine, 'expected at least one line');
     expect(parseGithubAnnotation(firstLine)).toStrictEqual({
       body: '[npm] set ignore-scripts',

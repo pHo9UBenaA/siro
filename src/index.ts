@@ -36,7 +36,7 @@ export type {
 export { defineConfig, type RuleSetting, type SiroConfig } from './domain/entities/siro-config.ts';
 export type { FileSystem } from './domain/ports/file-system.ts';
 export type { IO } from './domain/ports/io.ts';
-export type { RepoContext } from './domain/ports/repo-context.ts';
+export type { RepoContext, RuleContext } from './domain/ports/repo-context.ts';
 export type { Reporter } from './domain/ports/reporter.ts';
 export {
   overrideBindings,

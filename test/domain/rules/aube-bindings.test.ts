@@ -1,3 +1,7 @@
+import { advisoryCheck } from '../../../src/domain/rules/advisory-check.ts';
+import { trustPolicy } from '../../../src/domain/rules/trust-policy.ts';
+import { runLint } from '../../../src/application/run-lint.ts';
+import { codecFor } from '../../../src/adapters/codecs/store.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 import {
   DOCUMENTED_DEFAULT_MINUTES,
@@ -36,13 +40,16 @@ describe('aube bindings: lifecycle and lockfile rules', () => {
       },
     );
 
-    it('requires strictDepBuilds: true alongside jailBuilds', () => {
+    it('requires strictDepBuilds in .npmrc alongside jailBuilds', () => {
       expect.hasAssertions();
       const bd = disableLifecycleScripts.bindings.aube;
       assert(bd, 'expected binding');
       expect(bd.check(ctx(), { jailBuilds: true }).state).toBe('violation');
       expect(bd.check(ctx(), { strictDepBuilds: true }).state).toBe('violation');
-      expect(bd.check(ctx(), { jailBuilds: true, strictDepBuilds: true }).state).toBe('ok');
+      expect(bd.check(ctx(), { jailBuilds: true, strictDepBuilds: true }).state).toBe('violation');
+      expect(
+        bd.check(ctx({ readText: () => 'strictDepBuilds=true' }), { jailBuilds: true }).state,
+      ).toBe('ok');
     });
 
     it('fix sets both jailBuilds and strictDepBuilds', () => {
@@ -53,7 +60,12 @@ describe('aube bindings: lifecycle and lockfile rules', () => {
       const aubeFile = { kind: 'yaml', path: 'aube-workspace.yaml' };
       expect(ops).toStrictEqual([
         { file: aubeFile, keyPath: ['jailBuilds'], op: 'setKey', value: true },
-        { file: aubeFile, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
+        {
+          file: { kind: 'npmrc', path: '.npmrc' },
+          keyPath: ['strictDepBuilds'],
+          op: 'setKey',
+          value: true,
+        },
       ]);
     });
   });
@@ -120,4 +132,22 @@ describe('aube bindings: frozen-lockfile and minimum-release-age', () => {
       });
     });
   });
+});
+
+it('uses the documented advisory and trust defaults without downgrading explicit opt-outs', () => {
+  for (const [source, severity] of [
+    ['', 'info'],
+    ['advisoryCheck: off\ntrustPolicy: off', 'warn'],
+  ] as const) {
+    const result = runLint({
+      ctx: ctx({ readText: () => source }),
+      codecFor,
+      pms: ['aube'],
+      ruleSet: [advisoryCheck, trustPolicy],
+    });
+    expect(result.findings.map((finding) => [finding.ruleId, finding.severity])).toEqual([
+      ['advisory-check', severity],
+      ['trust-policy', severity],
+    ]);
+  }
 });

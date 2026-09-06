@@ -14,6 +14,7 @@ const pnpmVersionNote: VersionNote = {
 };
 const pnpmBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
+    if (getByPath(config, ['ignoreScripts']) === true) return { state: 'ok' };
     const bypass = getByPath(config, ['dangerouslyAllowAllBuilds']);
     if (bypass === true) {
       return {
@@ -55,22 +56,41 @@ const pnpmBinding: RuleBinding = {
 };
 
 const aubeBinding: RuleBinding = {
-  check(_ctx, config): CheckStatus {
+  check(ctx, config): CheckStatus {
+    const npmConfig = ctx.readConfig(npmrc);
     const jail = getByPath(config, ['jailBuilds']);
-    const strict = getByPath(config, ['strictDepBuilds']);
+    const strict = getByPath(npmConfig, ['strictDepBuilds']);
     if (jail === true && strict === true) return { state: 'ok' };
+    const jailRemedy = proposeChanges(config, [
+      { file: aubeWorkspace, keyPath: ['jailBuilds'], op: 'setKey', value: true },
+    ]);
+    const strictRemedy = proposeChanges(npmConfig, [
+      { file: npmrc, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
+    ]);
     return {
       state: 'violation',
+      file: jail !== true ? aubeWorkspace.path : npmrc.path,
       actual: jail !== true ? jail : strict,
       expected: true,
       message:
-        jail !== true
-          ? 'Set `jailBuilds: true` in aube-workspace.yaml to sandbox build scripts.'
-          : 'Set `strictDepBuilds: true` in aube-workspace.yaml to require explicit allow/deny for lifecycle scripts.',
-      remediation: proposeChanges(config, [
-        { file: aubeWorkspace, keyPath: ['jailBuilds'], op: 'setKey', value: true },
-        { file: aubeWorkspace, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
-      ]),
+        'Set `jailBuilds: true` in aube-workspace.yaml and `strictDepBuilds=true` in .npmrc to sandbox approved builds and reject unreviewed lifecycle scripts.',
+      remediation:
+        jailRemedy.kind === 'automatic' && strictRemedy.kind === 'automatic'
+          ? {
+              kind: 'automatic',
+              operations: [...jailRemedy.operations, ...strictRemedy.operations],
+            }
+          : {
+              kind: 'manual',
+              steps: [
+                ...(jailRemedy.kind === 'manual'
+                  ? jailRemedy.steps
+                  : (['Set `jailBuilds: true` in aube-workspace.yaml.'] as const)),
+                ...(strictRemedy.kind === 'manual'
+                  ? strictRemedy.steps
+                  : (['Set `strictDepBuilds=true` in .npmrc.'] as const)),
+              ],
+            },
     };
   },
   docs: 'https://aube.jdx.dev/security.html',

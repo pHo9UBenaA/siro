@@ -1,10 +1,10 @@
-import { type AbsPath, isAbsPath } from '../shared/paths.ts';
+import { type AbsPath, isAbsPath, asRelPath } from '../shared/paths.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import { type PM, isPM } from '../domain/entities/pms.ts';
 import { type ProjectType, isProjectType } from '../domain/entities/project-type.ts';
 import type { SiroConfig } from '../domain/entities/siro-config.ts';
 import type { LintResult } from '../domain/entities/lint-result.ts';
-import { UsageError } from '../shared/errors.ts';
+import { UsageError, ConfigError } from '../shared/errors.ts';
 import { createRepoContext } from '../adapters/repo-context.ts';
 import { codecFor } from '../adapters/codecs/store.ts';
 import { rules } from '../domain/builtin-rules.ts';
@@ -43,6 +43,15 @@ export const prepareLint = (options: LintOptions) => {
     options.projectType ?? config?.projectType,
   );
   const pms = resolvePMs(ctx, { allowed: config?.pms, pmOverride: options.pm });
+  if (
+    pms.includes('deno') &&
+    !ctx.exists(asRelPath('deno.json')) &&
+    ctx.exists(asRelPath('deno.jsonc'))
+  ) {
+    throw new ConfigError(
+      'deno.jsonc is not supported. siro currently reads strict JSON from deno.json only.',
+    );
+  }
   const configured = applyConfig(rules, config);
   return {
     ctx,

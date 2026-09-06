@@ -92,12 +92,12 @@ describe('trust-policy: aube binding', () => {
   });
 
   it.each<ParsedConfig>([{}, { paranoid: false }])(
-    'requires the individual setting when paranoid is not enabled: %j',
+    'recommends pinning the documented default when paranoid is not enabled: %j',
     (config) => {
       expect.hasAssertions();
       const status = aubeBinding.check(makeCtx(), config);
       assert(status.state === 'violation');
-      expect(status.severity).toBeUndefined();
+      expect(status.severity).toBe('info');
     },
   );
 

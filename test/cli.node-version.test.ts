@@ -37,3 +37,10 @@ describe('node.js version requirement', () => {
     expect(() => ensureNodeVersion('24.0.0')).not.toThrow();
   });
 });
+
+it.each(['24', '24.invalid.0', '24.0.0.1', 'Infinity.0.0', '24.0.0-rc.1'])(
+  'rejects an unsupported or malformed runtime %s',
+  (version) => {
+    expect(() => ensureNodeVersion(version)).toThrow(/required/u);
+  },
+);

@@ -2,7 +2,7 @@ import assert from 'node:assert';
 import { isNodeError } from '../../src/adapters/node-errors.ts';
 
 describe(isNodeError, () => {
-  it('accepts an Error whose code is a string (NodeJS.ErrnoException shape)', () => {
+  it('accepts an Error whose code is a string without making claims about other properties', () => {
     expect.hasAssertions();
     const err = Object.assign(new Error('boom'), { code: 'ENOENT' });
     expect(isNodeError(err)).toBe(true);

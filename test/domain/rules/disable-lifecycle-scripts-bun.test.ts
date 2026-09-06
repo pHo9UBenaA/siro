@@ -1,14 +1,8 @@
-import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
-import { asAbsPath } from '../../../src/shared/paths.ts';
+import { makeCtx } from '../../helpers/ctx.ts';
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';
-import { safeParsePackageJson } from '../../../src/domain/schemas/package-json.ts';
+import { parsePackageJson } from '../../../src/domain/schemas/package-json.ts';
 
-const ctxWithPackageJson = (pkg: unknown): RepoContext => ({
-  exists: (): boolean => false,
-  packageJson: safeParsePackageJson(pkg),
-  readText: (): undefined => void 0,
-  root: asAbsPath('/repo'),
-});
+const ctxWithPackageJson = (pkg: unknown) => makeCtx({ packageJson: parsePackageJson(pkg) });
 
 describe('disable-lifecycle-scripts × bun: trustedDependencies opt-out', () => {
   const { bun } = disableLifecycleScripts.bindings;

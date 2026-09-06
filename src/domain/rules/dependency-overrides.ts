@@ -43,7 +43,7 @@ const makeBinding = (file: ConfigFileRef, fileName: string, docs: string): RuleB
 
 export const dependencyOverrides = defineRule({
   bindings: {
-    aube: makeBinding(aubeWorkspace, 'aube-workspace.yaml', 'https://aube.jdx.dev/settings.html'),
+    aube: makeBinding(aubeWorkspace, 'aube-workspace.yaml', 'https://aube.sh/settings/'),
     pnpm: makeBinding(pnpmWorkspace, 'pnpm-workspace.yaml', 'https://pnpm.io/settings#overrides'),
   },
   description:

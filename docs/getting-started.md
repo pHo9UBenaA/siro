@@ -12,7 +12,7 @@ files, then reports any best-practice violations.
 ## Fix the findings
 
 siro is a linter: it reports violations but never writes your config files.
-Every finding carries machine-readable remediation (`remediation`) in the JSON output:
+Built-in findings include machine-readable remediation (`remediation`) in the JSON output. Custom rules may omit it:
 
 ```sh
 npx @pho9ubenaa/siro lint --reporter json

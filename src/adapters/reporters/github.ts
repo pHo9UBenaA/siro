@@ -9,40 +9,27 @@ const COMMAND: Record<Severity, string> = {
   warn: 'warning',
 };
 
-// GitHub Actions workflow commands require percent-escaping. Property
-// values (file=, title=) must additionally escape `:` and `,` because
-// they delimit the property list. The message body only needs control
-// chars escaped.
-// Spec: https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions
-const escapeProp = (raw: string): string =>
-  raw
-    .replaceAll('%', '%25')
-    .replaceAll('\r', '%0D')
-    .replaceAll('\n', '%0A')
-    .replaceAll(':', '%3A')
-    .replaceAll(',', '%2C');
-
+// https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions
 const escapeData = (raw: string): string =>
   raw.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+
+// Properties additionally escape their delimiters; the body does not.
+const escapeProp = (raw: string): string =>
+  escapeData(raw).replaceAll(':', '%3A').replaceAll(',', '%2C');
 
 /** Emit GitHub Actions workflow commands (annotations on PRs). */
 export const githubReporter: Reporter<'github'> = {
   format(result: LintResult, io: IO): void {
     for (const finding of result.findings) {
-      // No `line=`/`col=` props: a Finding carries no source position (siro
-      // flags config-key state, not a span). When Findings grow location info,
-      // add `line`/`col` here so the annotation lands on the exact line.
+      // Findings identify files, not source spans.
       let file = '';
       if (finding.file) {
         file = `file=${escapeProp(finding.file)},`;
       }
-      // The workflow-command syntax has no native "url" prop, so the docs
-      // breadcrumb (mirroring `prettyReporter`'s `→ <docs>` line) is appended
-      // to the body. `escapeData` re-escapes any `%` in the URL — GitHub's
-      // parser then decodes it back, so the user sees the original URL.
+      // Documentation belongs in the body; the protocol has no URL property.
       let body = `[${finding.pm}] ${finding.message}`;
       if (finding.docs) {
-        body = `[${finding.pm}] ${finding.message} (${finding.docs})`;
+        body += ` (${finding.docs})`;
       }
       io.stdout(
         `::${COMMAND[finding.severity]} ${file}title=${escapeProp(finding.ruleId)}::${escapeData(body)}`,

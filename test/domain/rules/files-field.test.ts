@@ -3,9 +3,9 @@ import assert from 'node:assert';
 import { filesField } from '../../../src/domain/rules/files-field.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import type { PackageJson } from '../../../src/domain/schemas/package-json.ts';
-import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
+import type { RuleContext } from '../../../src/domain/ports/repo-context.ts';
 
-const ctxWith = (packageJson?: PackageJson): RepoContext => makeCtx({ packageJson });
+const ctxWith = (packageJson?: PackageJson): RuleContext => makeCtx({ packageJson });
 
 describe('files-field (npm)', () => {
   const npmBinding = filesField.bindings.npm;

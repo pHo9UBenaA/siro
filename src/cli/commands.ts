@@ -1,4 +1,4 @@
-export const COMMANDS = ['lint', 'check'] as const;
+const COMMANDS = ['lint', 'check'] as const;
 
 export type CommandName = (typeof COMMANDS)[number];
 

@@ -1,15 +1,17 @@
+import { renderVersionNoteMessage } from '../src/domain/services/render-version-note.ts';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import type { ConfigFileRef, Rule } from '../src/domain/entities/rule.ts';
-import { type PM, PMS } from '../src/domain/entities/pms.ts';
+import type { Rule } from '../src/domain/entities/rule.ts';
+import { PMS } from '../src/domain/entities/pms.ts';
 import { rules as defaultRules } from '../src/domain/builtin-rules.ts';
 
 const COMPARISON_INTRO = `<!-- AUTO-GENERATED from the rule registry. Run \`pnpm gen:docs\` to update. -->
 # Package manager comparison
 
 Which security rules \`siro\` can check for each package manager.
-**✅** = supported · **—** = N/A (the manager has no equivalent setting **or** siro
-does not yet bind it; see the rule's "Coverage notes" comment in \`src/domain/rules/\` for the reason).
+**✅** = a check is implemented · **—** = no check is implemented.
+An absent check says nothing about the manager's capabilities. See the
+[rule reference](rules.md) for primary inputs, severity overrides, and version notes.
 `;
 
 const resolveLink = (bindingDocs: string | undefined, ruleDocs: string | undefined): string => {
@@ -22,33 +24,19 @@ const resolveLink = (bindingDocs: string | undefined, ruleDocs: string | undefin
   return '—';
 };
 
-interface RenderBindingRowOptions {
-  readonly pm: PM;
-  readonly file: ConfigFileRef | undefined;
-  readonly bindingDocs: string | undefined;
-  readonly ruleDocs: string | undefined;
-}
-
-const renderBindingRow = (opts: RenderBindingRowOptions): string => {
-  const target = opts.file ? `\`${opts.file.path}\`` : 'Repository';
-  const link = resolveLink(opts.bindingDocs, opts.ruleDocs);
-  return `| \`${opts.pm}\` | ${target} | ${link} |`;
-};
-
 const renderBindingsBlock = (rule: Rule): string => {
-  const bindings = PMS.flatMap((pm) => {
+  const rows = PMS.flatMap((pm) => {
     const binding = rule.bindings[pm];
-    if (typeof binding === 'undefined') {
-      return [];
-    }
+    if (!binding) return [];
+    const target = binding.file ? `\`${binding.file.path}\`` : 'Repository';
+    const notes = renderVersionNoteMessage('', binding.versionNote).trim() || '—';
     return [
-      renderBindingRow({ bindingDocs: binding.docs, file: binding.file, pm, ruleDocs: rule.docs }),
+      `| \`${pm}\` | ${target} | ${binding.severity ?? rule.severity} | ${notes.replaceAll('|', '&#124;')} | ${resolveLink(binding.docs, rule.docs)} |`,
     ];
   });
-  if (bindings.length > 0) {
-    return `\n\n| PM | Target | Reference |\n| --- | --- | --- |\n${bindings.join('\n')}`;
-  }
-  return '';
+  return rows.length
+    ? `\n\n| PM | Primary input | Default severity | Version notes | Reference |\n| --- | --- | --- | --- | --- |\n${rows.join('\n')}`
+    : '';
 };
 
 const renderRule = (rule: Rule): string => {
@@ -58,7 +46,8 @@ const renderRule = (rule: Rule): string => {
   if (rule.docs) {
     overview = `\nUpstream: <${rule.docs}>`;
   }
-  return `${header}\n\n${description}${overview}${renderBindingsBlock(rule)}\n`;
+  const scope = rule.projectTypes ? `\nApplies to: ${rule.projectTypes.join(', ')}.` : '';
+  return `${header}\n\n${description}${scope}${overview}${renderBindingsBlock(rule)}\n`;
 };
 
 export const renderComparison = (rules: readonly Rule[] = defaultRules): string => {
@@ -81,6 +70,9 @@ const RULES_INTRO = `<!-- AUTO-GENERATED from the rule registry. Run \`pnpm gen:
 
 Each rule encodes one security intent and maps it per package manager. See the
 [comparison matrix](comparison.md) for which PMs each rule applies to.
+Bindings may read additional files through the rule context. Result-specific severity
+and user overrides can change the default shown below. Version notes describe policy;
+siro does not inspect the installed package-manager version. See [policy sources](policy-sources.md).
 
 | Severity | Meaning |
 | --- | --- |

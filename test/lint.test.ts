@@ -74,11 +74,15 @@ describe('lint command — flags', () => {
   });
 
   it('fails on warnings when --severity warn is set', () => {
-    expect.hasAssertions();
-    const { io } = captureIO();
-    return run(['lint', '--severity', 'warn', path.join(FIXTURES, 'npm-bad')], io).then((code) => {
-      expect(code).toBe(EXIT_FAILURE);
-    });
+    const { io, out } = captureIO();
+    return run(['lint', '--severity', 'warn', '--json', path.join(FIXTURES, 'bun-good')], io).then(
+      (code) => {
+        expect(code).toBe(EXIT_FAILURE);
+        const result = JSON.parse(out());
+        expect(result.summary.error).toBe(0);
+        expect(result.summary.warn).toBeGreaterThan(0);
+      },
+    );
   });
 
   it('rejects an invalid --severity value with exit 2', () => {

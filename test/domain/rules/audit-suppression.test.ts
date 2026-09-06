@@ -69,8 +69,8 @@ describe('audit-suppression: scope, metadata, and fix', () => {
   it('provides actionable manual remediation', () => {
     expect.hasAssertions();
     const ops = manualSteps(yarnBinding.check(makeCtx(), { npmAuditIgnoreAdvisories: ['*'] }))!;
-    const SINGLE = 1;
-    expect(ops).toHaveLength(SINGLE);
+
+    expect(ops).toHaveLength(1);
     expect(ops[0]).toContain('remove stale suppressions');
   });
 });

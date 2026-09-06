@@ -9,17 +9,14 @@ import {
   overrideBindings,
   requireConfigKey,
 } from '../../../../src/domain/rules/builders/require-config-key.ts';
-import { asAbsPath, asRelPath } from '../../../../src/shared/paths.ts';
+import { asRelPath } from '../../../../src/shared/paths.ts';
 import { CONFIG_FILES } from '../../../../src/domain/entities/config-files.ts';
-import type { RepoContext } from '../../../../src/domain/ports/repo-context.ts';
 import { applyConfig } from '../../../../src/domain/services/apply-config.ts';
 import { makeCtx } from '../../../helpers/ctx.ts';
 
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
 
-let vnCounter = 0;
 const vnRule = (versionNote?: VersionNote): Rule => {
-  vnCounter += 1;
   return requireConfigKey({
     bindings: {
       npm: {
@@ -31,13 +28,13 @@ const vnRule = (versionNote?: VersionNote): Rule => {
       },
     },
     description: 'd',
-    id: `vn-${vnCounter}`,
+    id: 'version-note',
     severity: 'error',
     title: 't',
   });
 };
 
-describe('requireConfigKey passes spec.severity into binding (D-1)', () => {
+describe('requireConfigKey passes spec.severity into binding', () => {
   it('binding.severity reflects spec.severity when provided', () => {
     expect.hasAssertions();
     const rule = requireConfigKey({
@@ -146,12 +143,7 @@ describe(overrideBindings, () => {
 });
 
 describe("defaultSatisfiedSeverity 'off' under a user rules override", () => {
-  const ctx: RepoContext = {
-    exists: () => false,
-    packageJson: void 0,
-    readText: (): undefined => void 0,
-    root: asAbsPath('/repo'),
-  };
+  const ctx = makeCtx();
 
   it('keeps the unset-and-default-safe case silent even when rules overrides severity', () => {
     expect.hasAssertions();

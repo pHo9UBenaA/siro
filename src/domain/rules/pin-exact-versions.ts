@@ -122,7 +122,7 @@ const baseRule = requireConfigKey({
       keyPath: ['install', 'exact'],
       message: 'Set `exact = true` under [install] in bunfig.toml to pin exact versions.',
       value: true,
-      versionNote: { configAvailableSince: 'bun 0.6.10' },
+      versionNote: { note: 'install.exact verified in bun 1.2.0' },
     },
     pnpm: {
       accept: (value) => value === '' || value === '=',

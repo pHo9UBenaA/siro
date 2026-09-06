@@ -69,3 +69,7 @@ describe('block-auto-install: scope, metadata, and fix', () => {
     ]);
   });
 });
+
+it('accepts the Bun boolean form that disables automatic installation', () => {
+  expect(bun.check(makeCtx(), { install: { auto: false } })).toEqual({ state: 'ok' });
+});

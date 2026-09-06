@@ -7,9 +7,6 @@ import { makeCtx } from '../helpers/ctx.ts';
 import { runLint } from '../../src/application/run-lint.ts';
 import { blockExoticSubdeps } from '../../src/domain/rules/block-exotic-subdeps.ts';
 
-const SINGLE_FINDING = 1;
-const NO_FINDINGS = 0;
-
 // runLint calls parseConfigFile before invoking each binding's `check`. Tests
 // here use synthetic bindings whose `check` ignores `config`, so any codec
 // that never throws is acceptable.
@@ -53,11 +50,11 @@ describe('per-binding severity — basic resolution', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    expect(findings).toHaveLength(SINGLE_FINDING);
+    expect(findings).toHaveLength(1);
     const first = findings[0];
     assert(first, 'expected finding');
     expect(first.severity).toBe('info');
-    expect(summary).toStrictEqual({ error: NO_FINDINGS, info: SINGLE_FINDING, warn: NO_FINDINGS });
+    expect(summary).toStrictEqual({ error: 0, info: 1, warn: 0 });
   });
 
   it('falls back to rule.severity when binding.severity is undefined', () => {
@@ -69,11 +66,11 @@ describe('per-binding severity — basic resolution', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    expect(findings).toHaveLength(SINGLE_FINDING);
+    expect(findings).toHaveLength(1);
     const first = findings[0];
     assert(first, 'expected finding');
     expect(first.severity).toBe('error');
-    expect(summary).toStrictEqual({ error: SINGLE_FINDING, info: NO_FINDINGS, warn: NO_FINDINGS });
+    expect(summary).toStrictEqual({ error: 1, info: 0, warn: 0 });
   });
 
   it('uses status.severity ahead of binding.severity', () => {
@@ -164,7 +161,7 @@ describe('per-binding severity — user config override', () => {
     const first = findings[0];
     assert(first, 'expected finding');
     expect(first.severity).toBe('info');
-    expect(summary).toStrictEqual({ error: NO_FINDINGS, info: SINGLE_FINDING, warn: NO_FINDINGS });
+    expect(summary).toStrictEqual({ error: 0, info: 1, warn: 0 });
   });
 
   it('applyConfig does not mutate the input rule or its bindings', () => {

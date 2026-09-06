@@ -65,8 +65,8 @@ describe('pin-exact-versions (deno subpaths)', () => {
       pms: ['deno'],
       ruleSet: [pinExactVersions],
     });
-    const FAILURE = 1;
-    expect(exitCodeForLint(result)).toBe(FAILURE);
+
+    expect(exitCodeForLint(result)).toBe(1);
   });
 
   it.each([

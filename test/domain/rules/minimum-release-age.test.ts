@@ -224,3 +224,46 @@ describe('minimum-release-age minute strings (deno)', () => {
     expect(deno.check(makeCtx(), { minimumDependencyAge: '120' }).state).toBe('ok');
   });
 });
+
+describe('Deno release-age formats from the official parser', () => {
+  it.each([
+    '2020-01-01T12:30Z',
+    'P1Y',
+    'P1M',
+    'P1WT1H',
+    'P1.5D',
+    'PT1.5H',
+    'PT1.5M',
+    'PT1,5S',
+    'P1000000000D',
+    'PT0.0000000001S',
+    0.5,
+    1e15,
+    { age: 'P3D', typo: true },
+  ])('rejects unsupported input %j', (value) => {
+    expect(deno.check(makeCtx(), { minimumDependencyAge: value }).state).toBe('violation');
+  });
+
+  it.each([
+    '2016-12-31T23:59:60Z',
+    { age: null },
+    '+P3D',
+    'P2w',
+    'PT1.5s',
+    'P1DT2h',
+    '2025-09-16T12:50+0900',
+    '2025-09-16T12:50:10+0900',
+  ])('accepts supported input %j', (value) => {
+    expect(deno.check(makeCtx(), { minimumDependencyAge: value }).state).toBe('ok');
+  });
+
+  it('flags a cutoff that has not yet passed', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-09-06T00:00:00Z'));
+      expect(deno.check(makeCtx(), { minimumDependencyAge: '2026-09-07' }).state).toBe('violation');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

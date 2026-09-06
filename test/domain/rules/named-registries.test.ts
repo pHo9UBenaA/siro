@@ -51,8 +51,8 @@ describe('named-registries: scope, metadata, and fix', () => {
     const ops = manualSteps(
       pnpmBinding.check(makeCtx(), { namedRegistries: { internal: 'https://registry.example' } }),
     )!;
-    const SINGLE = 1;
-    expect(ops).toHaveLength(SINGLE);
+
+    expect(ops).toHaveLength(1);
     expect(ops[0]).toContain('trusted source');
   });
 });

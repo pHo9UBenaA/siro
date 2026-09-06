@@ -33,3 +33,8 @@ it('rejects a malformed custom rule from JavaScript', async () => {
     lintCommand({ ...options, config: { customRules: [null] } }, captureIO().io),
   ).rejects.toBeInstanceOf(ConfigError);
 });
+
+it.each([null, undefined])('rejects missing command options %s from JavaScript', async (value) => {
+  // @ts-expect-error Exercise the untyped boundary.
+  await expect(lintCommand(value, captureIO().io)).rejects.toBeInstanceOf(UsageError);
+});

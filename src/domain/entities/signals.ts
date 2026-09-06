@@ -22,7 +22,7 @@ export interface PMSignals {
 
 export const PM_SIGNALS = {
   aube: {
-    // https://aube.en.dev/package-manager/lockfiles
+    // https://github.com/aubepkg/aube/blob/main/docs/package-manager/lockfiles.md
     configs: [CONFIG_FILES.aubeWorkspace.path],
     lockfiles: ['aube-lock.yaml'],
     reusesLockfiles: [
@@ -31,12 +31,10 @@ export const PM_SIGNALS = {
       'npm-shrinkwrap.json',
       'yarn.lock',
       'bun.lock',
-      'bun.lockb',
-      'deno.lock',
     ],
   },
   bun: { configs: [CONFIG_FILES.bunfig.path], lockfiles: ['bun.lock', 'bun.lockb'] },
-  deno: { configs: [CONFIG_FILES.denoJson.path], lockfiles: ['deno.lock'] },
+  deno: { configs: [CONFIG_FILES.denoJson.path, 'deno.jsonc'], lockfiles: ['deno.lock'] },
   npm: { configs: [], lockfiles: ['package-lock.json', 'npm-shrinkwrap.json'] },
   pnpm: { configs: [CONFIG_FILES.pnpmWorkspace.path], lockfiles: ['pnpm-lock.yaml'] },
   yarn: { configs: [CONFIG_FILES.yarnrc.path], lockfiles: ['yarn.lock'] },

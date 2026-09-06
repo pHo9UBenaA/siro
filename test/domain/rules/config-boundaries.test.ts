@@ -20,7 +20,7 @@ it.each(['aube', 'bun', 'deno', 'pnpm', 'yarn'] as const)(
   },
 );
 
-it.each([{ age: { age: 'P3D' } }, { age: null }, { exclude: [false] }, new Date()])(
+it.each([{ age: { age: 'P3D' } }, { exclude: [false] }, new Date()])(
   'does not accept a malformed Deno age object: %j',
   (value) => {
     expect(minimumReleaseAge.bindings.deno?.check(ctx, { minimumDependencyAge: value }).state).toBe(

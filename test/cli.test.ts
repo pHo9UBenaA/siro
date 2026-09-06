@@ -33,7 +33,7 @@ describe('cli', () => {
 
   test('prints the version with -v (alias of --version)', () => {
     expect.hasAssertions();
-    // Keep cac's short alias on the same injected-IO path as --version.
+    // Short and long flags use the same output path.
     return runExpectCode(['-v']).then(({ code, out }) => {
       expect(code).toBe(EXIT_OK);
       expect(out.trim()).toMatch(/^\d+\.\d+\.\d+/u);
@@ -73,7 +73,7 @@ describe('cli', () => {
     return runExpectCode(['--help=false', '--help=false']).then(({ code, err, out }) => {
       expect(code).toBe(EXIT_USAGE);
       expect(out).toBe('');
-      expect(err).toMatch(/usage/iu);
+      expect(err).toMatch(/--help.*value/iu);
     });
   });
 
@@ -106,9 +106,9 @@ describe('cli', () => {
     });
   });
 
-  test('does not mistake a normalized projectType value for the help target', () => {
+  test('does not mistake a project type value for the help target', () => {
     expect.hasAssertions();
-    return runExpectCode(['--projectType', 'application', 'lint', '--help']).then(
+    return runExpectCode(['--project-type', 'application', 'lint', '--help']).then(
       ({ code, out }) => {
         expect(code).toBe(EXIT_OK);
         expect(out).toContain('siro lint —');

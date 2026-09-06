@@ -1,8 +1,6 @@
-import { existsSync } from 'node:fs';
-
 const entry = new URL('../dist/index.mjs', import.meta.url);
 
-describe.skipIf(!existsSync(entry))('built public API', () => {
+describe('built public API', () => {
   it('evaluates a custom rule', async () => {
     const api: typeof import('../src/index.ts') = await import(entry.href);
     const result = api.lint({

@@ -14,6 +14,7 @@ export interface LintCommandOptions extends LintOptions {
 
 /** Evaluate and report. Executable config loading belongs to the CLI adapter. */
 export const lintCommand = async (options: LintCommandOptions, io: IO): Promise<number> => {
+  if (!options) throw new UsageError('Lint options are required.');
   if (options.severity !== undefined && !isSeverity(options.severity)) {
     throw new UsageError(`Invalid severity: ${String(options.severity)}`);
   }
@@ -23,7 +24,7 @@ export const lintCommand = async (options: LintCommandOptions, io: IO): Promise<
   const reporter = typeof selection === 'string' ? registry.get(selection) : selection;
   if (!isReporterShape(reporter)) {
     throw new UsageError(
-      `${typeof selection === 'string' ? 'Unknown' : 'Invalid'} reporter: ${String(selection)} (available: ${registry.list().join(', ')})`,
+      `${typeof selection === 'string' ? 'Unknown' : 'Invalid'} reporter: ${String(selection)} (available: ${[...registry.keys()].join(', ')})`,
     );
   }
   const result = runLint(prepared);

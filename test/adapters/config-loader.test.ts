@@ -4,7 +4,6 @@ import { loadConfig } from '../../src/adapters/config-loader.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { type AbsPath, asAbsPath } from '../../src/shared/paths.ts';
 
-const SINGLE = 1;
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -100,7 +99,7 @@ describe('loadConfig — loading', () => {
     );
     return loadConfig(td.dir).then((config) => {
       assert(config, 'expected config');
-      expect(config.customRules).toHaveLength(SINGLE);
+      expect(config.customRules).toHaveLength(1);
     });
   });
 });
@@ -206,8 +205,8 @@ describe('loadConfig — reporters', () => {
     );
     return loadConfig(td.dir).then((config) => {
       assert(config, 'expected config');
-      expect(config.customRules).toHaveLength(SINGLE);
-      expect(config.reporters).toHaveLength(SINGLE);
+      expect(config.customRules).toHaveLength(1);
+      expect(config.reporters).toHaveLength(1);
     });
   });
 

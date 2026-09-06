@@ -1,22 +1,16 @@
 import { getByPath, toParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import { expectTypeOf } from 'vitest';
 
-const NESTED_NUM = 1;
-const SAMPLE_A = 1;
-const SAMPLE_B = 2;
-const SAMPLE_C = 3;
 describe(toParsedConfig, () => {
   it('returns the input untouched when it is a plain object', () => {
     expect.hasAssertions();
-    const input = { foo: 'bar', nested: { num: NESTED_NUM } };
+    const input = { foo: 'bar', nested: { num: 1 } };
     expect(toParsedConfig(input)).toBe(input);
   });
 
   it('rejects an array-rooted config', () => {
     expect.hasAssertions();
-    expect(() => toParsedConfig([SAMPLE_A, SAMPLE_B, SAMPLE_C])).toThrow(
-      /config root must be a mapping/iu,
-    );
+    expect(() => toParsedConfig([1, 2, 3])).toThrow(/config root must be a mapping/iu);
   });
 
   it.each([
@@ -28,7 +22,7 @@ describe(toParsedConfig, () => {
     ['boolean', true],
     ['Date', new Date('2024-01-01')],
     ['Map', new Map([['a', 1]])],
-    ['Set', new Set([SAMPLE_A, SAMPLE_B])],
+    ['Set', new Set([1, 2])],
   ])('rejects a non-mapping %s root', (_name, value) => {
     expect.hasAssertions();
     expect(() => toParsedConfig(value)).toThrow(/config root must be a mapping/iu);

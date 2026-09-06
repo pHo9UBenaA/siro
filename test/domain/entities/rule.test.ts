@@ -1,7 +1,5 @@
 import { isRuleShape } from '../../../src/domain/entities/rule.ts';
 
-const SPARSE_ARRAY_LENGTH = 1;
-
 class Container {
   public readonly marker = true;
 }
@@ -86,7 +84,7 @@ describe(isRuleShape, () => {
 
   it('rejects a sparse projectTypes array', () => {
     expect.hasAssertions();
-    const projectTypes = new Array(SPARSE_ARRAY_LENGTH);
+    const projectTypes = new Array(1);
     expect(isRuleShape({ ...validRule, projectTypes })).toBe(false);
   });
 });

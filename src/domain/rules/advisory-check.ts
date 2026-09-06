@@ -9,6 +9,7 @@ const builtRule = requireConfigKey({
     aube: {
       accept: (value: unknown): boolean => value === 'on' || value === 'required',
       docs: 'https://aube.jdx.dev/security.html',
+      documentedDefault: 'on',
       file: aubeWorkspace,
       keyPath: ['advisoryCheck'],
       message:

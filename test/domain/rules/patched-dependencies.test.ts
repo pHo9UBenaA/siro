@@ -51,8 +51,8 @@ describe('patched-dependencies: scope, metadata, and fix', () => {
     const ops = manualSteps(
       pnpmBinding.check(makeCtx(), { patchedDependencies: { dep: './dep.patch' } }),
     )!;
-    const SINGLE = 1;
-    expect(ops).toHaveLength(SINGLE);
+
+    expect(ops).toHaveLength(1);
     expect(ops[0]).toContain('verify patches');
   });
 });

@@ -7,9 +7,6 @@ import { asRelPath } from '../../../src/shared/paths.ts';
 import { createConfigParser } from '../../../src/domain/services/parse-config-file.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-const PARSE_ONCE = 1;
-const PARSE_TWICE = 2;
-
 const makeCodec = (parse: ConfigCodec['parse']): ConfigCodec => ({
   parse,
 });
@@ -27,7 +24,7 @@ describe('createConfigParser — same-instance memoization', () => {
     parseConfig(file);
 
     expect(first).toStrictEqual({ val: 1 });
-    expect(parse).toHaveBeenCalledTimes(PARSE_ONCE);
+    expect(parse).toHaveBeenCalledTimes(1);
   });
 
   it('caches the parsed view so callers do not re-read', () => {
@@ -42,7 +39,7 @@ describe('createConfigParser — same-instance memoization', () => {
     parseConfig(file);
     parseConfig(file);
 
-    expect(readText).toHaveBeenCalledTimes(PARSE_ONCE);
+    expect(readText).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -57,7 +54,7 @@ describe('createConfigParser — cross-instance isolation', () => {
     createConfigParser(codecFor, ctx)(file);
     createConfigParser(codecFor, ctx)(file);
 
-    expect(parse).toHaveBeenCalledTimes(PARSE_TWICE);
+    expect(parse).toHaveBeenCalledTimes(2);
   });
 });
 

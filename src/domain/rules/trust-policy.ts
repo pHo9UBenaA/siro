@@ -8,6 +8,7 @@ const builtRule = requireConfigKey({
   bindings: {
     aube: {
       docs: 'https://aube.jdx.dev/security.html',
+      documentedDefault: 'no-downgrade',
       file: aubeWorkspace,
       keyPath: ['trustPolicy'],
       message:

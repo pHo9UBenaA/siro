@@ -4,7 +4,7 @@ import type { PM, Severity } from '../domain/entities/pms.ts';
 import type { ProjectType } from '../domain/entities/project-type.ts';
 import { type Rule, isCheckStatusShape } from '../domain/entities/rule.ts';
 import type { CodecFor } from '../domain/ports/config-codec.ts';
-import type { RepoContext } from '../domain/ports/repo-context.ts';
+import type { RepoContext, RuleContext } from '../domain/ports/repo-context.ts';
 import { decideSeverity } from '../domain/services/decide-severity.ts';
 import { createConfigParser, type ConfigParser } from '../domain/services/parse-config-file.ts';
 import {
@@ -42,6 +42,7 @@ export const runLint = (opts: RunLintOptions): LintResult => {
   const findings: Finding[] = [];
   const summary: Record<Severity, number> = { error: 0, info: 0, warn: 0 };
   const parseConfig = createConfigParser(codecFor, ctx);
+  const ruleContext: RuleContext = { ...ctx, readConfig: parseConfig };
 
   for (const rule of ruleSet) {
     for (const pm of pms) {
@@ -54,7 +55,7 @@ export const runLint = (opts: RunLintOptions): LintResult => {
         continue;
       }
 
-      const status: unknown = binding.check(ctx, parseConfig(binding.file));
+      const status: unknown = binding.check(ruleContext, parseConfig(binding.file));
       if (!isCheckStatusShape(status)) {
         throw new ConfigError(`Rule '${rule.id}' returned an invalid check result.`);
       }
@@ -67,7 +68,7 @@ export const runLint = (opts: RunLintOptions): LintResult => {
         pm,
         severity: decideSeverity(status, binding, rule, severityOverrides?.get(rule.id)),
         message: renderVersionNoteMessage(status.message, binding.versionNote),
-        file: binding.file?.path,
+        file: status.file ?? binding.file?.path,
         docs: binding.docs ?? rule.docs,
         actual: status.actual,
         expected: status.expected,

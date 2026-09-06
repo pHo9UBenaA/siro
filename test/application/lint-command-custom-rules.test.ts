@@ -69,6 +69,7 @@ it.each([
   { customRules: [null] },
   { reporters: new Array(1) },
   { reporters: [{ name: 'broken' }] },
+  { reporters: [Object.assign([], { name: 'array', format() {} })] },
   { reporters: {} },
 ])('rejects malformed extensions in configuration: %j', (config) => {
   expect(() => lint({ ...options, config: config as unknown as SiroConfig })).toThrow(ConfigError);
@@ -80,6 +81,9 @@ it.each([
   { state: 'violation', message: 'x', expected: {} },
   { state: 'violation', message: 'x', expected: NaN },
   { state: 'violation', message: 'x', manualSteps: ['legacy'] },
+  { state: 'violation', message: 'x', file: '../outside' },
+  { state: 'violation', message: 'x', fixable: true },
+  { state: 'violation', message: 'x', fix: [] },
 ])('rejects invalid extension check results: %j', (status) => {
   expect(() =>
     lint({ ...options, config: { customRules: [rule('invalid', () => status as CheckStatus)] } }),

@@ -1,11 +1,11 @@
 import type { ParsedConfig } from '../../src/domain/entities/config-value.ts';
-import type { RepoContext } from '../../src/domain/ports/repo-context.ts';
+import type { RuleContext } from '../../src/domain/ports/repo-context.ts';
 import type { RuleBinding } from '../../src/domain/entities/rule.ts';
 import { renderVersionNoteMessage } from '../../src/domain/services/render-version-note.ts';
 
 export const expectDocumentedDefaultDynamicInfo = (
   binding: RuleBinding | undefined,
-  ctx: RepoContext,
+  ctx: RuleContext,
 ): void => {
   if (!binding) {
     throw new TypeError('expected binding');
@@ -18,7 +18,7 @@ export const expectDocumentedDefaultDynamicInfo = (
 
 interface ExpectMessageContainsOptions {
   readonly binding: RuleBinding | undefined;
-  readonly ctx: RepoContext;
+  readonly ctx: RuleContext;
   readonly substrings: readonly string[];
   readonly config?: ParsedConfig;
 }
@@ -43,7 +43,7 @@ export const expectMessageContains = (opts: ExpectMessageContainsOptions): void 
 
 interface ExpectMessageContainsAndAvoidsOptions {
   readonly binding: RuleBinding | undefined;
-  readonly ctx: RepoContext;
+  readonly ctx: RuleContext;
   readonly options: {
     readonly contains: readonly string[];
     readonly notMatching: readonly RegExp[];

@@ -1,7 +1,9 @@
+import type { ConfigFileRef } from '../../../src/domain/entities/rule.ts';
 import assert from 'node:assert/strict';
 import { rules } from '../../../src/domain/builtin-rules.ts';
 import { makePublishableCtx } from '../../helpers/ctx.ts';
 import { isPlainRecord } from '../../../src/shared/records.ts';
+import { CONFIG_FILES } from '../../../src/domain/entities/config-files.ts';
 import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 
 const scenarios: readonly { name: string; config: ParsedConfig }[] = [
@@ -24,19 +26,27 @@ const scenarios: readonly { name: string; config: ParsedConfig }[] = [
 
 for (const { name, config } of scenarios) {
   it(`automatic remedies satisfy the check and preserve unrelated data: ${name}`, () => {
-    const ctx = makePublishableCtx();
+    let exercised = 0;
     for (const rule of rules)
       for (const [pm, binding] of Object.entries(rule.bindings)) {
-        const result = binding.check(ctx, config);
+        const files = new Map(
+          Object.values(CONFIG_FILES).map((file) => [
+            file.path,
+            structuredClone(config) as Record<string, unknown>,
+          ]),
+        );
+        const readConfig = (file: ConfigFileRef) => {
+          const data = files.get(file.path);
+          assert(data, `Unexpected remediation target: ${file.path}`);
+          return data;
+        };
+        const ctx = makePublishableCtx({ readConfig });
+        const primary = binding.file ? readConfig(binding.file) : {};
+        const result = binding.check(ctx, primary);
         if (result.state !== 'violation' || result.remediation?.kind !== 'automatic') continue;
-        const edited = structuredClone(config) as Record<string, unknown>;
+        exercised += 1;
         for (const operation of result.remediation.operations) {
-          assert.equal(
-            operation.file.path,
-            binding.file?.path,
-            `${rule.id}/${pm}: test must edit the binding's file`,
-          );
-          let parent = edited;
+          let parent = readConfig(operation.file);
           for (const key of operation.keyPath.slice(0, -1)) {
             if (parent[key] === undefined) parent[key] = {};
             const next = parent[key];
@@ -50,7 +60,8 @@ for (const { name, config } of scenarios) {
           );
           parent[key] = operation.value;
         }
-        expect(binding.check(ctx, edited).state, `${rule.id}/${pm}`).toBe('ok');
+        expect(binding.check(ctx, primary).state, `${rule.id}/${pm}`).toBe('ok');
       }
+    expect(exercised).toBeGreaterThan(0);
   });
 }

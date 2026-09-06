@@ -8,9 +8,6 @@ import { makeCtx } from '../../../helpers/ctx.ts';
 import { requireConfigKey } from '../../../../src/domain/rules/builders/require-config-key.ts';
 import { runLint } from '../../../../src/application/run-lint.ts';
 
-const SINGLE_FINDING = 1;
-const NO_FINDINGS = 0;
-
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
 
 // runLint calls parseConfigFile before invoking each binding's `check`. These
@@ -65,11 +62,11 @@ describe('documentedDefault — basic behaviour', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    expect(findings).toHaveLength(SINGLE_FINDING);
+    expect(findings).toHaveLength(1);
     const firstFinding1 = findings[0];
     assert(firstFinding1, 'expected finding');
     expect(firstFinding1.severity).toBe('info');
-    expect(summary).toStrictEqual({ error: NO_FINDINGS, info: SINGLE_FINDING, warn: NO_FINDINGS });
+    expect(summary).toStrictEqual({ error: 0, info: 1, warn: 0 });
   });
 
   it('2. defaultSatisfiedSeverity: "off" + PM default satisfies → no finding', () => {
@@ -83,8 +80,8 @@ describe('documentedDefault — basic behaviour', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    expect(findings).toHaveLength(NO_FINDINGS);
-    expect(summary).toStrictEqual({ error: NO_FINDINGS, info: NO_FINDINGS, warn: NO_FINDINGS });
+    expect(findings).toHaveLength(0);
+    expect(summary).toStrictEqual({ error: 0, info: 0, warn: 0 });
   });
 
   it('3. PM default does NOT satisfy + key unset → full rule.severity', () => {
@@ -98,11 +95,11 @@ describe('documentedDefault — basic behaviour', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    expect(findings).toHaveLength(SINGLE_FINDING);
+    expect(findings).toHaveLength(1);
     const firstFinding3 = findings[0];
     assert(firstFinding3, 'expected finding');
     expect(firstFinding3.severity).toBe('error');
-    expect(summary).toStrictEqual({ error: SINGLE_FINDING, info: NO_FINDINGS, warn: NO_FINDINGS });
+    expect(summary).toStrictEqual({ error: 1, info: 0, warn: 0 });
   });
 });
 
@@ -141,7 +138,7 @@ describe('documentedDefault — explicit-value cases', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    expect(findings).toHaveLength(SINGLE_FINDING);
+    expect(findings).toHaveLength(1);
     const firstFinding5b = findings[0];
     assert(firstFinding5b, 'expected finding');
     expect(firstFinding5b.severity).toBe('info');
@@ -162,10 +159,10 @@ describe('documentedDefault — override', () => {
       ruleSet: adjusted.rules,
       severityOverrides: adjusted.severityOverrides,
     });
-    expect(findings).toHaveLength(SINGLE_FINDING);
+    expect(findings).toHaveLength(1);
     const firstFinding6 = findings[0];
     assert(firstFinding6, 'expected finding');
     expect(firstFinding6.severity).toBe('warn');
-    expect(summary).toStrictEqual({ error: NO_FINDINGS, info: NO_FINDINGS, warn: SINGLE_FINDING });
+    expect(summary).toStrictEqual({ error: 0, info: 0, warn: 1 });
   });
 });

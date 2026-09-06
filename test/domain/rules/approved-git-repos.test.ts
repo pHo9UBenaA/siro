@@ -60,8 +60,8 @@ describe('approved-git-repos: scope, metadata, and fix', () => {
   it('provides actionable manual remediation', () => {
     expect.hasAssertions();
     const ops = manualSteps(yarnBinding.check(makeCtx(), {}))!;
-    const SINGLE = 1;
-    expect(ops).toHaveLength(SINGLE);
+
+    expect(ops).toHaveLength(1);
     const [first] = ops;
     expect(first).toContain('approvedGitRepositories');
   });
