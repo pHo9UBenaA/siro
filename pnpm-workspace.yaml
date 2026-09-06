@@ -1,12 +1,13 @@
 packages:
   - .
 
-onlyBuiltDependencies:
-  - esbuild
+allowBuilds:
+  esbuild@0.28.0: true
 
 blockExoticSubdeps: true
 frozenLockfile: true
 minimumReleaseAge: 4320
+packageManagerStrictVersion: true
 savePrefix: ''
 strictDepBuilds: true
 strictPeerDependencies: true

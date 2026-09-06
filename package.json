@@ -56,7 +56,6 @@
     "prepublishOnly": "pnpm verify",
     "test": "pnpm build && vitest run",
     "test:coverage": "pnpm build && vitest run --coverage",
-    "test:watch": "pnpm build && vitest",
     "typecheck": "tsc --noEmit",
     "gen:docs": "node scripts/docs.ts",
     "check:docs": "node scripts/docs.ts --check",
@@ -89,7 +88,7 @@
     "vitest": "4.1.7"
   },
   "engines": {
-    "node": "^22.18.0 || ^23.6.0 || >=24.0.0"
+    "node": "^22.18.0 || ^24.0.0"
   },
   "packageManager": "pnpm@10.33.2"
 }

@@ -20,6 +20,7 @@
 - Reject invalid consumed manifest fields, non-mapping JSON/YAML roots, empty JSON, invalid extension results, and inaccessible or non-directory targets with actionable errors.
 - Preserve severity overrides for prototype-named rules and compute exit decisions before custom reporters run. Require manual review when remediation would overwrite a settings container or leave a security bypass active.
 - Validate repeated, missing, unknown, and non-boolean CLI options consistently. Match Node support against the package engine range.
+- Limit the declared Node.js support range to the maintained majors exercised by CI.
 - Reject cyclic YAML aliases and excessive alias expansion without repeatedly traversing unused nested anchors.
 
 ### Refactoring
