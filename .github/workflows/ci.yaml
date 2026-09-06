@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 15
     strategy:
       matrix:
@@ -27,3 +27,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
+        env:
+          # Knip's raw transfer reserves 6 GiB, exceeding this runner's 5 GB limit.
+          KNIP_DISABLE_RAW_TRANSFER: '1'

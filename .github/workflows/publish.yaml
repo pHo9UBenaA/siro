@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -32,6 +32,9 @@ jobs:
           JS
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
+        env:
+          # Knip's raw transfer reserves 6 GiB, exceeding this runner's 5 GB limit.
+          KNIP_DISABLE_RAW_TRANSFER: '1'
       - name: Pack and stage the verified artifact
         run: |
           release_dir="$(mktemp -d)"
