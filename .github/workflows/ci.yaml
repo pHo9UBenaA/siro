@@ -12,6 +12,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-slim
+    timeout-minutes: 15
     strategy:
       matrix:
         node-version: ['22.x', '24.x']
