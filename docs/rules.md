@@ -178,7 +178,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#set-minimal-
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
-| `npm` | `.npmrc` | warn | (available since npm 11.10.0) | [official docs](https://docs.npmjs.com/cli/v11/using-npm/config#min-release-age) |
+| `npm` | `.npmrc` | warn | (min-release-age available since npm 11.10.0) | [official docs](https://docs.npmjs.com/cli/v12/using-npm/config#min-release-age) |
 | `pnpm` | `pnpm-workspace.yaml` | warn | (available since pnpm 10.16.0; default safe since pnpm 11.0.0 (1440 minutes)) | [official docs](https://pnpm.io/settings#minimumreleaseage) |
 | `yarn` | `.yarnrc.yml` | warn | (available since yarn 4.10.0; default safe since yarn 4.15.0 (1440 minutes)) | [official docs](https://yarnpkg.com/configuration/yarnrc#npmMinimalAgeGate) |
 | `bun` | `bunfig.toml` | warn | (available since bun 1.3.0) | [official docs](https://bun.com/docs/runtime/bunfig#install-minimumreleaseage) |

@@ -107,21 +107,6 @@ const baseRule = requireConfigKey({
       value: RECOMMENDED_RELEASE_AGE_SECONDS,
       versionNote: { configAvailableSince: 'bun 1.3.0' },
     },
-    npm: {
-      accept: (value: unknown): boolean => {
-        if (typeof value !== 'number' && typeof value !== 'string') {
-          return false;
-        }
-        const age = Number(value);
-        return Number.isFinite(age) && age > 0;
-      },
-      docs: 'https://docs.npmjs.com/cli/v11/using-npm/config#min-release-age',
-      file: npmrc,
-      keyPath: ['min-release-age'],
-      message: `Set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days to quarantine brand-new releases.`,
-      value: RECOMMENDED_RELEASE_AGE_DAYS,
-      versionNote: { configAvailableSince: 'npm 11.10.0' },
-    },
     pnpm: {
       accept: isPositiveNumber,
       docs: 'https://pnpm.io/settings#minimumreleaseage',
@@ -156,6 +141,55 @@ const baseRule = requireConfigKey({
   severity: 'warn',
   title: 'Set a minimum release age',
 });
+
+const npmBinding: RuleBinding = {
+  file: npmrc,
+  docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#min-release-age',
+  versionNote: { note: 'min-release-age available since npm 11.10.0' },
+  check(_ctx, config) {
+    const now = Date.now();
+    // npm gives an explicit before priority over min-release-age in the same source.
+    if (Object.hasOwn(config, 'before')) {
+      const actual = config.before;
+      if (
+        (typeof actual === 'string' || typeof actual === 'number') &&
+        Date.parse(String(actual)) < now
+      ) {
+        return { state: 'ok' };
+      }
+      return {
+        state: 'violation',
+        actual,
+        expected: 'a date in the past',
+        message: 'Use a valid past before cutoff, or remove before and set min-release-age.',
+        remediation: {
+          kind: 'manual',
+          steps: [
+            `In .npmrc, set before to a valid past date, or remove before and set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days. A future or disabled before overrides min-release-age in this file.`,
+          ],
+        },
+      };
+    }
+    const actual = getByPath(config, ['min-release-age']);
+    const age = typeof actual === 'number' || typeof actual === 'string' ? Number(actual) : NaN;
+    const cutoff = new Date(now - SECONDS_PER_DAY * 1000 * age).valueOf();
+    if (age > 0 && Number.isFinite(cutoff) && cutoff < now) return { state: 'ok' };
+    return {
+      state: 'violation',
+      actual,
+      expected: RECOMMENDED_RELEASE_AGE_DAYS,
+      message: `Set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days to quarantine brand-new releases.`,
+      remediation: proposeChanges(config, [
+        {
+          file: npmrc,
+          op: 'setKey',
+          keyPath: ['min-release-age'],
+          value: RECOMMENDED_RELEASE_AGE_DAYS,
+        },
+      ]),
+    };
+  },
+};
 
 const denoBinding: RuleBinding = {
   file: denoJson,
@@ -197,4 +231,4 @@ const denoBinding: RuleBinding = {
   },
 };
 
-export const minimumReleaseAge = overrideBindings(baseRule, { deno: denoBinding });
+export const minimumReleaseAge = overrideBindings(baseRule, { npm: npmBinding, deno: denoBinding });

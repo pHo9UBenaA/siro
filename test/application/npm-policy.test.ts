@@ -34,3 +34,22 @@ it.each([
   const result = lint({ cwd: asAbsPath('/repo'), fs, pm });
   expect(result.findings.some((finding) => finding.ruleId === 'pin-exact-versions')).toBe(!pinned);
 });
+
+it('clears an overriding before finding only after the proposed manual correction', () => {
+  const original = 'min-release-age=3\nbefore=2999-01-01\n';
+  const check = (npmrc: string) =>
+    lint({
+      cwd: asAbsPath('/repo'),
+      fs: createMemFileSystem({ '.npmrc': npmrc }),
+      pm: 'npm',
+    }).findings.filter((finding) => finding.ruleId === 'minimum-release-age');
+  expect(check(original)).toMatchObject([
+    {
+      severity: 'warn',
+      remediation: { kind: 'manual', steps: [expect.stringContaining('remove before')] },
+    },
+  ]);
+  expect(check(original.replace('min-release-age=3', 'min-release-age=7'))).toHaveLength(1);
+  expect(check(original.replace('before=2999-01-01\n', ''))).toStrictEqual([]);
+  expect(check('before=2020-01-01\n')).toStrictEqual([]);
+});

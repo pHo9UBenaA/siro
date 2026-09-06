@@ -45,7 +45,7 @@ describe('minimum-release-age (npm)', () => {
     expect(result.findings).toStrictEqual([]);
   });
 
-  it.each(['0', '0.0', '-0.5', 'Infinity', '-Infinity', '1e309', 'NaN'])(
+  it.each(['0', '0.0', '-0.5', 'Infinity', '-Infinity', '1e300', '1e309', '1e-300', 'NaN'])(
     'flags the inactive or invalid release age %s from .npmrc',
     (value) => {
       expect.hasAssertions();
@@ -62,6 +62,47 @@ describe('minimum-release-age (npm)', () => {
       ]);
     },
   );
+
+  it.each([
+    { before: '2020-01-01', state: 'ok' },
+    { before: 'Wed, 01 Jan 2020 00:00:00 GMT', state: 'ok' },
+    { before: '2026-09-06T11:59:59.999Z', state: 'ok' },
+    { before: '2026-09-06T12:00:00.000Z', state: 'violation' },
+    { before: '2999-01-01', state: 'violation' },
+    { before: 'null', state: 'violation' },
+    { before: 'false', state: 'violation' },
+    { before: 'true', state: 'violation' },
+    { before: '', state: 'violation' },
+    { before: 'invalid', state: 'violation' },
+    { before: '0', state: 'ok' },
+  ])('checks the before cutoff $before independently of min-release-age', ({ before, state }) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-06T12:00:00.000Z'));
+    try {
+      const codec = codecFor('npmrc');
+      for (const age of ['', 'min-release-age=0\n', 'min-release-age=3\n']) {
+        const config = codec.parse(`${age}before=${before}\n`);
+        const result = npm.check(ctx, config);
+        expect(result.state).toBe(state);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    'before=2999-01-01',
+    'before=null',
+    'before=false',
+    'before=invalid',
+    'before[]=2020-01-01',
+  ])('requires manual review of %s', (setting) => {
+    const result = npm.check(ctx, codecFor('npmrc').parse(`${setting}\nmin-release-age=3`));
+    expect(result).toMatchObject({
+      state: 'violation',
+      remediation: { kind: 'manual', steps: [expect.stringContaining('before')] },
+    });
+  });
 
   it('fixes by setting a positive min-release-age', () => {
     expect.hasAssertions();

@@ -87,6 +87,25 @@ it('reports a null npm save prefix through the executable', () => {
   }
 });
 
+it.each([
+  { npmrc: 'min-release-age=3\nbefore=2999-01-01', status: EXIT_FAILURE },
+  { npmrc: 'before=2020-01-01', status: EXIT_SUCCESS },
+])('checks the npm cutoff through the executable: $npmrc', ({ npmrc, status }) => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-npm-age-'));
+  try {
+    writeFileSync(path.join(dir, '.npmrc'), `ignore-scripts=true\nsave-exact=true\n${npmrc}\n`);
+    writeFileSync(path.join(dir, 'package-lock.json'), '{}');
+    const result = spawnBin(['lint', dir, '--pm', 'npm', '--json', '--severity', 'warn']);
+    expect(result.status).toBe(status);
+    const parsed = parseJsonOutput(result.stdout, result.stderr);
+    expect(parsed.findings.some((finding) => finding.ruleId === 'minimum-release-age')).toBe(
+      status === EXIT_FAILURE,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 describe.skipIf(process.platform === 'win32')('CLI binary — installed symlink', () => {
   test('prints the version when invoked through an installation-style bin symlink', () => {
     expect.hasAssertions();
