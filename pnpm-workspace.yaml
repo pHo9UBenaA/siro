@@ -8,6 +8,9 @@ blockExoticSubdeps: true
 frozenLockfile: true
 minimumReleaseAge: 4320
 packageManagerStrictVersion: true
+# Backport Knip 6.20's low-memory opt-out without its dependency refresh.
+patchedDependencies:
+  knip@6.15.0: patches/knip@6.15.0.patch
 savePrefix: ''
 strictDepBuilds: true
 strictPeerDependencies: true
