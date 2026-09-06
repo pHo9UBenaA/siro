@@ -1,6 +1,6 @@
 import { type AbsPath, type RelPath, asRelPath } from '../shared/paths.ts';
-import { type PackageJson, safeParsePackageJson } from '../domain/schemas/package-json.ts';
-import { nodeFileSystem, resolveIn } from './node-file-system.ts';
+import { type PackageJson, parsePackageJson } from '../domain/schemas/package-json.ts';
+import { nodeFileSystem, resolveIn, assertDirectory } from './node-file-system.ts';
 import { ConfigError } from '../shared/errors.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import type { RepoContext } from '../domain/ports/repo-context.ts';
@@ -18,12 +18,12 @@ const tryParseJson = (text: string): unknown => {
   }
 };
 
-const parsePackageJson = (raw: string): PackageJson | undefined => {
+const readPackageJson = (raw: string): PackageJson => {
   // trim() strips a leading U+FEFF BOM (per the ECMAScript whitespace
   // definition), matching how the json codec parses the same file and how
   // npm / pnpm / node's own require() treat BOM-prefixed package.json.
   const parsed = tryParseJson(raw.trim());
-  return safeParsePackageJson(parsed);
+  return parsePackageJson(parsed);
 };
 
 export const createRepoContext = (
@@ -31,13 +31,14 @@ export const createRepoContext = (
   fs: FileSystem = nodeFileSystem,
   projectType?: ProjectType,
 ): RepoContext => {
+  if (fs === nodeFileSystem) assertDirectory(root);
   const readText = (relPath: RelPath): string | undefined => fs.readText(resolveIn(root, relPath));
   const exists = (relPath: RelPath): boolean => fs.exists(resolveIn(root, relPath));
 
   const raw = readText(asRelPath('package.json'));
   let packageJson: PackageJson | undefined = void 0;
   if (typeof raw !== 'undefined') {
-    packageJson = parsePackageJson(raw);
+    packageJson = readPackageJson(raw);
   }
 
   return { exists, packageJson, projectType, readText, root };

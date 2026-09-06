@@ -1,4 +1,5 @@
-import type { AutoRuleBinding, CheckStatus } from '../entities/rule.ts';
+import { proposeChanges } from './remediation.ts';
+import type { RuleBinding, CheckStatus } from '../entities/rule.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
@@ -8,29 +9,29 @@ const { aubeWorkspace, npmrc, pnpmWorkspace } = CONFIG_FILES;
 const isRootOrNone = (value: unknown): boolean => value === 'root' || value === 'none';
 
 const npmMessage =
-  'Set `allow-git=root` and `allow-remote=root` in .npmrc to block git/tarball URLs in transitive dependencies.';
+  'Set `allow-git=none` and `allow-remote=none` in .npmrc to block git/tarball URLs; use `root` only when direct URL dependencies are required.';
 
-const npmBinding: AutoRuleBinding = {
+const npmBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
     const git = getByPath(config, ['allow-git']);
-    if (!isRootOrNone(git)) {
-      return { actual: git, expected: 'root', message: npmMessage, state: 'violation' };
-    }
     const remote = getByPath(config, ['allow-remote']);
-    if (!isRootOrNone(remote)) {
-      return { actual: remote, expected: 'root', message: npmMessage, state: 'violation' };
-    }
-    return { state: 'ok' };
+    const invalid = [git, remote].find((value) => value !== undefined && !isRootOrNone(value));
+    if (invalid === undefined && git !== undefined && remote !== undefined) return { state: 'ok' };
+    return {
+      state: 'violation',
+      expected: 'none',
+      ...(invalid === undefined ? {} : { actual: invalid }),
+      message: npmMessage,
+      remediation: proposeChanges(config, [
+        { file: npmrc, keyPath: ['allow-git'], op: 'setKey', value: 'none' },
+        { file: npmrc, keyPath: ['allow-remote'], op: 'setKey', value: 'none' },
+      ]),
+    };
   },
-  docs: 'https://docs.npmjs.com/cli/v11/using-npm/config#allow-git',
+  docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#allow-git',
   file: npmrc,
-  fix() {
-    return [
-      { file: npmrc, keyPath: ['allow-git'], op: 'setKey', value: 'root' },
-      { file: npmrc, keyPath: ['allow-remote'], op: 'setKey', value: 'root' },
-    ];
-  },
-  fixKind: 'auto',
+
+  versionNote: { defaultSafeSince: 'npm 12.0.0' },
 };
 
 const builtRule = requireConfigKey({

@@ -1,7 +1,5 @@
 import { type BuiltinRuleId, rules } from '../../src/domain/builtin-rules.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('builtin rules registry', () => {
   it('derives a non-widened rule ID union from registry values', () => {
     expect.hasAssertions();
@@ -15,8 +13,8 @@ describe('builtin rules registry', () => {
       const bindingCount = Object.values(rule.bindings).filter(
         (bd) => typeof bd !== 'undefined',
       ).length;
-      const EMPTY = 0;
-      expect(bindingCount, `${rule.id} has no bindings`).toBeGreaterThan(EMPTY);
+
+      expect(bindingCount, `${rule.id} has no bindings`).toBeGreaterThan(0);
     }
   });
 });

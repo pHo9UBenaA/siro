@@ -1,10 +1,10 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import {
   DOCUMENTED_DEFAULT_MINUTES,
   RECOMMENDED_RELEASE_AGE_MINUTES,
   minimumReleaseAge,
 } from '../../../src/domain/rules/minimum-release-age.ts';
 import {
-  expectDocumentedDefaultDynamicInfo,
   expectMessageContains,
   expectMessageContainsAndAvoids,
 } from '../../helpers/binding-expectations.ts';
@@ -17,8 +17,6 @@ import { hardenedMode } from '../../../src/domain/rules/hardened-mode.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
 import { provenance } from '../../../src/domain/rules/provenance.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('yarn bindings — disable-lifecycle-scripts', () => {
   it('requires enableScripts: false', () => {
     expect.hasAssertions();
@@ -29,9 +27,13 @@ describe('yarn bindings — disable-lifecycle-scripts', () => {
     expect(bd.check(ctx(), { enableScripts: false }).state).toBe('ok');
   });
 
-  it('unset -> dynamic info via documentedDefault', () => {
+  it('keeps the rule severity when the version-dependent default is unverified', () => {
     expect.hasAssertions();
-    expectDocumentedDefaultDynamicInfo(disableLifecycleScripts.bindings.yarn, ctx());
+    const bd = disableLifecycleScripts.bindings.yarn;
+    assert(bd, 'expected binding');
+    const status = bd.check(ctx(), {});
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
   it('tells the user from which yarn version enableScripts is available and when it became safe by default', () => {
@@ -65,12 +67,34 @@ describe('yarn bindings — pin-exact-versions and minimum-release-age', () => {
     });
   });
 
+  it('accepts active Yarn duration strings and rejects disabled or invalid windows', () => {
+    expect.hasAssertions();
+    const bd = minimumReleaseAge.bindings.yarn;
+    assert(bd, 'expected binding');
+    const values = ['1w', '1d', '1.5h', '.5m', '120', '1ms', '0m', '0', '-1d', '1y', '1d junk'];
+    expect(
+      values.map((npmMinimalAgeGate) => bd.check(ctx(), { npmMinimalAgeGate }).state),
+    ).toStrictEqual([
+      'ok',
+      'ok',
+      'ok',
+      'ok',
+      'ok',
+      'ok',
+      'violation',
+      'violation',
+      'violation',
+      'violation',
+      'violation',
+    ]);
+  });
+
   it('checks npmMinimalAgeGate', () => {
     expect.hasAssertions();
     const bd = minimumReleaseAge.bindings.yarn;
     assert(bd, 'expected binding');
     expect(bd.check(ctx(), { npmMinimalAgeGate: DOCUMENTED_DEFAULT_MINUTES }).state).toBe('ok');
-    const setKey = bd.fix(ctx()).find((op) => op.op === 'setKey');
+    const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
     assert(setKey, 'expected setKey op');
     expect(setKey).toMatchObject({
       keyPath: ['npmMinimalAgeGate'],
@@ -78,9 +102,13 @@ describe('yarn bindings — pin-exact-versions and minimum-release-age', () => {
     });
   });
 
-  it('unset -> dynamic info via documentedDefault', () => {
+  it('keeps the rule severity when the version-dependent age default is unverified', () => {
     expect.hasAssertions();
-    expectDocumentedDefaultDynamicInfo(minimumReleaseAge.bindings.yarn, ctx());
+    const bd = minimumReleaseAge.bindings.yarn;
+    assert(bd, 'expected binding');
+    const status = bd.check(ctx(), {});
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 });
 
@@ -130,7 +158,7 @@ describe('yarn bindings — hardened-mode', () => {
     expect.hasAssertions();
     const bd = hardenedMode.bindings.yarn;
     assert(bd, 'expected binding');
-    const setKey = bd.fix(ctx()).find((op) => op.op === 'setKey');
+    const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
     assert(setKey, 'expected setKey op');
     expect(setKey).toMatchObject({ keyPath: ['enableHardenedMode'], value: true });
   });

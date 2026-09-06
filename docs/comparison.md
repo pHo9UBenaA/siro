@@ -1,9 +1,10 @@
-<!-- AUTO-GENERATED from the rule registry. Run `pnpm gen:comparison` to update. -->
+<!-- AUTO-GENERATED from the rule registry. Run `pnpm gen:docs` to update. -->
 # Package manager comparison
 
 Which security rules `siro` can check for each package manager.
-**✅** = supported · **—** = N/A (the manager has no equivalent setting **or** siro
-does not yet bind it; see the rule's "Coverage notes" comment in `src/domain/rules/` for the reason).
+**✅** = a check is implemented · **—** = no check is implemented.
+An absent check says nothing about the manager's capabilities. See the
+[rule reference](rules.md) for primary inputs, severity overrides, and version notes.
 
 | Rule | Severity | npm | pnpm | yarn | bun | deno | aube |
 | --- | --- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -26,7 +27,7 @@ does not yet bind it; see the rule's "Coverage notes" comment in `src/domain/rul
 | `named-registries` | info | — | ✅ | — | — | — | — |
 | `paranoid-mode` | info | — | — | — | — | — | ✅ |
 | `patched-dependencies` | info | — | ✅ | — | — | — | — |
-| `pin-exact-versions` | error | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| `pin-exact-versions` | error | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `provenance` | warn | ✅ | ✅ | ✅ | ✅ | — | — |
 | `publish-access` | info | ✅ | ✅ | ✅ | ✅ | — | ✅ |
 | `store-server` | info | — | ✅ | — | — | — | — |

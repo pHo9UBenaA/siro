@@ -7,8 +7,7 @@ export const hardenedMode = requireConfigKey({
   bindings: {
     yarn: {
       docs: 'https://yarnpkg.com/configuration/yarnrc#enableHardenedMode',
-      // Unset → info advisory: yarn's default covers where it matters most
-      // (PRs on public repos). Conditional documentedDefault; see D22.
+      // This default applies only to pull requests on public repositories.
       documentedDefault: true,
       file: yarnrc,
       keyPath: ['enableHardenedMode'],

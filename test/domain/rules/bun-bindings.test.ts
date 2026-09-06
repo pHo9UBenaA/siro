@@ -1,3 +1,4 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import {
   RECOMMENDED_RELEASE_AGE_SECONDS,
   minimumReleaseAge,
@@ -11,8 +12,6 @@ import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
 import { provenance } from '../../../src/domain/rules/provenance.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('bun bindings — install config rules', () => {
   describe('pin-exact-versions', () => {
     it('pin-exact-versions requires [install] exact=true', () => {
@@ -22,16 +21,16 @@ describe('bun bindings — install config rules', () => {
       expect(bd.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
       expect(bd.check(ctx(), {}).state).toBe('violation');
       expect(bd.check(ctx(), { install: { exact: true } }).state).toBe('ok');
-      const setKey = bd.fix(ctx()).find((op) => op.op === 'setKey');
+      const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
       assert(setKey, 'expected setKey op');
       expect(setKey).toMatchObject({ keyPath: ['install', 'exact'], value: true });
     });
-    it('pin-exact-versions on bun: tells the user from which bun version install.exact is available', () => {
+    it('pin-exact-versions names a verified version for the install.exact setting', () => {
       expect.hasAssertions();
       expectMessageContains({
         binding: pinExactVersions.bindings.bun,
         ctx: ctx(),
-        substrings: ['available since bun 0.6.10'],
+        substrings: ['install.exact verified in bun 1.2.0'],
       });
     });
   });
@@ -43,7 +42,7 @@ describe('bun bindings — install config rules', () => {
       expect(
         bd.check(ctx(), { install: { minimumReleaseAge: RECOMMENDED_RELEASE_AGE_SECONDS } }).state,
       ).toBe('ok');
-      const setKey = bd.fix(ctx()).find((op) => op.op === 'setKey');
+      const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
       assert(setKey, 'expected setKey op');
       expect(setKey).toMatchObject({
         keyPath: ['install', 'minimumReleaseAge'],
@@ -67,7 +66,7 @@ describe('bun bindings — install config rules', () => {
       expect(bd.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
       expect(bd.check(ctx(), { install: { frozen: true } }).state).toBe('violation');
       expect(bd.check(ctx(), { install: { frozenLockfile: true } }).state).toBe('ok');
-      const setKey = bd.fix(ctx()).find((op) => op.op === 'setKey');
+      const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
       assert(setKey, 'expected setKey op');
       expect(setKey).toMatchObject({ keyPath: ['install', 'frozenLockfile'], value: true });
     });
@@ -107,7 +106,7 @@ describe('bun bindings — lifecycle scripts', () => {
       expect.hasAssertions();
       const bd = disableLifecycleScripts.bindings.bun;
       assert(bd, 'expected binding');
-      const setKey = bd.fix(ctx()).find((op) => op.op === 'setKey');
+      const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
       expect(setKey).toMatchObject({ keyPath: ['install', 'ignoreScripts'], value: true });
     });
   });

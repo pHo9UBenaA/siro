@@ -1,12 +1,12 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
+import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import {
   expectDocumentedDefaultDynamicInfo,
   expectMessageContains,
 } from '../../helpers/binding-expectations.ts';
 import { blockExoticSubdeps } from '../../../src/domain/rules/block-exotic-subdeps.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
-
-vi.setConfig({ testTimeout: 5000 });
 
 const { pnpm } = blockExoticSubdeps.bindings;
 assert(pnpm, 'expected pnpm binding');
@@ -17,9 +17,11 @@ describe('block-exotic-subdeps', () => {
     expect(pnpm.check(makeCtx(), { blockExoticSubdeps: true }).state).toBe('ok');
   });
 
-  it('treats unset key as a documentedDefault info advisory', () => {
+  it('keeps unset at full severity when the pnpm version is unverified', () => {
     expect.hasAssertions();
-    expectDocumentedDefaultDynamicInfo(pnpm, makeCtx());
+    const status = pnpm.check(makeCtx(), {});
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
   it('flags a warn violation when explicitly set to false', () => {
@@ -56,7 +58,7 @@ describe('block-exotic-subdeps', () => {
 
   it('fix returns setKey op for blockExoticSubdeps: true', () => {
     expect.hasAssertions();
-    const ops = pnpm.fix(makeCtx());
+    const ops = automaticOperations(pnpm.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'pnpm-workspace.yaml' },
@@ -96,7 +98,7 @@ describe('block-exotic-subdeps (aube)', () => {
 
   it('fix returns setKey op for blockExoticSubdeps: true', () => {
     expect.hasAssertions();
-    const ops = aube.fix(makeCtx());
+    const ops = automaticOperations(aube.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },
@@ -129,30 +131,39 @@ describe('block-exotic-subdeps (npm)', () => {
     expect(npm.check(makeCtx(), { 'allow-git': 'none', 'allow-remote': 'none' }).state).toBe('ok');
   });
 
-  it('flags a violation when allow-git is all (default)', () => {
+  it.each<ParsedConfig>([
+    { 'allow-git': 'all' },
+    { 'allow-remote': 'all' },
+    { 'allow-git': 'all', 'allow-remote': 'root' },
+    { 'allow-git': 'root', 'allow-remote': 'all' },
+  ])('keeps full severity when either URL restriction is explicitly unsafe (%j)', (config) => {
     expect.hasAssertions();
-    const status = npm.check(makeCtx(), { 'allow-git': 'all', 'allow-remote': 'root' });
-    expect(status.state).toBe('violation');
+    const status = npm.check(makeCtx(), config);
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
-  it('flags a violation when allow-remote is all', () => {
+  it.each<ParsedConfig>([
+    {},
+    { 'allow-git': 'root' },
+    { 'allow-git': 'none' },
+    { 'allow-remote': 'root' },
+    { 'allow-remote': 'none' },
+  ])('keeps unset URL restrictions at full severity when npm 12 is unverified (%j)', (config) => {
     expect.hasAssertions();
-    const status = npm.check(makeCtx(), { 'allow-git': 'root', 'allow-remote': 'all' });
-    expect(status.state).toBe('violation');
+    const status = npm.check(makeCtx(), config);
+    expect(status).toMatchObject({ expected: 'none', state: 'violation' });
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
-  it('flags a violation when both keys are unset', () => {
+  it('fix preserves default restrictions by setting both keys to none', () => {
     expect.hasAssertions();
-    expect(npm.check(makeCtx(), {}).state).toBe('violation');
-  });
-
-  it('fix sets both allow-git and allow-remote to root', () => {
-    expect.hasAssertions();
-    const ops = npm.fix(makeCtx());
+    const ops = automaticOperations(npm.check(makeCtx(), {}));
     const npmrcFile = { kind: 'npmrc', path: '.npmrc' };
     expect(ops).toStrictEqual([
-      { file: npmrcFile, keyPath: ['allow-git'], op: 'setKey', value: 'root' },
-      { file: npmrcFile, keyPath: ['allow-remote'], op: 'setKey', value: 'root' },
+      { file: npmrcFile, keyPath: ['allow-git'], op: 'setKey', value: 'none' },
+      { file: npmrcFile, keyPath: ['allow-remote'], op: 'setKey', value: 'none' },
     ]);
   });
 });

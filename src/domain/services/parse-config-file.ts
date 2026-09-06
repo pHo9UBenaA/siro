@@ -4,57 +4,33 @@ import type { ParsedConfig } from '../entities/config-value.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
 import { wrapCodecError } from '../../shared/errors.ts';
 
-/** Output of a `(kind, path)` parse. */
-interface ParsedConfigFile {
-  readonly parsed: ParsedConfig;
-}
+/** A command-scoped parser that memoizes each `(kind, path)` read. */
+export type ConfigParser = (file?: ConfigFileRef) => ParsedConfig;
 
-/**
- * A bound parser that memoises `(kind, path)` reads for the lifetime of the
- * factory's return value. One `runLint` evaluates O(rules × pms) bindings
- * targeting a small set of files (.npmrc, pnpm-workspace.yaml, package.json);
- * sharing one parser across the loop collapses the work to one parse per
- * `(kind, path)`. The cache is encapsulated here so it never leaks onto
- * `RepoContext`.
- */
-export type ConfigParser = (ctx: RepoContext, file: ConfigFileRef) => ParsedConfigFile;
+const EMPTY_FILE: ParsedConfig = Object.freeze({});
 
-// `fileGlob` refs are existence probes, not parsed content. A single shared
-// sentinel keeps the cache-miss path allocation-free for existence-only
-// bindings. Frozen so a rule that did `(parsed as any)['x'] = 1` gets a
-// TypeError instead of silently corrupting every future fileGlob caller.
-const EMPTY_FILE: ParsedConfigFile = Object.freeze({
-  parsed: Object.freeze({}),
-});
+/** Create a fresh parser and cache for one lint command. */
+export const createConfigParser = (codecFor: CodecFor, ctx: RepoContext): ConfigParser => {
+  const cache = new Map<string, ParsedConfig>();
 
-const parseAndCache = (
-  ctx: RepoContext,
-  file: Exclude<ConfigFileRef, { kind: 'fileGlob' }>,
-  deps: {
-    readonly cache: Map<string, ParsedConfigFile>;
-    readonly cacheKey: string;
-    readonly codecFor: CodecFor;
-  },
-): ParsedConfigFile => {
-  const text = ctx.readText(file.path) ?? '';
-  const parsed = wrapCodecError(file.path, () => deps.codecFor(file.kind).parse(text));
-  const entry: ParsedConfigFile = { parsed };
-  deps.cache.set(deps.cacheKey, entry);
-  return entry;
-};
-
-/** Create a fresh, command-scoped parser. Always call once per command. */
-export const createConfigParser = (codecFor: CodecFor): ConfigParser => {
-  const cache = new Map<string, ParsedConfigFile>();
-  return (ctx, file) => {
-    if (file.kind === 'fileGlob') {
+  return (file) => {
+    if (file === undefined) {
       return EMPTY_FILE;
     }
+
     const cacheKey = `${file.kind}:${file.path}`;
-    const hit = cache.get(cacheKey);
-    if (typeof hit !== 'undefined') {
-      return hit;
+    const cached = cache.get(cacheKey);
+    if (cached !== undefined) {
+      return cached;
     }
-    return parseAndCache(ctx, file, { cache, cacheKey, codecFor });
+
+    const text = ctx.readText(file.path);
+    if (text === undefined) {
+      cache.set(cacheKey, EMPTY_FILE);
+      return EMPTY_FILE;
+    }
+    const parsed = wrapCodecError(file.path, () => codecFor(file.kind).parse(text));
+    cache.set(cacheKey, parsed);
+    return parsed;
   };
 };

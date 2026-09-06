@@ -1,8 +1,6 @@
 import { getByPath } from '../../src/domain/entities/config-value.ts';
 import { iniCodec } from '../../src/adapters/codecs/ini.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('iniCodec.parse array-valued keys', () => {
   it('preserves `key[]=` arrays instead of flattening them to {}', () => {
     expect.hasAssertions();

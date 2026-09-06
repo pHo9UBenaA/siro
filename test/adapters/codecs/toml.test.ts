@@ -1,9 +1,12 @@
 import { getByPath } from '../../../src/domain/entities/config-value.ts';
 import { tomlCodec } from '../../../src/adapters/codecs/toml.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('tomlCodec.parse', () => {
+  it('treats an empty document as an empty mapping', () => {
+    expect.hasAssertions();
+    expect(tomlCodec.parse('')).toStrictEqual({});
+  });
+
   it('parses tables into nested objects and coerces scalars', () => {
     expect.hasAssertions();
     const text = [

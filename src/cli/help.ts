@@ -8,10 +8,6 @@ const REPORTERS_LIST = BUILTIN_REPORTER_NAMES.join('|');
 const PROJECT_TYPES_LIST = PROJECT_TYPES.join('|');
 const SEVERITIES_LIST = SEVERITIES.join('|');
 
-// SSOT for every flag description that appears in more than one help page.
-// Keeping the rendered line in one place stops the three `--pm` instances
-// (root + lint) and the two `--reporter` instances (root + lint) from
-// drifting in wording or whitespace under future edits.
 const FLAG_LINES = {
   json: '  --json               Shortcut for --reporter json',
   pm: `  --pm <name>          Target a specific package manager (${PMS_LIST})`,

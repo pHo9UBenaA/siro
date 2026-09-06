@@ -1,12 +1,11 @@
+import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { filesField } from '../../../src/domain/rules/files-field.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import type { PackageJson } from '../../../src/domain/schemas/package-json.ts';
-import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
+import type { RuleContext } from '../../../src/domain/ports/repo-context.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
-const ctxWith = (packageJson?: PackageJson): RepoContext => makeCtx({ packageJson });
+const ctxWith = (packageJson?: PackageJson): RuleContext => makeCtx({ packageJson });
 
 describe('files-field (npm)', () => {
   const npmBinding = filesField.bindings.npm;
@@ -35,13 +34,13 @@ describe('files-field (npm)', () => {
     expect(npmBinding.check(ctxWith({ files: ['dist'], name: 'x' }), {}).state).toBe('ok');
   });
 
-  it('fix is advisory (a note), not auto-writable', () => {
+  it('provides manual remediation', () => {
     expect.hasAssertions();
-    const ops = npmBinding.fix(ctxWith({ name: 'x' }));
-    const FIRST_ELEMENT = 0;
-    const firstOp = ops[FIRST_ELEMENT];
+    const ops = manualSteps(npmBinding.check(ctxWith({ name: 'x' }), {}))!;
+
+    const firstOp = ops[0];
     assert(firstOp, 'expected at least one fix op');
-    expect(firstOp.op).toBe('note');
+    expect(firstOp).toContain('npm pack --dry-run');
   });
 });
 

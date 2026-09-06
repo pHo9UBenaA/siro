@@ -1,29 +1,63 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
+import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { strictStoreIntegrity } from '../../../src/domain/rules/strict-store-integrity.ts';
-
-vi.setConfig({ testTimeout: 5000 });
 
 const { aube } = strictStoreIntegrity.bindings;
 assert(aube, 'expected aube binding');
 const aubeBinding = aube;
 
 describe('strict-store-integrity: check states', () => {
-  it('passes when strictStoreIntegrity is true', () => {
+  it.each<ParsedConfig>([
+    { paranoid: true, verifyStoreIntegrity: false },
+    { strictStoreIntegrity: true, verifyStoreIntegrity: false },
+  ])('requires manual verification restoration despite strict settings: %j', (config) => {
     expect.hasAssertions();
-    expect(aubeBinding.check(makeCtx(), { strictStoreIntegrity: true }).state).toBe('ok');
+    expect(aubeBinding.check(makeCtx(), config)).toMatchObject({
+      actual: false,
+      expected: true,
+      remediation: {
+        kind: 'manual',
+        steps: [expect.stringMatching(/verifyStoreIntegrity: true/u)],
+      },
+      state: 'violation',
+    });
   });
 
-  it('flags a violation when key is unset', () => {
+  it.each<ParsedConfig>([
+    { paranoid: true },
+    { paranoid: true, strictStoreIntegrity: false },
+    { paranoid: true, verifyStoreIntegrity: true },
+  ])('accepts paranoid despite individual settings: %j', (config) => {
     expect.hasAssertions();
-    const status = aubeBinding.check(makeCtx(), {});
-    assert(status.state === 'violation');
-    expect(status.severity).toBeUndefined();
+    expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
   });
 
-  it('flags a violation when strictStoreIntegrity is false', () => {
+  it.each<ParsedConfig>([
+    { strictStoreIntegrity: true },
+    { strictStoreIntegrity: true, verifyStoreIntegrity: true },
+  ])('passes when strictStoreIntegrity is true and verification remains enabled: %j', (config) => {
     expect.hasAssertions();
-    const status = aubeBinding.check(makeCtx(), { strictStoreIntegrity: false });
+    expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
+  });
+
+  it.each<ParsedConfig>([{}, { paranoid: false }])(
+    'requires the individual setting when paranoid is not enabled: %j',
+    (config) => {
+      expect.hasAssertions();
+      const status = aubeBinding.check(makeCtx(), config);
+      assert(status.state === 'violation');
+      expect(status.severity).toBeUndefined();
+    },
+  );
+
+  it.each<ParsedConfig>([
+    { strictStoreIntegrity: false },
+    { strictStoreIntegrity: false, verifyStoreIntegrity: true },
+  ])('flags a violation when strictStoreIntegrity is false: %j', (config) => {
+    expect.hasAssertions();
+    const status = aubeBinding.check(makeCtx(), config);
     assert(status.state === 'violation');
     expect(status.severity).toBeUndefined();
   });
@@ -48,7 +82,7 @@ describe('strict-store-integrity: scope, metadata, and fix', () => {
 
   it('fix returns setKey op for strictStoreIntegrity: true', () => {
     expect.hasAssertions();
-    const ops = aubeBinding.fix(makeCtx());
+    const ops = automaticOperations(aubeBinding.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },

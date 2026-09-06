@@ -6,10 +6,8 @@ import path from 'node:path';
 import { run } from '../src/cli.ts';
 import { tmpdir } from 'node:os';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const FIXTURES = path.join(import.meta.dirname, 'fixtures');
-const FIRST_INDEX = 0;
+
 const EXIT_CODE_CONFIG_ERROR = 2;
 
 const assertGithubAnnotationShape = (
@@ -56,7 +54,7 @@ describe('e2E --reporter github', () => {
         .split('\n')
         .filter((line) => line.startsWith('::'))
         .map((line) => parseGithubAnnotation(line));
-      expect(annotations.length).toBeGreaterThan(FIRST_INDEX);
+      expect(annotations.length).toBeGreaterThan(0);
       assertGithubAnnotationShape(annotations);
     });
   });

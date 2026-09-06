@@ -1,59 +1,33 @@
-import type { AutoRuleBinding, CheckStatus } from '../entities/rule.ts';
+import type { RuleBinding, CheckStatus } from '../entities/rule.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
-import { getByPath } from '../entities/config-value.ts';
 
-const { pnpmWorkspace, yarnrc, bunfig, denoJson, aubeWorkspace } = CONFIG_FILES;
+const { pnpmWorkspace, yarnrc, bunfig, denoJson } = CONFIG_FILES;
 
-const denoLockMessage = 'Set `lock.frozen: true` in deno.json for reproducible, verified installs.';
+const aubeFrozenCommand =
+  'Use `aube ci` or `aube install --frozen-lockfile` to fail when the lockfile would change.';
 
-// Hand-written so the binding can distinguish "lock is unset / a mapping"
-// (safe to emit a `lock.frozen` setKey op) from "lock holds an explicit scalar"
-// (a custom lockfile path, or `false` to disable). requireConfigKey would
-// emit `lock.frozen` in the scalar case, silently clobbering the user's
-// value — so that case becomes a manual step instead.
-const denoBinding: AutoRuleBinding = {
-  check(_ctx, config): CheckStatus {
-    if (getByPath(config, ['lock', 'frozen']) === true) {
-      return { state: 'ok' };
-    }
-    const lock = getByPath(config, ['lock']);
-    const lockIsScalar =
-      typeof lock !== 'undefined' &&
-      (typeof lock !== 'object' || lock === null || Array.isArray(lock));
-    const base: CheckStatus & { state: 'violation' } = {
-      actual: getByPath(config, ['lock', 'frozen']),
-      expected: true,
-      message: denoLockMessage,
+const aubeBinding: RuleBinding = {
+  check(): CheckStatus {
+    return {
+      remediation: { kind: 'manual', steps: [aubeFrozenCommand] },
+      message:
+        '`preferFrozenLockfile` only reuses an up-to-date lockfile; it does not prevent updates. Verify that install commands enforce a frozen lockfile.',
       state: 'violation',
     };
-    if (lockIsScalar) {
-      return {
-        ...base,
-        manualSteps: [
-          'deno.json `lock` is set to a non-object value; writing `lock.frozen: true` under it would overwrite that value. Set it yourself, or make `lock` an object first.',
-        ],
-      };
-    }
-    return base;
   },
-  docs: 'https://docs.deno.com/runtime/fundamentals/configuration/#lock',
-  file: denoJson,
-  fix() {
-    return [{ file: denoJson, keyPath: ['lock', 'frozen'], op: 'setKey', value: true }];
-  },
-  fixKind: 'auto',
+  docs: 'https://github.com/aubepkg/aube/blob/main/docs/cli/ci.md',
+
+  severity: 'info',
 };
 
 const builtRule = requireConfigKey({
   bindings: {
-    aube: {
-      docs: 'https://aube.en.dev/settings/',
-      documentedDefault: true,
-      file: aubeWorkspace,
-      keyPath: ['preferFrozenLockfile'],
-      message:
-        'aube defaults preferFrozenLockfile to true — set it explicitly in aube-workspace.yaml to pin the policy across versions.',
+    deno: {
+      docs: 'https://docs.deno.com/runtime/fundamentals/configuration/#lock',
+      file: denoJson,
+      keyPath: ['lock', 'frozen'],
+      message: 'Set `lock.frozen: true` in deno.json for reproducible, verified installs.',
       value: true,
     },
     bun: {
@@ -67,7 +41,6 @@ const builtRule = requireConfigKey({
     },
     pnpm: {
       docs: 'https://pnpm.io/settings#frozenlockfile',
-      documentedDefault: true,
       file: pnpmWorkspace,
       keyPath: ['frozenLockfile'],
       message:
@@ -96,6 +69,4 @@ const builtRule = requireConfigKey({
   title: 'Freeze the lockfile',
 });
 
-// deno's binding is hand-written (see `denoBinding`) so it can refuse to
-// clobber a non-object `lock`; the builder can't express that conditional.
-export const frozenLockfile = overrideBindings(builtRule, { deno: denoBinding });
+export const frozenLockfile = overrideBindings(builtRule, { aube: aubeBinding });

@@ -1,55 +1,25 @@
-import type { AdvisoryRuleBinding, CheckStatus } from '../entities/rule.ts';
+import { proposeChanges } from './remediation.ts';
+import valid from 'semver/functions/valid.js';
+import { isPlainRecord } from '../../shared/records.ts';
+import type { RuleBinding, CheckStatus } from '../entities/rule.ts';
 import { type ParsedConfig, getByPath } from '../entities/config-value.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 
 const { npmrc, pnpmWorkspace, yarnrc, bunfig, denoJson } = CONFIG_FILES;
 
-const isConfigObject = (value: object): value is ParsedConfig => !Array.isArray(value);
+const REGISTRY_VERSION = /^(?:npm|jsr):(?:@[^/@]+\/)?[^/@]+@(?<version>[^/]*)/u;
 
-/**
- * Specifiers without any `@version` part fall into "no range" by design: this
- * is a deliberate, best-effort static-check stance. Treating "latest"-style
- * imports as violations would need a different mental model (and ideally
- * resolution against the lockfile), so we leave them alone here.
- */
-/** Wildcard segments (`1.x`, `1.*`, `1.2.X`) are ranges too. */
-const SPLIT_LIMIT_FIRST = 1;
-
-const hasWildcardSegment = (spec: string): boolean => {
-  // Only the core version (before the first `-`) is inspected — a prerelease
-  // tag may legally contain `x` (`1.0.0-x.1`) without making the specifier a range.
-  const [core = spec] = spec.split('-', SPLIT_LIMIT_FIRST);
-  return core.split('.').some((seg) => seg === 'x' || seg === 'X' || seg === '*');
+const isUnpinnedRegistryImport = (specifier: string): boolean => {
+  if (!specifier.startsWith('npm:') && !specifier.startsWith('jsr:')) return false;
+  const version = REGISTRY_VERSION.exec(specifier)?.groups?.version;
+  return version === undefined || valid(version.replace(/^=/u, '')) === null;
 };
 
-const RANGE_OPERATOR = /[\^~]|>=|<=|<|>|\|\||\s/u;
-const INCOMPLETE_NUMERIC_VERSION = /^\d+(?:\.\d+)?(?:-|$)/u;
-
-const isRangeSpec = (spec: string): boolean =>
-  spec === '' ||
-  spec === '*' ||
-  RANGE_OPERATOR.test(spec) ||
-  INCOMPLETE_NUMERIC_VERSION.test(spec) ||
-  hasWildcardSegment(spec);
-
-const AFTER_AT_SIGN = 1;
-
-const hasSemverRange = (specifier: string): boolean => {
-  if (specifier.startsWith('http://') || specifier.startsWith('https://')) {
-    return false;
-  }
-  const at = specifier.lastIndexOf('@');
-  if (at <= 0) {
-    return false;
-  }
-  return isRangeSpec(specifier.slice(at + AFTER_AT_SIGN));
-};
-
-const collectRangedImports = (imports: Readonly<Record<string, unknown>>): readonly string[] => {
+const collectUnpinnedImports = (imports: Readonly<Record<string, unknown>>): readonly string[] => {
   const offenders: string[] = [];
   for (const [name, value] of Object.entries(imports)) {
-    if (typeof value === 'string' && hasSemverRange(value)) {
+    if (typeof value === 'string' && isUnpinnedRegistryImport(value)) {
       offenders.push(`${name}=${value}`);
     }
   }
@@ -65,7 +35,13 @@ const formatOffenders = (offenders: readonly string[]): CheckStatus => {
     more = ` (and ${offenders.length - MAX_SAMPLE_COUNT} more)`;
   }
   return {
-    message: `${offenders.length} deno imports use semver ranges: ${sample}${more}. Use \`deno add --save-exact\` or pin manually.`,
+    remediation: {
+      kind: 'manual',
+      steps: [
+        'Run `deno add --save-exact <pkg>` for each unpinned registry import in deno.json, or rewrite the `imports` entries to use exact versions.',
+      ],
+    },
+    message: `${offenders.length} deno imports are not pinned: ${sample}${more}. Use \`deno add --save-exact\` or pin manually.`,
     state: 'violation',
   };
 };
@@ -74,19 +50,19 @@ const OK: CheckStatus = { state: 'ok' };
 
 const extractImportsRecord = (config: ParsedConfig): ParsedConfig | undefined => {
   const imports = getByPath(config, ['imports']);
-  if (typeof imports !== 'object' || imports === null || !isConfigObject(imports)) {
+  if (!isPlainRecord(imports)) {
     return void 0;
   }
   return imports;
 };
 
-const denoBinding: AdvisoryRuleBinding = {
+const denoBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
     const imports = extractImportsRecord(config);
     if (!imports) {
       return OK;
     }
-    const offenders = collectRangedImports(imports);
+    const offenders = collectUnpinnedImports(imports);
     if (offenders.length === 0) {
       return OK;
     }
@@ -94,26 +70,50 @@ const denoBinding: AdvisoryRuleBinding = {
   },
   docs: 'https://docs.deno.com/runtime/reference/cli/add/',
   file: denoJson,
-  fix() {
-    return [
-      {
-        file: denoJson,
-        message:
-          'Run `deno add --save-exact <pkg>` for each ranged import in deno.json, or rewrite the `imports` entries to use exact versions.',
-        op: 'note',
-      },
-    ];
-  },
-  fixKind: 'advisory',
+
   versionNote: { configAvailableSince: 'deno 1.30.0' },
 };
 
-// Coverage notes:
-// - aube: no binding — `savePrefix` is not documented in aube's official
-//   configuration docs (see docs/version-matrix.md "Known open items",
-//   last checked 2026-06-06). Re-add the binding when upstream documents
-//   the key; instructing users to set an unverified key is worse than a
-//   missing cell in the comparison matrix.
+const npmBinding: RuleBinding = {
+  file: npmrc,
+  docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#save-exact',
+  check(_ctx, config) {
+    const exact = getByPath(config, ['save-exact']);
+    const prefix = getByPath(config, ['save-prefix']);
+    if (exact === true || prefix === '' || prefix === '=') return OK;
+    return {
+      remediation: proposeChanges(config, [
+        { op: 'setKey', file: npmrc, keyPath: ['save-exact'], value: true },
+      ]),
+      state: 'violation',
+      actual: exact,
+      expected: true,
+      message: 'Set `save-exact=true` in .npmrc to save exact versions by default.',
+    };
+  },
+};
+
+const aubeBinding: RuleBinding = {
+  file: npmrc,
+  docs: 'https://aube.jdx.dev/settings/#saveprefix',
+  check(_ctx, config) {
+    const prefixes = ['save-prefix', 'savePrefix']
+      .filter((key) => Object.hasOwn(config, key))
+      .map((key) => config[key]);
+    if (prefixes.length > 0 && prefixes.every((value) => value === '')) return OK;
+    return {
+      remediation: {
+        kind: 'manual',
+        steps: [
+          'Use one `save-prefix=` entry in .npmrc. Aube resolves aliases by line order; reconcile conflicting entries before changing them.',
+        ],
+      },
+      state: 'violation',
+      message: 'Set `save-prefix=` in .npmrc; remove any conflicting `savePrefix` alias.',
+    };
+  },
+};
+
 const baseRule = requireConfigKey({
   bindings: {
     bun: {
@@ -122,18 +122,11 @@ const baseRule = requireConfigKey({
       keyPath: ['install', 'exact'],
       message: 'Set `exact = true` under [install] in bunfig.toml to pin exact versions.',
       value: true,
-      versionNote: { configAvailableSince: 'bun 0.6.10' },
-    },
-    npm: {
-      docs: 'https://docs.npmjs.com/cli/v11/using-npm/config#save-exact',
-      extraFix: [{ keyPath: ['save-prefix'], value: '' }],
-      file: npmrc,
-      keyPath: ['save-exact'],
-      message: 'Set `save-exact=true` (and `save-prefix=`) in .npmrc to pin exact versions.',
-      value: true,
+      versionNote: { note: 'install.exact verified in bun 1.2.0' },
     },
     pnpm: {
-      docs: 'https://pnpm.io/settings#saveprefix',
+      accept: (value) => value === '' || value === '=',
+      docs: 'https://pnpm.io/settings/other#saveprefix',
       file: pnpmWorkspace,
       keyPath: ['savePrefix'],
       message: "Set `savePrefix: ''` in pnpm-workspace.yaml to pin exact versions.",
@@ -156,10 +149,8 @@ const baseRule = requireConfigKey({
   title: 'Pin exact dependency versions',
 });
 
-// The deno check iterates `imports` values rather than checking one key, which
-// doesn't fit `requireConfigKey`'s single-key/single-value model — attach it
-// post-hoc via `overrideBindings` instead of polluting the builder with a
-// value-iteration mode for one rule. If more rules need this shape (yarn
-// `resolutions`, pnpm `overrides`, etc.), extract an `inspectConfigValues`
-// builder rather than growing requireConfigKey.
-export const pinExactVersions = overrideBindings(baseRule, { deno: denoBinding });
+export const pinExactVersions = overrideBindings(baseRule, {
+  aube: aubeBinding,
+  deno: denoBinding,
+  npm: npmBinding,
+});

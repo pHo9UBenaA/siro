@@ -1,10 +1,10 @@
-import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
+import { type RuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { isPublishable } from './publishable.ts';
 
 const { packageJson } = CONFIG_FILES;
 
-const publishAccessBinding: AdvisoryRuleBinding = {
+const publishAccessBinding: RuleBinding = {
   // Same ctx.packageJson rationale as files-field.ts: typed valibot view,
   // advisory-only binding.
   check(ctx) {
@@ -16,6 +16,12 @@ const publishAccessBinding: AdvisoryRuleBinding = {
       return { state: 'ok' };
     }
     return {
+      remediation: {
+        kind: 'manual',
+        steps: [
+          'Add `"publishConfig": { "access": "public" }` (or `"restricted"`) to package.json so publishes never default unexpectedly.',
+        ],
+      },
       actual: access,
       message:
         'Set `publishConfig.access` in package.json to `public` or `restricted` to declare publish scope explicitly.',
@@ -24,24 +30,22 @@ const publishAccessBinding: AdvisoryRuleBinding = {
   },
   docs: 'https://docs.npmjs.com/cli/v11/configuring-npm/package-json#publishconfig',
   file: packageJson,
-  fix() {
-    return [
-      {
-        file: packageJson,
-        message:
-          'Add `"publishConfig": { "access": "public" }` (or `"restricted"`) to package.json so publishes never default unexpectedly.',
-        op: 'note',
-      },
-    ];
-  },
-  fixKind: 'advisory',
 };
 
 export const publishAccess = defineRule({
   bindings: {
     aube: publishAccessBinding,
     bun: publishAccessBinding,
-    npm: publishAccessBinding,
+    npm: {
+      ...publishAccessBinding,
+      docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#access',
+      check(ctx, config) {
+        if (isPublishable(ctx) && ctx.packageJson?.publishConfig?.access === 'private') {
+          return { state: 'ok' };
+        }
+        return publishAccessBinding.check(ctx, config);
+      },
+    },
     pnpm: publishAccessBinding,
     yarn: publishAccessBinding,
   },

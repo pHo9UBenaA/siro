@@ -1,8 +1,7 @@
+import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
 import { publishAccess } from '../../../src/domain/rules/publish-access.ts';
-
-vi.setConfig({ testTimeout: 5000 });
 
 const { npm } = publishAccess.bindings;
 if (!npm) {
@@ -34,12 +33,19 @@ describe('publish-access (npm)', () => {
     expect(passes('restricted')).toBe('ok');
   });
 
-  it('fix is advisory (a note)', () => {
+  it('provides manual remediation', () => {
     expect.hasAssertions();
-    const ops = npm.fix(ctx());
-    const FIRST_ELEMENT = 0;
-    const firstOp = ops[FIRST_ELEMENT];
+    const ops = manualSteps(npm.check(ctx(), {}))!;
+
+    const firstOp = ops[0];
     assert(firstOp, 'expected at least one fix op');
-    expect(firstOp.op).toBe('note');
+    expect(firstOp).toContain('publishConfig');
+  });
+
+  it('accepts the private alias only for npm and preserves application scope', () => {
+    const packageJson = { name: '@scope/example', publishConfig: { access: 'private' as const } };
+    expect(npm.check(ctx({ packageJson }), {}).state).toBe('ok');
+    expect(npm.check(ctx({ packageJson, projectType: 'application' }), {}).state).toBe('na');
+    expect(publishAccess.bindings.yarn?.check(ctx({ packageJson }), {}).state).toBe('violation');
   });
 });

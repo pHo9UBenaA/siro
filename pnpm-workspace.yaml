@@ -1,46 +1,17 @@
 packages:
   - .
 
-catalog:
-  '@commitlint/cli': 21.0.2
-  '@commitlint/config-conventional': 21.0.2
-  '@types/ini': 4.1.1
-  '@types/node': 25.9.1
-  '@vitest/coverage-v8': 4.1.7
-  cac: 7.0.0
-  ini: 7.0.0
-  knip: 6.15.0
-  memfs: 4.57.3
-  oxfmt: 0.53.0
-  oxlint: 1.68.0
-  picocolors: 1.1.1
-  smol-toml: 1.6.1
-  tinybench: 6.0.2
-  tsdown: 0.22.1
-  unrun: 0.3.1
-  typedoc: 0.28.19
-  typedoc-plugin-markdown: 4.11.0
-  typescript: 6.0.3
-  valibot: 1.4.2
-  vitest: 4.1.7
-  yaml: 2.9.0
+allowBuilds:
+  esbuild@0.28.0: true
 
 blockExoticSubdeps: true
-
-catalogMode: strict
-
-cleanupUnusedCatalogs: true
-
 frozenLockfile: true
-
-frozenStore: true
-
 minimumReleaseAge: 4320
-
+packageManagerStrictVersion: true
+# Backport Knip 6.20's low-memory opt-out without its dependency refresh.
+patchedDependencies:
+  knip@6.15.0: patches/knip@6.15.0.patch
 savePrefix: ''
-
 strictDepBuilds: true
-
 strictPeerDependencies: true
-
 trustPolicy: no-downgrade

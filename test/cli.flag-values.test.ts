@@ -1,8 +1,6 @@
 import type { IO } from '../src/domain/ports/io.ts';
 import { run } from '../src/cli.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const EXIT_USAGE = 2;
 
 const makeIO = (): { io: IO; err: string[] } => {
@@ -55,5 +53,20 @@ describe('value flags with a missing value token', () => {
       expect(code).toBe(EXIT_USAGE);
       expect(err.join('\n')).toContain('--project-type requires a value');
     });
+  });
+});
+
+describe('invalid boolean flags', () => {
+  it.each([
+    '--json=false',
+    '--json=garbage',
+    '--help=false',
+    '--version=0',
+    '--no-json',
+    '--no-reporter',
+  ])('rejects %s before linting', async (flag) => {
+    const { io, err } = makeIO();
+    expect(await run(['lint', 'test/fixtures/npm-good', flag], io)).toBe(EXIT_USAGE);
+    expect(err.join('\n')).toMatch(/flag|option/iu);
   });
 });

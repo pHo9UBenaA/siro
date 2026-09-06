@@ -1,11 +1,12 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import {
   expectMessageContains,
   expectMessageContainsAndAvoids,
 } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
+import { codecFor } from '../../../src/adapters/codecs/store.ts';
+import { runLint } from '../../../src/application/run-lint.ts';
 import { minimumReleaseAge } from '../../../src/domain/rules/minimum-release-age.ts';
-
-vi.setConfig({ testTimeout: 5000 });
 
 describe('minimum-release-age (npm)', () => {
   const ctx = makeCtx();
@@ -31,9 +32,81 @@ describe('minimum-release-age (npm)', () => {
     expect(npm.check(ctx, { 'min-release-age': 7 }).state).toBe('ok');
   });
 
+  it.each(['0.5', '.5', '3.0', '3'])('accepts the positive release age %s from .npmrc', (value) => {
+    expect.hasAssertions();
+    const result = runLint({
+      codecFor,
+      ctx: makeCtx({
+        readText: () => `min-release-age=${value}\n`,
+      }),
+      pms: ['npm'],
+      ruleSet: [minimumReleaseAge],
+    });
+    expect(result.findings).toStrictEqual([]);
+  });
+
+  it.each(['0', '0.0', '-0.5', 'Infinity', '-Infinity', '1e300', '1e309', '1e-300', 'NaN'])(
+    'flags the inactive or invalid release age %s from .npmrc',
+    (value) => {
+      expect.hasAssertions();
+      const result = runLint({
+        codecFor,
+        ctx: makeCtx({
+          readText: () => `min-release-age=${value}\n`,
+        }),
+        pms: ['npm'],
+        ruleSet: [minimumReleaseAge],
+      });
+      expect(result.findings.map((finding) => finding.ruleId)).toStrictEqual([
+        'minimum-release-age',
+      ]);
+    },
+  );
+
+  it.each([
+    { before: '2020-01-01', state: 'ok' },
+    { before: 'Wed, 01 Jan 2020 00:00:00 GMT', state: 'ok' },
+    { before: '2026-09-06T11:59:59.999Z', state: 'ok' },
+    { before: '2026-09-06T12:00:00.000Z', state: 'violation' },
+    { before: '2999-01-01', state: 'violation' },
+    { before: 'null', state: 'violation' },
+    { before: 'false', state: 'violation' },
+    { before: 'true', state: 'violation' },
+    { before: '', state: 'violation' },
+    { before: 'invalid', state: 'violation' },
+    { before: '0', state: 'ok' },
+  ])('checks the before cutoff $before independently of min-release-age', ({ before, state }) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-06T12:00:00.000Z'));
+    try {
+      const codec = codecFor('npmrc');
+      for (const age of ['', 'min-release-age=0\n', 'min-release-age=3\n']) {
+        const config = codec.parse(`${age}before=${before}\n`);
+        const result = npm.check(ctx, config);
+        expect(result.state).toBe(state);
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    'before=2999-01-01',
+    'before=null',
+    'before=false',
+    'before=invalid',
+    'before[]=2020-01-01',
+  ])('requires manual review of %s', (setting) => {
+    const result = npm.check(ctx, codecFor('npmrc').parse(`${setting}\nmin-release-age=3`));
+    expect(result).toMatchObject({
+      state: 'violation',
+      remediation: { kind: 'manual', steps: [expect.stringContaining('before')] },
+    });
+  });
+
   it('fixes by setting a positive min-release-age', () => {
     expect.hasAssertions();
-    const ops = npm.fix(ctx);
+    const ops = automaticOperations(npm.check(ctx, {}));
     const setKey = ops.find((op) => op.op === 'setKey');
     expect(setKey).toMatchObject({ keyPath: ['min-release-age'] });
     expect(setKey).toMatchObject({ value: expect.any(Number) });
@@ -78,12 +151,9 @@ describe('minimum-release-age (deno)', () => {
     ).toBe('ok');
   });
 
-  it('accepts a defaulted object without age and rejects arrays', () => {
+  it('passes an object setting without an age', () => {
     expect.hasAssertions();
-    const values = [{ exclude: ['npm:foo'] }, []];
-    expect(
-      values.map((minimumDependencyAge) => deno.check(ctx, { minimumDependencyAge }).state),
-    ).toStrictEqual(['ok', 'violation']);
+    expect(deno.check(ctx, { minimumDependencyAge: { exclude: ['npm:foo'] } }).state).toBe('ok');
   });
 
   it('flags zero-duration cooldowns in string and object forms', () => {
@@ -99,12 +169,12 @@ describe('minimum-release-age (deno)', () => {
     expect(deno.check(ctx, { minimumDependencyAge: 'PT0S' }).state).toBe('violation');
   });
 
-  it('flags an info advisory for the safe Deno default when minimumDependencyAge is unset', () => {
+  it('keeps full severity when the Deno version-dependent default is unverified', () => {
     expect.hasAssertions();
-    expect(deno.check(ctx, {})).toMatchObject({
-      severity: 'info',
-      state: 'violation',
-    });
+    const status = deno.check(ctx, {});
+    expect(status).toMatchObject({ state: 'violation' });
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 
   it('flags a violation when minimumDependencyAge is "0" (disabled)', () => {
@@ -119,7 +189,7 @@ describe('minimum-release-age (deno)', () => {
 
   it('fix writes P3D as the recommended value', () => {
     expect.hasAssertions();
-    const ops = deno.fix(ctx);
+    const ops = automaticOperations(deno.check(ctx, {}));
     const setKey = ops.find((op) => op.op === 'setKey');
     expect(setKey).toMatchObject({ keyPath: ['minimumDependencyAge'], value: 'P3D' });
   });
@@ -127,15 +197,6 @@ describe('minimum-release-age (deno)', () => {
 
 describe('minimum-release-age tells users which PM version made the key available or safe by default', () => {
   const ctx = makeCtx();
-
-  it('on deno: tells the user from which Deno version the safe default applies', () => {
-    expect.hasAssertions();
-    expectMessageContains({
-      binding: deno,
-      ctx,
-      substrings: ['default safe since deno 2.9.0'],
-    });
-  });
 
   it('on pnpm: tells the user from which pnpm version the safe default applies', () => {
     expect.hasAssertions();
@@ -186,5 +247,64 @@ describe('minimum-release-age tells users which PM version made the key availabl
       ctx,
       substrings: ['available since yarn 4.10.0'],
     });
+  });
+
+  it('on deno: tells the user when the safe default became available', () => {
+    expect.hasAssertions();
+    expectMessageContains({
+      binding: minimumReleaseAge.bindings.deno,
+      ctx,
+      substrings: ['default safe since deno 2.9.0'],
+    });
+  });
+});
+
+describe('minimum-release-age minute strings (deno)', () => {
+  it('accepts a positive minute string in deno.json', () => {
+    expect.hasAssertions();
+    expect(deno.check(makeCtx(), { minimumDependencyAge: '120' }).state).toBe('ok');
+  });
+});
+
+describe('Deno release-age formats from the official parser', () => {
+  it.each([
+    '2020-01-01T12:30Z',
+    'P1Y',
+    'P1M',
+    'P1WT1H',
+    'P1.5D',
+    'PT1.5H',
+    'PT1.5M',
+    'PT1,5S',
+    'P1000000000D',
+    'PT0.0000000001S',
+    0.5,
+    1e15,
+    { age: 'P3D', typo: true },
+  ])('rejects unsupported input %j', (value) => {
+    expect(deno.check(makeCtx(), { minimumDependencyAge: value }).state).toBe('violation');
+  });
+
+  it.each([
+    '2016-12-31T23:59:60Z',
+    { age: null },
+    '+P3D',
+    'P2w',
+    'PT1.5s',
+    'P1DT2h',
+    '2025-09-16T12:50+0900',
+    '2025-09-16T12:50:10+0900',
+  ])('accepts supported input %j', (value) => {
+    expect(deno.check(makeCtx(), { minimumDependencyAge: value }).state).toBe('ok');
+  });
+
+  it('flags a cutoff that has not yet passed', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-09-06T00:00:00Z'));
+      expect(deno.check(makeCtx(), { minimumDependencyAge: '2026-09-07' }).state).toBe('violation');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.4.0]
+
+### Breaking Changes
+
+- **One remediation per check**: replace binding `fix`/`fixKind` and finding `fix`/`fixable`/`manualSteps` with automatic operations or manual instructions in `remediation`. JSON output uses schema 2.
+- **Explicit library configuration**: `lint` evaluates without executing repository configuration. Pass extensions inside `config`; use `loadConfig` to opt into trusted code execution. `LintCommandOptions` adds reporting to `LintOptions`.
+- **Validated extension boundaries**: parsed values and `getByPath()` results are `unknown`. Rules, bindings, reporters, and configuration maps require ordinary or null-prototype objects. Path constructors reject invalid roots and parent traversal.
+- **Simpler bindings and exports**: remove `fileGlob`, separate automatic/advisory binding types, `requireConfigKey.extraFix`, `KeyAssignment`, and internal implementation exports. `RuleContext.readConfig` shares parsed inputs across checks; a violation can identify an additional input file.
+
+### Fixes
+
+- Keep version- and environment-dependent defaults at the configured severity until their conditions can be established.
+- Align npm 12 script-policy precedence, URL restrictions, release-age values, and lockfile guidance with the cited upstream policy.
+- Read Aube `strictDepBuilds` from `.npmrc`, combine it with workspace `jailBuilds`, and report and propose changes in the correct files. Correct advisory/trust defaults, paranoid overrides, and supported lockfiles.
+- Honor pnpm `ignoreScripts` and Bun's boolean auto-install disable. Keep store, provenance, and frozen-install guidance within what configuration alone establishes.
+- Correct npm/Aube exact-save precedence and Deno registry import checks, including tags, missing versions, partial versions, and subpaths.
+- Match supported Deno and Yarn release-age formats; reject malformed ages and exclusions while preserving valid exclusions in remediation.
+- Honor Deno's configured lockfile path and flag disabled or malformed lock settings. Report unsupported `deno.jsonc` explicitly.
+- Reject invalid consumed manifest fields, non-mapping JSON/YAML roots, empty JSON, invalid extension results, and inaccessible or non-directory targets with actionable errors.
+- Preserve severity overrides for prototype-named rules and compute exit decisions before custom reporters run. Require manual review when remediation would overwrite a settings container or leave a security bypass active.
+- Validate repeated, missing, unknown, and non-boolean CLI options consistently. Match Node support against the package engine range.
+- Limit the declared Node.js support range to the maintained majors exercised by CI.
+- Reject cyclic YAML aliases and excessive alias expansion without repeatedly traversing unused nested anchors.
+
+### Refactoring
+
+- Consolidate CLI parsing on Node's argument tokenizer and remove the direct `cac` dependency. Keep configuration validation and parsed-file caching at their input boundaries.
+- Replace custom script loaders, rule scaffolding, layer restrictions, and selective hook machinery with native Node scripts and direct verification commands.
+- Generate rule inputs, default severities, and version notes from live bindings. Replace the duplicated version matrix with concise policy sources and interpretation limits.
+- Remove private OSS research from the public repository and replace the single-package dependency catalog with exact versions in `package.json`.
+- Build before every test command so executable CLI and public API cases cannot silently skip. Run full verification in CI and before release staging; require the tag to match the package version and stage exactly one packed artifact.
+
+### Security and documentation
+
+- Pin GitHub Actions to full commit SHAs, disable persisted checkout credentials, and configure Dependabot updates.
+- Add security reporting guidance, a threat model, and a concrete configuration example. Clarify executable configuration, static-analysis limits, migration, and package verification.
+
 ## [0.3.0]
 
 ### Features
@@ -52,36 +89,7 @@ Initial public release. 27 rules across 6 package managers (npm, pnpm, yarn, bun
 - **`--pm` flag**: target a specific package manager.
 - **`--json` flag**: shortcut for `--reporter json`.
 
-### Rules added
-
-- `advisory-check` — aube `security.advisoryCheck`
-- `approved-git-repos` — yarn `npmScopes.*.approvedGitRepos`
-- `audit-suppression` — yarn `npmAuditExclude`
-- `block-auto-install` — pnpm `autoInstallPeers`, aube `peerDependencies.autoInstall`
-- `block-exotic-subdeps` — aube `blockExoticSubdeps`
-- `bun-security-scanner` — bun `install.security`
-- `checksum-verification` — pnpm `verifyStoreIntegrity`, aube `checksumVerification`
-- `commit-lockfile` — npm `lockfileVersion` (lockfile committed to git)
-- `dependency-overrides` — pnpm `pnpm.overrides`, aube `overrides`
-- `disable-lifecycle-scripts` — npm `ignore-scripts`, pnpm `strictDepBuilds`, yarn `enableScripts`, bun `install.ignoreScripts`, deno `deno.json#/tasks`, aube `jailBuilds`
-- `enforce-strict-ssl` — npm/yarn/pnpm/bun/aube `strict-ssl`
-- `files-field` — npm `files` in package.json
-- `frozen-lockfile` — npm `ci` enforcement, pnpm `frozen-lockfile`, yarn `freezeLockfile`, aube `preferFrozenLockfile`
-- `frozen-store` — pnpm `store.frozen`
-- `hardened-mode` — yarn `enableHardenedMode`
-- `minimum-release-age` — pnpm `fetchRetries`, aube `minimumReleaseAge`
-- `named-registries` — pnpm `registries.*.registry`
-- `paranoid-mode` — aube `paranoid`
-- `patched-dependencies` — pnpm `patchedDependencies`
-- `pin-exact-versions` — npm `save-exact`, pnpm `save-exact`, deno `deno.json#/imports`
-- `provenance` — npm/pnpm `publishConfig.provenance`
-- `publish-access` — npm/pnpm `publishConfig.access`
-- `publishable` — package.json `private`
-- `store-server` — pnpm `store.server`
-- `strict-allow-scripts` — aube `strictAllowScripts`
-- `strict-release-age` — aube `strictReleaseAge`
-- `strict-store-integrity` — pnpm `store.integrity`
-- `trust-policy` — aube `trustPolicy`
+Earlier implementations remain available in the release tags. See the [rule reference](docs/rules.md) for current policies.
 
 ### Tooling
 

@@ -1,17 +1,46 @@
+import { proposeChanges } from './remediation.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
-import { requireConfigKey } from './builders/require-config-key.ts';
+import { defineRule } from '../entities/rule.ts';
+import { getByPath } from '../entities/config-value.ts';
 
 const { aubeWorkspace } = CONFIG_FILES;
 
-export const strictStoreIntegrity = requireConfigKey({
+export const strictStoreIntegrity = defineRule({
   bindings: {
     aube: {
+      check(_ctx, config) {
+        if (getByPath(config, ['verifyStoreIntegrity']) === false) {
+          return {
+            actual: false,
+            expected: true,
+            remediation: {
+              kind: 'manual',
+              steps: [
+                'Set `verifyStoreIntegrity: true` (or remove `verifyStoreIntegrity: false`) in aube-workspace.yaml, and enable `strictStoreIntegrity: true` or `paranoid: true`.',
+              ],
+            },
+            message:
+              '`verifyStoreIntegrity: false` bypasses strict integrity checks, including when `paranoid: true`.',
+            state: 'violation',
+          };
+        }
+        const strict = getByPath(config, ['strictStoreIntegrity']);
+        if (strict === true || getByPath(config, ['paranoid']) === true) {
+          return { state: 'ok' };
+        }
+        return {
+          remediation: proposeChanges(config, [
+            { file: aubeWorkspace, keyPath: ['strictStoreIntegrity'], op: 'setKey', value: true },
+          ]),
+          actual: strict,
+          expected: true,
+          message:
+            'Set `strictStoreIntegrity: true` in aube-workspace.yaml to refuse tarballs that lack integrity metadata.',
+          state: 'violation',
+        };
+      },
       docs: 'https://aube.jdx.dev/settings/',
       file: aubeWorkspace,
-      keyPath: ['strictStoreIntegrity'],
-      message:
-        'Set `strictStoreIntegrity: true` in aube-workspace.yaml to refuse tarballs that lack integrity metadata.',
-      value: true,
     },
   },
   description:

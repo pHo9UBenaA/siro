@@ -1,8 +1,6 @@
 import { bunSecurityScanner } from '../../../src/domain/rules/bun-security-scanner.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const { bun } = bunSecurityScanner.bindings;
 if (!bun) {
   throw new TypeError('expected bun binding');

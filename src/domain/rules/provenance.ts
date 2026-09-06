@@ -11,11 +11,6 @@ const npmrcProvenance = {
   value: true,
 };
 
-// Coverage notes:
-// - deno: N/A — publishes via JSR, which has its own provenance model; there
-//   is no npm-style attestation key to require.
-// - aube: N/A — no upstream attestation pipeline yet; revisit when aube ships
-//   one (docs/version-matrix.md tracks the cell).
 export const provenance = requireConfigKey({
   applies: isPublishable,
   bindings: {
@@ -44,7 +39,7 @@ export const provenance = requireConfigKey({
     },
   },
   description:
-    'Provenance statements (via Sigstore) tie a release to its source and build, letting consumers verify it was not tampered with.',
+    'Provenance statements (via Sigstore) bind a published artifact to its recorded source and build.',
   docs: 'https://github.com/bodadotsh/npm-security-best-practices#10-generate-provenance-statements',
   id: 'provenance',
   projectTypes: ['package'],

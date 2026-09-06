@@ -1,16 +1,14 @@
 import { exitCodeForLint, filterBySeverity } from '../../../src/domain/services/filter.ts';
 import type { LintResult } from '../../../src/domain/entities/lint-result.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
 
 const result: LintResult = {
   findings: [
-    { fix: [], fixable: true, message: 'm', pm: 'npm', ruleId: 'a', severity: 'error' },
-    { fix: [], fixable: true, message: 'm', pm: 'npm', ruleId: 'b', severity: 'warn' },
-    { fix: [], fixable: false, message: 'm', pm: 'npm', ruleId: 'c', severity: 'info' },
+    { message: 'm', pm: 'npm', ruleId: 'a', severity: 'error' },
+    { message: 'm', pm: 'npm', ruleId: 'b', severity: 'warn' },
+    { message: 'm', pm: 'npm', ruleId: 'c', severity: 'info' },
   ],
   summary: { error: 1, info: 1, warn: 1 },
 };
@@ -64,9 +62,7 @@ describe(exitCodeForLint, () => {
   it('fails on warnings when the threshold is warn', () => {
     expect.hasAssertions();
     const warnOnly: LintResult = {
-      findings: [
-        { fix: [], fixable: true, message: 'm', pm: 'npm', ruleId: 'b', severity: 'warn' },
-      ],
+      findings: [{ message: 'm', pm: 'npm', ruleId: 'b', severity: 'warn' }],
       summary: { error: 0, info: 0, warn: 1 },
     };
     expect(exitCodeForLint(warnOnly, 'warn')).toBe(EXIT_FAILURE);

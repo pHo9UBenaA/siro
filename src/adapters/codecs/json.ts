@@ -5,9 +5,6 @@ import type { ConfigCodec } from '../../domain/ports/config-codec.ts';
 export const jsonCodec: ConfigCodec = {
   parse(text: string): ParsedConfig {
     const trimmed = text.trim();
-    if (trimmed === '') {
-      return {};
-    }
     return toParsedConfig(JSON.parse(trimmed));
   },
 };

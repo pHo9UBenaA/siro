@@ -4,15 +4,20 @@ import { ConfigError } from '../../src/shared/errors.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 import { createRepoContext } from '../../src/adapters/repo-context.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
-// createRepoContext is the only adapter that touches both `FileSystem` and
-// `PackageJson` parsing in the same factory. Both behaviours were previously
-// observable only end-to-end (e2e.test.ts), so a refactor of resolveIn /
-// safeParsePackageJson would have to wait for an integration failure to
-// surface. Pin them at the unit boundary.
-
 describe('createRepoContext — packageJson parsing', () => {
+  it.each([
+    ['private', { name: 'publishable', private: 'false' }],
+    ['files', { files: 'dist' }],
+    ['name', { name: 7 }],
+    ['packageManager', { packageManager: [] }],
+    ['publishConfig.access', { publishConfig: { access: 'junk' } }],
+    ['trustedDependencies', { trustedDependencies: [42] }],
+  ])('rejects malformed %s instead of silently changing its meaning', (field, value) => {
+    const fs = createMemFileSystem({ 'package.json': JSON.stringify(value) });
+    expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(ConfigError);
+    expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(`package.json: ${field}`);
+  });
+
   it('returns packageJson: undefined when no package.json is present', () => {
     expect.hasAssertions();
     const fs = createMemFileSystem({});
@@ -53,6 +58,19 @@ describe('createRepoContext — packageJson parsing', () => {
     expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(ConfigError);
     expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(/package\.json/u);
   });
+
+  it.each(['[]', 'null', 'true', '"package"', '42'])(
+    'throws ConfigError when package.json contains a non-object JSON root: %s',
+    (contents) => {
+      expect.hasAssertions();
+      const fs = createMemFileSystem({ 'package.json': contents });
+
+      expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(ConfigError);
+      expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(
+        /package\.json: expected an object/iu,
+      );
+    },
+  );
 });
 
 describe('createRepoContext — readText and exists', () => {

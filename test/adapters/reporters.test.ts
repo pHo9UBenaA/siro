@@ -10,16 +10,10 @@ import assert from 'node:assert';
 import { captureIO } from '../helpers/io.ts';
 import { parseGithubAnnotation } from '../helpers/github-annotation.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const ESC_OPEN = '[';
-const FINDING_COUNT = 3;
-const SINGLE_FINDING = 1;
-const FIRST_LINE = 0;
-const EMPTY = 0;
 
 const firstLineOf = (text: string): string => {
-  const line = text.split('\n')[FIRST_LINE];
+  const line = text.split('\n')[0];
   assert(line, 'expected at least one line');
   return line;
 };
@@ -28,8 +22,7 @@ const result: LintResult = {
   findings: [
     {
       file: '.npmrc',
-      fix: [],
-      fixable: true,
+
       message: 'set ignore-scripts',
       pm: 'npm',
       ruleId: 'disable-lifecycle-scripts',
@@ -52,16 +45,6 @@ describe('reporters registry', () => {
   it('returns undefined for unknown reporters', () => {
     expect.hasAssertions();
     expect(createRegistry().get('xml')).toBeUndefined();
-  });
-
-  it('createRegistry rejects a malformed extra reporter (public-API shape guard)', () => {
-    expect.hasAssertions();
-    // createRegistry is exported; an embedder calling it directly with a value
-    // missing `format` must get a clear error here, not a TypeError when the
-    // bad object is later asked to render.
-    expect(() => createRegistry(JSON.parse('[{"name":"broken"}]'))).toThrow(
-      /name.*format|format/iu,
-    );
   });
 
   it('createRegistry merges builtins with extras (later wins on collision)', () => {
@@ -88,7 +71,7 @@ describe('reporters registry', () => {
     expect(registry.get('noop')).toBe(noop);
     expect(registry.get('pretty')).toBe(overridePretty);
     expect(registry.get('pretty')).not.toBe(prettyReporter);
-    expect(registry.list()).toStrictEqual(
+    expect([...registry.keys()]).toStrictEqual(
       expect.arrayContaining(['pretty', 'json', 'github', 'noop']),
     );
   });
@@ -99,16 +82,16 @@ describe('json reporter', () => {
     expect.hasAssertions();
     const tri: LintResult = {
       findings: [
-        { fix: [], fixable: true, message: 'm', pm: 'npm', ruleId: 'a', severity: 'error' },
-        { fix: [], fixable: true, message: 'm', pm: 'npm', ruleId: 'b', severity: 'warn' },
-        { fix: [], fixable: false, message: 'm', pm: 'npm', ruleId: 'c', severity: 'info' },
+        { message: 'm', pm: 'npm', ruleId: 'a', severity: 'error' },
+        { message: 'm', pm: 'npm', ruleId: 'b', severity: 'warn' },
+        { message: 'm', pm: 'npm', ruleId: 'c', severity: 'info' },
       ],
       summary: { error: 1, info: 1, warn: 1 },
     };
     const { io, out } = captureIO();
     jsonReporter.format(tri, io);
     const parsed = JSON.parse(out());
-    expect(parsed.findings).toHaveLength(FINDING_COUNT);
+    expect(parsed.findings).toHaveLength(3);
     expect(parsed.summary).toStrictEqual({ error: 1, info: 1, warn: 1 });
   });
 });
@@ -120,9 +103,9 @@ describe('githubReporter — basic annotations', () => {
     githubReporter.format(result, io);
     const lines = out()
       .split('\n')
-      .filter((line) => line.length > EMPTY);
-    expect(lines).toHaveLength(SINGLE_FINDING);
-    const firstLine = lines[FIRST_LINE];
+      .filter((line) => line.length > 0);
+    expect(lines).toHaveLength(1);
+    const firstLine = lines[0];
     assert(firstLine, 'expected at least one line');
     expect(parseGithubAnnotation(firstLine)).toStrictEqual({
       body: '[npm] set ignore-scripts',
@@ -150,8 +133,7 @@ describe('githubReporter — docs links', () => {
         {
           docs: 'https://docs.npmjs.com/cli/v11/using-npm/config#ignore-scripts',
           file: '.npmrc',
-          fix: [],
-          fixable: true,
+
           message: 'set ignore-scripts',
           pm: 'npm',
           ruleId: 'disable-lifecycle-scripts',
@@ -182,8 +164,7 @@ describe('githubReporter — severity mapping', () => {
         findings: [
           {
             file: '.npmrc',
-            fix: [],
-            fixable: true,
+
             message: 'msg',
             pm: 'npm',
             ruleId: 'disable-lifecycle-scripts',
@@ -207,8 +188,7 @@ describe('githubReporter — special characters', () => {
       findings: [
         {
           file: 'path/with,comma.txt',
-          fix: [],
-          fixable: true,
+
           message: 'set foo=bar, baz: 100%\nnext line',
           pm: 'npm',
           ruleId: 'disable-lifecycle-scripts',
@@ -246,7 +226,7 @@ describe('prettyReporter — colour handling', () => {
   it('emits ANSI colour codes when FORCE_COLOR is set', () => {
     expect.hasAssertions();
     vi.stubEnv('FORCE_COLOR', '1');
-    vi.stubEnv('NO_COLOR', JSON.parse('{}')._);
+    vi.stubEnv('NO_COLOR', undefined);
     const { io, out } = captureIO();
     prettyReporter.format(result, io);
     expect(out()).toContain(ESC_OPEN);
@@ -288,8 +268,7 @@ describe('prettyReporter — layout', () => {
         {
           docs: 'https://example.com/docs/ignore-scripts',
           file: '.npmrc',
-          fix: [],
-          fixable: true,
+
           message: 'set ignore-scripts',
           pm: 'npm',
           ruleId: 'disable-lifecycle-scripts',

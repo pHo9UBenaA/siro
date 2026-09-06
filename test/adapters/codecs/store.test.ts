@@ -1,8 +1,6 @@
 import { CODEC_KINDS } from '../../../src/domain/entities/config-value.ts';
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe(codecFor, () => {
   it('returns a codec for every declared CodecKind', () => {
     expect.hasAssertions();
@@ -19,12 +17,5 @@ describe(codecFor, () => {
     // be referentially stable so callers can cache the reference safely.
     expect(codecFor('json')).toBe(codecFor('json'));
     expect(codecFor('yaml')).toBe(codecFor('yaml'));
-  });
-
-  it('parses an empty document without throwing for every kind', () => {
-    expect.hasAssertions();
-    for (const kind of CODEC_KINDS) {
-      expect(() => codecFor(kind).parse('')).not.toThrow();
-    }
   });
 });

@@ -1,3 +1,4 @@
+import { run } from '../../src/cli.ts';
 import { asAbsPath } from '../../src/shared/paths.ts';
 import { captureIO } from '../helpers/io.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
@@ -5,8 +6,6 @@ import { lintCommand } from '../../src/application/commands/lint.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
-
-vi.setConfig({ testTimeout: 5000 });
 
 describe('project type selection', () => {
   it('evaluates publish-only rules when a private package is explicitly a package project', () => {
@@ -47,7 +46,7 @@ describe('project type selection', () => {
     );
     const { io, out } = captureIO();
 
-    return lintCommand({ cwd: asAbsPath(dir), reporter: 'json' }, io)
+    return run(['lint', dir, '--reporter', 'json'], io)
       .then(() => {
         const result: { findings: { ruleId: string }[] } = JSON.parse(out());
         const ids = result.findings.map((finding) => finding.ruleId);
@@ -74,7 +73,7 @@ describe('project type selection', () => {
     );
     const { io, out } = captureIO();
 
-    return lintCommand({ cwd: asAbsPath(dir), projectType: 'application', reporter: 'json' }, io)
+    return run(['lint', dir, '--project-type', 'application', '--reporter', 'json'], io)
       .then(() => {
         const result: { findings: { ruleId: string }[] } = JSON.parse(out());
         const packageRules = new Set(['files-field', 'provenance', 'publish-access']);

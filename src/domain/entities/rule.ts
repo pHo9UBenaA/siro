@@ -6,66 +6,51 @@ import {
   type KeyPath,
   type ParsedConfig,
 } from './config-value.ts';
-import { type PM, type Severity, isPM, isSeverity } from './pms.ts';
-import type { RelPath } from '../../shared/paths.ts';
-import type { RepoContext } from '../ports/repo-context.ts';
+import { PMS, type PM, type Severity, isPM, isSeverity } from './pms.ts';
+import { type RelPath, isRelPath } from '../../shared/paths.ts';
+import type { RuleContext } from '../ports/repo-context.ts';
 import { type ProjectType, isProjectType } from './project-type.ts';
+import { isPlainRecord } from '../../shared/records.ts';
 
-/**
- * What a rule binding points at on disk: a parsed config file or an existence
- * check (e.g. "a lockfile is committed"). `path` is a branded `RelPath` minted
- * once at the ref's definition (CONFIG_FILES), so the readText boundary is
- * type-checked and a stray absolute path can't slip in as a string.
- */
-export type ConfigFileRef =
-  | { readonly kind: CodecKind; readonly path: RelPath }
-  | { readonly kind: 'fileGlob'; readonly path: RelPath };
+export interface ConfigFileRef {
+  readonly kind: CodecKind;
+  readonly path: RelPath;
+}
 
-/** Result of evaluating a single rule binding against a repo. */
+export interface SetKeyOperation {
+  readonly op: 'setKey';
+  readonly file: ConfigFileRef;
+  readonly keyPath: KeyPath;
+  readonly value: ConfigValue;
+}
+
+/** A check chooses one remedy for the state it observed. siro does not apply it. */
+export type Remediation =
+  | {
+      readonly kind: 'automatic';
+      readonly operations: readonly [SetKeyOperation, ...SetKeyOperation[]];
+      readonly steps?: never;
+    }
+  | {
+      readonly kind: 'manual';
+      readonly steps: readonly [string, ...string[]];
+      readonly operations?: never;
+    };
+
 export type CheckStatus =
   | { readonly state: 'ok' }
+  | { readonly state: 'na' }
   | {
       readonly state: 'violation';
       readonly message: string;
+      /** Override the primary file when the violation concerns another input. */
+      readonly file?: RelPath;
       readonly expected?: ConfigValue;
       readonly actual?: ConfigReadValue;
-      /**
-       * Dynamic severity for this specific violation, overriding both
-       * {@link AutoRuleBinding.severity} and {@link Rule.severity}. Lets a
-       * `check` distinguish "unset but PM-default safe" (advisory) from
-       * "explicitly weakened" (full severity). A user `rules` override in
-       * config still wins (see `applyConfig`).
-       */
+      /** User configuration takes precedence over this per-result severity. */
       readonly severity?: Severity;
-      /**
-       * Manual remediation steps surfaced verbatim on the finding. Lets a
-       * `check` signal "the setKey fix ops cannot resolve this state; the
-       * user has to intervene" — e.g. when an explicit user override would
-       * have to be deleted first. When non-empty, `Finding.fix` is emitted
-       * empty so an external fixer never writes ops the user's existing
-       * config would defeat.
-       */
-      readonly manualSteps?: readonly string[];
-    }
-  | { readonly state: 'na' };
-
-/** A remediation step produced by a rule's `fix`. */
-export type FixOp =
-  | {
-      readonly op: 'setKey';
-      readonly file: ConfigFileRef;
-      readonly keyPath: KeyPath;
-      readonly value: ConfigValue;
-    }
-  | { readonly op: 'ensureFileTracked'; readonly file: ConfigFileRef; readonly message: string }
-  | { readonly op: 'note'; readonly message: string; readonly file?: ConfigFileRef };
-
-/**
- * - `auto`: `fix` produces setKey ops an external fixer can apply
- *   mechanically (surfaced via `Finding.fix`; see docs/json-output.md).
- * - `advisory`: `fix` only produces notes/ensureFileTracked hints.
- */
-export type FixKind = 'auto' | 'advisory';
+      readonly remediation?: Remediation;
+    };
 
 /** Display-only package-manager version metadata. */
 export interface VersionNote {
@@ -74,40 +59,13 @@ export interface VersionNote {
   readonly note?: string;
 }
 
-type SetKeyOp = Extract<FixOp, { op: 'setKey' }>;
-type AdvisoryOp = Extract<FixOp, { op: 'note' | 'ensureFileTracked' }>;
-
-export interface AutoRuleBinding {
-  readonly file: ConfigFileRef;
-  readonly fixKind: 'auto';
-  /** Official package-manager doc URL for the setting this binding writes. */
+export interface RuleBinding {
+  readonly file?: ConfigFileRef;
   readonly docs?: string;
-  /**
-   * Per-binding severity. When set, it shadows {@link Rule.severity} for this
-   * PM only — used when a package manager's safe default already mitigates
-   * the threat (so the binding is informational) while another PM with the
-   * same rule still warrants the rule-wide level. A user config `rules`
-   * override always wins over both.
-   */
   readonly severity?: Severity;
   readonly versionNote?: VersionNote;
-  check: (ctx: RepoContext, config: ParsedConfig) => CheckStatus;
-  fix: (ctx: RepoContext) => readonly SetKeyOp[];
+  check: (ctx: RuleContext, config: ParsedConfig) => CheckStatus;
 }
-
-export interface AdvisoryRuleBinding {
-  readonly file: ConfigFileRef;
-  readonly fixKind: 'advisory';
-  /** Official package-manager doc URL for the setting this binding describes. */
-  readonly docs?: string;
-  /** See {@link AutoRuleBinding.severity}. */
-  readonly severity?: Severity;
-  readonly versionNote?: VersionNote;
-  check: (ctx: RepoContext, config: ParsedConfig) => CheckStatus;
-  fix: (ctx: RepoContext) => readonly AdvisoryOp[];
-}
-
-export type RuleBinding = AutoRuleBinding | AdvisoryRuleBinding;
 
 /** A package-manager-agnostic security intent, realized per PM via `bindings`. */
 export interface Rule<Id extends string = string> {
@@ -122,47 +80,99 @@ export interface Rule<Id extends string = string> {
   readonly bindings: Partial<Record<PM, RuleBinding>>;
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+export const defineRule = <const Id extends string>(rule: Rule<Id>): Rule<Id> => rule;
 
 const isOptionalString = (value: unknown): boolean =>
   typeof value === 'undefined' || typeof value === 'string';
 
-const CONFIG_FILE_KINDS: ReadonlySet<string> = new Set([...CODEC_KINDS, 'fileGlob']);
+const CONFIG_FILE_KINDS: ReadonlySet<string> = new Set(CODEC_KINDS);
 
 const isConfigFileRefShape = (value: unknown): value is ConfigFileRef => {
-  if (!isRecord(value) || typeof value.kind !== 'string' || typeof value.path !== 'string') {
+  if (!isPlainRecord(value) || typeof value.kind !== 'string' || !isRelPath(value.path)) {
     return false;
   }
   return CONFIG_FILE_KINDS.has(value.kind);
 };
 
+const isConfigValueShape = (value: unknown): value is ConfigValue =>
+  typeof value === 'string' ||
+  typeof value === 'boolean' ||
+  (typeof value === 'number' && Number.isFinite(value));
+
+const isDenseStringArray = (value: unknown): value is readonly string[] =>
+  Array.isArray(value) && Array.from(value).every((item) => typeof item === 'string');
+
+export const isCheckStatusShape = (value: unknown): value is CheckStatus => {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+  if (value.state === 'ok' || value.state === 'na') {
+    return true;
+  }
+  return (
+    value.state === 'violation' &&
+    typeof value.message === 'string' &&
+    (value.file === undefined || isRelPath(value.file)) &&
+    (value.expected === undefined || isConfigValueShape(value.expected)) &&
+    (value.severity === undefined ||
+      (typeof value.severity === 'string' && isSeverity(value.severity))) &&
+    !('manualSteps' in value) &&
+    !('fix' in value) &&
+    !('fixable' in value) &&
+    (value.remediation === undefined || isRemediationShape(value.remediation))
+  );
+};
+
+const isSetKeyOperation = (value: unknown): value is SetKeyOperation =>
+  isPlainRecord(value) &&
+  value.op === 'setKey' &&
+  isConfigFileRefShape(value.file) &&
+  isDenseStringArray(value.keyPath) &&
+  value.keyPath.length > 0 &&
+  isConfigValueShape(value.value);
+
+const isRemediationShape = (value: unknown): value is Remediation => {
+  if (!isPlainRecord(value)) return false;
+  if (value.kind === 'manual') {
+    return !('operations' in value) && isDenseStringArray(value.steps) && value.steps.length > 0;
+  }
+  return (
+    value.kind === 'automatic' &&
+    !('steps' in value) &&
+    Array.isArray(value.operations) &&
+    value.operations.length > 0 &&
+    Array.from(value.operations).every(isSetKeyOperation)
+  );
+};
+
 const isVersionNoteShape = (value: unknown): value is VersionNote | undefined =>
   typeof value === 'undefined' ||
-  (isRecord(value) &&
+  (isPlainRecord(value) &&
     isOptionalString(value.configAvailableSince) &&
     isOptionalString(value.defaultSafeSince) &&
     isOptionalString(value.note));
 
 const isRuleBindingShape = (value: unknown): value is RuleBinding => {
-  if (!isRecord(value)) {
+  if (!isPlainRecord(value)) {
     return false;
   }
   return (
-    isConfigFileRefShape(value.file) &&
-    (value.fixKind === 'auto' || value.fixKind === 'advisory') &&
+    (value.file === undefined || isConfigFileRefShape(value.file)) &&
+    !('fix' in value) &&
+    !('fixKind' in value) &&
+    !('fileGlob' in value) &&
     isOptionalString(value.docs) &&
     (typeof value.severity === 'undefined' ||
       (typeof value.severity === 'string' && isSeverity(value.severity))) &&
     isVersionNoteShape(value.versionNote) &&
-    typeof value.check === 'function' &&
-    typeof value.fix === 'function'
+    typeof value.check === 'function'
   );
 };
 
 const isBindingsShape = (value: unknown): value is Rule['bindings'] =>
-  isRecord(value) &&
-  Object.entries(value).every(([pm, binding]) => isPM(pm) && isRuleBindingShape(binding));
+  isPlainRecord(value) &&
+  Object.keys(value).every(isPM) &&
+  PMS.every((pm) => value[pm] === undefined || isRuleBindingShape(value[pm]));
 
 const isProjectTypeValue = (value: unknown): value is ProjectType =>
   typeof value === 'string' && isProjectType(value);
@@ -173,7 +183,7 @@ const isProjectTypesShape = (value: unknown): value is readonly ProjectType[] | 
     Array.from(value).every((projectType) => isProjectTypeValue(projectType)));
 
 export const isRuleShape = (value: unknown): value is Rule => {
-  if (!isRecord(value)) {
+  if (!isPlainRecord(value)) {
     return false;
   }
   return (
@@ -187,5 +197,3 @@ export const isRuleShape = (value: unknown): value is Rule => {
     isBindingsShape(value.bindings)
   );
 };
-
-export const defineRule = <const Id extends string>(rule: Rule<Id>): Rule<Id> => rule;

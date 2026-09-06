@@ -1,15 +1,23 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
+import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import { expectMessageContains } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { advisoryCheck } from '../../../src/domain/rules/advisory-check.ts';
-
-vi.setConfig({ testTimeout: 5000 });
 
 const { aube } = advisoryCheck.bindings;
 assert(aube, 'expected aube binding');
 const aubeBinding = aube;
 
 describe('advisory-check: check states', () => {
+  it.each<ParsedConfig>([{ paranoid: true }, { advisoryCheck: 'off', paranoid: true }])(
+    'accepts paranoid despite individual settings: %j',
+    (config) => {
+      expect.hasAssertions();
+      expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
+    },
+  );
+
   it('passes when advisoryCheck is on', () => {
     expect.hasAssertions();
     expect(aubeBinding.check(makeCtx(), { advisoryCheck: 'on' }).state).toBe('ok');
@@ -20,12 +28,15 @@ describe('advisory-check: check states', () => {
     expect(aubeBinding.check(makeCtx(), { advisoryCheck: 'required' }).state).toBe('ok');
   });
 
-  it('flags a violation when key is unset', () => {
-    expect.hasAssertions();
-    const status = aubeBinding.check(makeCtx(), {});
-    assert(status.state === 'violation');
-    expect(status.severity).toBeUndefined();
-  });
+  it.each<ParsedConfig>([{}, { paranoid: false }])(
+    'recommends pinning the documented default when paranoid is not enabled: %j',
+    (config) => {
+      expect.hasAssertions();
+      const status = aubeBinding.check(makeCtx(), config);
+      assert(status.state === 'violation');
+      expect(status.severity).toBe('info');
+    },
+  );
 
   it('flags a violation when advisoryCheck is off', () => {
     expect.hasAssertions();
@@ -63,7 +74,7 @@ describe('advisory-check: scope, metadata, and fix', () => {
 
   it('fix returns setKey op for advisoryCheck: on', () => {
     expect.hasAssertions();
-    const ops = aubeBinding.fix(makeCtx());
+    const ops = automaticOperations(aubeBinding.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },

@@ -1,7 +1,5 @@
 import { ConfigError, wrapCodecError } from '../../src/shared/errors.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 /** Throws a non-Error value to exercise code paths handling bare throws. */
 const throwValue = (value: unknown): never => {
   throw value;
@@ -10,8 +8,8 @@ const throwValue = (value: unknown): never => {
 describe(wrapCodecError, () => {
   it('returns the value when fn succeeds without throwing', () => {
     expect.hasAssertions();
-    const EXPECTED_VALUE = 42;
-    expect(wrapCodecError('foo.toml', () => EXPECTED_VALUE)).toBe(EXPECTED_VALUE);
+
+    expect(wrapCodecError('foo.toml', () => 42)).toBe(42);
   });
 
   it('wraps a bare Error as a ConfigError prefixed with the file path', () => {

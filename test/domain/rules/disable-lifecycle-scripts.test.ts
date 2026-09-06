@@ -1,8 +1,7 @@
+import { automaticOperations, manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
-
-vi.setConfig({ testTimeout: 5000 });
 
 describe('disable-lifecycle-scripts (npm)', () => {
   const ctx = makeCtx();
@@ -35,7 +34,7 @@ describe('disable-lifecycle-scripts (npm)', () => {
 
   it('fixes by setting ignore-scripts=true in .npmrc', () => {
     expect.hasAssertions();
-    const ops = npmBinding.fix(ctx);
+    const ops = automaticOperations(npmBinding.check(ctx, {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'npmrc', path: '.npmrc' },
@@ -72,10 +71,12 @@ describe('disable-lifecycle-scripts (pnpm): check states', () => {
     expect(status.severity).toBeUndefined();
   });
 
-  it('emits an info-severity violation when strictDepBuilds is unset (documentedDefault parity)', () => {
+  it('keeps full severity when the pnpm version-dependent default is unverified', () => {
     expect.hasAssertions();
     const status = pnpmBinding.check(ctx, {});
-    expect(status).toMatchObject({ severity: 'info', state: 'violation' });
+    expect(status).toMatchObject({ state: 'violation' });
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 });
 
@@ -88,8 +89,6 @@ describe('disable-lifecycle-scripts (pnpm): bypass and fix', () => {
     expect.hasAssertions();
     // The bypass dominates strictDepBuilds, so even when strictDepBuilds is
     // also true the binding must flag the bypass and tell the fixer it cannot
-    // auto-resolve. Pinning the manualSteps shape protects the contract
-    // run-lint.ts depends on for the "suppress fix, surface manualSteps" branch.
     const status = pnpmBinding.check(ctx, {
       dangerouslyAllowAllBuilds: true,
       strictDepBuilds: true,
@@ -100,18 +99,15 @@ describe('disable-lifecycle-scripts (pnpm): bypass and fix', () => {
       state: 'violation',
     });
     assert(status.state === 'violation');
-    expect(status.manualSteps).toBeDefined();
-    const FIRST_ELEMENT = 0;
-    assert(status.manualSteps, 'expected manualSteps');
-    expect(status.manualSteps[FIRST_ELEMENT]).toMatch(/dangerouslyAllowAllBuilds/u);
+    expect(manualSteps(status)).toBeDefined();
+
+    assert(manualSteps(status), 'expected manualSteps');
+    expect(manualSteps(status)![0]).toMatch(/dangerouslyAllowAllBuilds/u);
   });
 
-  it('auto-fixes by pinning strictDepBuilds, leaving the bypass case for the fixer to handle', () => {
+  it('proposes strictDepBuilds when no bypass is present', () => {
     expect.hasAssertions();
-    // fix() does not inspect config — the bypass-case skip lives in
-    // run-lint.ts via the manualSteps contract above. The binding itself stays
-    // a single-shape AutoRuleBinding.
-    const ops = pnpmBinding.fix(ctx);
+    const ops = automaticOperations(pnpmBinding.check(ctx, {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'pnpm-workspace.yaml' },
@@ -121,4 +117,14 @@ describe('disable-lifecycle-scripts (pnpm): bypass and fix', () => {
       },
     ]);
   });
+});
+
+it('accepts pnpm ignoreScripts even when approval settings would otherwise allow builds', () => {
+  expect(
+    disableLifecycleScripts.bindings.pnpm?.check(makeCtx(), {
+      ignoreScripts: true,
+      strictDepBuilds: false,
+      dangerouslyAllowAllBuilds: true,
+    }),
+  ).toEqual({ state: 'ok' });
 });

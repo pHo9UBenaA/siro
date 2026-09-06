@@ -1,7 +1,9 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
+import { codecFor } from '../../../src/adapters/codecs/store.ts';
+import { exitCodeForLint } from '../../../src/domain/services/filter.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
-
-vi.setConfig({ testTimeout: 5000 });
+import { runLint } from '../../../src/application/run-lint.ts';
 
 describe('pin-exact-versions (npm)', () => {
   const ctx = makeCtx();
@@ -22,36 +24,117 @@ describe('pin-exact-versions (npm)', () => {
     expect(npm.check(ctx, { 'save-exact': false }).state).toBe('violation');
   });
 
-  it('flags a violation when save-exact alone is set (save-prefix still defaulting to ^)', () => {
-    expect.hasAssertions();
-    expect(npm.check(ctx, { 'save-exact': true }).state).toBe('violation');
+  it.each([
+    { 'save-exact': true },
+    { 'save-exact': true, 'save-prefix': '^' },
+    { 'save-exact': true, 'save-prefix': '~' },
+    { 'save-prefix': '' },
+    { 'save-exact': false, 'save-prefix': '' },
+    { 'save-prefix': '=' },
+  ])('accepts settings that save an exact version: %j', (config) => {
+    expect(npm.check(ctx, config).state).toBe('ok');
   });
 
-  it('still flags a violation when save-exact=true but save-prefix is non-empty', () => {
-    expect.hasAssertions();
-    const result = npm.check(ctx, { 'save-exact': true, 'save-prefix': '^' });
-    expect(result.state).toBe('violation');
+  it('fixes only save-exact, preserving the configured prefix', () => {
+    expect(automaticOperations(npm.check(ctx, {}))).toStrictEqual([
+      {
+        file: { kind: 'npmrc', path: '.npmrc' },
+        keyPath: ['save-exact'],
+        op: 'setKey',
+        value: true,
+      },
+    ]);
   });
+});
 
-  it('passes when save-exact=true and save-prefix is empty', () => {
+describe('pin-exact-versions (deno subpaths)', () => {
+  it.each([
+    'npm:lodash@4/fp',
+    'npm:lodash@4.x/fp',
+    'npm:@scope/pkg@1/subpath',
+    'npm:@scope/pkg@1.x/subpath',
+    'jsr:@std/path@1/posix',
+    'jsr:@std/path@1.x/posix',
+  ])('fails lint for the version range in %s', (specifier) => {
     expect.hasAssertions();
-    expect(npm.check(ctx, { 'save-exact': true, 'save-prefix': '' }).state).toBe('ok');
-  });
-
-  it('fixes by setting save-exact=true and save-prefix=""', () => {
-    expect.hasAssertions();
-    const ops = npm.fix(ctx);
-    expect(ops).toContainEqual({
-      file: { kind: 'npmrc', path: '.npmrc' },
-      keyPath: ['save-exact'],
-      op: 'setKey',
-      value: true,
+    const result = runLint({
+      codecFor,
+      ctx: makeCtx({
+        readText: () => JSON.stringify({ imports: { dependency: specifier } }),
+      }),
+      pms: ['deno'],
+      ruleSet: [pinExactVersions],
     });
-    expect(ops).toContainEqual({
-      file: { kind: 'npmrc', path: '.npmrc' },
-      keyPath: ['save-prefix'],
-      op: 'setKey',
-      value: '',
-    });
+
+    expect(exitCodeForLint(result)).toBe(1);
   });
+
+  it.each([
+    'npm:lodash@4.17.21/fp',
+    'npm:@scope/pkg@1.2.3/subpath',
+    'jsr:@std/path@1.0.0/posix',
+    'npm:foo@1.0.0-x.1/subpath',
+  ])('accepts the exact version in %s', (specifier) => {
+    expect.hasAssertions();
+    const result = runLint({
+      codecFor,
+      ctx: makeCtx({
+        readText: () => JSON.stringify({ imports: { dependency: specifier } }),
+      }),
+      pms: ['deno'],
+      ruleSet: [pinExactVersions],
+    });
+    expect(result.findings).toStrictEqual([]);
+  });
+
+  it.each([
+    'npm:react',
+    'npm:react/jsx-runtime',
+    'npm:@scope/pkg/subpath',
+    'jsr:@scope/pkg',
+    'jsr:@std/path/posix',
+    'npm:react@latest',
+    'npm:react@next/jsx-runtime',
+    'npm:foo@1.2.3.4',
+    'npm:foo@01.2.3',
+  ])('flags the unpinned registry import %s', (specifier) => {
+    expect.hasAssertions();
+    const result = runLint({
+      codecFor,
+      ctx: makeCtx({
+        readText: () => JSON.stringify({ imports: { dependency: specifier } }),
+      }),
+      pms: ['deno'],
+      ruleSet: [pinExactVersions],
+    });
+    expect(exitCodeForLint(result)).toBe(1);
+  });
+});
+
+describe('exact save prefixes', () => {
+  it('accepts pnpm explicit equality pins', () => {
+    expect(pinExactVersions.bindings.pnpm?.check(makeCtx(), { savePrefix: '=' }).state).toBe('ok');
+  });
+
+  it('reads Aube save-prefix from .npmrc', () => {
+    const result = runLint({
+      codecFor,
+      ctx: makeCtx({
+        readText: (path) => (path.endsWith('.npmrc') ? 'save-prefix=\n' : undefined),
+      }),
+      pms: ['aube'],
+      ruleSet: [pinExactVersions],
+    });
+    expect(pinExactVersions.bindings.aube?.file?.path).toBe('.npmrc');
+    expect(result.findings).toStrictEqual([]);
+  });
+});
+
+it.each([
+  [{ savePrefix: '' }, 'ok'],
+  [{ 'save-prefix': '', savePrefix: '' }, 'ok'],
+  [{ 'save-prefix': '', savePrefix: '^' }, 'violation'],
+  [{ 'save-prefix': '^', savePrefix: '' }, 'violation'],
+])('requires unambiguous Aube prefix settings: %j', (config, state) => {
+  expect(pinExactVersions.bindings.aube?.check(makeCtx(), config).state).toBe(state);
 });

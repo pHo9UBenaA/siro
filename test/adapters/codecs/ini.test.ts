@@ -1,8 +1,11 @@
 import { iniCodec } from '../../../src/adapters/codecs/ini.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('iniCodec.parse', () => {
+  it('treats an empty document as an empty mapping', () => {
+    expect.hasAssertions();
+    expect(iniCodec.parse('')).toStrictEqual({});
+  });
+
   it('parses key=value pairs and coerces scalars', () => {
     expect.hasAssertions();
     const text = ['ignore-scripts=true', 'min-release-age=7', "save-prefix=''"].join('\n');
@@ -19,5 +22,10 @@ describe('iniCodec.parse', () => {
     const config = iniCodec.parse(text);
     expect(Object.keys(config)).toStrictEqual(['save-exact']);
     expect(config['save-exact']).toBe(true);
+  });
+
+  it('preserves null separately from empty strings, including in arrays', () => {
+    const config = iniCodec.parse('value=null\nempty=\nquoted=""\nvalues[]=null\nvalues[]=\n');
+    expect(config).toStrictEqual({ value: null, empty: '', quoted: '', values: [null, ''] });
   });
 });

@@ -1,12 +1,6 @@
-import {
-  type ConfigValue,
-  type ParsedConfig,
-  toParsedConfig,
-} from '../../domain/entities/config-value.ts';
+import { type ParsedConfig, toParsedConfig } from '../../domain/entities/config-value.ts';
 import type { ConfigCodec } from '../../domain/ports/config-codec.ts';
 import ini from 'ini';
-
-type MutableConfig = Record<string, ConfigValue | readonly ConfigValue[] | ParsedConfig>;
 
 const INTEGER_PATTERN = /^-?\d+$/u;
 
@@ -27,15 +21,11 @@ const coerceInteger = (str: string): number | undefined => {
   return void 0;
 };
 
-const coerce = (raw: unknown): ConfigValue => {
-  if (typeof raw === 'boolean' || typeof raw === 'number') {
+const coerce = (raw: unknown): unknown => {
+  if (typeof raw !== 'string') {
     return raw;
   }
-  let str = String(raw ?? '');
-  if (typeof raw === 'string') {
-    str = raw;
-  }
-  return coerceBoolean(str) ?? coerceInteger(str) ?? str;
+  return coerceBoolean(raw) ?? coerceInteger(raw) ?? raw;
 };
 
 /**
@@ -49,7 +39,7 @@ const coerce = (raw: unknown): ConfigValue => {
 export const iniCodec: ConfigCodec = {
   parse(text: string): ParsedConfig {
     const raw = toParsedConfig(ini.parse(text));
-    const config: MutableConfig = {};
+    const config: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(raw)) {
       if (Array.isArray(value)) {
         // `key[]=v` npmrc syntax parses to an array. Preserve it, coercing

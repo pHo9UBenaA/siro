@@ -1,9 +1,8 @@
+import { automaticOperations, manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { enforceStrictSsl } from '../../../src/domain/rules/enforce-strict-ssl.ts';
 import { expectDocumentedDefaultDynamicInfo } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
-
-vi.setConfig({ testTimeout: 5000 });
 
 const npmBinding = enforceStrictSsl.bindings.npm;
 assert(npmBinding, 'expected npm binding');
@@ -35,7 +34,7 @@ describe('enforce-strict-ssl (npm)', () => {
 
   it('fix returns setKey op for strict-ssl: true', () => {
     expect.hasAssertions();
-    const ops = npmBinding.fix(makeCtx());
+    const ops = automaticOperations(npmBinding.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'npmrc', path: '.npmrc' },
@@ -90,21 +89,21 @@ describe('enforce-strict-ssl (yarn) — whitelist and fix', () => {
       unsafeHttpWhitelist: ['internal.example.com'],
     });
     assert(status.state === 'violation');
-    expect(status.manualSteps).toBeDefined();
-    const FIRST_ELEMENT = 0;
-    assert(status.manualSteps, 'expected manualSteps');
-    expect(status.manualSteps[FIRST_ELEMENT]).toMatch(/unsafeHttpWhitelist/u);
+    expect(manualSteps(status)).toBeDefined();
+
+    assert(manualSteps(status), 'expected manualSteps');
+    expect(manualSteps(status)![0]).toMatch(/unsafeHttpWhitelist/u);
   });
 
-  it('prioritizes enableStrictSsl=false over non-empty whitelist', () => {
+  it('requires both HTTP exception removal and TLS restoration', () => {
     expect.hasAssertions();
     const status = yarnBinding.check(makeCtx(), {
       enableStrictSsl: false,
       unsafeHttpWhitelist: ['example.com'],
     });
     assert(status.state === 'violation');
-    expect(status.expected).toBe(true);
-    expect(status.actual).toBe(false);
+    expect(status.remediation).toMatchObject({ kind: 'manual' });
+    expect(manualSteps(status)![0]).toMatch(/unsafeHttpWhitelist.*enableStrictSsl/u);
   });
 
   it('targets .yarnrc.yml', () => {
@@ -114,7 +113,7 @@ describe('enforce-strict-ssl (yarn) — whitelist and fix', () => {
 
   it('fix returns setKey op for enableStrictSsl: true', () => {
     expect.hasAssertions();
-    const ops = yarnBinding.fix(makeCtx());
+    const ops = automaticOperations(yarnBinding.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: '.yarnrc.yml' },

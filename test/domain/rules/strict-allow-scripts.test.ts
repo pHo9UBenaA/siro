@@ -1,8 +1,8 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
+import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { strictAllowScripts } from '../../../src/domain/rules/strict-allow-scripts.ts';
-
-vi.setConfig({ testTimeout: 5000 });
 
 const { npm } = strictAllowScripts.bindings;
 assert(npm, 'expected npm binding');
@@ -11,6 +11,34 @@ describe('strict-allow-scripts', () => {
   it('passes when strict-allow-scripts is true', () => {
     expect.hasAssertions();
     expect(npm.check(makeCtx(), { 'strict-allow-scripts': true }).state).toBe('ok');
+  });
+
+  it('requires manual bypass removal even when strict-allow-scripts is true', () => {
+    expect.hasAssertions();
+    const status = npm.check(makeCtx(), {
+      'dangerously-allow-all-scripts': true,
+      'strict-allow-scripts': true,
+    });
+    expect(status).toMatchObject({
+      remediation: {
+        kind: 'manual',
+        steps: [expect.stringContaining('dangerously-allow-all-scripts')],
+      },
+      state: 'violation',
+    });
+  });
+
+  it.each<ParsedConfig>([
+    { 'ignore-scripts': true },
+    { 'ignore-scripts': true, 'strict-allow-scripts': false },
+    {
+      'dangerously-allow-all-scripts': true,
+      'ignore-scripts': true,
+      'strict-allow-scripts': true,
+    },
+  ])('passes when ignore-scripts blocks script execution (%j)', (config) => {
+    expect.hasAssertions();
+    expect(npm.check(makeCtx(), config).state).toBe('ok');
   });
 
   it('flags a violation when unset', () => {
@@ -45,7 +73,7 @@ describe('strict-allow-scripts', () => {
 
   it('fix returns setKey op for strict-allow-scripts: true', () => {
     expect.hasAssertions();
-    const ops = npm.fix(makeCtx());
+    const ops = automaticOperations(npm.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'npmrc', path: '.npmrc' },

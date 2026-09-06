@@ -2,17 +2,11 @@ import { applyConfig } from '../../../../src/domain/services/apply-config.ts';
 import { asRelPath } from '../../../../src/shared/paths.ts';
 import assert from 'node:assert';
 import type { CodecFor, ConfigCodec } from '../../../../src/domain/ports/config-codec.ts';
-import type { ConfigFileRef, Rule } from '../../../../src/domain/entities/rule.ts';
+import type { ConfigFileRef, Rule, VersionNote } from '../../../../src/domain/entities/rule.ts';
 import type { ConfigValue } from '../../../../src/domain/entities/config-value.ts';
 import { makeCtx } from '../../../helpers/ctx.ts';
 import { requireConfigKey } from '../../../../src/domain/rules/builders/require-config-key.ts';
 import { runLint } from '../../../../src/application/run-lint.ts';
-
-vi.setConfig({ testTimeout: 5000 });
-
-const SINGLE_FINDING = 1;
-const NO_FINDINGS = 0;
-const FIRST_ELEMENT = 0;
 
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
 
@@ -28,6 +22,7 @@ const buildRule = (opts: {
   defaultSatisfiedSeverity?: 'error' | 'warn' | 'info' | 'off';
   accept?: (actual: unknown) => boolean;
   ruleSeverity?: 'error' | 'warn' | 'info';
+  versionNote?: VersionNote;
 }): Rule => {
   const npmBinding: {
     file: typeof npmrc;
@@ -37,6 +32,7 @@ const buildRule = (opts: {
     documentedDefault?: ConfigValue;
     defaultSatisfiedSeverity?: 'error' | 'warn' | 'info' | 'off';
     accept?: (actual: unknown) => boolean;
+    versionNote?: VersionNote;
   } = { file: npmrc, keyPath: ['ky'], message: 'pin it', value: true };
   if (typeof opts.documentedDefault !== 'undefined') {
     npmBinding.documentedDefault = opts.documentedDefault;
@@ -46,6 +42,9 @@ const buildRule = (opts: {
   }
   if (opts.accept) {
     npmBinding.accept = opts.accept;
+  }
+  if (opts.versionNote) {
+    npmBinding.versionNote = opts.versionNote;
   }
   return requireConfigKey({
     bindings: { npm: npmBinding },
@@ -68,11 +67,11 @@ describe('documentedDefault — basic behaviour', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    expect(findings).toHaveLength(SINGLE_FINDING);
-    const firstFinding1 = findings[FIRST_ELEMENT];
+    expect(findings).toHaveLength(1);
+    const firstFinding1 = findings[0];
     assert(firstFinding1, 'expected finding');
     expect(firstFinding1.severity).toBe('info');
-    expect(summary).toStrictEqual({ error: NO_FINDINGS, info: SINGLE_FINDING, warn: NO_FINDINGS });
+    expect(summary).toStrictEqual({ error: 0, info: 1, warn: 0 });
   });
 
   it('2. defaultSatisfiedSeverity: "off" + PM default satisfies → no finding', () => {
@@ -86,8 +85,8 @@ describe('documentedDefault — basic behaviour', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    expect(findings).toHaveLength(NO_FINDINGS);
-    expect(summary).toStrictEqual({ error: NO_FINDINGS, info: NO_FINDINGS, warn: NO_FINDINGS });
+    expect(findings).toHaveLength(0);
+    expect(summary).toStrictEqual({ error: 0, info: 0, warn: 0 });
   });
 
   it('3. PM default does NOT satisfy + key unset → full rule.severity', () => {
@@ -101,11 +100,29 @@ describe('documentedDefault — basic behaviour', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    expect(findings).toHaveLength(SINGLE_FINDING);
-    const firstFinding3 = findings[FIRST_ELEMENT];
+    expect(findings).toHaveLength(1);
+    const firstFinding3 = findings[0];
     assert(firstFinding3, 'expected finding');
     expect(firstFinding3.severity).toBe('error');
-    expect(summary).toStrictEqual({ error: SINGLE_FINDING, info: NO_FINDINGS, warn: NO_FINDINGS });
+    expect(summary).toStrictEqual({ error: 1, info: 0, warn: 0 });
+  });
+
+  it('keeps a version-dependent safe default at full severity when the version is unknown', () => {
+    expect.hasAssertions();
+    const rule = buildRule({
+      documentedDefault: true,
+      ruleSeverity: 'error',
+      versionNote: { defaultSafeSince: 'npm 12.0.0' },
+    });
+    const { findings, summary } = runLint({
+      codecFor: stubCodecFor,
+      ctx: makeCtx(),
+      pms: ['npm'],
+      ruleSet: [rule],
+    });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.severity).toBe('error');
+    expect(summary).toStrictEqual({ error: 1, info: 0, warn: 0 });
   });
 });
 
@@ -144,8 +161,8 @@ describe('documentedDefault — explicit-value cases', () => {
       pms: ['npm'],
       ruleSet: [rule],
     });
-    expect(findings).toHaveLength(SINGLE_FINDING);
-    const firstFinding5b = findings[FIRST_ELEMENT];
+    expect(findings).toHaveLength(1);
+    const firstFinding5b = findings[0];
     assert(firstFinding5b, 'expected finding');
     expect(firstFinding5b.severity).toBe('info');
   });
@@ -162,12 +179,13 @@ describe('documentedDefault — override', () => {
       codecFor: stubCodecFor,
       ctx: makeCtx(),
       pms: ['npm'],
-      ruleSet: adjusted,
+      ruleSet: adjusted.rules,
+      severityOverrides: adjusted.severityOverrides,
     });
-    expect(findings).toHaveLength(SINGLE_FINDING);
-    const firstFinding6 = findings[FIRST_ELEMENT];
+    expect(findings).toHaveLength(1);
+    const firstFinding6 = findings[0];
     assert(firstFinding6, 'expected finding');
     expect(firstFinding6.severity).toBe('warn');
-    expect(summary).toStrictEqual({ error: NO_FINDINGS, info: NO_FINDINGS, warn: SINGLE_FINDING });
+    expect(summary).toStrictEqual({ error: 0, info: 0, warn: 1 });
   });
 });

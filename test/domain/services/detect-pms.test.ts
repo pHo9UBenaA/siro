@@ -3,8 +3,6 @@ import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
 import { detectPMs } from '../../../src/domain/services/detect-pms.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const ctx = (files: readonly string[], packageJson?: PackageJson): RepoContext =>
   makeCtx({ files, packageJson });
 

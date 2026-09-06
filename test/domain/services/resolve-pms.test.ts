@@ -5,8 +5,6 @@ import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
 import { resolvePMs } from '../../../src/domain/services/resolve-pms.ts';
 import { UsageError } from '../../../src/shared/errors.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const ctx = (files: readonly string[] = []): RepoContext => makeCtx({ files });
 
 const captureThrow = (fn: () => unknown): unknown => {
@@ -38,7 +36,13 @@ describe('resolvePMs — detection', () => {
 describe('resolvePMs — override', () => {
   it('honors a single-PM override and skips detection entirely', () => {
     expect.hasAssertions();
-    expect(resolvePMs(ctx(['pnpm-lock.yaml']), { pmOverride: 'npm' })).toStrictEqual(['npm']);
+    const repo = {
+      ...ctx(['pnpm-lock.yaml']),
+      exists: () => {
+        throw new Error('detection must not read the filesystem when a PM is forced');
+      },
+    };
+    expect(resolvePMs(repo, { pmOverride: 'npm' })).toStrictEqual(['npm']);
   });
 
   it('still applies the allowed restriction on top of an override', () => {

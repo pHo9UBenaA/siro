@@ -1,283 +1,140 @@
 import { ConfigError, UsageError } from '../../src/shared/errors.ts';
 import { asAbsPath, asRelPath } from '../../src/shared/paths.ts';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import type { Rule } from '../../src/domain/entities/rule.ts';
+import type { CheckStatus, Rule } from '../../src/domain/entities/rule.ts';
+import type { SiroConfig } from '../../src/domain/entities/siro-config.ts';
+import type { LintResult } from '../../src/domain/entities/lint-result.ts';
 import { captureIO } from '../helpers/io.ts';
 import { lintCommand } from '../../src/application/commands/lint.ts';
+import { lint } from '../../src/application/lint.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
-import path from 'node:path';
-import { tmpdir } from 'node:os';
 
-vi.setConfig({ testTimeout: 5000 });
-
-const EXIT_VIOLATION = 1;
-const SINGLE_OCCURRENCE = 1;
-const SPARSE_ARRAY_LENGTH = 1;
-
-const customAlwaysViolates: Rule = {
-  bindings: {
-    npm: {
-      check: () => ({ message: 'synthetic violation', state: 'violation' }),
-      file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-      fix: () => [],
-      fixKind: 'auto',
-    },
-  },
-  description: 'synthetic rule for embedder injection tests',
-  id: 'custom-always-violates',
-  severity: 'error',
-  title: 'always violates',
-};
-
-const ruleWithId = (id: string): Rule => ({
-  bindings: customAlwaysViolates.bindings,
-  description: customAlwaysViolates.description,
+const rule = (
+  id: string,
+  check: () => CheckStatus = () => ({ state: 'violation', message: 'custom violation' }),
+): Rule => ({
   id,
-  severity: customAlwaysViolates.severity,
-  title: customAlwaysViolates.title,
+  title: id,
+  description: id,
+  severity: 'error',
+  bindings: { npm: { file: { kind: 'npmrc', path: asRelPath('.npmrc') }, check } },
 });
+const options = { cwd: asAbsPath('/repo'), fs: npmGoodFs() };
 
-const brokenReporterObj = JSON.parse('{"name":"broken"}');
-
-const rejectAsConfigError = (promise: Promise<unknown>): Promise<ConfigError> =>
-  promise.then(
-    () => {
-      throw new Error('expected rejection');
-    },
-    (error: unknown) => {
-      if (error instanceof ConfigError) {
-        return error;
-      }
-      throw error;
-    },
-  );
-
-const assertDedupCollisionMessage = (err: ConfigError): void => {
-  expect(err).toBeInstanceOf(ConfigError);
-  const occurrences = err.message.split("'dup'").length - SINGLE_OCCURRENCE;
-  expect(occurrences).toBe(SINGLE_OCCURRENCE);
-  expect(err.message).toContain('rule id ');
-  expect(err.message).not.toContain('rule ids ');
-};
-
-const assertUnknownRuleIdsMessage = (err: ConfigError): void => {
-  expect(err).toBeInstanceOf(ConfigError);
-  expect(err.message).toMatch(/unknown rule ids/u);
-  expect(err.message).toContain("'typo-one'");
-  expect(err.message).toContain("'typo-two'");
-  expect(err.message).not.toContain("'provenance'");
-};
-
-const setupDiskDir = (): string => {
-  const dir = mkdtempSync(path.join(tmpdir(), 'siro-lint-collision-'));
-  writeFileSync(
-    path.join(dir, 'package.json'),
-    JSON.stringify({ name: 'demo', packageManager: 'npm@10.9.0', version: '1.0.0' }),
-  );
-  return dir;
-};
-
-describe('lintCommand customRules — reporter validation', () => {
-  it('rejects an object `reporter` that is missing format (UsageError)', () => {
-    expect.hasAssertions();
-    const fs = npmGoodFs();
-    const { io } = captureIO();
-    return expect(
-      lintCommand({ cwd: asAbsPath('/repo'), fs, reporter: brokenReporterObj }, io),
-    ).rejects.toBeInstanceOf(UsageError);
-  });
-
-  it('rejects a malformed entry in the `reporters` list (UsageError)', () => {
-    expect.hasAssertions();
-    const fs = npmGoodFs();
-    const { io } = captureIO();
-    return expect(
-      lintCommand({ cwd: asAbsPath('/repo'), fs, reporters: [brokenReporterObj] }, io),
-    ).rejects.toBeInstanceOf(UsageError);
-  });
-
-  it('rejects a non-array `reporters` value (UsageError)', () => {
-    expect.hasAssertions();
-    const fs = npmGoodFs();
-    const { io } = captureIO();
-    const reporters = { format: () => '', name: 'object-not-list' } as unknown as [];
-    return expect(
-      lintCommand({ cwd: asAbsPath('/repo'), fs, reporters }, io),
-    ).rejects.toBeInstanceOf(UsageError);
-  });
-});
-
-describe('lintCommand customRules — injection and collision', () => {
-  it('rejects a sparse programmatic customRules array (UsageError)', () => {
-    expect.hasAssertions();
-    const customRules = new Array<Rule>(SPARSE_ARRAY_LENGTH);
-    const fs = npmGoodFs();
-    const { io } = captureIO();
-    return expect(
-      lintCommand({ customRules, cwd: asAbsPath('/repo'), fs, reporter: 'json' }, io),
-    ).rejects.toBeInstanceOf(UsageError);
-  });
-
-  it('evaluates a programmatically injected custom rule', () => {
-    expect.hasAssertions();
-    const fs = npmGoodFs();
-    const { io } = captureIO();
-    return lintCommand(
-      { customRules: [customAlwaysViolates], cwd: asAbsPath('/repo'), fs, reporter: 'json' },
+it('reports custom rules from explicit configuration', async () => {
+  const { io, out } = captureIO();
+  expect(
+    await lintCommand(
+      { ...options, config: { customRules: [rule('custom')] }, reporter: 'json' },
       io,
-    ).then((code) => {
-      expect(code).toBe(EXIT_VIOLATION);
-    });
-  });
-
-  it('throws ConfigError when a programmatic rule id collides with a builtin', () => {
-    expect.hasAssertions();
-    const collidingRule = ruleWithId('frozen-lockfile');
-    const fs = npmGoodFs();
-    const { io } = captureIO();
-    return expect(
-      lintCommand(
-        { customRules: [collidingRule], cwd: asAbsPath('/repo'), fs, reporter: 'json' },
-        io,
-      ),
-    ).rejects.toBeInstanceOf(ConfigError);
-  });
-
-  it('throws ConfigError when two programmatic customRules share an id', () => {
-    expect.hasAssertions();
-    const dupOne = ruleWithId('duplicate-id');
-    const dupTwo = ruleWithId('duplicate-id');
-    const fs = npmGoodFs();
-    const { io } = captureIO();
-    return expect(
-      lintCommand(
-        { customRules: [dupOne, dupTwo], cwd: asAbsPath('/repo'), fs, reporter: 'json' },
-        io,
-      ),
-    ).rejects.toBeInstanceOf(ConfigError);
-  });
+    ),
+  ).toBe(1);
+  const result: LintResult = JSON.parse(out());
+  expect(result.findings.filter((f) => f.ruleId === 'custom')).toMatchObject([
+    { message: 'custom violation', severity: 'error' },
+  ]);
 });
 
-describe('lintCommand customRules — plural phrasing', () => {
-  it('uses plural phrasing when two distinct ids collide with builtins', () => {
-    expect.hasAssertions();
-    const frozenRule = ruleWithId('frozen-lockfile');
-    const provRule = ruleWithId('provenance');
-    const fs = npmGoodFs();
-    const { io } = captureIO();
-    return rejectAsConfigError(
-      lintCommand(
-        { customRules: [frozenRule, provRule], cwd: asAbsPath('/repo'), fs, reporter: 'json' },
-        io,
-      ),
-    ).then((err) => {
-      expect(err).toBeInstanceOf(ConfigError);
-      expect(err.message).toContain('rule ids ');
-      expect(err.message).toContain("'frozen-lockfile'");
-      expect(err.message).toContain("'provenance'");
+it.each(['constructor', 'prototype', '__proto__', 'toString', 'hasOwnProperty'])(
+  'uses only own severity settings for a custom rule named %s',
+  (id) => {
+    const unconfigured = lint({ ...options, config: { customRules: [rule(id)], rules: {} } });
+    expect(unconfigured.findings.find((f) => f.ruleId === id)?.severity).toBe('error');
+    const configured = lint({
+      ...options,
+      config: { customRules: [rule(id)], rules: { [id]: 'warn' } },
     });
-  });
+    expect(configured.findings.find((f) => f.ruleId === id)?.severity).toBe('warn');
+  },
+);
+
+it.each([
+  { customRules: [rule('provenance')] },
+  { customRules: [rule('dup'), rule('dup'), rule('dup')] },
+  { rules: { 'typo-one': 'off', 'typo-two': 'error' } },
+] satisfies SiroConfig[])('rejects ambiguous or unknown rule IDs: %j', (config) => {
+  expect(() => lint({ ...options, config })).toThrow(ConfigError);
 });
 
-describe('lintCommand customRules — dedup collision message', () => {
-  it('reports each colliding rule id at most once', () => {
-    expect.hasAssertions();
-    const dupOne = ruleWithId('dup');
-    const dupTwo = ruleWithId('dup');
-    const dupThree = ruleWithId('dup');
-    const fs = npmGoodFs();
-    const { io } = captureIO();
-    return rejectAsConfigError(
-      lintCommand(
-        { customRules: [dupOne, dupTwo, dupThree], cwd: asAbsPath('/repo'), fs, reporter: 'json' },
-        io,
-      ),
-    ).then((err) => {
-      assertDedupCollisionMessage(err);
-    });
-  });
+it('lists each duplicate once and lists every unknown rule ID', () => {
+  expect(() =>
+    lint({ ...options, config: { customRules: [rule('dup'), rule('dup'), rule('dup')] } }),
+  ).toThrow("Duplicate rule ids: 'dup'");
+  expect(() =>
+    lint({ ...options, config: { rules: { 'typo-one': 'off', 'typo-two': 'warn' } } }),
+  ).toThrow("Unknown rule ids: 'typo-one', 'typo-two'");
 });
 
-describe('lintCommand customRules — disk-loaded config: unknown ids', () => {
-  let dir = '';
+it.each([
+  { customRules: new Array(1) },
+  { customRules: [null] },
+  { reporters: new Array(1) },
+  { reporters: [{ name: 'broken' }] },
+  { reporters: [Object.assign([], { name: 'array', format() {} })] },
+  { reporters: {} },
+])('rejects malformed extensions in configuration: %j', (config) => {
+  expect(() => lint({ ...options, config: config as unknown as SiroConfig })).toThrow(ConfigError);
+});
 
-  beforeEach(() => {
-    dir = setupDiskDir();
-  });
+it.each([
+  {},
+  { state: 'violation', message: 'x', severity: 'fatal' },
+  { state: 'violation', message: 'x', expected: {} },
+  { state: 'violation', message: 'x', expected: NaN },
+  { state: 'violation', message: 'x', manualSteps: ['legacy'] },
+  { state: 'violation', message: 'x', file: '../outside' },
+  { state: 'violation', message: 'x', fixable: true },
+  { state: 'violation', message: 'x', fix: [] },
+])('rejects invalid extension check results: %j', (status) => {
+  expect(() =>
+    lint({ ...options, config: { customRules: [rule('invalid', () => status as CheckStatus)] } }),
+  ).toThrow("Rule 'invalid' returned an invalid check result.");
+});
 
-  afterEach(() => {
-    rmSync(dir, { force: true, recursive: true });
-  });
+it('resolves a configured reporter and passes it the filtered result', async () => {
+  const format = vi.fn<import('../../src/domain/ports/reporter.ts').Reporter['format']>();
+  const { io } = captureIO();
+  const config: SiroConfig = {
+    customRules: [rule('custom')],
+    reporters: [{ name: 'capture', format }],
+  };
+  expect(await lintCommand({ ...options, config, reporter: 'capture' }, io)).toBe(1);
+  expect(format).toHaveBeenCalledWith(
+    expect.objectContaining({
+      findings: expect.arrayContaining([expect.objectContaining({ ruleId: 'custom' })]),
+    }),
+    io,
+  );
+});
 
-  it('rejects an unknown rule id in `rules`', () => {
-    expect.hasAssertions();
-    writeFileSync(
-      path.join(dir, 'siro.config.mjs'),
-      "export default { rules: { 'no-such-rule': 'warn' } };\n",
-    );
-    const { io } = captureIO();
-    return expect(
-      lintCommand({ cwd: asAbsPath(dir), reporter: 'json' }, io),
-    ).rejects.toBeInstanceOf(ConfigError);
-  });
+it.each(['unknown', { name: 'broken' }])(
+  'rejects an invalid reporter selection: %j',
+  async (reporter) => {
+    await expect(
+      lintCommand({ ...options, reporter: reporter as never }, captureIO().io),
+    ).rejects.toThrow(UsageError);
+  },
+);
 
-  it('pluralises and lists every unknown rule id once', () => {
-    expect.hasAssertions();
-    writeFileSync(
-      path.join(dir, 'siro.config.mjs'),
-      "export default { rules: { provenance: 'off', 'typo-one': 'warn', 'typo-two': 'error' } };\n",
-    );
-    const { io } = captureIO();
-    return rejectAsConfigError(lintCommand({ cwd: asAbsPath(dir), reporter: 'json' }, io)).then(
-      (err) => {
-        assertUnknownRuleIdsMessage(err);
+it('rejects legacy extension options instead of silently ignoring their policies', () => {
+  expect(() => lint({ ...options, customRules: [rule('legacy')] } as never)).toThrow(
+    /inside the config option/u,
+  );
+});
+
+it('keeps the lint exit decision independent of reporter mutations', async () => {
+  const exitCode = await lintCommand(
+    {
+      cwd: asAbsPath('/virtual'),
+      pm: 'npm',
+      fs: { exists: () => false, readText: () => undefined },
+      reporter: {
+        name: 'mutating',
+        format(result) {
+          for (const finding of result.findings) Reflect.set(finding, 'severity', 'info');
+        },
       },
-    );
-  });
-});
-
-describe('lintCommand customRules — disk-loaded config: cross-source', () => {
-  let dir = '';
-
-  beforeEach(() => {
-    dir = setupDiskDir();
-  });
-
-  afterEach(() => {
-    rmSync(dir, { force: true, recursive: true });
-  });
-
-  it('accepts a `rules` override referencing a programmatic custom rule', () => {
-    expect.hasAssertions();
-    writeFileSync(
-      path.join(dir, 'siro.config.mjs'),
-      `export default {
-        rules: { 'custom-always-violates': 'warn' },
-      };\n`,
-    );
-    const { io } = captureIO();
-    return lintCommand(
-      { customRules: [customAlwaysViolates], cwd: asAbsPath(dir), reporter: 'json' },
-      io,
-    ).then((code) => {
-      expect(code).toBe(EXIT_VIOLATION);
-    });
-  });
-
-  it('throws ConfigError when a programmatic rule id collides with a config customRule', () => {
-    expect.hasAssertions();
-    writeFileSync(
-      path.join(dir, 'siro.config.mjs'),
-      `export default {
-        customRules: [
-          { id: 'shared-id', title: 't', description: 'd', severity: 'warn', bindings: {} },
-        ],
-      };\n`,
-    );
-    const programmaticShared = ruleWithId('shared-id');
-    const { io } = captureIO();
-    return expect(
-      lintCommand({ customRules: [programmaticShared], cwd: asAbsPath(dir), reporter: 'json' }, io),
-    ).rejects.toBeInstanceOf(ConfigError);
-  });
+    },
+    captureIO().io,
+  );
+  expect(exitCode).toBe(1);
 });

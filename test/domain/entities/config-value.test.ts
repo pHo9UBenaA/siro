@@ -1,41 +1,31 @@
 import { getByPath, toParsedConfig } from '../../../src/domain/entities/config-value.ts';
-
-vi.setConfig({ testTimeout: 5000 });
-
-const NESTED_NUM = 1;
-const SAMPLE_A = 1;
-const SAMPLE_B = 2;
-const SAMPLE_C = 3;
-const NON_OBJECT_NUMBER = 42;
-const MAP_VALUE = 1;
+import { expectTypeOf } from 'vitest';
 
 describe(toParsedConfig, () => {
   it('returns the input untouched when it is a plain object', () => {
     expect.hasAssertions();
-    const input = { foo: 'bar', nested: { num: NESTED_NUM } };
+    const input = { foo: 'bar', nested: { num: 1 } };
     expect(toParsedConfig(input)).toBe(input);
   });
 
-  it('returns an empty object for arrays so codecs do not expose array-rooted configs', () => {
+  it('rejects an array-rooted config', () => {
     expect.hasAssertions();
-    expect(toParsedConfig([SAMPLE_A, SAMPLE_B, SAMPLE_C])).toStrictEqual({});
-    expect(toParsedConfig([])).toStrictEqual({});
+    expect(() => toParsedConfig([1, 2, 3])).toThrow(/config root must be a mapping/iu);
   });
 
-  it('returns an empty object for null, undefined, and primitives', () => {
+  it.each([
+    ['empty array', []],
+    ['null', null],
+    ['undefined', undefined],
+    ['string', 'a string'],
+    ['number', 42],
+    ['boolean', true],
+    ['Date', new Date('2024-01-01')],
+    ['Map', new Map([['a', 1]])],
+    ['Set', new Set([1, 2])],
+  ])('rejects a non-mapping %s root', (_name, value) => {
     expect.hasAssertions();
-    expect(toParsedConfig(JSON.parse('null'))).toStrictEqual({});
-    expect(toParsedConfig(void 0)).toStrictEqual({});
-    expect(toParsedConfig('a string')).toStrictEqual({});
-    expect(toParsedConfig(NON_OBJECT_NUMBER)).toStrictEqual({});
-    expect(toParsedConfig(true)).toStrictEqual({});
-  });
-
-  it('rejects Date, Map, Set at the root', () => {
-    expect.hasAssertions();
-    expect(toParsedConfig(new Date('2024-01-01'))).toStrictEqual({});
-    expect(toParsedConfig(new Map([['a', MAP_VALUE]]))).toStrictEqual({});
-    expect(toParsedConfig(new Set([SAMPLE_A, SAMPLE_B]))).toStrictEqual({});
+    expect(() => toParsedConfig(value)).toThrow(/config root must be a mapping/iu);
   });
 
   it('accepts a null-prototype object created via Object.create(null)', () => {
@@ -47,6 +37,17 @@ describe(toParsedConfig, () => {
 });
 
 describe(getByPath, () => {
+  it('preserves parser values and requires callers to narrow their types', () => {
+    const date = new Date('2024-01-01');
+    const config = toParsedConfig({ date, matrix: [[1, 2]], nested: { enabled: true } });
+
+    expectTypeOf(config.date).toEqualTypeOf<unknown>();
+    expectTypeOf(getByPath(config, ['date'])).toEqualTypeOf<unknown>();
+    expect(getByPath(config, ['date'])).toBe(date);
+    expect(getByPath(config, ['matrix'])).toStrictEqual([[1, 2]]);
+    expect(getByPath(config, ['nested', 'enabled'])).toBe(true);
+  });
+
   it('returns undefined for an inherited property', () => {
     expect.hasAssertions();
     expect(getByPath({}, ['constructor'])).toBeUndefined();

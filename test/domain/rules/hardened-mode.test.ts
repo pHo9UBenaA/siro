@@ -2,8 +2,6 @@ import assert from 'node:assert';
 import { hardenedMode } from '../../../src/domain/rules/hardened-mode.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 describe('hardened-mode rule identity', () => {
   it('ships at warn severity', () => {
     expect.hasAssertions();
@@ -20,12 +18,12 @@ describe('hardened-mode rule identity', () => {
     expect(hardenedMode.bindings.yarn).toBeDefined();
   });
 
-  it('treats an unset key as a documentedDefault info advisory (D22)', () => {
+  it('keeps an unset key at full severity when the PR environment is unverified', () => {
     expect.hasAssertions();
     const yarnBinding = hardenedMode.bindings.yarn;
     assert(yarnBinding, 'expected yarn binding');
     const status = yarnBinding.check(makeCtx(), {});
     assert(status.state === 'violation');
-    expect(status.severity).toBe('info');
+    expect(status.severity).toBeUndefined();
   });
 });

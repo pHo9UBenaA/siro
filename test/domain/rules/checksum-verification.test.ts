@@ -1,9 +1,8 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { checksumVerification } from '../../../src/domain/rules/checksum-verification.ts';
 import { expectDocumentedDefaultDynamicInfo } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
-
-vi.setConfig({ testTimeout: 5000 });
 
 const yarnBinding = checksumVerification.bindings.yarn;
 assert(yarnBinding, 'expected yarn binding');
@@ -60,7 +59,7 @@ describe('checksum-verification: scope, metadata, and fix', () => {
 
   it('fix returns setKey op for checksumBehavior: throw', () => {
     expect.hasAssertions();
-    const ops = yarnBinding.fix(makeCtx());
+    const ops = automaticOperations(yarnBinding.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: '.yarnrc.yml' },

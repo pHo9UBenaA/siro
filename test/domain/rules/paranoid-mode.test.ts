@@ -1,9 +1,8 @@
+import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { expectMessageContains } from '../../helpers/binding-expectations.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { paranoidMode } from '../../../src/domain/rules/paranoid-mode.ts';
-
-vi.setConfig({ testTimeout: 5000 });
 
 const { aube } = paranoidMode.bindings;
 assert(aube, 'expected aube binding');
@@ -58,7 +57,7 @@ describe('paranoid-mode: scope, metadata, and fix', () => {
 
   it('fix returns setKey op for paranoid: true', () => {
     expect.hasAssertions();
-    const ops = aubeBinding.fix(makeCtx());
+    const ops = automaticOperations(aubeBinding.check(makeCtx(), {}));
     expect(ops).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },

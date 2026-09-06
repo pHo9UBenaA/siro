@@ -1,4 +1,5 @@
-import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
+import { isStringList } from './config-predicates.ts';
+import { type RuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 
@@ -7,13 +8,19 @@ const { yarnrc } = CONFIG_FILES;
 const message =
   'Set `approvedGitRepositories: []` in .yarnrc.yml to block all git: protocol dependencies (or list approved repository globs).';
 
-const yarnBinding: AdvisoryRuleBinding = {
+const yarnBinding: RuleBinding = {
   check(_ctx, config) {
     const value = getByPath(config, ['approvedGitRepositories']);
-    if (Array.isArray(value)) {
+    if (isStringList(value)) {
       return { state: 'ok' };
     }
     return {
+      remediation: {
+        kind: 'manual',
+        steps: [
+          'Add `approvedGitRepositories: []` to .yarnrc.yml to block all git deps, or list specific approved repository URL globs.',
+        ],
+      },
       actual: value,
       expected: '[]',
       message,
@@ -22,17 +29,7 @@ const yarnBinding: AdvisoryRuleBinding = {
   },
   docs: 'https://yarnpkg.com/configuration/yarnrc#approvedGitRepositories',
   file: yarnrc,
-  fix() {
-    return [
-      {
-        file: yarnrc,
-        message:
-          'Add `approvedGitRepositories: []` to .yarnrc.yml to block all git deps, or list specific approved repository URL globs.',
-        op: 'note' as const,
-      },
-    ];
-  },
-  fixKind: 'advisory',
+
   versionNote: { configAvailableSince: 'yarn 4.14.0' },
 };
 

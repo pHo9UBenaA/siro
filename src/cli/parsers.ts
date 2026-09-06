@@ -6,38 +6,15 @@ import {
   isPM,
   isSeverity,
 } from '../domain/entities/pms.ts';
-import {
-  BUILTIN_REPORTER_NAMES,
-  DEFAULT_REPORTER_NAME,
-  JSON_REPORTER_NAME,
-} from '../adapters/reporters/registry.ts';
-import type { FlagValues } from './flags.ts';
+import { PROJECT_TYPES, type ProjectType, isProjectType } from '../domain/entities/project-type.ts';
 import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../shared/node-version.ts';
 import { UsageError } from '../shared/errors.ts';
-import { PROJECT_TYPES, type ProjectType, isProjectType } from '../domain/entities/project-type.ts';
-
-export const rejectUnknownFlags = (
-  flags: FlagValues,
-  allowed: ReadonlySet<string>,
-  scope?: string,
-): void => {
-  for (const key of Object.keys(flags)) {
-    if (!allowed.has(key)) {
-      let where = '';
-      if (scope) {
-        where = ` for '${scope}'`;
-      }
-      throw new UsageError(`Unknown flag${where}: --${key}`);
-    }
-  }
-};
 
 export const parsePmFlag = (raw: unknown): PM | undefined => {
   if (typeof raw === 'undefined') {
     return;
   }
   if (raw === true) {
-    // Cac yields `true` for a value flag whose value token is missing.
     throw new UsageError(`--pm requires a value (expected one of: ${PMS.join(', ')})`);
   }
   if (typeof raw !== 'string' || !isPM(raw)) {
@@ -72,29 +49,6 @@ export const parseSeverityFlag = (raw: unknown): Severity | undefined => {
     throw new UsageError(`Invalid severity: ${String(raw)} (expected ${SEVERITIES.join('|')})`);
   }
   return raw;
-};
-
-export const resolveReporter = (flags: FlagValues): string => {
-  if (flags.reporter === true) {
-    // Cac yields `true` when --reporter has no value token; falling through
-    // Would silently select 'pretty', unlike --pm / --severity which reject.
-    throw new UsageError(
-      `--reporter requires a value (expected one of: ${BUILTIN_REPORTER_NAMES.join(', ')}, or a reporter registered via siro.config.ts)`,
-    );
-  }
-  const repeatedReporterSelector = Array.isArray(flags.reporter) || Array.isArray(flags.json);
-  if (repeatedReporterSelector || (typeof flags.reporter === 'string' && flags.json === true)) {
-    throw new UsageError(
-      'Invalid reporter selection: use either --reporter or --json, and specify it only once.',
-    );
-  }
-  if (typeof flags.reporter === 'string') {
-    return flags.reporter;
-  }
-  if (flags.json === true) {
-    return JSON_REPORTER_NAME;
-  }
-  return DEFAULT_REPORTER_NAME;
 };
 
 export const ensureNodeVersion = (nodeVersion: string): void => {

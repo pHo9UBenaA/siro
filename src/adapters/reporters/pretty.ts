@@ -52,7 +52,7 @@ const renderFinding = (
     `${ctx.tag[finding.severity](GLYPH[finding.severity])}  [${finding.pm}] ${ctx.colors.bold(finding.ruleId)}${where}`,
   );
   ctx.io.stdout(`    ${finding.message}`);
-  for (const step of finding.manualSteps ?? []) {
+  for (const step of finding.remediation?.kind === 'manual' ? finding.remediation.steps : []) {
     ctx.io.stdout(`    ↳ ${step}`);
   }
   if (finding.docs) {

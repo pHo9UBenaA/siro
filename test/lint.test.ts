@@ -2,12 +2,9 @@ import { captureIO } from './helpers/io.ts';
 import path from 'node:path';
 import { run } from '../src/cli.ts';
 
-vi.setConfig({ testTimeout: 5000 });
-
 const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
-const EMPTY = 0;
 
 const FIXTURES = path.join(import.meta.dirname, 'fixtures');
 
@@ -22,7 +19,7 @@ describe('lint command — basic linting', () => {
         summary: { error: number };
       } = JSON.parse(out());
       expect(parsed.findings.map((finding) => finding.severity)).toContain('error');
-      expect(parsed.summary.error).toBeGreaterThan(EMPTY);
+      expect(parsed.summary.error).toBeGreaterThan(0);
     });
   });
 
@@ -77,11 +74,15 @@ describe('lint command — flags', () => {
   });
 
   it('fails on warnings when --severity warn is set', () => {
-    expect.hasAssertions();
-    const { io } = captureIO();
-    return run(['lint', '--severity', 'warn', path.join(FIXTURES, 'npm-bad')], io).then((code) => {
-      expect(code).toBe(EXIT_FAILURE);
-    });
+    const { io, out } = captureIO();
+    return run(['lint', '--severity', 'warn', '--json', path.join(FIXTURES, 'bun-good')], io).then(
+      (code) => {
+        expect(code).toBe(EXIT_FAILURE);
+        const result = JSON.parse(out());
+        expect(result.summary.error).toBe(0);
+        expect(result.summary.warn).toBeGreaterThan(0);
+      },
+    );
   });
 
   it('rejects an invalid --severity value with exit 2', () => {

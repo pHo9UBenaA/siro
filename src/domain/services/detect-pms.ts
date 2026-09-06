@@ -3,15 +3,7 @@ import { PM_SIGNALS } from '../entities/signals.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
 import { asRelPath } from '../../shared/paths.ts';
 
-/**
- * Per-PM list of filenames whose presence identifies that PM: its own
- * `lockfiles` plus `configs`. `reusesLockfiles` is deliberately excluded —
- * those are other PMs' shapes (see PMSignals), so they must not count as
- * detection evidence. With reused lockfiles split out, every detection signal
- * is owned by exactly one PM; the IIFE asserts that invariant at module load
- * so a future signal collision fails loudly here rather than silently
- * mis-attributing a file.
- */
+// Reused lockfiles do not identify their consuming manager. Owned signals must be unique.
 const registerSignals = (signals: readonly string[], pm: PM, owner: Map<string, PM>): void => {
   for (const file of signals) {
     const prior = owner.get(file);
@@ -36,19 +28,13 @@ const buildDetectionSignals = (): ReadonlyMap<PM, readonly string[]> => {
 
 const DETECTION_SIGNALS: ReadonlyMap<PM, readonly string[]> = buildDetectionSignals();
 
-const addDeclaredPM = (ctx: RepoContext, found: Set<PM>): void => {
-  const declared = ctx.packageJson?.packageManager;
-  if (typeof declared === 'string') {
-    const pm = parsePackageManagerField(declared);
-    if (typeof pm !== 'undefined') {
-      found.add(pm);
-    }
-  }
-};
-
 export const detectPMs = (ctx: RepoContext): PM[] => {
   const found = new Set<PM>();
-  addDeclaredPM(ctx, found);
+  const declared = ctx.packageJson?.packageManager;
+  const declaredPM = declared === undefined ? undefined : parsePackageManagerField(declared);
+  if (declaredPM !== undefined) {
+    found.add(declaredPM);
+  }
   for (const pm of PMS) {
     const signals = DETECTION_SIGNALS.get(pm);
     if (signals && signals.some((file) => ctx.exists(asRelPath(file)))) {

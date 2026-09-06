@@ -15,7 +15,8 @@
     "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "resolveJsonModule": true
   },
   "include": ["src", "test", "bench", "scripts"],
   "exclude": ["dist", "node_modules", "npm-security-best-practices"]

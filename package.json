@@ -1,6 +1,6 @@
 {
   "name": "@pho9ubenaa/siro",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Security best-practices linter for the npm ecosystem (npm, pnpm, deno, bun, yarn, aube).",
   "keywords": [
     "aube",
@@ -46,57 +46,49 @@
     "access": "public"
   },
   "scripts": {
-    "bench": "node ./scripts/bench/run.mjs",
-    "build": "node ./scripts/gen/version.mjs && tsdown && node ./scripts/gen/bin-wrapper.mjs",
+    "bench": "node bench/lint.bench.ts",
+    "build": "tsdown && node scripts/bin-wrapper.mjs",
     "check": "oxlint --deny-warnings && oxfmt --check",
-    "check:oss-coverage": "node ./oss-benchmarks/check.mjs",
     "format": "oxfmt --write",
-    "gen": "pnpm gen:version && pnpm gen:comparison && pnpm gen:rules && pnpm gen:api",
+    "gen": "pnpm gen:docs && pnpm gen:api",
     "gen:api": "typedoc",
-    "gen:comparison": "node ./scripts/gen/comparison.mjs",
-    "gen:rule": "node ./scripts/gen/rule.mjs",
-    "gen:rules": "node ./scripts/gen/rules.mjs",
-    "gen:version": "node ./scripts/gen/version.mjs",
     "knip": "knip",
-    "prepublishOnly": "pnpm typecheck && pnpm build && pnpm test",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest",
-    "typecheck": "tsc --noEmit && node ./scripts/check/layers.mjs"
+    "prepublishOnly": "pnpm verify",
+    "test": "pnpm build && vitest run",
+    "test:coverage": "pnpm build && vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "gen:docs": "node scripts/docs.ts",
+    "check:docs": "node scripts/docs.ts --check",
+    "verify": "pnpm typecheck && pnpm check && pnpm knip && pnpm check:docs && pnpm test"
   },
   "dependencies": {
-    "cac": "catalog:",
-    "ini": "catalog:",
-    "picocolors": "catalog:",
-    "smol-toml": "catalog:",
-    "valibot": "catalog:",
-    "yaml": "catalog:"
+    "ini": "7.0.0",
+    "picocolors": "1.1.1",
+    "semver": "7.8.1",
+    "smol-toml": "1.6.1",
+    "valibot": "1.4.2",
+    "yaml": "2.9.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "catalog:",
-    "@commitlint/config-conventional": "catalog:",
-    "@types/ini": "catalog:",
-    "@types/node": "catalog:",
-    "@vitest/coverage-v8": "catalog:",
-    "knip": "catalog:",
-    "memfs": "catalog:",
-    "oxfmt": "catalog:",
-    "oxlint": "catalog:",
-    "tinybench": "catalog:",
-    "tsdown": "catalog:",
-    "typedoc": "catalog:",
-    "typedoc-plugin-markdown": "catalog:",
-    "typescript": "catalog:",
-    "unrun": "catalog:",
-    "vitest": "catalog:"
+    "@commitlint/cli": "21.0.2",
+    "@commitlint/config-conventional": "21.0.2",
+    "@types/ini": "4.1.1",
+    "@types/node": "25.9.1",
+    "@types/semver": "7.7.1",
+    "@vitest/coverage-v8": "4.1.7",
+    "knip": "6.15.0",
+    "memfs": "4.57.3",
+    "oxfmt": "0.53.0",
+    "oxlint": "1.68.0",
+    "tinybench": "6.0.2",
+    "tsdown": "0.22.1",
+    "typedoc": "0.28.19",
+    "typedoc-plugin-markdown": "4.11.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.7"
   },
   "engines": {
-    "node": "^22.18.0 || ^23.6.0 || >=24.0.0"
+    "node": "^22.18.0 || ^24.0.0"
   },
-  "packageManager": "pnpm@10.33.2",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  }
+  "packageManager": "pnpm@10.33.2"
 }

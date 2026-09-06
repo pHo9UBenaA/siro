@@ -1,4 +1,5 @@
-import { type AdvisoryRuleBinding, defineRule } from '../entities/rule.ts';
+import { isStringList } from './config-predicates.ts';
+import { type RuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
 import { resolveDenoProjectType } from '../services/project-type.ts';
@@ -6,7 +7,7 @@ import { isPublishable } from './publishable.ts';
 
 const { packageJson, denoJson } = CONFIG_FILES;
 
-const packageJsonFilesBinding: AdvisoryRuleBinding = {
+const packageJsonFilesBinding: RuleBinding = {
   // Advisory binding — uses ctx.packageJson (typed valibot view) instead
   // of the codec-agnostic ParsedConfig so `files` arrives as
   // `string[] | undefined` without a cast.
@@ -15,10 +16,16 @@ const packageJsonFilesBinding: AdvisoryRuleBinding = {
       return { state: 'na' };
     }
     const files = ctx.packageJson?.files;
-    if (Array.isArray(files) && files.length > 0) {
+    if (isStringList(files) && files.length > 0) {
       return { state: 'ok' };
     }
     return {
+      remediation: {
+        kind: 'manual',
+        steps: [
+          'Add a `files` array to package.json (e.g. ["dist"]) and verify with `npm pack --dry-run`.',
+        ],
+      },
       actual: files,
       message: 'Add a `files` allow-list to package.json to limit what gets published.',
       state: 'violation',
@@ -26,33 +33,28 @@ const packageJsonFilesBinding: AdvisoryRuleBinding = {
   },
   docs: 'https://docs.npmjs.com/cli/v11/configuring-npm/package-json#files',
   file: packageJson,
-  fix() {
-    return [
-      {
-        file: packageJson,
-        message:
-          'Add a `files` array to package.json (e.g. ["dist"]) and verify with `npm pack --dry-run`.',
-        op: 'note',
-      },
-    ];
-  },
-  fixKind: 'advisory',
 };
 
 // Deno publishes to JSR via deno.json `publish.include`. A deno.json without
 // a `name` cannot be published to JSR, so the rule is N/A for internal/CLI
 // deno repos — mirroring the `isPublishable` guard used by the package.json
 // binding (whose privacy signal is `private: true` rather than missing name).
-const denoPublishBinding: AdvisoryRuleBinding = {
+const denoPublishBinding: RuleBinding = {
   check(ctx, config) {
     if (resolveDenoProjectType(ctx, config) !== 'package') {
       return { state: 'na' };
     }
     const include = getByPath(config, ['publish', 'include']);
-    if (Array.isArray(include) && include.length > 0) {
+    if (isStringList(include) && include.length > 0) {
       return { state: 'ok' };
     }
     return {
+      remediation: {
+        kind: 'manual',
+        steps: [
+          'Add a non-empty `publish.include` array to deno.json; use `publish.exclude` for additional exclusions.',
+        ],
+      },
       actual: include,
       message: 'Add `publish.include` to deno.json to limit what gets published.',
       state: 'violation',
@@ -60,16 +62,6 @@ const denoPublishBinding: AdvisoryRuleBinding = {
   },
   docs: 'https://docs.deno.com/runtime/reference/cli/publish/#how-publishing-works',
   file: denoJson,
-  fix() {
-    return [
-      {
-        file: denoJson,
-        message: 'Add `publish.include` (and/or `publish.exclude`) to deno.json.',
-        op: 'note',
-      },
-    ];
-  },
-  fixKind: 'advisory',
 };
 
 export const filesField = defineRule({

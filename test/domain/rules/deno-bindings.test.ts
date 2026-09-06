@@ -1,13 +1,9 @@
+import { automaticOperations, manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { filesField } from '../../../src/domain/rules/files-field.ts';
 import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
-
-vi.setConfig({ testTimeout: 5000 });
-
-const EMPTY = 0;
-const FIRST_ELEMENT = 0;
 
 describe('deno bindings target deno.json', () => {
   const ctx = makeCtx();
@@ -18,7 +14,7 @@ describe('deno bindings target deno.json', () => {
     expect(bd.file).toStrictEqual({ kind: 'json', path: 'deno.json' });
     expect(bd.check(ctx, {}).state).toBe('violation');
     expect(bd.check(ctx, { lock: { frozen: true } }).state).toBe('ok');
-    expect(bd.fix(ctx).find((op) => op.op === 'setKey')).toMatchObject({
+    expect(automaticOperations(bd.check(ctx, {})).find((op) => op.op === 'setKey')).toMatchObject({
       keyPath: ['lock', 'frozen'],
       value: true,
     });
@@ -31,8 +27,8 @@ describe('deno bindings target deno.json', () => {
     const mapping = bd.check(ctx, { lock: {} });
     assert(absent.state === 'violation', 'expected violation');
     assert(mapping.state === 'violation', 'expected violation');
-    expect(absent.manualSteps).toBeUndefined();
-    expect(mapping.manualSteps).toBeUndefined();
+    expect(manualSteps(absent)).toBeUndefined();
+    expect(manualSteps(mapping)).toBeUndefined();
   });
   it('frozen-lockfile flags a string lock as manual (will not clobber it)', () => {
     expect.hasAssertions();
@@ -41,8 +37,8 @@ describe('deno bindings target deno.json', () => {
     const res = bd.check(ctx, { lock: 'custom.lock' });
     expect(res).toMatchObject({ state: 'violation' });
     assert(res.state === 'violation', 'expected violation');
-    assert(res.manualSteps, 'expected manualSteps');
-    expect(res.manualSteps.length).toBeGreaterThan(EMPTY);
+    assert(manualSteps(res), 'expected manualSteps');
+    expect(manualSteps(res)!.length).toBeGreaterThan(0);
   });
   it('frozen-lockfile flags a false lock as manual (will not clobber it)', () => {
     expect.hasAssertions();
@@ -51,8 +47,8 @@ describe('deno bindings target deno.json', () => {
     const res = bd.check(ctx, { lock: false });
     expect(res).toMatchObject({ state: 'violation' });
     assert(res.state === 'violation', 'expected violation');
-    assert(res.manualSteps, 'expected manualSteps');
-    expect(res.manualSteps.length).toBeGreaterThan(EMPTY);
+    assert(manualSteps(res), 'expected manualSteps');
+    expect(manualSteps(res)!.length).toBeGreaterThan(0);
   });
   it('files-field uses deno.json publish.include for publishable repos', () => {
     expect.hasAssertions();
@@ -81,16 +77,15 @@ describe('pin-exact-versions × deno — binding shape', () => {
   it('binds to deno.json as an advisory binding', () => {
     expect.hasAssertions();
     expect(bd.file).toStrictEqual({ kind: 'json', path: 'deno.json' });
-    expect(bd.fixKind).toBe('advisory');
   });
 
   it('fix returns an advisory note (manual remediation)', () => {
     expect.hasAssertions();
-    const ops = bd.fix(ctx);
-    expect(ops.length).toBeGreaterThan(EMPTY);
-    const firstOp = ops[FIRST_ELEMENT];
+    const ops = manualSteps(bd.check(ctx, { imports: { x: 'npm:x@^1.0.0' } }))!;
+    expect(ops.length).toBeGreaterThan(0);
+    const firstOp = ops[0];
     assert(firstOp, 'expected first op');
-    expect(firstOp.op).toBe('note');
+    expect(firstOp).toContain('deno add --save-exact');
   });
 });
 
@@ -136,13 +131,11 @@ describe('pin-exact-versions × deno — ok: boundary cases', () => {
   const bd = pinExactVersions.bindings.deno;
   assert(bd, 'expected binding');
 
-  it('treats specifiers without explicit version as no-range (current behaviour)', () => {
+  it('leaves relative paths and bare import-map aliases outside the registry policy', () => {
     expect.hasAssertions();
     const config = {
       imports: {
         'bare-prefix': '@std/path',
-        'no-version-jsr': 'jsr:@scope/pkg',
-        'no-version-npm': 'npm:react',
         relative: './local/path.ts',
       },
     };
@@ -210,7 +203,7 @@ describe('pin-exact-versions × deno — aggregation and truncation', () => {
       },
     };
     expect(bd.check(ctx, config)).toMatchObject({
-      message: expect.stringMatching(/4 deno imports use semver ranges/u),
+      message: expect.stringMatching(/4 deno imports are not pinned/u),
       state: 'violation',
     });
   });
