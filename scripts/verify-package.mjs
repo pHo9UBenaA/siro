@@ -1,0 +1,104 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = fileURLToPath(new URL('../', import.meta.url));
+const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+assert.equal(process.argv.length, 3, 'Usage: pnpm test:package /absolute/path/package.tgz');
+const tarball = resolve(process.argv[2]);
+const consumer = mkdtempSync(join(tmpdir(), 'siro-consumer-'));
+
+function run(command, args, cwd = consumer, status = 0) {
+  const result = spawnSync(command, args, {
+    cwd,
+    encoding: 'utf8',
+    timeout: 120_000,
+    maxBuffer: 4 * 1024 * 1024,
+    env: { ...process.env, NODE_PATH: '', NODE_OPTIONS: '' },
+  });
+  assert.ifError(result.error);
+  assert.equal(result.signal, null, `${command} terminated by ${result.signal}`);
+  assert.equal(
+    result.status,
+    status,
+    `${command} ${args.join(' ')}\n${result.stdout}\n${result.stderr}`,
+  );
+  return result.stdout;
+}
+
+try {
+  const files = run('tar', ['-tzf', tarball]).trim().split('\n');
+  for (const file of files) {
+    assert.match(
+      file,
+      /^package\/(?:package\.json|README\.md|LICENSE|CHANGELOG\.md|dist\/(?:cli\.js|index\.d\.mts|[\w-]+\.mjs))$/,
+      `Unexpected package file: ${file}`,
+    );
+  }
+  writeFileSync(
+    join(consumer, 'package.json'),
+    JSON.stringify({
+      private: true,
+      type: 'module',
+      dependencies: { [manifest.name]: `file:${tarball}` },
+    }),
+  );
+  run('pnpm', [
+    'install',
+    '--offline',
+    '--ignore-scripts',
+    '--config.manage-package-manager-versions=false',
+  ]);
+  const installed = JSON.parse(
+    readFileSync(join(consumer, 'node_modules', manifest.name, 'package.json'), 'utf8'),
+  );
+  assert.equal(installed.name, manifest.name);
+  assert.equal(installed.version, manifest.version);
+
+  cpSync(join(root, 'test/package/consumer.mts'), join(consumer, 'consumer.mts'));
+  writeFileSync(
+    join(consumer, 'tsconfig.json'),
+    JSON.stringify({
+      compilerOptions: {
+        noEmit: true,
+        strict: true,
+        skipLibCheck: false,
+        types: [],
+        module: 'NodeNext',
+        moduleResolution: 'NodeNext',
+        target: 'ES2022',
+      },
+      files: ['consumer.mts'],
+    }),
+  );
+  run(process.execPath, [
+    join(root, 'node_modules/typescript/bin/tsc'),
+    '--project',
+    'tsconfig.json',
+  ]);
+  run(process.execPath, ['consumer.mts']);
+
+  // Use the installed executable link, including its shebang and package bin mapping.
+  const cli = join(consumer, 'node_modules/.bin/siro');
+  assert.equal(run(cli, ['--version']).trim(), manifest.version);
+  cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'good'), { recursive: true });
+  cpSync(join(root, 'test/fixtures/npm-bad'), join(consumer, 'bad'), { recursive: true });
+  const report = JSON.parse(run(cli, ['lint', 'good', '--json']));
+  assert.equal(report.schemaVersion, 2);
+  assert.equal(report.siroVersion, manifest.version);
+  run(cli, ['lint', 'bad'], consumer, 1);
+  run(cli, ['--invalid-option'], consumer, 2);
+  writeFileSync(
+    join(consumer, 'good/siro.config.mjs'),
+    "export default { reporters: [{ name: 'crash', format() { throw new Error('Package verification crash probe'); } }] };\n",
+  );
+  run(cli, ['lint', 'good', '--reporter', 'crash'], consumer, 70);
+  console.log(
+    `Verified ${manifest.name}@${manifest.version}: ${files.length} public files, installed API, strict types, CLI exits 0/1/2/70.`,
+  );
+} finally {
+  rmSync(consumer, { recursive: true, force: true });
+}

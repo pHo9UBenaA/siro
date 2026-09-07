@@ -19,5 +19,5 @@
     "resolveJsonModule": true
   },
   "include": ["src", "test", "bench", "scripts"],
-  "exclude": ["dist", "node_modules", "npm-security-best-practices"]
+  "exclude": ["dist", "node_modules", "npm-security-best-practices", "test/package"]
 }

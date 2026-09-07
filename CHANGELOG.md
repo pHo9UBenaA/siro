@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.3]
+
+### Maintenance
+
+- Verify the packed package from an isolated consumer on both supported Node majors in CI. Check distributed files, installed CLI exit codes, package exports, custom rules, JSON output, and strict TypeScript declaration resolution without development dependency types.
+- Verify the same tarball before staging it for npm publication, using offline dependencies and disabled install scripts.
+
+### Documentation
+
+- Define release compatibility for the public API, CLI, configuration, rule policy, Node support, and JSON schema. Distinguish intentional policy tightening from corrections to documented behavior, and clarify how each affects versioning and reproducible CI.
+- Separate siro release compatibility from the limitations of package-manager policy snapshots.
+
 ## [0.4.2]
 
 ### Fixes

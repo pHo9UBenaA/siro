@@ -44,4 +44,5 @@ jobs:
           set -- "$release_dir"/*.tgz
           test "$#" -eq 1
           test -f "$1"
+          pnpm test:package "$1"
           npm stage publish "$1" --access public --allow-file=all

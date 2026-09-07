@@ -64,3 +64,12 @@ snapshots with identical Node and dependencies, alternating repeated runs. Measu
 the built CLI separately before claiming a startup improvement.
 
 Package contents should contain only distributed code and public package documents.
+
+After `pnpm verify`, run `pnpm pack --pack-destination /absolute/path/to/output`
+and `pnpm test:package /absolute/path/to/output/package.tgz` (using the generated
+filename). This installs that tarball in a temporary consumer with scripts disabled
+and dependencies from the local pnpm store. It checks the file allowlist, installed
+CLI exits, package exports, custom rules, JSON output, and declarations with strict
+TypeScript checks and `skipLibCheck: false`. Run the frozen install first to populate
+the store. CI runs this check on both supported Node majors; publication checks
+the same tarball it stages for npm approval.

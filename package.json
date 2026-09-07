@@ -1,6 +1,6 @@
 {
   "name": "@pho9ubenaa/siro",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Security best-practices linter for the npm ecosystem (npm, pnpm, deno, bun, yarn, aube).",
   "keywords": [
     "aube",
@@ -57,6 +57,7 @@
     "security:scan": "node scripts/security-audit.mjs",
     "test": "pnpm build && vitest run",
     "test:coverage": "pnpm build && vitest run --coverage",
+    "test:package": "node scripts/verify-package.mjs",
     "typecheck": "tsc --noEmit",
     "gen:docs": "node scripts/docs.ts",
     "check:docs": "node scripts/docs.ts --check",
