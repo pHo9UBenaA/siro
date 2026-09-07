@@ -36,13 +36,7 @@ jobs:
         env:
           # Knip's raw transfer reserves 6 GiB, exceeding this runner's 5 GB limit.
           KNIP_DISABLE_RAW_TRANSFER: '1'
-      - name: Pack and stage the verified artifact
-        run: |
-          release_dir="$(mktemp -d)"
-          trap 'rm -rf "$release_dir"' EXIT
-          pnpm pack --pack-destination "$release_dir"
-          set -- "$release_dir"/*.tgz
-          test "$#" -eq 1
-          test -f "$1"
-          pnpm test:package "$1"
-          npm stage publish "$1" --access public --allow-file=all
+      - name: Pack and verify the release artifact
+        run: pnpm test:package --output "$RUNNER_TEMP/siro.tgz"
+      - name: Stage the verified artifact
+        run: npm stage publish "$RUNNER_TEMP/siro.tgz" --access public --allow-file=all

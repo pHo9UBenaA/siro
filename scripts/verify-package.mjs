@@ -1,14 +1,27 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  cpSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-assert.equal(process.argv.length, 3, 'Usage: pnpm test:package /absolute/path/package.tgz');
-const tarball = resolve(process.argv[2]);
+const cliArgs = process.argv.slice(2);
+const output = cliArgs.length === 2 && cliArgs[0] === '--output' ? resolve(cliArgs[1]) : undefined;
+assert.ok(
+  cliArgs.length === 0 || (cliArgs.length === 1 && !cliArgs[0].startsWith('-')) || output,
+  'Usage: pnpm test:package [package.tgz | --output package.tgz]',
+);
+let tarball = cliArgs.length === 1 ? resolve(cliArgs[0]) : undefined;
 const consumer = mkdtempSync(join(tmpdir(), 'siro-consumer-'));
 
 function run(command, args, cwd = consumer, status = 0) {
@@ -30,6 +43,12 @@ function run(command, args, cwd = consumer, status = 0) {
 }
 
 try {
+  if (!tarball) {
+    run('pnpm', ['pack', '--pack-destination', consumer], root);
+    const archives = readdirSync(consumer).filter((file) => file.endsWith('.tgz'));
+    assert.equal(archives.length, 1, 'Packing must produce exactly one tarball');
+    tarball = join(consumer, archives[0]);
+  }
   const files = run('tar', ['-tzf', tarball]).trim().split('\n');
   for (const file of files) {
     assert.match(
@@ -98,6 +117,8 @@ try {
     "export default { reporters: [{ name: 'crash', format() { throw new Error('Package verification crash probe'); } }] };\n",
   );
   run(cli, ['lint', 'good', '--reporter', 'crash'], consumer, 70);
+  // Retain the verified bytes for publication without packing a second time.
+  if (output) copyFileSync(tarball, output);
   console.log(
     `Verified ${manifest.name}@${manifest.version}: ${files.length} public files, installed API, strict types, CLI exits 0/1/2/70.`,
   );

@@ -29,11 +29,4 @@ jobs:
           # Knip's raw transfer reserves 6 GiB, exceeding this runner's 5 GB limit.
           KNIP_DISABLE_RAW_TRANSFER: '1'
       - name: Verify the installed package
-        run: |
-          package_dir="$(mktemp -d)"
-          trap 'rm -rf "$package_dir"' EXIT
-          pnpm pack --pack-destination "$package_dir"
-          set -- "$package_dir"/*.tgz
-          test "$#" -eq 1
-          test -f "$1"
-          pnpm test:package "$1"
+        run: pnpm test:package

@@ -65,11 +65,15 @@ the built CLI separately before claiming a startup improvement.
 
 Package contents should contain only distributed code and public package documents.
 
-After `pnpm verify`, run `pnpm pack --pack-destination /absolute/path/to/output`
-and `pnpm test:package /absolute/path/to/output/package.tgz` (using the generated
-filename). This installs that tarball in a temporary consumer with scripts disabled,
+After `pnpm verify`, run `pnpm test:package`. It packs the built package, installs
+the tarball in a temporary consumer, verifies it, and removes the temporary files.
+Installation runs with scripts disabled,
 preferring cached dependencies and fetching missing metadata or packages as needed.
 It checks the file allowlist, installed CLI exits, package exports, custom rules,
 JSON output, and declarations with strict TypeScript checks and `skipLibCheck: false`.
-CI runs this check on both supported Node majors; publication checks the same
-tarball it stages for npm approval.
+CI runs this command on both supported Node majors. To inspect an existing tarball,
+pass its path: `pnpm test:package /absolute/path/package.tgz`.
+
+`pnpm test:package --output /absolute/path/package.tgz` retains the verified tarball
+at the specified path only after all checks pass. The publication workflow stages
+this file for npm approval without repacking. Verification itself never publishes.

@@ -6,12 +6,8 @@
 
 - Verify the packed package from an isolated consumer on both supported Node majors in CI. Check distributed files, installed CLI exit codes, package exports, custom rules, JSON output, and strict TypeScript declaration resolution without development dependency types.
 - Verify the same tarball before staging it for npm publication, preferring cached dependencies with install scripts disabled.
+- Centralize packing, verification, and temporary-file cleanup in `pnpm test:package`; retain the verified artifact on request for publication.
 - Allow bounded startup headroom for audit subprocess tests on shared runners and report process failures before reading their output records.
-
-### Documentation
-
-- Define release compatibility for the public API, CLI, configuration, rule policy, Node support, and JSON schema. Distinguish intentional policy tightening from corrections to documented behavior, and clarify how each affects versioning and reproducible CI.
-- Separate siro release compatibility from the limitations of package-manager policy snapshots.
 
 ## [0.4.2]
 
