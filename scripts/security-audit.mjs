@@ -1,137 +1,116 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
+import * as vb from 'valibot';
 
-const runCommand = (command, args) => {
+const count = vb.pipe(vb.number(), vb.safeInteger(), vb.minValue(0));
+// pnpm 10 uses advisories, not npm's vulnerabilities[].via representation.
+const pnpmReport = vb.object({
+  metadata: vb.object({
+    vulnerabilities: vb.object({
+      info: count,
+      low: count,
+      moderate: count,
+      high: count,
+      critical: count,
+    }),
+  }),
+  advisories: vb.record(vb.string(), vb.object({ module_name: vb.string(), title: vb.string() })),
+});
+// https://google.github.io/osv-scanner/output/#json
+// Go slices can serialize as null; vulnerabilities are omitted for clean packages.
+const osvReport = vb.object({
+  results: vb.nullable(
+    vb.array(
+      vb.object({
+        packages: vb.nullable(
+          vb.array(
+            vb.object({
+              package: vb.object({ name: vb.string(), version: vb.string() }),
+              vulnerabilities: vb.optional(
+                vb.array(
+                  vb.object({
+                    id: vb.string(),
+                    summary: vb.optional(vb.string()),
+                  }),
+                ),
+                [],
+              ),
+            }),
+          ),
+        ),
+      }),
+    ),
+  ),
+});
+
+const parsePnpm = (value) => {
+  const report = vb.parse(pnpmReport, value);
+  const total = Object.values(report.metadata.vulnerabilities).reduce(
+    (sum, severityCount) => sum + severityCount,
+    0,
+  );
+  const lines = Object.values(report.advisories).map(
+    (item) => `${item.module_name}: ${item.title}`,
+  );
+  return { total: Math.max(total, lines.length), lines };
+};
+
+const parseOsv = (value) => {
+  const report = vb.parse(osvReport, value);
+  const lines = (report.results ?? []).flatMap((source) =>
+    (source.packages ?? []).flatMap((item) =>
+      item.vulnerabilities.map(
+        (vuln) =>
+          `${item.package.name}@${item.package.version}: ${vuln.id}${vuln.summary ? ` (${vuln.summary})` : ''}`,
+      ),
+    ),
+  );
+  return { total: lines.length, lines };
+};
+
+// Exit 0: completed clean checks; 1: findings; 2: incomplete/invalid audit.
+// Only ENOENT for the optional OSV executable is a skip, never a successful scan.
+const audit = (label, command, args, parse, optional = false) => {
+  console.log(`## ${label}`);
   const result = spawnSync(command, args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 60000,
+    maxBuffer: 16 * 1024 * 1024,
   });
-
-  return {
-    code: result.status ?? -1,
-    stdout: result.stdout?.trim() ?? '',
-    stderr: result.stderr?.trim() ?? '',
-  };
-};
-
-const parsePnpmAudit = (output) => {
-  if (!output) return { summary: {}, findings: [] };
-
-  let report;
+  if (optional && result.error?.code === 'ENOENT') {
+    console.log('OSV scan skipped: osv-scanner is not installed; only pnpm audit was run.');
+    console.log('Install the official binary: https://google.github.io/osv-scanner/installation/');
+    return 0;
+  }
   try {
-    report = JSON.parse(output);
-  } catch {
-    return { parseError: true, summary: {}, findings: [] };
-  }
-
-  const metadata = report?.metadata?.vulnerabilities || {};
-  const vulnerabilities = report?.vulnerabilities || {};
-
-  const findings = Object.entries(vulnerabilities).flatMap(([name, details]) => {
-    const list = Array.isArray(details.via) ? details.via : [];
-    if (!list.length) {
-      return [{ package: name, advisory: 'no structured advisory list' }];
+    if (result.error) throw new Error(result.error.message);
+    if (result.status !== 0 && result.status !== 1) {
+      throw new Error(`command failed (code ${result.status}, signal ${result.signal ?? 'none'}).`);
     }
-
-    return list.map((item) => {
-      if (typeof item === 'string') {
-        return { package: name, advisory: item };
-      }
-      return {
-        package: name,
-        advisory: item.title || item.url || item.range || 'unknown advisory',
-      };
-    });
-  });
-
-  return { summary: metadata, findings };
+    const report = parse(JSON.parse(result.stdout));
+    if (report.total > 0) {
+      console.log(`found ${report.total} vulnerability(s).`);
+      for (const line of report.lines) console.log(`  - ${line}`);
+      return 1;
+    }
+    if (result.status !== 0) throw new Error('command exited 1 without recognized findings.');
+    console.log(`No vulnerabilities found by ${label}.`);
+    return 0;
+  } catch (error) {
+    console.error(`${label}: audit failed: ${error.message}`);
+    if (result.stderr?.trim()) console.error(result.stderr.trim());
+    return 2;
+  }
 };
 
-const parseOsv = (output) => {
-  if (!output) return [];
-
-  let json;
-  try {
-    json = JSON.parse(output);
-  } catch {
-    return null;
-  }
-
-  const entries = [];
-  for (const item of json?.results ?? []) {
-    for (const vuln of item.vulnerabilities ?? []) {
-      entries.push({
-        package: item.package?.name || item.package?.purl || 'unknown',
-        version: item.package?.version || 'unknown',
-        id: vuln.id || vuln.summary || 'unknown',
-        details: vuln.summary || vuln.details || vuln.modified || 'unspecified',
-      });
-    }
-  }
-
-  return entries;
-};
-
-const runOsv = () => {
-  let result = runCommand('pnpm', ['exec', 'osv-scanner', '--format', 'json', '--recursive', '.']);
-
-  if (result.code === 127) {
-    result = runCommand('npx', ['--yes', 'osv-scanner', '--format', 'json', '--recursive', '.']);
-  }
-
-  return result;
-};
-
-const pnpm = runCommand('pnpm', ['audit', '--json']);
-const pnpmParse = parsePnpmAudit(pnpm.stdout);
-const totalPnpm = Object.values(pnpmParse.summary || {}).reduce((acc, value) => acc + Number(value || 0), 0);
-
-console.log('## pnpm audit');
-if (pnpmParse.parseError) {
-  console.log('Unable to parse pnpm audit JSON output.');
-  if (pnpm.stderr) {
-    console.log(pnpm.stderr);
-  }
-} else if (totalPnpm === 0 && pnpm.code === 0) {
-  console.log('No vulnerabilities found by pnpm audit.');
-} else {
-  console.log(`found ${totalPnpm} vulnerability(s).`);
-  for (const [level, count] of Object.entries(pnpmParse.summary ?? {})) {
-    if (count) {
-      console.log(`  - ${level}: ${count}`);
-    }
-  }
-  for (const finding of pnpmParse.findings) {
-    console.log(`  - ${finding.package}: ${finding.advisory}`);
-  }
-}
-
-const osv = runOsv();
-const osvFindings = parseOsv(osv.stdout);
-
+const pnpmStatus = audit('pnpm audit', 'pnpm', ['audit', '--json'], parsePnpm);
 console.log('');
-console.log('## osv-scanner');
-if (osv.code === 127 || osvFindings === null) {
-  console.log('osv-scanner is unavailable. Run one of: pnpm dlx osv-scanner -- --format json --recursive . or npm i -g osv-scanner');
-} else if (osv.code !== 0) {
-  console.log(`osv-scanner command failed (code ${osv.code}).`);
-  if (osv.stderr) {
-    console.log(osv.stderr);
-  }
-} else if (!osvFindings.length) {
-  console.log('No vulnerabilities found by osv-scanner.');
-} else {
-  console.log(`found ${osvFindings.length} issue(s).`);
-  for (const finding of osvFindings) {
-    console.log(`  - ${finding.package}@${finding.version}: ${finding.id} (${finding.details})`);
-  }
-}
-
-const hasVuln = totalPnpm > 0 || (Array.isArray(osvFindings) && osvFindings.length > 0);
-const commandFailed = pnpm.code !== 0 && !pnpmParse.parseError;
-const toolUnavailable = osv.code === 127 || osvFindings === null;
-process.exitCode = hasVuln || commandFailed ? 1 : 0;
-if (toolUnavailable && !hasVuln) {
-  console.log('');
-  console.log('osv-scanner is optional; only pnpm audit findings are guaranteed by this script run.');
-}
+const osvStatus = audit(
+  'osv-scanner',
+  'osv-scanner',
+  ['scan', 'source', '--format', 'json', '--recursive', '.'],
+  parseOsv,
+  true,
+);
+process.exitCode = Math.max(pnpmStatus, osvStatus);

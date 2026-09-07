@@ -64,3 +64,18 @@ snapshots with identical Node and dependencies, alternating repeated runs. Measu
 the built CLI separately before claiming a startup improvement.
 
 Package contents should contain only distributed code and public package documents.
+
+## Dependency audits
+
+Run `pnpm security:scan` from the public repository to query `pnpm audit` and,
+when installed on `PATH`, the official [OSV-Scanner v2 binary](https://google.github.io/osv-scanner/installation/).
+The script reads pnpm 10's advisory report and OSV's package-grouped JSON output.
+It does not install scanners automatically. An absent OSV executable is explicitly
+reported as a skipped scan; pnpm audit is still required. An installed scanner's
+failure is an error, including an empty or malformed report. Each command has a
+60-second timeout and a 16 MiB output limit.
+
+Exit codes are `0` for completed checks without findings (possibly with OSV
+skipped), `1` for reported vulnerabilities, and `2` for an incomplete or invalid
+audit. Errors take precedence over findings from the other scanner.
+This networked check is separate from the offline `pnpm verify` workflow.
