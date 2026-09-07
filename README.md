@@ -60,15 +60,6 @@ See the [rule reference](docs/rules.md) for what each check does and why, and th
 
 ## Versioning policy
 
-During `0.x`, incompatible changes require a minor release; patch releases contain
-fixes and maintenance. From `1.0.0`, incompatible changes require a major release.
-This includes intentional policy changes that make previously accepted settings
-fail by default. Fixes to documented behavior can still change findings in a patch.
-See the [compatibility policy](docs/configuration.md#release-compatibility) for the
-API, CLI, JSON, and rule contracts, and pin an exact version for reproducible CI.
-
-## Package-manager policy snapshots
-
 siro evaluates the recorded policy snapshot in [docs/policy-sources.md](docs/policy-sources.md).
 It detects package-manager names, not effective runtime versions. Version annotations describe
 verified upstream facts. A version-dependent safe-default annotation prevents an unverified

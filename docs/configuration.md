@@ -1,33 +1,6 @@
 # Configuration and behavior
 
-## Release compatibility
-
-siro is currently pre-1.0. During `0.x`, incompatible changes require a minor
-release. From `1.0.0`, they require a major release. The compatibility surface is
-the documented package exports and TypeScript types, CLI commands, flags and exit
-codes, configuration keys, rule IDs, and JSON output including remediation.
-Internal modules and generated bundle filenames are not public entry points.
-
-| Change                                                                                                                 | During `0.x` | From `1.0.0` |
-| ---------------------------------------------------------------------------------------------------------------------- | ------------ | ------------ |
-| Remove or incompatibly change a public contract; drop a supported Node version                                         | Minor        | Major        |
-| Intentionally tighten default policy or enable a new rule that can fail previously passing CI                          | Minor        | Major        |
-| Add compatible API or opt-in functionality                                                                             | Minor        | Minor        |
-| Fix documented behavior; maintain dependencies, builds, tests, or documentation without an intentional contract change | Patch        | Patch        |
-
-A correctness or security fix can change findings and exit status even in a patch
-release. Describe the affected inputs and corrected behavior in the changelog.
-Consumers that require unchanged CI decisions should pin an exact siro version
-and review findings when upgrading. Adding a rule is not automatically a compatible
-change merely because existing rule IDs remain available.
-
-Breaking JSON shape changes also increment `schemaVersion`; this does not replace
-the required package version change. Consumers should tolerate unknown object
-fields and use rule IDs, severity, and structured remediation rather than match
-human-readable messages. Wording, pretty-output layout, and documentation links
-may change in a patch. See [json-output.md](json-output.md) for the current schema.
-
-## Package-manager policy snapshots
+## Versioning policy
 
 siro evaluates repository settings against the recorded policy snapshot in
 [policy-sources.md](policy-sources.md). It detects package-manager names and does
