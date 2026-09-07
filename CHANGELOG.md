@@ -4,6 +4,8 @@
 
 ### Maintenance
 
+- Update development dependencies to address known CVEs and remove deprecated `git-raw-commits`. Upgrade Knip and replace its local low-memory patch with upstream support.
+
 - Update pinned GitHub Actions to checkout 7.0.1, setup-node 7.0.0, and pnpm/action-setup 6.0.10 after the three-day release-age window. Explicitly disable automatic Node package-manager caching in the publication job.
 - Set Dependabot version-update cooldown to three days, matching pnpm's minimum release age.
 
