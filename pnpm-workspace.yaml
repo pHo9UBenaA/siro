@@ -2,15 +2,19 @@ packages:
   - .
 
 allowBuilds:
-  esbuild@0.28.0: true
+  esbuild@0.28.2: true
 
 blockExoticSubdeps: true
 frozenLockfile: true
 minimumReleaseAge: 4320
 packageManagerStrictVersion: true
-# Backport Knip 6.20's low-memory opt-out without its dependency refresh.
-patchedDependencies:
-  knip@6.15.0: patches/knip@6.15.0.patch
+# Security fixes for development-tool dependencies whose lock entries remain stale.
+overrides:
+  'ast-v8-to-istanbul@<1.0.5': 1.0.5
+  'brace-expansion@>=5.0.0 <5.0.9': 5.0.9
+  'esbuild@>=0.28.0 <0.28.2': 0.28.2
+  'linkify-it@>=5.0.0 <5.0.2': 5.0.2
+  'vite@>=8.0.0 <8.0.16': 8.0.16
 savePrefix: ''
 strictDepBuilds: true
 strictPeerDependencies: true

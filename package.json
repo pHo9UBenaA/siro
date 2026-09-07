@@ -1,6 +1,6 @@
 {
   "name": "@pho9ubenaa/siro",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Security best-practices linter for the npm ecosystem (npm, pnpm, deno, bun, yarn, aube).",
   "keywords": [
     "aube",
@@ -70,13 +70,13 @@
     "yaml": "2.9.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "21.0.2",
-    "@commitlint/config-conventional": "21.0.2",
+    "@commitlint/cli": "21.2.2",
+    "@commitlint/config-conventional": "21.2.2",
     "@types/ini": "4.1.1",
     "@types/node": "25.9.1",
     "@types/semver": "7.7.1",
     "@vitest/coverage-v8": "4.1.7",
-    "knip": "6.15.0",
+    "knip": "6.34.0",
     "memfs": "4.57.3",
     "oxfmt": "0.53.0",
     "oxlint": "1.68.0",
