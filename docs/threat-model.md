@@ -28,7 +28,7 @@ For untrusted repositories or pull requests, run in an isolated environment with
 
 ## Release controls
 
-Repository workflows pin external Actions to full commit SHAs, use read-only repository permissions by default, and avoid persisting checkout credentials. Dependabot proposes Action updates for review after a three-day cooldown, matching pnpm's `minimumReleaseAge: 4320`. The cooldown applies to version updates, not security updates. The public publication workflow uses an OIDC-capable job; the registry's trusted-publisher configuration and repository protections remain external administration requirements.
+Repository workflows pin external Actions to full commit SHAs, use read-only repository permissions by default, and avoid persisting checkout credentials. Dependabot proposes Action updates for review after a seven-day cooldown, matching pnpm's `minimumReleaseAge: 10080`. The cooldown applies to version updates, not security updates. The public publication workflow uses an OIDC-capable job; the registry's trusted-publisher configuration and repository protections remain external administration requirements.
 
 These controls do not prevent compromise by a trusted maintainer, a malicious reviewed change, or a compromised distribution dependency. Public releases ship readable JavaScript, and consumers can pin an exact siro version and inspect the package before use.
 

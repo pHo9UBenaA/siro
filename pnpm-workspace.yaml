@@ -6,7 +6,7 @@ allowBuilds:
 
 blockExoticSubdeps: true
 frozenLockfile: true
-minimumReleaseAge: 4320
+minimumReleaseAge: 10080
 packageManagerStrictVersion: true
 # Security fixes for development-tool dependencies whose lock entries remain stale.
 overrides:

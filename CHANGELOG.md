@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.2]
+
+### Fixes
+
+- Correct the development dependency audit script to read pnpm advisories and OSV's nested package findings. Fail on malformed reports, command errors, and incomplete scans; preserve vulnerability exit status and advisory details.
+- Use an installed official OSV-Scanner binary and explicitly report its absence. Remove automatic scanner downloads and bound command execution and output size.
+
+### Maintenance
+
+- Run main-branch CI on pull requests to avoid duplicate checks after merges. Publication still runs full verification for version tags.
+- Set the pnpm minimum release age and Dependabot Action-update cooldown to seven days, and align the threat model with those settings.
+
 ## [0.4.1]
 
 ### Maintenance
