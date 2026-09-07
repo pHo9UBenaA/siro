@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1]
+
+### Maintenance
+
+- Update pinned GitHub Actions to checkout 7.0.1, setup-node 7.0.0, and pnpm/action-setup 6.0.10 after the three-day release-age window. Explicitly disable automatic Node package-manager caching in the publication job.
+- Set Dependabot version-update cooldown to three days, matching pnpm's minimum release age.
+- Explain documentation URL strings and network trust boundaries in the threat model; retain diagnostic and help links.
+
 ## [0.4.0]
 
 ### Breaking Changes
