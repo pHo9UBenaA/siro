@@ -54,6 +54,7 @@
     "gen:api": "typedoc",
     "knip": "knip",
     "prepublishOnly": "pnpm verify",
+    "security:scan": "node scripts/security-audit.mjs",
     "test": "pnpm build && vitest run",
     "test:coverage": "pnpm build && vitest run --coverage",
     "typecheck": "tsc --noEmit",
