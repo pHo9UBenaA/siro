@@ -10,6 +10,7 @@ const { npmrc, pnpmWorkspace, yarnrc, aubeWorkspace, bunfig } = CONFIG_FILES;
 const pnpmStrictDepBuildsDocs = 'https://pnpm.io/settings#strictdepbuilds';
 const pnpmVersionNote: VersionNote = {
   configAvailableSince: 'pnpm 10.3.0',
+  note: 'pnpm-workspace.yaml settings require pnpm 10.6.0',
   defaultSafeSince: 'pnpm 11.0.0',
 };
 const pnpmBinding: RuleBinding = {

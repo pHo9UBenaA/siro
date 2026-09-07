@@ -17,6 +17,7 @@ import { ConfigError } from '../shared/errors.ts';
 export interface RunLintOptions {
   readonly ctx: RepoContext;
   readonly pms: readonly PM[];
+  readonly pmVersions?: Readonly<Partial<Record<PM, string>>>;
   readonly ruleSet: readonly Rule[];
   readonly severityOverrides?: ReadonlyMap<string, Severity>;
   readonly codecFor: CodecFor;
@@ -42,7 +43,6 @@ export const runLint = (opts: RunLintOptions): LintResult => {
   const findings: Finding[] = [];
   const summary: Record<Severity, number> = { error: 0, info: 0, warn: 0 };
   const parseConfig = createConfigParser(codecFor, ctx);
-  const ruleContext: RuleContext = { ...ctx, readConfig: parseConfig };
 
   for (const rule of ruleSet) {
     for (const pm of pms) {
@@ -55,6 +55,11 @@ export const runLint = (opts: RunLintOptions): LintResult => {
         continue;
       }
 
+      const ruleContext: RuleContext = {
+        ...ctx,
+        readConfig: parseConfig,
+        pmVersion: opts.pmVersions?.[pm],
+      };
       const status: unknown = binding.check(ruleContext, parseConfig(binding.file));
       if (!isCheckStatusShape(status)) {
         throw new ConfigError(`Rule '${rule.id}' returned an invalid check result.`);

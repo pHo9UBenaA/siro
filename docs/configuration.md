@@ -3,9 +3,9 @@
 ## Versioning policy
 
 siro evaluates repository settings against the recorded policy snapshot in
-[policy-sources.md](policy-sources.md). It detects package-manager names and does
-not change rules based on installed or declared versions. Version annotations
-record upstream facts, but do not establish the current version. Defaults that
+[policy-sources.md](policy-sources.md). It detects package-manager names and checks
+selected settings against a declared or explicit stable target version. It does
+not inspect installed binaries. Defaults that
 depend on a version, CI, or a public pull request retain the configured severity
 when their setting is absent.
 
@@ -36,6 +36,48 @@ Value options must be specified once with a non-empty value. Boolean flags
 (`--json`, `--help`, `--version`) take no values or `--no-` variants.
 `--help` takes precedence over other arguments; `--version` comes next.
 Arguments after `--` are rejected.
+
+## Target PM versions
+
+The `unsupported-settings` rule reports settings introduced after the target version.
+For example, `packageManager: "npm@11.9.0"` with `min-release-age=3` produces an error:
+the setting requires npm 11.10.0. Setting presence is checked even for `false`, zero,
+or null values. All affected keys for one manager are grouped in one finding, with
+the first affected file as its location and source links in the manual steps.
+
+Targets are resolved separately for each selected manager, in this priority order:
+
+1. CLI `--pm-version` / API `pmVersion`, together with `--pm` / `pm`.
+2. `config.pmVersions`, such as `{ npm: '11.10.0', pnpm: '10.16.0' }`.
+3. An exact stable `package.json#packageManager` declaration for that manager.
+
+```sh
+siro lint --pm npm --pm-version 11.10.0
+```
+
+```ts
+lint({ cwd, pm: 'pnpm', pmVersion: '10.16.0' });
+```
+
+Version maps do not select managers or bypass `pms` restrictions. Lockfiles do not
+establish a runtime version. A declaration for npm never supplies pnpm's version.
+Versions are exact stable SemVer strings; build metadata, including Corepack's
+`+sha512.…` suffix, is accepted and ignored for ordering. Ranges, tags, partial
+versions, `v` prefixes, and prereleases are rejected in explicit options/config
+with exit 2. Such `packageManager` declarations leave the version unknown, preserving
+name detection and existing checks. No PM binary is executed or downloaded.
+
+Only the [listed setting/file pairs](rules.md#checked-introduction-versions) have
+availability checks in this release (npm, pnpm, Yarn, Bun). Deno and Aube still have
+their existing security checks but no verified introduction table. Unlisted keys,
+unknown targets, later removals, backports, and version-specific value syntax are
+outside this check. A passing result does not establish that every setting works.
+The target is the user's declaration, not proof of what CI actually runs.
+
+The new rule defaults to `error`, so previously passing projects with unsupported
+settings can exit 1. It supports the usual `rules` severity override or `'off'`.
+Existing security rules and their remediation remain in effect; a target version
+does not lower severity for missing settings or prove environment-dependent defaults.
 
 ## Executable CLI configuration
 
@@ -121,7 +163,8 @@ const approval = defineRule({
 
 A check returns `ok`, `na`, or one violation, optionally with automatic operations
 or manual steps. The engine validates untyped results before reporting them.
-The binding receives a `RuleContext`: `readConfig(file)` reads additional inputs
+The binding receives a `RuleContext`: `pmVersion` is the resolved stable version of
+that binding's manager, or `undefined`; `readConfig(file)` reads additional inputs
 through the same validated parsers and per-run cache. A violation may return
 `file` to identify a different repository-relative input. Otherwise the binding
 file is used. A binding may omit `file` when it only needs the repository context.
@@ -139,8 +182,8 @@ User `rules` overrides take precedence over result, binding, and rule severities
 `'off'` removes a rule. A `requireConfigKey` binding may use `documentedDefault`
 to emit `info` only when an omitted key is safe across every supported package-manager
 version and target environment. A `defaultSafeSince` note does not establish that
-the current version satisfies the condition: siro does not detect package-manager
-versions in v0.4.0, so version- or environment-dependent defaults retain the rule's
+the effective runtime satisfies the condition: declared targets are used only for
+availability checks, so version- or environment-dependent defaults retain the rule's
 configured severity. `defaultSatisfiedSeverity: 'off'` suppresses only an
 unconditionally safe default; a severity override cannot resurrect a finding the
 check did not emit.

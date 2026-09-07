@@ -15,5 +15,7 @@ export interface RepoContext {
 
 /** Settings read during one evaluation share its parser and cache. */
 export interface RuleContext extends RepoContext {
+  /** Declared or explicit stable version of this binding's manager, if known. */
+  readonly pmVersion?: string;
   readConfig: (file: ConfigFileRef) => ParsedConfig;
 }

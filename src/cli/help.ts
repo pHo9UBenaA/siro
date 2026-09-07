@@ -11,6 +11,7 @@ const SEVERITIES_LIST = SEVERITIES.join('|');
 const FLAG_LINES = {
   json: '  --json               Shortcut for --reporter json',
   pm: `  --pm <name>          Target a specific package manager (${PMS_LIST})`,
+  pmVersion: '  --pm-version <x.y.z>  Target an exact stable PM version (requires --pm)',
   projectType: `  --project-type <type>  Project type (${PROJECT_TYPES_LIST}; default auto)`,
   reporter: `  --reporter <name>    Reporter (${REPORTERS_LIST}; additional reporters can be registered via siro.config.ts)`,
   severity: `  --severity <level>   Show + fail on findings at or above this level (${SEVERITIES_LIST})`,
@@ -27,6 +28,7 @@ const HELP_ROOT = [
   '',
   'GLOBAL FLAGS',
   FLAG_LINES.pm,
+  FLAG_LINES.pmVersion,
   FLAG_LINES.projectType,
   '  --version            Print the siro version',
   '  --help               Show help for siro or a command',
@@ -56,6 +58,7 @@ const HELP_LINT = [
   '',
   'FLAGS',
   FLAG_LINES.pm,
+  FLAG_LINES.pmVersion,
   FLAG_LINES.projectType,
   FLAG_LINES.reporter,
   FLAG_LINES.json,

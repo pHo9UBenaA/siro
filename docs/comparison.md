@@ -35,3 +35,4 @@ An absent check says nothing about the manager's capabilities. See the
 | `strict-release-age` | info | — | — | — | — | — | ✅ |
 | `strict-store-integrity` | warn | — | — | — | — | — | ✅ |
 | `trust-policy` | warn | — | ✅ | — | — | — | ✅ |
+| `unsupported-settings` | error | ✅ | ✅ | ✅ | ✅ | — | — |

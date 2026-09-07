@@ -2,7 +2,11 @@
 
 siro checks the supported files in one project root against a recorded policy. It does not calculate the effective configuration of an installed package-manager version. The [generated rule reference](rules.md) is the single list of live bindings, primary inputs, severity defaults, and version notes.
 
-A missing setting may produce an informational reminder only when the recorded upstream default meets the policy across every supported version and target environment. Version- and environment-dependent defaults retain the rule's configured severity because v0.4.0 does not establish that their conditions hold. Command flags, environment variables, user configuration, and alternate configuration files remain outside this static check. Pin the setting when that guarantee is required.
+A missing setting may produce an informational reminder only when the recorded upstream default meets the policy across every supported version and target environment. Version- and environment-dependent defaults retain the rule's configured severity because a declared target does not establish that their conditions hold. Command flags, environment variables, user configuration, and alternate configuration files remain outside this static check. Pin the setting when that guarantee is required.
+
+The `unsupported-settings` rule uses structured introduction history for the [listed setting/file pairs](rules.md#checked-introduction-versions), with sources generated from the same data as the check. It compares exact stable declared or explicit targets without resolving installed versions. Display-only `VersionNote` text is not parsed into executable policy. Missing history stays unknown; later removals, backports, and value-syntax changes are not inferred. See [target versions](configuration.md#target-pm-versions).
+
+The introduction review also checks the file location. pnpm's `strictDepBuilds` arrived in 10.3.0, but [10.3's config loader](https://github.com/pnpm/pnpm/blob/v10.3.0/config/config/src/index.ts) does not merge general workspace settings; [10.6.0](https://github.com/pnpm/pnpm/releases/tag/v10.6.0) adds that support. Bun's scanner arrived in [1.2.21](https://bun.com/blog/bun-v1.2.21#security-scanner-api-for-bun-install), before the 1.3 overview; the [1.2.23 parser](https://github.com/oven-sh/bun/blob/bun-v1.2.23/src/bunfig.zig) already reads `install.security.scanner` but not `install.minimumReleaseAge`.
 
 ## Source review
 

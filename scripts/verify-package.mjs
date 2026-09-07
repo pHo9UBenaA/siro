@@ -110,6 +110,12 @@ try {
   const report = JSON.parse(run(cli, ['lint', 'good', '--json']));
   assert.equal(report.schemaVersion, 2);
   assert.equal(report.siroVersion, manifest.version);
+  const versionReport = JSON.parse(
+    run(cli, ['lint', 'good', '--pm', 'npm', '--pm-version', '11.9.0', '--json'], consumer, 1),
+  );
+  assert.ok(versionReport.findings.some((finding) => finding.ruleId === 'unsupported-settings'));
+  run(cli, ['lint', 'good', '--pm', 'npm', '--pm-version', '11.10.0']);
+  run(cli, ['lint', 'good', '--pm-version', '11.10.0'], consumer, 2);
   run(cli, ['lint', 'bad'], consumer, 1);
   run(cli, ['--invalid-option'], consumer, 2);
   writeFileSync(

@@ -12,11 +12,14 @@ import { applyConfig } from '../domain/services/apply-config.ts';
 import { resolvePMs } from '../domain/services/resolve-pms.ts';
 import { parseConfig } from './config.ts';
 import { runLint } from './run-lint.ts';
+import { declaredPMVersion, isStableVersion } from '../domain/services/pm-versions.ts';
 
 export interface LintOptions {
   readonly cwd: AbsPath;
   readonly fs?: FileSystem;
   readonly pm?: PM;
+  /** Exact stable version for `pm`; overrides config.pmVersions and packageManager. */
+  readonly pmVersion?: string;
   readonly projectType?: ProjectType;
   /** Explicit configuration; the library never imports files from the target repository. */
   readonly config?: SiroConfig;
@@ -35,6 +38,11 @@ export const prepareLint = (options: LintOptions) => {
   }
   if (options.projectType !== undefined && !isProjectType(options.projectType)) {
     throw new UsageError(`Unknown project type: ${String(options.projectType)}`);
+  }
+  if (options.pmVersion !== undefined && (!options.pm || !isStableVersion(options.pmVersion))) {
+    throw new UsageError(
+      'pmVersion / --pm-version requires pm / --pm and an exact stable version such as 10.16.0.',
+    );
   }
   const config = options.config === undefined ? undefined : parseConfig(options.config);
   const ctx = createRepoContext(
@@ -56,6 +64,11 @@ export const prepareLint = (options: LintOptions) => {
   return {
     ctx,
     pms,
+    pmVersions: {
+      ...declaredPMVersion(ctx.packageJson?.packageManager),
+      ...config?.pmVersions,
+      ...(options.pm && options.pmVersion ? { [options.pm]: options.pmVersion } : {}),
+    },
     ruleSet: configured.rules,
     severityOverrides: configured.severityOverrides,
     codecFor,

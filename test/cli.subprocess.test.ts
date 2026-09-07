@@ -36,6 +36,40 @@ const spawnBin = (args: readonly string[]) => {
   return spawnSync(DIST_BIN, args, { encoding: 'utf8' });
 };
 
+it('checks declared, configured, and CLI PM targets through the executable', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-pm-version-'));
+  try {
+    writeFileSync(path.join(dir, 'package.json'), '{"private":true,"packageManager":"npm@11.9.0"}');
+    writeFileSync(
+      path.join(dir, '.npmrc'),
+      'min-release-age=3\nignore-scripts=true\nsave-exact=true',
+    );
+    writeFileSync(path.join(dir, 'package-lock.json'), '{}');
+    const args = ['lint', dir, '--json'];
+    const old = spawnBin(args);
+    expect(old.status).toBe(EXIT_FAILURE);
+    expect(parseJsonOutput(old.stdout, old.stderr).findings).toContainEqual(
+      expect.objectContaining({ ruleId: 'unsupported-settings' }),
+    );
+    writeFileSync(
+      path.join(dir, 'siro.config.mjs'),
+      "export default { pmVersions: { npm: '11.10.0' } };\n",
+    );
+    expect(spawnBin(args).status).toBe(EXIT_SUCCESS);
+    expect(spawnBin([...args, '--pm', 'npm', '--pm-version=11.9.0']).status).toBe(EXIT_FAILURE);
+    expect(spawnBin([...args, '--pm', 'npm', '--pm-version', '11.10.0']).status).toBe(EXIT_SUCCESS);
+    for (const flags of [
+      ['--pm-version', '11.10.0'],
+      ['--pm', 'npm', '--pm-version', '^11.10.0'],
+      ['--pm', 'npm', '--pm-version'],
+      ['--pm', 'npm', '--pm-version', '11.10.0', '--pm-version', '11.9.0'],
+    ])
+      expect(spawnBin([...args, ...flags]).status).toBe(EXIT_USAGE);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 it.each(['application', 'package'])(
   'lints npm private publish access under %s policy through the executable',
   (projectType) => {

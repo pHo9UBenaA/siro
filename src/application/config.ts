@@ -1,11 +1,12 @@
 import * as vb from 'valibot';
-import { PMS, SEVERITIES } from '../domain/entities/pms.ts';
+import { isPM, PMS, SEVERITIES } from '../domain/entities/pms.ts';
 import { PROJECT_TYPES } from '../domain/entities/project-type.ts';
 import { type Reporter, isReporterShape } from '../domain/ports/reporter.ts';
 import { type Rule, isRuleShape } from '../domain/entities/rule.ts';
 import type { RuleSetting, SiroConfig } from '../domain/entities/siro-config.ts';
 import { isPlainRecord } from '../shared/records.ts';
 import { ConfigError } from '../shared/errors.ts';
+import { isStableVersion } from '../domain/services/pm-versions.ts';
 
 const RuleSettingSchema = vb.union([vb.picklist(SEVERITIES), vb.literal('off')]);
 
@@ -21,6 +22,19 @@ const ConfigSchema = vb.strictObject(
       ),
     ),
     projectType: vb.optional(vb.picklist(PROJECT_TYPES)),
+    pmVersions: vb.optional(
+      vb.pipe(
+        vb.custom<Record<string, unknown>>(isPlainRecord, 'must be an object of PM versions'),
+        vb.check(
+          (value) => Object.keys(value).every(isPM),
+          'unknown package manager in pmVersions',
+        ),
+        vb.record(
+          vb.picklist(PMS),
+          vb.custom<string>(isStableVersion, 'must be an exact stable version such as 10.16.0'),
+        ),
+      ),
+    ),
     reporters: vb.optional(
       vb.array(vb.custom<Reporter>(isReporterShape, 'must be a { name, format } reporter')),
     ),

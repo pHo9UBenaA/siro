@@ -36,4 +36,6 @@ These controls do not prevent compromise by a trusted maintainer, a malicious re
 
 See [SECURITY.md](../SECURITY.md). This document describes the current boundaries; it is not a certification or a claim of complete protection.
 
+Declared or explicit PM versions drive the limited [setting introduction checks](rules.md#checked-introduction-versions). They are not an attestation of the installed binary or effective runtime configuration. Unknown targets and unlisted settings have no availability verdict; later removals, backports, and version-specific value syntax are not checked.
+
 References: [GitHub Actions secure use](https://docs.github.com/en/actions/reference/security/secure-use), [versioning policy](configuration.md#versioning-policy), [JSON output](json-output.md).
