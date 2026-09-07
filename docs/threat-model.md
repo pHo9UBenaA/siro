@@ -36,4 +36,4 @@ These controls do not prevent compromise by a trusted maintainer, a malicious re
 
 See [SECURITY.md](../SECURITY.md). This document describes the current boundaries; it is not a certification or a claim of complete protection.
 
-References: [GitHub Actions secure use](https://docs.github.com/en/actions/reference/security/secure-use), [versioning policy](configuration.md#versioning-policy), [JSON output](json-output.md).
+References: [GitHub Actions secure use](https://docs.github.com/en/actions/reference/security/secure-use), [release compatibility](configuration.md#release-compatibility), [package-manager policy snapshots](configuration.md#package-manager-policy-snapshots), [JSON output](json-output.md).
