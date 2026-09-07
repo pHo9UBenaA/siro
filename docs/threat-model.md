@@ -26,9 +26,13 @@ Exit code `0` means no findings at or above the chosen threshold under the selec
 
 For untrusted repositories or pull requests, run in an isolated environment without credentials and with restricted network/filesystem access. Do not run repository-supplied configuration in a privileged `pull_request_target` job. The library `lint` API accepts explicit configuration and does not import repository code; the CLI always discovers executable configuration.
 
+## URL strings in the package
+
+The distributed JavaScript contains documentation URLs for rule references and CLI help. Built-in linting emits these links as text; it does not fetch them or download code. Socket's [URL strings alert](https://socket.dev/alerts/urlStrings) flags the presence of URLs, which alone does not establish network access. These links remain readable so users can inspect the basis for findings. Executable configuration and custom extensions can access the network as described above.
+
 ## Release controls
 
-Repository workflows pin external Actions to full commit SHAs, use read-only repository permissions by default, and avoid persisting checkout credentials. Dependabot proposes Action updates for review. The public publication workflow uses an OIDC-capable job; the registry's trusted-publisher configuration and repository protections remain external administration requirements.
+Repository workflows pin external Actions to full commit SHAs, use read-only repository permissions by default, and avoid persisting checkout credentials. Dependabot proposes Action updates for review after a three-day cooldown, matching pnpm's `minimumReleaseAge: 4320`. The cooldown applies to version updates, not security updates. The public publication workflow uses an OIDC-capable job; the registry's trusted-publisher configuration and repository protections remain external administration requirements.
 
 These controls do not prevent compromise by a trusted maintainer, a malicious reviewed change, or a compromised distribution dependency. Public releases ship readable JavaScript, and consumers can pin an exact siro version and inspect the package before use.
 
