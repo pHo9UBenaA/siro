@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -11,10 +9,6 @@ permissions:
 
 jobs:
   check:
-    if: >
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'push' &&
-      !startsWith(github.event.head_commit.message, 'Merge pull request'))
     runs-on: ubuntu-slim
     timeout-minutes: 15
     strategy:
