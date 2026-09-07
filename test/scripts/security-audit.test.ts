@@ -3,6 +3,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+// Process startup can exceed five seconds on a shared runner. Keep a bounded
+// child timeout and give this subprocess suite time to report the actual error.
+vi.setConfig({ testTimeout: 30_000 });
+
 const script = path.resolve(import.meta.dirname, '../../scripts/security-audit.mjs');
 const cleanPnpm = {
   metadata: { vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 0 } },
@@ -65,8 +69,10 @@ const run = (pnpm = output(cleanPnpm), osv = output(cleanOsv)) => {
     const result = spawnSync(process.execPath, ['--import', preload, script], {
       cwd: root,
       encoding: 'utf8',
-      timeout: 5000,
+      timeout: 20_000,
     });
+    if (result.error) throw result.error;
+    if (result.signal) throw new Error(`Audit test process terminated by ${result.signal}`);
     const commands: unknown = JSON.parse(readFileSync(path.join(root, 'commands.json'), 'utf8'));
     return { ...result, commands };
   } finally {
