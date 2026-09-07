@@ -46,9 +46,11 @@ try {
       dependencies: { [manifest.name]: `file:${tarball}` },
     }),
   );
+  // A frozen repository install may not cache the resolution metadata needed
+  // by a consumer without a lockfile. Fetch missing metadata instead of failing.
   run('pnpm', [
     'install',
-    '--offline',
+    '--prefer-offline',
     '--ignore-scripts',
     '--config.manage-package-manager-versions=false',
   ]);

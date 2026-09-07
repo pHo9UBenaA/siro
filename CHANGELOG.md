@@ -5,7 +5,7 @@
 ### Maintenance
 
 - Verify the packed package from an isolated consumer on both supported Node majors in CI. Check distributed files, installed CLI exit codes, package exports, custom rules, JSON output, and strict TypeScript declaration resolution without development dependency types.
-- Verify the same tarball before staging it for npm publication, using offline dependencies and disabled install scripts.
+- Verify the same tarball before staging it for npm publication, preferring cached dependencies with install scripts disabled.
 
 ### Documentation
 

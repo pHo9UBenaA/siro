@@ -67,9 +67,9 @@ Package contents should contain only distributed code and public package documen
 
 After `pnpm verify`, run `pnpm pack --pack-destination /absolute/path/to/output`
 and `pnpm test:package /absolute/path/to/output/package.tgz` (using the generated
-filename). This installs that tarball in a temporary consumer with scripts disabled
-and dependencies from the local pnpm store. It checks the file allowlist, installed
-CLI exits, package exports, custom rules, JSON output, and declarations with strict
-TypeScript checks and `skipLibCheck: false`. Run the frozen install first to populate
-the store. CI runs this check on both supported Node majors; publication checks
-the same tarball it stages for npm approval.
+filename). This installs that tarball in a temporary consumer with scripts disabled,
+preferring cached dependencies and fetching missing metadata or packages as needed.
+It checks the file allowlist, installed CLI exits, package exports, custom rules,
+JSON output, and declarations with strict TypeScript checks and `skipLibCheck: false`.
+CI runs this check on both supported Node majors; publication checks the same
+tarball it stages for npm approval.
