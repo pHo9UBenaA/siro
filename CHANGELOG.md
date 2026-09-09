@@ -20,6 +20,7 @@
 ### Fixes
 
 - Limit workspace traversal using each applicable pattern's own depth, preserving errors from required directory reads.
+- Wait for asynchronous reporters and propagate their failures through the command's error handling.
 
 ### Verification
 

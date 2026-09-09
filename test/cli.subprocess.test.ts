@@ -246,7 +246,7 @@ describe('CLI binary — error handling', () => {
     }
   });
 
-  test('exits 70 when a config reporter throws (uncaught user-extension error)', () => {
+  test.each(['', 'async '])('exits 70 when a %sconfig reporter throws', (modifier) => {
     expect.hasAssertions();
     const dir = mkdtempSync(path.join(tmpdir(), 'siro-boom-'));
     try {
@@ -256,7 +256,7 @@ describe('CLI binary — error handling', () => {
       );
       writeFileSync(
         path.join(dir, 'siro.config.ts'),
-        "export default { reporters: [{ name: 'boom', format() { throw new Error('boom from reporter'); } }] };\n",
+        `export default { reporters: [{ name: 'boom', ${modifier}format() { throw new Error('boom from reporter'); } }] };\n`,
       );
       const result = spawnBin(['lint', '--reporter', 'boom', dir]);
       expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(EXIT_CRASH);

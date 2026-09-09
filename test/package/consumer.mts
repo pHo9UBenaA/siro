@@ -4,6 +4,7 @@ import {
   defineRule,
   jsonReporter,
   lint,
+  lintCommand,
   PMS,
   version,
   type LintResult,
@@ -39,6 +40,23 @@ const config: SiroConfig = defineConfig({
 });
 
 check(PMS.length === 6);
+let reported = false;
+await lintCommand(
+  {
+    cwd: asAbsPath('/virtual'),
+    pm: 'npm',
+    fs: { exists: () => false, readText: () => undefined },
+    reporter: {
+      name: 'async-consumer',
+      async format() {
+        await Promise.resolve();
+        reported = true;
+      },
+    },
+  },
+  { stdout() {}, stderr() {} },
+);
+check(reported);
 for (const pm of PMS) {
   const result: LintResult = lint({
     cwd: asAbsPath('/virtual'),

@@ -235,6 +235,8 @@ check did not emit.
 and `github` emits workflow annotations. Configured reporters register by name;
 later registrations replace earlier ones. An explicit reporter object is also
 accepted by `lintCommand`. The exit decision is computed before the reporter runs.
+Reporters may return a promise; `lintCommand` waits for completion and propagates
+reporting failures. Unexpected rejections use exit 70, just like synchronous exceptions.
 
 By default all findings are displayed and only `error` fails. `--severity warn`
 or `--severity info` changes both display and failure thresholds.

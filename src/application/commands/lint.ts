@@ -28,6 +28,6 @@ export const lintCommand = async (options: LintCommandOptions, io: IO): Promise<
   }
   const result = runPreparedLint(prepared);
   const exitCode = exitCodeForLint(result, options.severity ?? 'error');
-  reporter.format(filterBySeverity(result, options.severity ?? 'info'), io);
+  await reporter.format(filterBySeverity(result, options.severity ?? 'info'), io);
   return exitCode;
 };
