@@ -19,6 +19,7 @@
 
 ### Fixes
 
+- Match literal workspace path segments and exclusions case-insensitively on macOS and Windows, so declaration casing does not silently omit members.
 - Use minimatch consistently for workspace membership, exclusions, and traversal. Remove custom brace expansion and globstar matching.
 - Limit workspace traversal using each applicable pattern's own depth, preserving errors from required directory reads.
 - Wait for asynchronous reporters and propagate their failures through the command's error handling.

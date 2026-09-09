@@ -320,6 +320,22 @@ describe('native workspace discovery', () => {
     expect(check().findings.some((finding) => finding.file?.includes('linked'))).toBe(false);
   });
 
+  it('uses platform case matching for literal workspace segments and exclusions', () => {
+    put('package.json', {
+      private: true,
+      workspaces: ['PACKAGES/A', 'PACKAGES/DEEP/*', '!PACKAGES/DEEP/B'],
+    });
+    const expected =
+      process.platform === 'darwin' || process.platform === 'win32'
+        ? ['packages/a/package.json']
+        : [];
+    expect(
+      check()
+        .findings.filter((finding) => finding.ruleId === 'files-field')
+        .map((finding) => finding.file),
+    ).toEqual(expected);
+  });
+
   it('reports the selected child path on invalid JSON or manifest types', () => {
     for (const bad of ['{', '{"files":false}']) {
       put('packages/a/package.json', bad);

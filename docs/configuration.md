@@ -92,6 +92,9 @@ Run from the workspace root; siro does not search parent directories for it.
 - Relative directory patterns use minimatch, including `*`, `**`,
   and braces. Leading `!` excludes matching directory subtrees. Patterns use `/`;
   absolute paths, parent traversal, and backslash patterns are rejected.
+  Matching is case-insensitive on macOS and Windows, including literal segments
+  and exclusions, and case-sensitive elsewhere. This platform policy also applies
+  to injected filesystems and does not detect individual volume settings.
 - Root `.` entries, duplicate matches, `node_modules`, `.git`, and directory symlinks
   are excluded from member traversal. Directories without `package.json` are skipped.
   Only the root declaration is expanded; nested workspace declarations are not followed.

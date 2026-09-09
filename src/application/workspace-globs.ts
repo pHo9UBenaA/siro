@@ -5,7 +5,6 @@ export const compileWorkspaceGlob = (pattern: string) => {
   const matcher = new Minimatch(pattern, {
     platform: 'linux',
     nocase: process.platform === 'darwin' || process.platform === 'win32',
-    nocaseMagicOnly: true,
     windowsPathsNoEscape: true,
     nonegate: true,
     nocomment: true,
