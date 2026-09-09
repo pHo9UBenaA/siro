@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { GLOBSTAR, Minimatch } from 'minimatch';
+import { descendantMatcher } from './workspace-globs.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
 import type { PM } from '../domain/entities/pms.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
@@ -65,19 +65,7 @@ export const workspaceDirectories = (
     throw new UsageError(
       'Workspace discovery requires FileSystem.readDirectories; no host filesystem fallback is used.',
     );
-  // Match Node's POSIX glob options, with partial matching for traversal.
-  const traversal = positive.map(
-    (pattern) =>
-      new Minimatch(pattern, {
-        platform: 'linux',
-        nocase: process.platform === 'darwin' || process.platform === 'win32',
-        nocaseMagicOnly: true,
-        windowsPathsNoEscape: true,
-        nonegate: true,
-        nocomment: true,
-        optimizationLevel: 2,
-      }),
-  );
+  const canDescend = descendantMatcher(positive);
   const result: RelPath[] = [];
   const pending = ['.'];
   while (pending.length > 0) {
@@ -105,16 +93,7 @@ export const workspaceDirectories = (
       if (positive.some((pattern) => path.posix.matchesGlob(directory, pattern)))
         result.push(directory);
       // Fixed-depth declarations do not require opening member subdirectories.
-      const parts = directory.split('/');
-      if (
-        traversal.some((matcher) =>
-          matcher.set.some(
-            (alternative) =>
-              (alternative.includes(GLOBSTAR) || parts.length < alternative.length) &&
-              matcher.matchOne(parts, alternative, true),
-          ),
-        )
-      ) {
+      if (canDescend(directory)) {
         pending.push(directory);
       }
     }

@@ -188,6 +188,70 @@ it.each(['packages/a*/child', 'packages/{alpha/child,other/**}'])(
   },
 );
 
+it.each([
+  ['packages/{1..12}/child', ['packages/3/child', 'packages/12/child']],
+  ['packages/{01..03}/child', ['packages/02/child']],
+  ['packages/{1..9..2}/child', ['packages/3/child']],
+  [
+    'packages/{alpha/{child,deep/member},other/**}',
+    ['packages/alpha/child', 'packages/alpha/deep/member'],
+  ],
+  ['packages/**/child', ['packages/child', 'packages/alpha/child']],
+  ['packages/**/**/child', ['packages/child', 'packages/alpha/child']],
+  ['packages/.hidden/*/child', ['packages/.hidden/alpha/child']],
+  ['packages/a(b)/child', ['packages/a(b)/child']],
+  ['packages/@(alpha|beta)/child', ['packages/alpha/child']],
+  ['packages/{,alpha}/child/grand', ['packages/child/grand']],
+  ['packages/{.,alpha}/child/grand', ['packages/child/grand']],
+  ['packages/{{**,alpha},beta}/child/grand', ['packages/x/y/child/grand']],
+] as const)('preserves member discovery through %s', (pattern, members) => {
+  const files: Record<string, string> = {
+    'package.json': JSON.stringify({ private: true, workspaces: [pattern] }),
+  };
+  for (const member of members) files[`${member}/package.json`] = '{"name":"member"}';
+  const directories = new Map<string, Set<string>>();
+  for (const member of members) {
+    let parent = '/repo';
+    for (const name of member.split('/')) {
+      if (!directories.has(parent)) directories.set(parent, new Set());
+      directories.get(parent)!.add(name);
+      parent += `/${name}`;
+    }
+  }
+  const result = repo({
+    pm: 'npm',
+    workspaces: true,
+    fs: {
+      ...createMemFileSystem(files),
+      readDirectories: (directory) => [...(directories.get(directory) ?? [])],
+    },
+  });
+  expect(
+    result.findings
+      .filter((finding) => finding.ruleId === 'files-field')
+      .map((finding) => finding.file),
+  ).toEqual(members.map((member) => `${member}/package.json`).sort());
+});
+
+it('rejects excessive brace expansion before listing directories', () => {
+  const readDirectories = vi.fn<NonNullable<FileSystem['readDirectories']>>(() => []);
+  expect(() =>
+    repo({
+      pm: 'npm',
+      workspaces: true,
+      fs: {
+        ...createMemFileSystem({
+          'package.json': JSON.stringify({
+            workspaces: [`{${Array.from({ length: 4097 }, (_, i) => `p${i}`).join(',')}}/child`],
+          }),
+        }),
+        readDirectories,
+      },
+    }),
+  ).toThrow('Workspace pattern exceeds 4096 directory alternatives.');
+  expect(readDirectories).not.toHaveBeenCalled();
+});
+
 describe('native workspace discovery', () => {
   let root: string;
   const put = (file: string, value: unknown) => {
