@@ -121,6 +121,8 @@ ordinary child directory names without symlinks and propagating access errors. I
 required only when member discovery needs directory enumeration. A missing implementation
 fails explicitly; siro never falls back to host filesystem reads for a virtual repository.
 Native manifest-file symlinks follow the existing file-read behavior.
+`FileSystem.exists` checks for a regular file, following file symlinks. Only a missing
+path (`ENOENT`) returns false; non-file entries and other filesystem errors must throw.
 
 ## Executable CLI configuration
 

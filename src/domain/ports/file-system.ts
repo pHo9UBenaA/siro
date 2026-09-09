@@ -5,5 +5,6 @@ export interface FileSystem {
   /** Ordinary child directory names, excluding symlinks. Required only for workspace discovery. Errors must propagate. */
   readDirectories?: (path: AbsPath) => readonly string[];
   readText: (path: AbsPath) => string | undefined;
+  /** True for a regular file (including a symlink to one); false only for ENOENT. Other errors and non-file entries must throw. */
   exists: (path: AbsPath) => boolean;
 }

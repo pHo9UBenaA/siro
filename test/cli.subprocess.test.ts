@@ -75,6 +75,24 @@ it('reports workspace member paths and failures through the executable', () => {
   }
 });
 
+it('rejects a directory masquerading as a lockfile instead of reporting a successful check', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-lock-directory-'));
+  try {
+    writeFileSync(
+      path.join(dir, 'package.json'),
+      '{"private":true,"packageManager":"npm@11.10.0"}',
+    );
+    writeFileSync(path.join(dir, '.npmrc'), 'ignore-scripts=true\nsave-exact=true\n');
+    mkdirSync(path.join(dir, 'package-lock.json'));
+    const result = spawnBin(['lint', dir, '--json']);
+    expect(result.status).toBe(EXIT_USAGE);
+    expect(result.stderr).toContain('package-lock.json');
+    expect(result.stdout).toBe('');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 it('checks declared, configured, and CLI PM targets through the executable', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'siro-pm-version-'));
   try {

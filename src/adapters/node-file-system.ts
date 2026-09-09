@@ -1,6 +1,6 @@
-import { UsageError } from '../shared/errors.ts';
+import { ConfigError, UsageError } from '../shared/errors.ts';
 import { type AbsPath, type RelPath, asRelPath, asAbsPath } from '../shared/paths.ts';
-import { accessSync, constants, readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import { isNodeError } from './node-errors.ts';
 import path from 'node:path';
@@ -18,7 +18,8 @@ export const nodeFileSystem: FileSystem = {
   },
   exists(filePath) {
     try {
-      accessSync(filePath, constants.F_OK);
+      if (!statSync(filePath).isFile())
+        throw new ConfigError(`${filePath}: expected a regular file.`);
       return true;
     } catch (error) {
       if (isNodeError(error) && error.code === 'ENOENT') {
