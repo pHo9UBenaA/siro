@@ -1,15 +1,23 @@
 import { GLOBSTAR, Minimatch } from 'minimatch';
+import { ConfigError } from '../shared/errors.ts';
 
 /** Compile once so membership, exclusions, and traversal share glob semantics. */
 export const compileWorkspaceGlob = (pattern: string) => {
-  const matcher = new Minimatch(pattern, {
-    platform: 'linux',
-    nocase: process.platform === 'darwin' || process.platform === 'win32',
-    windowsPathsNoEscape: true,
-    nonegate: true,
-    nocomment: true,
-    optimizationLevel: 2,
-  });
+  let matcher: Minimatch;
+  try {
+    matcher = new Minimatch(pattern, {
+      platform: 'linux',
+      nocase: process.platform === 'darwin' || process.platform === 'win32',
+      windowsPathsNoEscape: true,
+      nonegate: true,
+      nocomment: true,
+      optimizationLevel: 2,
+    });
+  } catch (error) {
+    if (error instanceof TypeError)
+      throw new ConfigError(`Invalid workspace pattern: ${error.message}.`);
+    throw error;
+  }
   return {
     matches: (directory: string): boolean => matcher.match(directory),
     canDescend(directory: string): boolean {

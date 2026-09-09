@@ -156,6 +156,26 @@ it('rejects a non-boolean workspace option', () => {
   expect(() => repo({ workspaces: 'yes' } as unknown as LintOptions)).toThrow(UsageError);
 });
 
+it.each(['npm', 'pnpm'] satisfies PM[])(
+  'reports un-compilable %s patterns as configuration errors',
+  (pm) => {
+    const pattern = 'a'.repeat(65_537);
+    expect(() =>
+      repo({
+        pm,
+        workspaces: true,
+        fs: {
+          ...createMemFileSystem({
+            'package.json': JSON.stringify({ private: true, workspaces: [pattern] }),
+            'pnpm-workspace.yaml': JSON.stringify({ packages: [pattern] }),
+          }),
+          readDirectories: () => [],
+        },
+      }),
+    ).toThrow(ConfigError);
+  },
+);
+
 it.each(['packages/a*/child', 'packages/{alpha/child,other/**}'])(
   'does not list directories ruled out by intermediate glob segments: %s',
   (pattern) => {

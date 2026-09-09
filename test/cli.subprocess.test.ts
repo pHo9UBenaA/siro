@@ -36,6 +36,22 @@ const spawnBin = (args: readonly string[]) => {
   return spawnSync(DIST_BIN, args, { encoding: 'utf8' });
 };
 
+it('reports an un-compilable workspace pattern with exit 2', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-workspace-pattern-'));
+  try {
+    writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ workspaces: ['a'.repeat(65_537)] }),
+    );
+    const result = spawnBin(['lint', dir, '--pm', 'npm', '--workspaces', '--json']);
+    expect(result.status).toBe(EXIT_USAGE);
+    expect(result.stderr).toContain('workspace pattern');
+    expect(result.stdout).toBe('');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 describe.skipIf(process.platform === 'win32')('FIFO manifests', () => {
   it.each(['package.json', 'child/package.json'])(
     'rejects a FIFO manifest at %s without blocking',

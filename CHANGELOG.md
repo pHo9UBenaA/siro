@@ -19,6 +19,7 @@
 
 ### Fixes
 
+- Report rejected workspace glob patterns as configuration errors (exit 2) instead of internal crashes (exit 70).
 - Reject non-file manifest inputs before reading, preventing root and workspace FIFO manifests from blocking the scan.
 - Match literal workspace path segments and exclusions case-insensitively on macOS and Windows, so declaration casing does not silently omit members.
 - Use minimatch consistently for workspace membership, exclusions, and traversal. Remove custom brace expansion and globstar matching.
