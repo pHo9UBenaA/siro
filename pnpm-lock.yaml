@@ -18,6 +18,9 @@ importers:
       ini:
         specifier: 7.0.0
         version: 7.0.0
+      minimatch:
+        specifier: 10.2.5
+        version: 10.2.5
       picocolors:
         specifier: 1.1.1
         version: 1.1.1

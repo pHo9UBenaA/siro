@@ -17,6 +17,10 @@
 - Distinguish pnpm's strict-build setting introduction (10.3.0) from general workspace YAML support (10.6.0), and correct Bun's scanner introduction note to 1.2.21.
 - Keep shared installation and lockfile checks at the root. Members infer their own publication status and use the root's PM target; child executable configs are not loaded. Workspace discovery requires explicit declarations, excludes directory symlinks, and does not yet cover Deno/Aube or effective configuration inheritance.
 
+### Fixes
+
+- Limit workspace traversal using each applicable pattern's own depth, preserving errors from required directory reads.
+
 ### Verification
 
 - Exercise version boundaries, selection precedence, multi-manager isolation, invalid targets, CLI exit codes, custom-rule context, and the installed package's API and strict types.

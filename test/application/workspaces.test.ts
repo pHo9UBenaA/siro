@@ -118,9 +118,75 @@ it('propagates directory read errors and rejects invalid adapter output', () => 
   }
 });
 
+it.each(['tools/**', 'tools/deep/member'])(
+  'does not extend a fixed member traversal because of %s',
+  (otherPattern) => {
+    const fs = createMemFileSystem({
+      'package.json': JSON.stringify({ private: true, workspaces: ['packages/a', otherPattern] }),
+      'packages/a/package.json': '{"name":"a"}',
+      'tools/deep/member/package.json': '{"name":"tool"}',
+    });
+    const failure = new Error('EACCES: member contents cannot be listed');
+    const readDirectories = (directory: string) => {
+      const entries = new Map([
+        ['/repo', ['packages', 'tools']],
+        ['/repo/packages', ['a']],
+        ['/repo/tools', ['deep']],
+        ['/repo/tools/deep', ['member']],
+        ['/repo/tools/deep/member', []],
+      ]);
+      if (directory === '/repo/packages/a') throw failure;
+      return entries.get(directory) ?? [];
+    };
+    const options = { pm: 'npm' as const, workspaces: true, fs: { ...fs, readDirectories } };
+    expect(
+      repo(options)
+        .findings.filter((finding) => finding.ruleId === 'files-field')
+        .map((finding) => finding.file),
+    ).toEqual(['packages/a/package.json', 'tools/deep/member/package.json']);
+    const recursive = createMemFileSystem({
+      'package.json': '{"private":true,"workspaces":["packages/**"]}',
+      'packages/a/package.json': '{"name":"a"}',
+    });
+    expect(() => repo({ ...options, fs: { ...recursive, readDirectories } })).toThrow(failure);
+  },
+);
+
 it('rejects a non-boolean workspace option', () => {
   expect(() => repo({ workspaces: 'yes' } as unknown as LintOptions)).toThrow(UsageError);
 });
+
+it.each(['packages/a*/child', 'packages/{alpha/child,other/**}'])(
+  'does not list directories ruled out by intermediate glob segments: %s',
+  (pattern) => {
+    const fs = createMemFileSystem({
+      'package.json': JSON.stringify({ private: true, workspaces: [pattern] }),
+      'packages/alpha/child/package.json': '{"name":"child"}',
+    });
+    const directories = new Map([
+      ['/repo', ['packages']],
+      ['/repo/packages', ['alpha', 'beta']],
+      ['/repo/packages/alpha', ['child']],
+    ]);
+    const result = repo({
+      pm: 'npm',
+      workspaces: true,
+      fs: {
+        ...fs,
+        readDirectories(directory) {
+          const names = directories.get(directory);
+          if (!names) throw new Error(`EACCES: unnecessary directory read ${directory}`);
+          return names;
+        },
+      },
+    });
+    expect(
+      result.findings
+        .filter((finding) => finding.ruleId === 'files-field')
+        .map((finding) => finding.file),
+    ).toEqual(['packages/alpha/child/package.json']);
+  },
+);
 
 describe('native workspace discovery', () => {
   let root: string;
