@@ -5,6 +5,10 @@ import type { FileSystem } from '../domain/ports/file-system.ts';
 import { isNodeError } from './node-errors.ts';
 import path from 'node:path';
 
+const assertRegularFile = (filePath: AbsPath): void => {
+  if (!statSync(filePath).isFile()) throw new ConfigError(`${filePath}: expected a regular file.`);
+};
+
 // `existsSync` and bare catch-all `false`/`undefined` returns would mask
 // EACCES, EISDIR, and friends as "not there" — fatal for a security linter,
 // which would then silently skip a config it cannot read and report
@@ -18,8 +22,7 @@ export const nodeFileSystem: FileSystem = {
   },
   exists(filePath) {
     try {
-      if (!statSync(filePath).isFile())
-        throw new ConfigError(`${filePath}: expected a regular file.`);
+      assertRegularFile(filePath);
       return true;
     } catch (error) {
       if (isNodeError(error) && error.code === 'ENOENT') {
@@ -30,6 +33,7 @@ export const nodeFileSystem: FileSystem = {
   },
   readText(filePath) {
     try {
+      assertRegularFile(filePath);
       return readFileSync(filePath, 'utf8');
     } catch (error) {
       if (isNodeError(error) && error.code === 'ENOENT') {

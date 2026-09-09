@@ -36,6 +36,37 @@ const spawnBin = (args: readonly string[]) => {
   return spawnSync(DIST_BIN, args, { encoding: 'utf8' });
 };
 
+describe.skipIf(process.platform === 'win32')('FIFO manifests', () => {
+  it.each(['package.json', 'child/package.json'])(
+    'rejects a FIFO manifest at %s without blocking',
+    (manifest) => {
+      const dir = mkdtempSync(path.join(tmpdir(), 'siro-fifo-manifest-'));
+      try {
+        if (manifest.startsWith('child/')) {
+          mkdirSync(path.join(dir, 'child'));
+          writeFileSync(
+            path.join(dir, 'package.json'),
+            JSON.stringify({ private: true, workspaces: ['child'] }),
+          );
+        }
+        expect(spawnSync('mkfifo', [path.join(dir, manifest)]).status).toBe(0);
+        const result = spawnSync(
+          process.execPath,
+          [DIST_BIN, 'lint', dir, '--pm', 'npm', '--workspaces', '--json'],
+          { encoding: 'utf8', timeout: 2000, killSignal: 'SIGKILL' },
+        );
+        expect(result.error).toBeUndefined();
+        expect(result.status).toBe(EXIT_USAGE);
+        expect(result.stderr).toContain(manifest);
+        expect(result.stderr).toContain('expected a regular file');
+        expect(result.stdout).toBe('');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+});
+
 it('reports workspace member paths and failures through the executable', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'siro-workspace-cli-'));
   try {

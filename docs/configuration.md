@@ -126,6 +126,8 @@ fails explicitly; siro never falls back to host filesystem reads for a virtual r
 Native manifest-file symlinks follow the existing file-read behavior.
 `FileSystem.exists` checks for a regular file, following file symlinks. Only a missing
 path (`ENOENT`) returns false; non-file entries and other filesystem errors must throw.
+`FileSystem.readText` likewise accepts only regular files (including file symlinks),
+returns `undefined` only for `ENOENT`, and throws for non-file entries before reading.
 
 ## Executable CLI configuration
 
