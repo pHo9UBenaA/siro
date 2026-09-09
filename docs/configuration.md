@@ -33,7 +33,7 @@ tracking or lockfile contents. Deno currently supports strict `deno.json`, not
 `deno.jsonc` or external import maps.
 
 Value options must be specified once with a non-empty value. Boolean flags
-(`--json`, `--help`, `--version`) take no values or `--no-` variants.
+(`--json`, `--help`, `--version`, `--workspaces`) take no values or `--no-` variants.
 `--help` takes precedence over other arguments; `--version` comes next.
 Arguments after `--` are rejected.
 
@@ -78,6 +78,49 @@ The new rule defaults to `error`, so previously passing projects with unsupporte
 settings can exit 1. It supports the usual `rules` severity override or `'off'`.
 Existing security rules and their remediation remain in effect; a target version
 does not lower severity for missing settings or prove environment-dependent defaults.
+
+## Workspace members
+
+Use `siro lint --workspaces` or `lint({ cwd, workspaces: true })` to add checks of
+declared members' `package.json` publication metadata. The default remains one root.
+Run from the workspace root; siro does not search parent directories for it.
+
+- npm, Yarn, and Bun read the root `package.json#workspaces` array. The
+  `{ packages: [...] }` form is also accepted.
+- pnpm reads `pnpm-workspace.yaml#packages`. An existing workspace file must have
+  an explicit array in this mode; implicit package-discovery defaults are not inferred.
+- Relative directory patterns support Node's glob matching, including `*`, `**`,
+  and braces. Leading `!` excludes matching directory subtrees. Patterns use `/`;
+  absolute paths, parent traversal, and backslash patterns are rejected.
+- Root `.` entries, duplicate matches, `node_modules`, `.git`, and directory symlinks
+  are excluded from member traversal. Directories without `package.json` are skipped.
+  Only the root declaration is expanded; nested workspace declarations are not followed.
+- Deno and Aube member discovery is not supported in this release. Selecting either
+  with `--workspaces` fails explicitly; use `--pm` or `config.pms` to select supported managers.
+
+The root receives the usual checks once. Members reuse `files-field`, `publish-access`,
+and the `package.json` entries of `unsupported-settings`; findings identify paths such
+as `packages/ui/package.json`. Missing `files` or access settings use their existing
+informational severity; overrides and the CLI threshold apply to the combined result.
+Malformed selected manifests and directory-read failures stop the command with an error
+instead of producing a partial report. The JSON schema remains 2.
+
+Each child infers its own publication status, so a private root does not hide a public
+child. An explicit `projectType` applies to both root and children. Members use the
+root's selected PM and resolved target version; a child's `packageManager` does not
+override the workspace target. Multiple selected managers expand their own declarations.
+
+Installation settings and lockfiles are checked only at the root. Child installation
+configs, effective setting inheritance, dependency graphs, and child provenance policy
+are outside this inspection. The availability check on `publishConfig.provenance`
+establishes only its introduction version, not whether publication emits attestations.
+Root custom rules run once; child `siro.config.*` files are never loaded or executed.
+
+Injected `FileSystem` implementations can supply `readDirectories(path)`, returning
+ordinary child directory names without symlinks and propagating access errors. It is
+required only when member discovery needs directory enumeration. A missing implementation
+fails explicitly; siro never falls back to host filesystem reads for a virtual repository.
+Native manifest-file symlinks follow the existing file-read behavior.
 
 ## Executable CLI configuration
 

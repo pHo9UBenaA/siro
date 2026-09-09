@@ -53,6 +53,9 @@ The CLI reads `siro.config.*` as executable code. Review repository configuratio
 - **Target PM versions.** Flag settings introduced after the declared or explicit stable PM
   version. See [checked settings and sources](docs/rules.md#checked-introduction-versions)
   for the npm, pnpm, Yarn, and Bun coverage.
+- **Workspace members.** `--workspaces` adds publication-metadata checks for declared npm,
+  pnpm, Yarn, and Bun members, including public packages under a private root.
+  See [workspace inspection](docs/configuration.md#workspace-members) for scope and exclusions.
 - **Lint with severities.** `error` fails CI by default; `--severity warn` tightens the gate.
 - **Reporters.** `pretty` (default), `json` for CI, `github` for PR annotations; register your own.
 - **Configurable.** Drop a `siro.config.ts` to disable rules, override severities, restrict PMs,
@@ -78,6 +81,7 @@ siro <lint|check> [path] [options]
 
   --pm <npm|pnpm|yarn|bun|deno|aube>   Target a specific package manager (auto-detected; required if detection finds nothing)
   --pm-version <x.y.z>                Exact stable target version (requires --pm)
+  --workspaces                       Also inspect workspace members' publication metadata
   --project-type <application|package> Select application or published-package policy (default auto)
   --reporter <pretty|json|github>      Output format (default pretty)
   --severity <error|warn|info>         Show and fail on findings at or above this level

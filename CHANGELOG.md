@@ -7,16 +7,20 @@
 - Add `unsupported-settings` to report configured settings introduced after a declared or explicit stable PM version. Cover 15 setting/file pairs across npm, pnpm, Yarn, and Bun, with a generated table of release sources.
 - Resolve each manager's target from `package.json#packageManager`, `config.pmVersions`, or the higher-priority `--pm-version` / API `pmVersion` option (which requires `--pm` / `pm`). Expose the resolved target as `RuleContext.pmVersion` for custom rules.
 - Preserve name detection when a declaration has no exact stable version. Reject ranges, tags, partial versions, and prereleases in explicit targets; accept build metadata such as Corepack hashes.
+- Add opt-in `--workspaces` / API `workspaces: true` to inspect declared npm, pnpm, Yarn, and Bun members' publication metadata. Reuse existing rules, identify member file paths, and aggregate severity counts and CLI exit status.
+- Add optional `FileSystem.readDirectories` for workspace discovery in virtual repositories, without falling back to host IO.
 
 ### Behavior and scope
 
 - The new rule defaults to `error`; projects with previously accepted unsupported settings may now exit 1. Existing security checks, severity overrides, and JSON schema 2 remain in effect.
 - Availability checks cover recorded introductions in the listed files, not whole PM schemas, runtime discovery, removals, backports, version-specific value syntax, or effective defaults. Deno and Aube retain their existing checks without introduction coverage in this release.
 - Distinguish pnpm's strict-build setting introduction (10.3.0) from general workspace YAML support (10.6.0), and correct Bun's scanner introduction note to 1.2.21.
+- Keep shared installation and lockfile checks at the root. Members infer their own publication status and use the root's PM target; child executable configs are not loaded. Workspace discovery requires explicit declarations, excludes directory symlinks, and does not yet cover Deno/Aube or effective configuration inheritance.
 
 ### Verification
 
 - Exercise version boundaries, selection precedence, multi-manager isolation, invalid targets, CLI exit codes, custom-rule context, and the installed package's API and strict types.
+- Exercise workspace patterns, exclusions, duplicate matches, malformed child manifests, private roots with public children, injected IO, and installed CLI/API member inspection.
 
 ## [0.4.3]
 
