@@ -19,7 +19,7 @@
 
 ### Fixes
 
-- Replace the direct minimatch dependency with picomatch for workspace traversal, retaining Node's member-matching semantics. Limit brace-list expansion to 4,096 alternatives per positive pattern.
+- Use minimatch consistently for workspace membership, exclusions, and traversal. Remove custom brace expansion and globstar matching.
 - Limit workspace traversal using each applicable pattern's own depth, preserving errors from required directory reads.
 - Wait for asynchronous reporters and propagate their failures through the command's error handling.
 - Reject non-file entries at configuration and lockfile paths instead of accepting directories as existing files.

@@ -233,7 +233,7 @@ it.each([
   ).toEqual(members.map((member) => `${member}/package.json`).sort());
 });
 
-it('rejects excessive brace expansion before listing directories', () => {
+it('accepts brace lists beyond the former custom expansion limit', () => {
   const readDirectories = vi.fn<NonNullable<FileSystem['readDirectories']>>(() => []);
   expect(() =>
     repo({
@@ -248,8 +248,8 @@ it('rejects excessive brace expansion before listing directories', () => {
         readDirectories,
       },
     }),
-  ).toThrow('Workspace pattern exceeds 4096 directory alternatives.');
-  expect(readDirectories).not.toHaveBeenCalled();
+  ).not.toThrow();
+  expect(readDirectories).toHaveBeenCalledOnce();
 });
 
 describe('native workspace discovery', () => {

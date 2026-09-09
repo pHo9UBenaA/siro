@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { descendantMatcher } from './workspace-globs.ts';
+import { compileWorkspaceGlob } from './workspace-globs.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
 import type { PM } from '../domain/entities/pms.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
@@ -65,7 +65,8 @@ export const workspaceDirectories = (
     throw new UsageError(
       'Workspace discovery requires FileSystem.readDirectories; no host filesystem fallback is used.',
     );
-  const canDescend = descendantMatcher(positive);
+  const included = positive.map(compileWorkspaceGlob);
+  const excluded = negative.map(compileWorkspaceGlob);
   const result: RelPath[] = [];
   const pending = ['.'];
   while (pending.length > 0) {
@@ -83,17 +84,12 @@ export const workspaceDirectories = (
       if (name === '.git' || name === 'node_modules') continue;
       const directory = asRelPath(current === '.' ? name : `${current}/${name}`);
       if (
-        negative.some(
-          (pattern) =>
-            path.posix.matchesGlob(directory, pattern) ||
-            path.posix.matchesGlob(`${directory}/`, pattern),
-        )
+        excluded.some((pattern) => pattern.matches(directory) || pattern.matches(`${directory}/`))
       )
         continue;
-      if (positive.some((pattern) => path.posix.matchesGlob(directory, pattern)))
-        result.push(directory);
+      if (included.some((pattern) => pattern.matches(directory))) result.push(directory);
       // Fixed-depth declarations do not require opening member subdirectories.
-      if (canDescend(directory)) {
+      if (included.some((pattern) => pattern.canDescend(directory))) {
         pending.push(directory);
       }
     }

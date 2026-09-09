@@ -18,12 +18,12 @@ importers:
       ini:
         specifier: 7.0.0
         version: 7.0.0
+      minimatch:
+        specifier: 10.2.5
+        version: 10.2.5
       picocolors:
         specifier: 1.1.1
         version: 1.1.1
-      picomatch:
-        specifier: 4.0.7
-        version: 4.0.7
       semver:
         specifier: 7.8.1
         version: 7.8.1
@@ -49,9 +49,6 @@ importers:
       '@types/node':
         specifier: 25.9.1
         version: 25.9.1
-      '@types/picomatch':
-        specifier: 4.0.3
-        version: 4.0.3
       '@types/semver':
         specifier: 7.7.1
         version: 7.7.1
@@ -1125,9 +1122,6 @@ packages:
 
   '@types/node@25.9.1':
     resolution: {integrity: sha512-xfrlY7UD5rMJk3ZVJP8BNzS28J36YJg+xp+LPXV1TdWxr8uMH5A860QNxYDGQe/ylDSgjxE52Q9VnO7p75tJxg==}
-
-  '@types/picomatch@4.0.3':
-    resolution: {integrity: sha512-iG0T6+nYJ9FAPmx9SsUlnwcq1ZVRuCXcVEvWnntoPlrOpwtSTKNDC9uVAxTsC3PUvJ+99n4RpAcNgBbHX3JSnQ==}
 
   '@types/semver@7.7.1':
     resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
@@ -2741,8 +2735,6 @@ snapshots:
   '@types/node@25.9.1':
     dependencies:
       undici-types: 7.24.6
-
-  '@types/picomatch@4.0.3': {}
 
   '@types/semver@7.7.1': {}
 

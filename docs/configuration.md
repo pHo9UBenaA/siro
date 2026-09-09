@@ -89,11 +89,9 @@ Run from the workspace root; siro does not search parent directories for it.
   `{ packages: [...] }` form is also accepted.
 - pnpm reads `pnpm-workspace.yaml#packages`. An existing workspace file must have
   an explicit array in this mode; implicit package-discovery defaults are not inferred.
-- Relative directory patterns support Node's glob matching, including `*`, `**`,
+- Relative directory patterns use minimatch, including `*`, `**`,
   and braces. Leading `!` excludes matching directory subtrees. Patterns use `/`;
   absolute paths, parent traversal, and backslash patterns are rejected.
-  Brace lists are limited to 4,096 expanded alternatives per positive pattern;
-  exceeding this limit is a configuration error. Numeric ranges do not consume this limit.
 - Root `.` entries, duplicate matches, `node_modules`, `.git`, and directory symlinks
   are excluded from member traversal. Directories without `package.json` are skipped.
   Only the root declaration is expanded; nested workspace declarations are not followed.
