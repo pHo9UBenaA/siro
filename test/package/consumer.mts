@@ -81,3 +81,26 @@ for (const pmVersion of ['11.9.0', '11.10.0']) {
       (pmVersion === '11.9.0'),
   );
 }
+
+const workspaceFiles: Record<string, string> = {
+  '/virtual/package.json': JSON.stringify({
+    private: true,
+    packageManager: 'npm@11.10.0',
+    workspaces: ['child'],
+  }),
+  '/virtual/child/package.json': '{"name":"child"}',
+};
+const workspaceResult = lint({
+  cwd: asAbsPath('/virtual'),
+  workspaces: true,
+  fs: {
+    exists: (file) => Object.hasOwn(workspaceFiles, file),
+    readText: (file) => workspaceFiles[file],
+    readDirectories: (directory) => (directory === '/virtual' ? ['child'] : []),
+  },
+});
+check(
+  workspaceResult.findings.some(
+    (finding) => finding.ruleId === 'files-field' && finding.file === 'child/package.json',
+  ),
+);

@@ -13,6 +13,8 @@ import { resolvePMs } from '../domain/services/resolve-pms.ts';
 import { parseConfig } from './config.ts';
 import { runLint } from './run-lint.ts';
 import { declaredPMVersion, isStableVersion } from '../domain/services/pm-versions.ts';
+import { nodeFileSystem, resolveIn } from '../adapters/node-file-system.ts';
+import { workspaceDirectories, workspacePatterns } from './workspaces.ts';
 
 export interface LintOptions {
   readonly cwd: AbsPath;
@@ -20,6 +22,8 @@ export interface LintOptions {
   readonly pm?: PM;
   /** Exact stable version for `pm`; overrides config.pmVersions and packageManager. */
   readonly pmVersion?: string;
+  /** Also inspect declared workspace members' package.json publication settings. */
+  readonly workspaces?: boolean;
   readonly projectType?: ProjectType;
   /** Explicit configuration; the library never imports files from the target repository. */
   readonly config?: SiroConfig;
@@ -44,6 +48,9 @@ export const prepareLint = (options: LintOptions) => {
       'pmVersion / --pm-version requires pm / --pm and an exact stable version such as 10.16.0.',
     );
   }
+  if (options.workspaces !== undefined && typeof options.workspaces !== 'boolean') {
+    throw new UsageError('workspaces must be a boolean.');
+  }
   const config = options.config === undefined ? undefined : parseConfig(options.config);
   const ctx = createRepoContext(
     options.cwd,
@@ -61,14 +68,43 @@ export const prepareLint = (options: LintOptions) => {
     );
   }
   const configured = applyConfig(rules, config);
+  const pmVersions = {
+    ...declaredPMVersion(ctx.packageJson?.packageManager),
+    ...config?.pmVersions,
+    ...(options.pm && options.pmVersion ? { [options.pm]: options.pmVersion } : {}),
+  };
+  const fs = options.fs ?? nodeFileSystem;
+  const members = options.workspaces
+    ? pms.flatMap((pm) =>
+        workspaceDirectories(ctx, fs, workspacePatterns(ctx, pm)).flatMap((directory) => {
+          const root = resolveIn(ctx.root, directory);
+          const manifest = resolveIn(root, asRelPath('package.json'));
+          // Member inspection deliberately reads only its manifest, not a synthetic
+          // merge of root and child installation settings or executable configs.
+          const memberFs: FileSystem = {
+            exists: (file) => file === manifest && fs.exists(file),
+            readText: (file) => (file === manifest ? fs.readText(file) : undefined),
+          };
+          try {
+            const memberCtx = createRepoContext(
+              root,
+              memberFs,
+              options.projectType ?? config?.projectType,
+            );
+            return memberCtx.packageJson ? [{ directory, pm, ctx: memberCtx }] : [];
+          } catch (error) {
+            if (error instanceof ConfigError)
+              throw new ConfigError(`${directory}/${error.message}`);
+            throw error;
+          }
+        }),
+      )
+    : [];
   return {
     ctx,
     pms,
-    pmVersions: {
-      ...declaredPMVersion(ctx.packageJson?.packageManager),
-      ...config?.pmVersions,
-      ...(options.pm && options.pmVersion ? { [options.pm]: options.pmVersion } : {}),
-    },
+    pmVersions,
+    members,
     ruleSet: configured.rules,
     severityOverrides: configured.severityOverrides,
     codecFor,
@@ -76,4 +112,36 @@ export const prepareLint = (options: LintOptions) => {
   };
 };
 
-export const lint = (options: LintOptions): LintResult => runLint(prepareLint(options));
+/** Reuse the existing manifest checks; installation policy remains rooted at cwd. */
+export const runPreparedLint = (prepared: ReturnType<typeof prepareLint>): LintResult => {
+  const result = runLint(prepared);
+  const findings = [...result.findings];
+  const summary = { ...result.summary };
+  const memberRules = prepared.ruleSet.filter((rule) =>
+    ['files-field', 'publish-access', 'unsupported-settings'].includes(rule.id),
+  );
+  for (const member of prepared.members) {
+    const child = runLint({ ...prepared, ctx: member.ctx, pms: [member.pm], ruleSet: memberRules });
+    for (const finding of child.findings) {
+      findings.push({
+        ...finding,
+        file: `${member.directory}/${finding.file ?? 'package.json'}`,
+        message: `${member.directory}: ${finding.message}`,
+        remediation:
+          finding.remediation?.kind === 'manual'
+            ? {
+                kind: 'manual',
+                steps: [
+                  `Work in ${member.directory} for this finding.`,
+                  ...finding.remediation.steps,
+                ],
+              }
+            : finding.remediation,
+      });
+    }
+    for (const level of ['error', 'warn', 'info'] as const) summary[level] += child.summary[level];
+  }
+  return { findings, summary };
+};
+
+export const lint = (options: LintOptions): LintResult => runPreparedLint(prepareLint(options));

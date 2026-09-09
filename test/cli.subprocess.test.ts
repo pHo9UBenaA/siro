@@ -2,7 +2,7 @@ const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -35,6 +35,45 @@ const spawnBin = (args: readonly string[]) => {
   }
   return spawnSync(DIST_BIN, args, { encoding: 'utf8' });
 };
+
+it('reports workspace member paths and failures through the executable', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-workspace-cli-'));
+  try {
+    mkdirSync(path.join(dir, 'child'));
+    writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ private: true, packageManager: 'npm@11.10.0', workspaces: ['child'] }),
+    );
+    writeFileSync(path.join(dir, '.npmrc'), 'ignore-scripts=true\nsave-exact=true');
+    writeFileSync(path.join(dir, 'package-lock.json'), '{}');
+    writeFileSync(
+      path.join(dir, 'siro.config.mjs'),
+      "export default { rules: { 'files-field': 'error' } };\n",
+    );
+    writeFileSync(path.join(dir, 'child/package.json'), '{"name":"child"}');
+    writeFileSync(path.join(dir, 'child/siro.config.mjs'), 'throw new Error("must not execute")');
+    expect(spawnBin(['lint', dir]).status).toBe(EXIT_SUCCESS);
+    const result = spawnBin(['lint', dir, '--workspaces', '--json']);
+    expect(result.status).toBe(EXIT_FAILURE);
+    expect(parseJsonOutput(result.stdout, result.stderr).findings).toContainEqual(
+      expect.objectContaining({
+        ruleId: 'files-field',
+        file: 'child/package.json',
+        severity: 'error',
+      }),
+    );
+    const annotations = spawnBin(['lint', dir, '--workspaces', '--reporter', 'github']);
+    expect(annotations.stdout).toContain('file=child/package.json');
+    writeFileSync(path.join(dir, 'child/package.json'), '{');
+    const broken = spawnBin(['lint', dir, '--workspaces', '--json']);
+    expect(broken.status).toBe(EXIT_USAGE);
+    expect(broken.stderr).toContain('child/package.json');
+    expect(broken.stdout).toBe('');
+    expect(spawnBin(['lint', dir, '--workspaces=false']).status).toBe(EXIT_USAGE);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 it('checks declared, configured, and CLI PM targets through the executable', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'siro-pm-version-'));

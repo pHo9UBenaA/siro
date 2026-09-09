@@ -1,6 +1,6 @@
 import { UsageError } from '../shared/errors.ts';
 import { type AbsPath, type RelPath, asRelPath, asAbsPath } from '../shared/paths.ts';
-import { accessSync, constants, readFileSync, statSync } from 'node:fs';
+import { accessSync, constants, readFileSync, readdirSync, statSync } from 'node:fs';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import { isNodeError } from './node-errors.ts';
 import path from 'node:path';
@@ -11,6 +11,11 @@ import path from 'node:path';
 // "no findings" on an unauthorized scan. Only ENOENT is translated to absent;
 // every other errno propagates.
 export const nodeFileSystem: FileSystem = {
+  readDirectories(directory) {
+    return readdirSync(directory, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+  },
   exists(filePath) {
     try {
       accessSync(filePath, constants.F_OK);

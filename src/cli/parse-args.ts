@@ -17,13 +17,14 @@ export type ParsedCommand =
       cwd: AbsPath;
       pm?: PM;
       pmVersion?: string;
+      workspaces?: boolean;
       projectType?: ProjectType;
       reporter: string;
       severity?: Severity;
     };
 
 const VALUE_FLAGS = new Set(['pm', 'pm-version', 'project-type', 'reporter', 'severity']);
-const BOOLEAN_FLAGS = new Set(['help', 'version', 'json']);
+const BOOLEAN_FLAGS = new Set(['help', 'version', 'json', 'workspaces']);
 
 export const parseCommand = (argv: readonly string[]): ParsedCommand => {
   // Tokenize first so a missing option value cannot consume a following --help.
@@ -100,6 +101,7 @@ export const parseCommand = (argv: readonly string[]): ParsedCommand => {
     cwd: asAbsPath(path.resolve(cwd ?? process.cwd())),
     pm: parsePmFlag(flags.get('pm')),
     pmVersion: typeof pmVersion === 'string' ? pmVersion : undefined,
+    workspaces: flags.has('workspaces') || undefined,
     projectType: parseProjectTypeFlag(flags.get('project-type')),
     severity: parseSeverityFlag(flags.get('severity')),
     reporter:

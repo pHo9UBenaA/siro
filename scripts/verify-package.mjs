@@ -4,6 +4,7 @@ import {
   copyFileSync,
   cpSync,
   mkdtempSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -117,6 +118,29 @@ try {
   run(cli, ['lint', 'good', '--pm', 'npm', '--pm-version', '11.10.0']);
   run(cli, ['lint', 'good', '--pm-version', '11.10.0'], consumer, 2);
   run(cli, ['lint', 'bad'], consumer, 1);
+  cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'workspace'), { recursive: true });
+  const workspaceManifest = JSON.parse(
+    readFileSync(join(consumer, 'workspace/package.json'), 'utf8'),
+  );
+  writeFileSync(
+    join(consumer, 'workspace/package.json'),
+    JSON.stringify({ ...workspaceManifest, workspaces: ['child'] }),
+  );
+  mkdirSync(join(consumer, 'workspace/child'));
+  writeFileSync(join(consumer, 'workspace/child/package.json'), '{"name":"child"}');
+  writeFileSync(
+    join(consumer, 'workspace/siro.config.mjs'),
+    "export default { rules: { 'files-field': 'error' } };\n",
+  );
+  run(cli, ['lint', 'workspace']);
+  const workspaceReport = JSON.parse(
+    run(cli, ['lint', 'workspace', '--workspaces', '--json'], consumer, 1),
+  );
+  assert.ok(
+    workspaceReport.findings.some(
+      (finding) => finding.ruleId === 'files-field' && finding.file === 'child/package.json',
+    ),
+  );
   run(cli, ['--invalid-option'], consumer, 2);
   writeFileSync(
     join(consumer, 'good/siro.config.mjs'),
