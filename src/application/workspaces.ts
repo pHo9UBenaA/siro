@@ -1,6 +1,10 @@
 import path from 'node:path';
 import { anchorWorkspacePrefix } from './workspace-prefix.ts';
-import { compileWorkspaceGlob, expandWorkspaceGlob } from './workspace-globs.ts';
+import {
+  compileWorkspaceGlob,
+  defaultWorkspaceGlobOptions,
+  expandWorkspaceGlob,
+} from './workspace-globs.ts';
 import { compileAdditionalWorkspaceGlob } from './workspace-dialects.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
 import type { PM } from '../domain/entities/pms.ts';
@@ -30,7 +34,11 @@ const npmPatterns = (patterns: readonly string[]): readonly string[] => {
       // independently of the platform policy used to enumerate directories.
       negative.push({ pattern, glob: compileWorkspaceGlob(pattern, {}) });
     } else {
-      negative = negative.filter(({ glob }) => !glob.matches(pattern));
+      // Match @npmcli/map-workspaces' forward splice exactly. Adjacent duplicate
+      // exclusions are not all removed because the shifted entry is skipped.
+      for (let index = 0; index < negative.length; index += 1) {
+        if (negative[index]?.glob.matches(pattern)) negative.splice(index, 1);
+      }
       positive.push(pattern);
     }
   }
@@ -62,7 +70,7 @@ export const workspaceDefinitions = (ctx: RepoContext, pm: PM): readonly Workspa
       if (
         alternatives.some(
           (alternative) =>
-            !isRelPath(alternative) || /[\\:]/u.test(alternative) || alternative.startsWith('!'),
+            !isRelPath(alternative) || alternative.includes('\\') || alternative.startsWith('!'),
         )
       ) {
         throw new ConfigError(
@@ -166,7 +174,13 @@ export const workspaceDirectories = (
     return resolved === '.git' || resolved === 'node_modules' ? undefined : resolved;
   };
   const compile = (pattern: string, excluded = false) => {
-    if (pm !== 'deno' && pm !== 'aube') return compileWorkspaceGlob(pattern);
+    if (pm !== 'deno' && pm !== 'aube')
+      return compileWorkspaceGlob(
+        pattern,
+        pm === 'npm'
+          ? { ...defaultWorkspaceGlobOptions, nocomment: false }
+          : defaultWorkspaceGlobOptions,
+      );
     const glob = compileAdditionalWorkspaceGlob(pattern, pm, excluded);
     return pm === 'deno' && !excluded ? anchorWorkspacePrefix(pattern, glob, resolveChild) : glob;
   };

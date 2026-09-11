@@ -75,6 +75,54 @@ it('requires injected directory discovery instead of falling back to host IO', (
   ).toThrow(UsageError);
 });
 
+it('accepts a colon in an ordinary relative workspace segment', () => {
+  const result = repo({
+    pm: 'npm',
+    workspaces: true,
+    fs: {
+      ...createMemFileSystem({
+        'package.json': '{"private":true,"workspaces":["packages/foo:bar"]}',
+        'packages/foo:bar/package.json': '{"name":"colon-member"}',
+      }),
+      readDirectories: (directory) =>
+        new Map([
+          ['/repo', ['packages']],
+          ['/repo/packages', ['foo:bar']],
+        ]).get(posix(directory)) ?? [],
+    },
+  });
+  expect(result.findings.some((finding) => finding.file === 'packages/foo:bar/package.json')).toBe(
+    true,
+  );
+});
+
+it.each([
+  { pattern: '#pkg', expected: [] },
+  { pattern: 'packages/#pkg', expected: ['packages/#pkg/package.json'] },
+])('matches npm comment syntax for $pattern', ({ pattern, expected }) => {
+  const result = repo({
+    pm: 'npm',
+    workspaces: true,
+    fs: {
+      ...createMemFileSystem({
+        'package.json': JSON.stringify({ private: true, workspaces: [pattern] }),
+        '#pkg/package.json': '{"name":"root-comment"}',
+        'packages/#pkg/package.json': '{"name":"nested-hash"}',
+      }),
+      readDirectories: (directory) =>
+        new Map([
+          ['/repo', ['#pkg', 'packages']],
+          ['/repo/packages', ['#pkg']],
+        ]).get(posix(directory)) ?? [],
+    },
+  });
+  expect(
+    result.findings
+      .filter((finding) => finding.ruleId === 'files-field' && finding.file?.includes('/'))
+      .map((finding) => finding.file),
+  ).toEqual(expected);
+});
+
 it('does not open unrelated subdirectories for a fixed-depth declaration', () => {
   const visited: string[] = [];
   const fs = createMemFileSystem({
@@ -390,8 +438,9 @@ describe('native workspace discovery', () => {
   it.each([
     { patterns: ['packages/**', '!packages/b/**', 'packages/b/a'], expected: ['a', 'c'] },
     {
+      // @npmcli/map-workspaces' forward splice skips the shifted duplicate.
       patterns: ['packages/**', '!packages/b/**', '!packages/b/**', 'packages/b/a'],
-      expected: ['a', 'c'],
+      expected: [],
     },
     { patterns: ['packages/**', 'packages/b/a', '!packages/b/**'], expected: [] },
     { patterns: ['packages/**', '!packages/b/**', 'packages/a'], expected: [] },

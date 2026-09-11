@@ -4,6 +4,15 @@ import { ConfigError } from '../shared/errors.ts';
 const MAX_WORKSPACE_GLOB_ALTERNATIVES = 8_192;
 const BRACE_EXPANSION_PROBE_LIMIT = MAX_WORKSPACE_GLOB_ALTERNATIVES + 1;
 
+export const defaultWorkspaceGlobOptions: Readonly<MinimatchOptions> = {
+  platform: 'linux',
+  nocase: process.platform === 'darwin' || process.platform === 'win32',
+  windowsPathsNoEscape: true,
+  nonegate: true,
+  nocomment: true,
+  optimizationLevel: 2,
+};
+
 const boundedBraceExpand = (pattern: string): readonly string[] => {
   const alternatives = braceExpand(pattern, { braceExpandMax: BRACE_EXPANSION_PROBE_LIMIT });
   if (alternatives.length > MAX_WORKSPACE_GLOB_ALTERNATIVES) {
@@ -28,14 +37,7 @@ export const expandWorkspaceGlob = (pattern: string): readonly string[] => {
 /** Compile once so membership, exclusions, and traversal share glob semantics. */
 export const compileWorkspaceGlob = (
   pattern: string,
-  options: MinimatchOptions = {
-    platform: 'linux',
-    nocase: process.platform === 'darwin' || process.platform === 'win32',
-    windowsPathsNoEscape: true,
-    nonegate: true,
-    nocomment: true,
-    optimizationLevel: 2,
-  },
+  options: MinimatchOptions = defaultWorkspaceGlobOptions,
 ) => {
   let matcher: Minimatch;
   try {

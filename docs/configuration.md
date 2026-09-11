@@ -93,13 +93,17 @@ Run from the workspace root; siro does not search parent directories for it.
   and braces. Leading `!` excludes matching workspace candidates; a trailing `/**`
   exclusion also prunes the covered subtree. Other exclusions do not hide nested
   candidates that match a positive pattern. For npm, a later
-  positive pattern matching earlier exclusions cancels all of them entirely, including duplicates:
+  positive pattern matching earlier exclusions cancels them according to npm's forward scan:
   `['packages/**', '!packages/b/**', 'packages/b/a']` includes both `packages/b/a`
-  and other members under `packages/b`. This cancellation compares declaration
+  and other members under `packages/b`. Adjacent duplicate exclusions are significant:
+  `['packages/**', '!packages/b/**', '!packages/b/**', 'packages/b/a']` remains
+  excluded because npm's scan skips the shifted duplicate. Cancellation compares declaration
   strings case-sensitively using npm's default minimatch options. npm also treats an odd
   number of leading `!` characters as negative and an even number as positive. For the other supported managers,
   exclusions retain priority regardless of order. Patterns use `/`;
-  absolute paths, parent traversal, and backslash patterns are rejected.
+  absolute paths, parent traversal, and backslash patterns are rejected. A leading
+  `#` makes an npm pattern a comment, while `#` within a later path segment is literal.
+  Colons in ordinary relative segments are accepted; drive-letter paths remain invalid.
   Brace expansion is limited to 8,192 expanded alternatives before
   compilation; larger expansions fail as configuration errors.
   Matching is case-insensitive on macOS and Windows, including literal segments
