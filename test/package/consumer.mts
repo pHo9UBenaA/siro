@@ -124,3 +124,43 @@ check(
     (finding) => finding.ruleId === 'files-field' && finding.file === 'child/package.json',
   ),
 );
+
+for (const pm of ['deno', 'aube'] as const) {
+  const files: Record<string, string> =
+    pm === 'deno'
+      ? {
+          '/virtual/deno.json': '{"workspace":["child"]}',
+          '/virtual/child/deno.json': '{"name":"@example/child","exports":"./mod.ts"}',
+        }
+      : {
+          '/virtual/aube-workspace.yaml': 'packages: ["child"]',
+          '/virtual/child/package.json': '{"name":"child"}',
+        };
+  const result = lint({
+    cwd: asAbsPath('/virtual'),
+    pm,
+    workspaces: true,
+    fs: {
+      exists: (file) => Object.hasOwn(files, posix(file)),
+      readText: (file) => files[posix(file)],
+      readDirectories: (directory) => (posix(directory) === '/virtual' ? ['child'] : []),
+    },
+  });
+  check(
+    result.findings.some(
+      (finding) =>
+        finding.ruleId === 'files-field' &&
+        finding.file === `child/${pm === 'deno' ? 'deno.json' : 'package.json'}`,
+    ),
+  );
+}
+const oldTarget = lint({
+  cwd: asAbsPath('/virtual'),
+  pm: 'npm',
+  pmVersion: '11.9.0',
+  fs: { exists: () => false, readText: () => undefined },
+});
+check(
+  oldTarget.findings.find((finding) => finding.ruleId === 'minimum-release-age')?.remediation
+    ?.kind === 'manual',
+);
