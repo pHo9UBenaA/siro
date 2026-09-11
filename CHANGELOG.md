@@ -23,10 +23,13 @@
 ### Fixes
 
 - Update `smol-toml` to 1.8.0 and Vitest to 4.1.11 to include upstream security fixes.
+- For pnpm targets before 10.9.0, recommend supported `strictDepBuilds` gating without claiming that the ignored future-version bypass requires pnpm 10.9.0.
 - Keep nested workspace candidates visible when only their ancestor candidate is excluded. Prune traversal only when a trailing `/**` exclusion covers the subtree.
 - Reject workspace patterns whose brace-expanded alternatives contain parent traversal or exceed 8,192 entries before compilation, and avoid backtracking in Aube exclusion matching.
 - Match npm's odd/even interpretation of repeated leading `!` characters.
-- Honor npm's ordered cancellation of workspace exclusions so re-included members are inspected.
+- Honor npm's ordered cancellation of workspace exclusions, including its handling of adjacent repeated exclusions.
+- Match npm's leading-`#` comment behavior while retaining `#` in nested path segments.
+- Permit colons in ordinary relative workspace segments while continuing to reject absolute and drive-letter paths.
 - Report rejected workspace glob patterns as configuration errors (exit 2) instead of internal crashes (exit 70).
 - Reject non-file manifest inputs before reading, preventing root and workspace FIFO manifests from blocking the scan.
 - Match literal workspace path segments and exclusions case-insensitively on macOS and Windows, so declaration casing does not silently omit members.
