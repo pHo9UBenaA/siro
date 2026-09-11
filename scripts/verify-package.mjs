@@ -26,6 +26,19 @@ let tarball = cliArgs.length === 1 ? resolve(cliArgs[0]) : undefined;
 const consumer = mkdtempSync(join(tmpdir(), 'siro-consumer-'));
 
 function run(command, args, cwd = consumer, status = 0) {
+  if (process.platform === 'win32') {
+    if (command === 'pnpm') {
+      assert.ok(process.env.npm_execpath, 'Run package verification through pnpm');
+      args = [process.env.npm_execpath, ...args];
+      command = process.execPath;
+    } else if (command.endsWith('siro.cmd')) {
+      // Exercise the installed Windows shim. All CLI arguments below are fixed
+      // test inputs; use a relative executable to avoid quoting the temp path.
+      assert.ok(args.every((arg) => /^[\w./-]+$/u.test(arg)));
+      args = ['/d', '/s', '/c', `node_modules\\.bin\\siro.cmd ${args.join(' ')}`];
+      command = process.env.ComSpec ?? 'cmd.exe';
+    }
+  }
   const result = spawnSync(command, args, {
     cwd,
     encoding: 'utf8',
@@ -50,7 +63,7 @@ try {
     assert.equal(archives.length, 1, 'Packing must produce exactly one tarball');
     tarball = join(consumer, archives[0]);
   }
-  const files = run('tar', ['-tzf', tarball]).trim().split('\n');
+  const files = run('tar', ['-tzf', tarball]).trim().split(/\r?\n/u);
   for (const file of files) {
     assert.match(
       file,
@@ -104,7 +117,7 @@ try {
   run(process.execPath, ['consumer.mts']);
 
   // Use the installed executable link, including its shebang and package bin mapping.
-  const cli = join(consumer, 'node_modules/.bin/siro');
+  const cli = join(consumer, `node_modules/.bin/siro${process.platform === 'win32' ? '.cmd' : ''}`);
   assert.equal(run(cli, ['--version']).trim(), manifest.version);
   cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'good'), { recursive: true });
   cpSync(join(root, 'test/fixtures/npm-bad'), join(consumer, 'bad'), { recursive: true });

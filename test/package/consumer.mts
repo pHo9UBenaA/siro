@@ -18,6 +18,8 @@ function check(condition: boolean): void {
   if (!condition) throw new Error('Installed public API verification failed');
 }
 
+const posix = (value: string) => value.replaceAll('\\', '/');
+
 const config: SiroConfig = defineConfig({
   pmVersions: { npm: '11.9.0' },
   customRules: [
@@ -90,8 +92,8 @@ for (const pmVersion of ['11.9.0', '11.10.0']) {
     pmVersion,
     config,
     fs: {
-      exists: (file) => file.endsWith('/.npmrc'),
-      readText: (file) => (file.endsWith('/.npmrc') ? 'min-release-age=3' : undefined),
+      exists: (file) => posix(file).endsWith('/.npmrc'),
+      readText: (file) => (posix(file).endsWith('/.npmrc') ? 'min-release-age=3' : undefined),
     },
   });
   check(
@@ -112,9 +114,9 @@ const workspaceResult = lint({
   cwd: asAbsPath('/virtual'),
   workspaces: true,
   fs: {
-    exists: (file) => Object.hasOwn(workspaceFiles, file),
-    readText: (file) => workspaceFiles[file],
-    readDirectories: (directory) => (directory === '/virtual' ? ['child'] : []),
+    exists: (file) => Object.hasOwn(workspaceFiles, posix(file)),
+    readText: (file) => workspaceFiles[posix(file)],
+    readDirectories: (directory) => (posix(directory) === '/virtual' ? ['child'] : []),
   },
 });
 check(

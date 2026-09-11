@@ -13,7 +13,8 @@ export const createMemFileSystem = (
     exists(path) {
       // Match native file-type checks and propagate every non-ENOENT error.
       try {
-        if (!fs.statSync(path).isFile()) throw new ConfigError(`${path}: expected a regular file.`);
+        if (!fs.statSync(path.replaceAll('\\', '/')).isFile())
+          throw new ConfigError(`${path}: expected a regular file.`);
         return true;
       } catch (error) {
         if (isNodeError(error) && error.code === 'ENOENT') {
@@ -24,7 +25,7 @@ export const createMemFileSystem = (
     },
     readText(path) {
       try {
-        const content = String(fs.readFileSync(path, 'utf8'));
+        const content = String(fs.readFileSync(path.replaceAll('\\', '/'), 'utf8'));
         return content;
       } catch (error) {
         // Mirror the production FS contract: ENOENT is "file absent",
