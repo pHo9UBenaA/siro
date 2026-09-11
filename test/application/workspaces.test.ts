@@ -320,6 +320,10 @@ describe('native workspace discovery', () => {
 
   it.each([
     { patterns: ['packages/**', '!packages/b/**', 'packages/b/a'], expected: ['a', 'c'] },
+    {
+      patterns: ['packages/**', '!packages/b/**', '!packages/b/**', 'packages/b/a'],
+      expected: ['a', 'c'],
+    },
     { patterns: ['packages/**', 'packages/b/a', '!packages/b/**'], expected: [] },
     { patterns: ['packages/**', '!packages/b/**', 'packages/a'], expected: [] },
   ])('honors npm ordered exclusion cancellation: $patterns', ({ patterns, expected }) => {
