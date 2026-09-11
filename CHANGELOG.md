@@ -22,6 +22,7 @@
 
 ### Fixes
 
+- Update `smol-toml` to 1.8.0 and Vitest to 4.1.11 to include upstream security fixes.
 - Keep nested workspace candidates visible when only their ancestor candidate is excluded. Prune traversal only when a trailing `/**` exclusion covers the subtree.
 - Reject workspace patterns whose brace-expanded alternatives contain parent traversal or exceed 8,192 entries before compilation, and avoid backtracking in Aube exclusion matching.
 - Match npm's odd/even interpretation of repeated leading `!` characters.
