@@ -1,3 +1,4 @@
+import { guardRemediationAvailability } from '../../services/remediation-availability.ts';
 import { proposeChanges } from '../remediation.ts';
 import type {
   RuleBinding,
@@ -83,13 +84,20 @@ const checkKeyValue = (spec: RequireConfigKeySpec, config: ParsedConfig): CheckS
 
 const buildBinding = (
   spec: RequireConfigKeySpec,
+  pm: PM,
   applies?: (ctx: RepoContext) => boolean,
 ): RuleBinding => ({
   check(ctx, config): CheckStatus {
     if (typeof applies !== 'undefined' && !applies(ctx)) {
       return { state: 'na' };
     }
-    return checkKeyValue(spec, config);
+    const status = checkKeyValue(spec, config);
+    return status.state === 'violation'
+      ? {
+          ...status,
+          remediation: guardRemediationAvailability(pm, ctx.pmVersion, status.remediation, [spec]),
+        }
+      : status;
   },
   docs: spec.docs,
   file: spec.file,
@@ -109,7 +117,7 @@ export const requireConfigKey = <const Id extends string>(
       if ('extraFix' in spec) {
         throw new TypeError('extraFix is no longer supported; use a custom binding.');
       }
-      bindings[pm] = buildBinding(spec, options.applies);
+      bindings[pm] = buildBinding(spec, pm, options.applies);
     }
   }
   return {

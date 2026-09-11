@@ -1,3 +1,4 @@
+import { guardRemediationAvailability } from '../services/remediation-availability.ts';
 import { proposeChanges } from './remediation.ts';
 import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
 import type { RuleBinding, CheckStatus, VersionNote } from '../entities/rule.ts';
@@ -14,10 +15,30 @@ const pnpmVersionNote: VersionNote = {
   defaultSafeSince: 'pnpm 11.0.0',
 };
 const pnpmBinding: RuleBinding = {
-  check(_ctx, config): CheckStatus {
+  check(ctx, config): CheckStatus {
     if (getByPath(config, ['ignoreScripts']) === true) return { state: 'ok' };
     const bypass = getByPath(config, ['dangerouslyAllowAllBuilds']);
     if (bypass === true) {
+      const proposal = {
+        kind: 'manual' as const,
+        steps: [
+          'After upgrading, remove `dangerouslyAllowAllBuilds: true` (or set it to false) and configure lifecycle-script gating.',
+        ] as const,
+      };
+      const guarded = guardRemediationAvailability('pnpm', ctx.pmVersion, proposal, [
+        { file: pnpmWorkspace, keyPath: ['strictDepBuilds'] },
+        { file: pnpmWorkspace, keyPath: ['dangerouslyAllowAllBuilds'] },
+      ]);
+      if (guarded !== proposal) {
+        return {
+          state: 'violation',
+          actual: bypass,
+          expected: false,
+          message:
+            'The target cannot use the proposed YAML lifecycle-script controls. Removing an unsupported bypass alone does not provide protection.',
+          remediation: guarded,
+        };
+      }
       return {
         actual: bypass,
         expected: false,
@@ -44,9 +65,14 @@ const pnpmBinding: RuleBinding = {
         strict === undefined
           ? 'Set `strictDepBuilds: true` in pnpm-workspace.yaml to pin lifecycle-script gating across versions.'
           : 'Set `strictDepBuilds: true` in pnpm-workspace.yaml to block silent skips of un-approved dep builds.',
-      remediation: proposeChanges(config, [
-        { file: pnpmWorkspace, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
-      ]),
+      remediation: guardRemediationAvailability(
+        'pnpm',
+        ctx.pmVersion,
+        proposeChanges(config, [
+          { file: pnpmWorkspace, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
+        ]),
+        [{ file: pnpmWorkspace, keyPath: ['strictDepBuilds'] }],
+      ),
     };
   },
   docs: pnpmStrictDepBuildsDocs,

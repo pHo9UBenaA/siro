@@ -46,7 +46,10 @@ it('clears an overriding before finding only after the proposed manual correctio
   expect(check(original)).toMatchObject([
     {
       severity: 'warn',
-      remediation: { kind: 'manual', steps: [expect.stringContaining('remove before')] },
+      remediation: {
+        kind: 'manual',
+        steps: expect.arrayContaining([expect.stringContaining('remove before')]),
+      },
     },
   ]);
   expect(check(original.replace('min-release-age=3', 'min-release-age=7'))).toHaveLength(1);

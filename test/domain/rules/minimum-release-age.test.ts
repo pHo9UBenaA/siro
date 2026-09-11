@@ -100,7 +100,10 @@ describe('minimum-release-age (npm)', () => {
     const result = npm.check(ctx, codecFor('npmrc').parse(`${setting}\nmin-release-age=3`));
     expect(result).toMatchObject({
       state: 'violation',
-      remediation: { kind: 'manual', steps: [expect.stringContaining('before')] },
+      remediation: {
+        kind: 'manual',
+        steps: expect.arrayContaining([expect.stringContaining('before')]),
+      },
     });
   });
 

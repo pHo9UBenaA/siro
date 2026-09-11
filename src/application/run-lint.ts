@@ -12,6 +12,7 @@ import {
   resolvePackageJsonProjectType,
 } from '../domain/services/project-type.ts';
 import { renderVersionNoteMessage } from '../domain/services/render-version-note.ts';
+import { guardRemediationAvailability } from '../domain/services/remediation-availability.ts';
 import { ConfigError } from '../shared/errors.ts';
 
 export interface RunLintOptions {
@@ -77,7 +78,7 @@ export const runLint = (opts: RunLintOptions): LintResult => {
         docs: binding.docs ?? rule.docs,
         actual: status.actual,
         expected: status.expected,
-        remediation: status.remediation,
+        remediation: guardRemediationAvailability(pm, ruleContext.pmVersion, status.remediation),
       };
       findings.push(finding);
       summary[finding.severity] += 1;
