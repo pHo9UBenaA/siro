@@ -82,14 +82,14 @@ does not lower severity for missing settings or prove environment-dependent defa
 ## Workspace members
 
 Use `siro lint --workspaces` or `lint({ cwd, workspaces: true })` to add checks of
-declared members' `package.json` publication metadata. The default remains one root.
+declared members' publication metadata (`package.json`, or `deno.json` for Deno). The default remains one root.
 Run from the workspace root; siro does not search parent directories for it.
 
 - npm, Yarn, and Bun read the root `package.json#workspaces` array. The
   `{ packages: [...] }` form is also accepted.
-- pnpm reads `pnpm-workspace.yaml#packages`. An existing workspace file must have
-  an explicit array in this mode; implicit package-discovery defaults are not inferred.
-- Relative directory patterns use minimatch, including `*`, `**`,
+- pnpm reads `pnpm-workspace.yaml#packages`. Omitted or empty `packages` adds no
+  members, matching the root-only default verified in pnpm 10.17.1.
+- For npm, pnpm, Yarn, and Bun, relative directory patterns use minimatch, including `*`, `**`,
   and braces. Leading `!` excludes matching directory subtrees. For npm, a later
   positive pattern matching earlier exclusions cancels all of them entirely, including duplicates:
   `['packages/**', '!packages/b/**', 'packages/b/a']` includes both `packages/b/a`
@@ -101,13 +101,40 @@ Run from the workspace root; siro does not search parent directories for it.
   and exclusions, and case-sensitive elsewhere. This platform policy also applies
   to injected filesystems and does not detect individual volume settings.
 - Root `.` entries, duplicate matches, `node_modules`, `.git`, and directory symlinks
-  are excluded from member traversal. Directories without `package.json` are skipped.
+  are excluded from member traversal. Node-PM directories without `package.json` are skipped.
   Only the root declaration is expanded; nested workspace declarations are not followed.
-- Deno and Aube member discovery is not supported in this release. Selecting either
-  with `--workspaces` fails explicitly; use `--pm` or `config.pms` to select supported managers.
+- Aube reads `aube-workspace.yaml#packages`, then `pnpm-workspace.yaml#packages`,
+  then package.json workspaces when neither YAML file exists. An existing YAML file
+  wins even when `packages` is empty or omitted. Supported patterns are literals,
+  component `*`/`?`, and trailing `**` after a literal prefix (or `**` alone).
+  Braces, character classes, extglobs, and mixed recursive patterns fail explicitly.
+  Matching is case-sensitive and includes dot directories. Exclusions filter
+  candidates without pruning their descendants; negative `*` can span `/`.
+- Deno combines `deno.json#workspace` with package.json workspaces. The former
+  discovers Deno or npm manifests; the latter requires package.json. Deno uses
+  `*`, `?`, and whole-component `**`, treats brackets/braces literally, and uses
+  case-insensitive glob matching, including literal prefixes. Explicit paths follow
+  the platform case policy. Unlike native Deno prefix lookup, `Packages/*` can
+  therefore select `packages/` on a case-sensitive volume. Per-volume prefix
+  lookup is not reproduced by the injected filesystem contract.
+  Later matching glob entries win; explicit positive paths remain included.
+  Glob expansion excludes the root `vendor` directory when `vendor: true`.
+  Selected JSONC-only members and nested workspace declarations fail explicitly.
+  An existing explicitly named directory without the required manifest is an error.
+  An absent member directory adds no findings. A Deno declaration selecting its
+  own root is an error. Named Deno packages with `publish: false` are internal;
+  npm `private` does not opt a Deno manifest out of JSR publication checks.
+
+These are bounded inspection semantics, not a replacement for a PM resolver or
+publication dry run. Deno/Aube behavior is based on Deno 2.9.4 and Aube commit
+`afcf46f39c070b8549642cd4cc0b53b0db0287da`; historical versions can differ. siro
+retains root confinement, skipped directory symlinks, fail-loud reads, and deduplicated
+members. It does not reproduce every upstream glob form or duplicate-member error.
+See [policy sources](policy-sources.md) for the versioned implementation references.
 
 The root receives the usual checks once. Members reuse `files-field`, `publish-access`,
-and the `package.json` entries of `unsupported-settings`; findings identify paths such
+and the manifest entries of `unsupported-settings`; Deno uses `files-field` for
+`publish.include`. Findings identify paths such
 as `packages/ui/package.json`. Missing `files` or access settings use their existing
 informational severity; overrides and the CLI threshold apply to the combined result.
 Malformed selected manifests and directory-read failures stop the command with an error

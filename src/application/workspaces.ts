@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { compileWorkspaceGlob } from './workspace-globs.ts';
+import { compileAdditionalWorkspaceGlob } from './workspace-dialects.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
 import type { PM } from '../domain/entities/pms.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
@@ -30,62 +31,117 @@ const npmPatterns = (patterns: readonly string[]): readonly string[] => {
   return [...positive, ...negative.map(({ pattern }) => `!${pattern}`)];
 };
 
-/** Read workspace declarations without executing any PM or child configuration. */
-export const workspacePatterns = (ctx: RepoContext, pm: PM): readonly string[] => {
-  if (pm === 'deno' || pm === 'aube') {
-    throw new UsageError(
-      `Workspace member inspection is not yet supported for ${pm}. Select npm, pnpm, yarn, or bun with --pm.`,
-    );
-  }
-  let value: unknown = ctx.packageJson?.workspaces;
-  let source = 'package.json#workspaces';
+export interface WorkspaceDefinition {
+  readonly patterns: readonly string[];
+  readonly denoManifests: boolean;
+}
+
+/** Read declaration sources separately so Deno's two manifest sets stay distinct. */
+export const workspaceDefinitions = (ctx: RepoContext, pm: PM): readonly WorkspaceDefinition[] => {
+  const parse = createConfigParser(codecFor, ctx);
+  const validate = (value: unknown, source: string, denoManifests = false): WorkspaceDefinition => {
+    if (value === undefined) return { patterns: [], denoManifests };
+    if (!Array.isArray(value) || !Array.from(value).every((item) => typeof item === 'string')) {
+      throw new ConfigError(`${source}: expected an array of directory patterns.`);
+    }
+    for (const pattern of value) {
+      const positive = pattern.startsWith('!') ? pattern.slice(1) : pattern;
+      if (!isRelPath(positive) || /[\\:]/u.test(positive) || positive.startsWith('!')) {
+        throw new ConfigError(
+          `${source}: use relative directory patterns without parent traversal: ${JSON.stringify(pattern)}.`,
+        );
+      }
+      if (
+        pm === 'deno' &&
+        denoManifests &&
+        !pattern.startsWith('!') &&
+        path.posix.normalize(positive) === '.'
+      ) {
+        throw new ConfigError(`${source}: a Deno workspace cannot contain itself.`);
+      }
+    }
+    return { patterns: pm === 'npm' ? npmPatterns(value) : value, denoManifests };
+  };
+  const packageDefinition = () => {
+    let value = ctx.packageJson?.workspaces;
+    if (isPlainRecord(value)) {
+      value = value.packages;
+      if (value === undefined)
+        throw new ConfigError('package.json#workspaces: expected a packages array.');
+    }
+    return validate(value, 'package.json#workspaces');
+  };
   if (pm === 'pnpm') {
-    source = 'pnpm-workspace.yaml#packages';
-    if (!ctx.exists(CONFIG_FILES.pnpmWorkspace.path)) return [];
-    value = createConfigParser(codecFor, ctx)(CONFIG_FILES.pnpmWorkspace).packages;
-    if (value === undefined) {
-      throw new ConfigError(
-        `${source}: workspace inspection requires an explicit packages array; implicit PM defaults are not inferred.`,
-      );
-    }
-  } else if (isPlainRecord(value)) {
-    value = value.packages;
-    if (value === undefined) throw new ConfigError(`${source}: expected a packages array.`);
+    return [
+      validate(
+        ctx.exists(CONFIG_FILES.pnpmWorkspace.path)
+          ? parse(CONFIG_FILES.pnpmWorkspace).packages
+          : undefined,
+        'pnpm-workspace.yaml#packages',
+      ),
+    ];
   }
-  if (value === undefined) return [];
-  if (!Array.isArray(value) || !Array.from(value).every((item) => typeof item === 'string')) {
-    throw new ConfigError(`${source}: expected an array of directory patterns.`);
+  if (pm === 'aube') {
+    const file = [CONFIG_FILES.aubeWorkspace, CONFIG_FILES.pnpmWorkspace].find((candidate) =>
+      ctx.exists(candidate.path),
+    );
+    return [file ? validate(parse(file).packages, `${file.path}#packages`) : packageDefinition()];
   }
-  for (const pattern of value) {
-    const positive = pattern.startsWith('!') ? pattern.slice(1) : pattern;
-    if (!isRelPath(positive) || /[\\:]/u.test(positive) || positive.startsWith('!')) {
-      throw new ConfigError(
-        `${source}: use relative directory patterns without parent traversal: ${JSON.stringify(pattern)}.`,
-      );
-    }
+  if (pm === 'deno') {
+    return [
+      validate(parse(CONFIG_FILES.denoJson).workspace, 'deno.json#workspace', true),
+      packageDefinition(),
+    ];
   }
-  return pm === 'npm' ? npmPatterns(value) : value;
+  return [packageDefinition()];
 };
 
 /** Traverse only ordinary directories that can fall under a positive pattern. */
 export const workspaceDirectories = (
   ctx: RepoContext,
   fs: FileSystem,
-  patterns: readonly string[],
+  definition: WorkspaceDefinition,
+  pm: PM,
 ): readonly RelPath[] => {
+  const { patterns } = definition;
+  const skipVendor =
+    pm === 'deno' && createConfigParser(codecFor, ctx)(CONFIG_FILES.denoJson).vendor === true;
   const positive = patterns
     .filter((pattern) => !pattern.startsWith('!'))
     .map((pattern) => path.posix.normalize(pattern).replace(/\/+$/u, ''));
   const negative = patterns
     .filter((pattern) => pattern.startsWith('!'))
     .map((pattern) => path.posix.normalize(pattern.slice(1)).replace(/\/+$/u, ''));
+  const compile = (pattern: string, excluded = false) =>
+    pm === 'deno' || pm === 'aube'
+      ? compileAdditionalWorkspaceGlob(pattern, pm, excluded)
+      : compileWorkspaceGlob(pattern);
+  const included = positive.map((pattern) => compile(pattern));
+  const excluded = negative.map((pattern) => compile(pattern, true));
+  const denoOrdered =
+    pm === 'deno'
+      ? patterns
+          .filter((pattern) => /[*?]/u.test(pattern) || pattern.startsWith('!'))
+          .map((pattern) => ({
+            excluded: pattern.startsWith('!'),
+            glob: compile(path.posix.normalize(pattern.replace(/^!/u, '')).replace(/\/+$/u, '')),
+          }))
+      : [];
+  const denoLiteral =
+    pm === 'deno'
+      ? positive.filter((pattern) => !/[*?]/u.test(pattern)).map((pattern) => compile(pattern))
+      : [];
+  if (
+    definition.denoManifests &&
+    denoOrdered.findLast(({ glob }) => glob.matches('.'))?.excluded === false
+  ) {
+    throw new ConfigError('deno.json#workspace: a Deno workspace cannot contain itself.');
+  }
   if (positive.length === 0 || positive.every((pattern) => pattern === '.')) return [];
   if (!fs.readDirectories)
     throw new UsageError(
       'Workspace discovery requires FileSystem.readDirectories; no host filesystem fallback is used.',
     );
-  const included = positive.map((pattern) => compileWorkspaceGlob(pattern));
-  const excluded = negative.map((pattern) => compileWorkspaceGlob(pattern));
   const result: RelPath[] = [];
   const pending = ['.'];
   while (pending.length > 0) {
@@ -102,13 +158,25 @@ export const workspaceDirectories = (
       }
       if (name === '.git' || name === 'node_modules') continue;
       const directory = asRelPath(current === '.' ? name : `${current}/${name}`);
+      const inVendor = skipVendor && (directory === 'vendor' || directory.startsWith('vendor/'));
       if (
-        excluded.some((pattern) => pattern.matches(directory) || pattern.matches(`${directory}/`))
+        inVendor &&
+        !denoLiteral.some((pattern) => pattern.matches(directory) || pattern.canDescend(directory))
       )
         continue;
-      if (included.some((pattern) => pattern.matches(directory))) result.push(directory);
+      const isExcluded = excluded.some(
+        (pattern) => pattern.matches(directory) || pattern.matches(`${directory}/`),
+      );
+      if (isExcluded && pm !== 'aube' && pm !== 'deno') continue;
+      const lastDenoMatch = denoOrdered.findLast(({ glob }) => glob.matches(directory));
+      const selected =
+        pm === 'deno'
+          ? denoLiteral.some((pattern) => pattern.matches(directory)) ||
+            (!inVendor && lastDenoMatch?.excluded === false)
+          : !isExcluded && included.some((pattern) => pattern.matches(directory));
+      if (selected) result.push(directory);
       // Fixed-depth declarations do not require opening member subdirectories.
-      if (included.some((pattern) => pattern.canDescend(directory))) {
+      if ((inVendor ? denoLiteral : included).some((pattern) => pattern.canDescend(directory))) {
         pending.push(directory);
       }
     }

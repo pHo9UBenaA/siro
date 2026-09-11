@@ -449,9 +449,11 @@ describe('native workspace discovery', () => {
     expect(() => check()).toThrow(ConfigError);
   });
 
-  it('requires explicit pnpm packages instead of guessing implicit defaults', () => {
+  it('treats omitted pnpm packages as root only', () => {
     put('pnpm-workspace.yaml', 'strictDepBuilds: true');
-    expect(() => check('pnpm')).toThrow(/explicit packages/u);
+    expect(check('pnpm').findings.some((finding) => finding.file?.includes('/package.json'))).toBe(
+      false,
+    );
   });
 
   it('does not treat the root itself as a child and permits no matching members', () => {
@@ -460,9 +462,10 @@ describe('native workspace discovery', () => {
   });
 
   it.each(['deno', 'aube'] satisfies PM[])(
-    'reports unsupported workspace discovery explicitly for %s',
+    'permits a root without member declarations for %s',
     (pm) => {
-      expect(() => check(pm)).toThrow(/not yet supported/u);
+      put('package.json', { private: true });
+      expect(() => check(pm)).not.toThrow();
     },
   );
 });

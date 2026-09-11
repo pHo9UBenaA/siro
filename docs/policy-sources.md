@@ -32,3 +32,12 @@ The source checks below were revisited on 2026-09-06. A tagged source establishe
 - **Publishing:** npm accepts `publishConfig.access: "private"` as an alias of `"restricted"`; siro preserves the spelling and accepts the alias for npm. The Bun provenance finding recommends publishing through npm; it does not assert that Bun emits attestations. Manifest fields consumed by siro must have valid types. Other manifest fields are preserved without whole-manifest validation.
 
 When changing a rule, verify the relevant configuration location, accepted values, defaults, bypasses, and failure behavior in primary sources. Keep the binding, behavior tests, and these interpretation notes consistent, then regenerate the rule reference. Fetch timestamps and passing tests alone do not verify upstream semantics.
+
+## Workspace declaration sources
+
+- [pnpm 10.17.1 configuration](https://github.com/pnpm/pnpm/blob/v10.17.1/config/config/src/index.ts): omitted packages resolves to the root.
+- [Deno 2.9.4 discovery](https://github.com/denoland/deno/blob/14eea3160ae5834476aa3b9d317b8d41d991b982/libs/config/workspace/discovery.rs) and [glob matching](https://github.com/denoland/deno/blob/14eea3160ae5834476aa3b9d317b8d41d991b982/libs/config/glob/mod.rs): declaration sources, manifest eligibility, ordering, and literal brackets.
+- [Aube discovery](https://github.com/jdx/aube/blob/afcf46f39c070b8549642cd4cc0b53b0db0287da/crates/aube-workspace/src/lib.rs) and [configuration selection](https://github.com/jdx/aube/blob/afcf46f39c070b8549642cd4cc0b53b0db0287da/crates/aube-manifest/src/workspace/config.rs): YAML precedence, empty defaults, candidate exclusions.
+
+These references establish a recorded baseline, not continuing upstream compatibility.
+[Workspace inspection](configuration.md#workspace-members) lists deliberate bounds and unsupported forms.

@@ -1,3 +1,4 @@
+import { collectWorkspaceMembers } from './workspace-contexts.ts';
 import { type AbsPath, isAbsPath, asRelPath } from '../shared/paths.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import { type PM, isPM } from '../domain/entities/pms.ts';
@@ -13,8 +14,7 @@ import { resolvePMs } from '../domain/services/resolve-pms.ts';
 import { parseConfig } from './config.ts';
 import { runLint } from './run-lint.ts';
 import { declaredPMVersion, isStableVersion } from '../domain/services/pm-versions.ts';
-import { nodeFileSystem, resolveIn } from '../adapters/node-file-system.ts';
-import { workspaceDirectories, workspacePatterns } from './workspaces.ts';
+import { nodeFileSystem } from '../adapters/node-file-system.ts';
 
 export interface LintOptions {
   readonly cwd: AbsPath;
@@ -22,7 +22,7 @@ export interface LintOptions {
   readonly pm?: PM;
   /** Exact stable version for `pm`; overrides config.pmVersions and packageManager. */
   readonly pmVersion?: string;
-  /** Also inspect declared workspace members' package.json publication settings. */
+  /** Also inspect declared workspace members' publication settings. */
   readonly workspaces?: boolean;
   readonly projectType?: ProjectType;
   /** Explicit configuration; the library never imports files from the target repository. */
@@ -75,30 +75,7 @@ export const prepareLint = (options: LintOptions) => {
   };
   const fs = options.fs ?? nodeFileSystem;
   const members = options.workspaces
-    ? pms.flatMap((pm) =>
-        workspaceDirectories(ctx, fs, workspacePatterns(ctx, pm)).flatMap((directory) => {
-          const root = resolveIn(ctx.root, directory);
-          const manifest = resolveIn(root, asRelPath('package.json'));
-          // Member inspection deliberately reads only its manifest, not a synthetic
-          // merge of root and child installation settings or executable configs.
-          const memberFs: FileSystem = {
-            exists: (file) => file === manifest && fs.exists(file),
-            readText: (file) => (file === manifest ? fs.readText(file) : undefined),
-          };
-          try {
-            const memberCtx = createRepoContext(
-              root,
-              memberFs,
-              options.projectType ?? config?.projectType,
-            );
-            return memberCtx.packageJson ? [{ directory, pm, ctx: memberCtx }] : [];
-          } catch (error) {
-            if (error instanceof ConfigError)
-              throw new ConfigError(`${directory}/${error.message}`);
-            throw error;
-          }
-        }),
-      )
+    ? collectWorkspaceMembers(ctx, fs, pms, options.projectType ?? config?.projectType)
     : [];
   return {
     ctx,

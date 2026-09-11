@@ -54,7 +54,7 @@ The CLI reads `siro.config.*` as executable code. Review repository configuratio
   version. See [checked settings and sources](docs/rules.md#checked-introduction-versions)
   for the npm, pnpm, Yarn, and Bun coverage.
 - **Workspace members.** `--workspaces` adds publication-metadata checks for declared npm,
-  pnpm, Yarn, and Bun members, including public packages under a private root.
+  pnpm, Yarn, Bun, Deno, and Aube members, including public packages under a private root.
   See [workspace inspection](docs/configuration.md#workspace-members) for scope and exclusions.
 - **Lint with severities.** `error` fails CI by default; `--severity warn` tightens the gate.
 - **Reporters.** `pretty` (default), `json` for CI, `github` for PR annotations; register your own.
