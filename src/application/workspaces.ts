@@ -11,6 +11,25 @@ import { asRelPath, isRelPath, type RelPath } from '../shared/paths.ts';
 import { resolveIn } from '../adapters/node-file-system.ts';
 import { isPlainRecord } from '../shared/records.ts';
 
+/** npm cancels an earlier exclusion when a later positive pattern matches it. */
+const npmPatterns = (patterns: readonly string[]): readonly string[] => {
+  const positive: string[] = [];
+  let negative: { pattern: string; glob: ReturnType<typeof compileWorkspaceGlob> }[] = [];
+  for (const raw of patterns) {
+    const excluded = raw.startsWith('!');
+    const pattern = (excluded ? raw.slice(1) : raw).replace(/^\.?\/+/u, '');
+    if (excluded) {
+      // npm compares declaration strings with default minimatch options,
+      // independently of the platform policy used to enumerate directories.
+      negative.push({ pattern, glob: compileWorkspaceGlob(pattern, {}) });
+    } else {
+      negative = negative.filter(({ glob }) => !glob.matches(pattern));
+      positive.push(pattern);
+    }
+  }
+  return [...positive, ...negative.map(({ pattern }) => `!${pattern}`)];
+};
+
 /** Read workspace declarations without executing any PM or child configuration. */
 export const workspacePatterns = (ctx: RepoContext, pm: PM): readonly string[] => {
   if (pm === 'deno' || pm === 'aube') {
@@ -45,7 +64,7 @@ export const workspacePatterns = (ctx: RepoContext, pm: PM): readonly string[] =
       );
     }
   }
-  return value;
+  return pm === 'npm' ? npmPatterns(value) : value;
 };
 
 /** Traverse only ordinary directories that can fall under a positive pattern. */

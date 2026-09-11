@@ -12,6 +12,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
+const posix = (value: string) => value.replaceAll('\\', '/');
+
 const repo = (options: Partial<LintOptions> = {}) =>
   lint({
     cwd: asAbsPath('/repo'),
@@ -35,7 +37,7 @@ const repo = (options: Partial<LintOptions> = {}) =>
         new Map<string, string[]>([
           ['/repo', ['packages', 'unrelated']],
           ['/repo/packages', ['public', 'internal', 'excluded']],
-        ]).get(dir) ?? [],
+        ]).get(posix(dir)) ?? [],
     },
     ...options,
   });
@@ -84,9 +86,9 @@ it('does not open unrelated subdirectories for a fixed-depth declaration', () =>
     fs: {
       ...fs,
       readDirectories: (directory) => {
-        visited.push(directory);
-        if (directory === '/repo') return ['packages', 'unrelated'];
-        if (directory === '/repo/packages') return ['a'];
+        visited.push(posix(directory));
+        if (posix(directory) === '/repo') return ['packages', 'unrelated'];
+        if (posix(directory) === '/repo/packages') return ['a'];
         throw new Error('Unexpected directory access');
       },
     },
@@ -135,8 +137,8 @@ it.each(['tools/**', 'tools/deep/member'])(
         ['/repo/tools/deep', ['member']],
         ['/repo/tools/deep/member', []],
       ]);
-      if (directory === '/repo/packages/a') throw failure;
-      return entries.get(directory) ?? [];
+      if (posix(directory) === '/repo/packages/a') throw failure;
+      return entries.get(posix(directory)) ?? [];
     };
     const options = { pm: 'npm' as const, workspaces: true, fs: { ...fs, readDirectories } };
     expect(
@@ -194,7 +196,7 @@ it.each(['packages/a*/child', 'packages/{alpha/child,other/**}'])(
       fs: {
         ...fs,
         readDirectories(directory) {
-          const names = directories.get(directory);
+          const names = directories.get(posix(directory));
           if (!names) throw new Error(`EACCES: unnecessary directory read ${directory}`);
           return names;
         },
@@ -243,7 +245,7 @@ it.each([
     workspaces: true,
     fs: {
       ...createMemFileSystem(files),
-      readDirectories: (directory) => [...(directories.get(directory) ?? [])],
+      readDirectories: (directory) => [...(directories.get(posix(directory)) ?? [])],
     },
   });
   expect(
@@ -316,6 +318,44 @@ describe('native workspace discovery', () => {
     ).toEqual(['packages/a/package.json']);
   });
 
+  it.each([
+    { patterns: ['packages/**', '!packages/b/**', 'packages/b/a'], expected: ['a', 'c'] },
+    { patterns: ['packages/**', 'packages/b/a', '!packages/b/**'], expected: [] },
+    { patterns: ['packages/**', '!packages/b/**', 'packages/a'], expected: [] },
+  ])('honors npm ordered exclusion cancellation: $patterns', ({ patterns, expected }) => {
+    put('package.json', { private: true, workspaces: [...patterns, '!packages/excluded/**'] });
+    put('packages/b/a/package.json', { name: 'reintroduced-a' });
+    put('packages/b/c/package.json', { name: 'reintroduced-c' });
+    expect(
+      check('npm')
+        .findings.filter(
+          (finding) => finding.ruleId === 'files-field' && finding.file?.startsWith('packages/b/'),
+        )
+        .map((finding) => finding.file),
+    ).toEqual(expected.map((name) => `packages/b/${name}/package.json`));
+  });
+
+  it('preserves exclusion priority for pnpm declarations', () => {
+    put('pnpm-workspace.yaml', {
+      packages: ['packages/**', '!packages/b/**', 'packages/b/a', '!packages/excluded/**'],
+    });
+    put('packages/b/a/package.json', { name: 'excluded' });
+    expect(check('pnpm').findings.some((finding) => finding.file?.startsWith('packages/b/'))).toBe(
+      false,
+    );
+  });
+
+  it('uses npm case-sensitive pattern comparison when cancelling exclusions', () => {
+    put('package.json', {
+      private: true,
+      workspaces: ['PACKAGES/**', '!PACKAGES/B/**', 'packages/b/a', '!packages/excluded/**'],
+    });
+    put('PACKAGES/B/a/package.json', { name: 'excluded' });
+    expect(
+      check('npm').findings.some((finding) => /^packages\/b\//iu.test(finding.file ?? '')),
+    ).toBe(false);
+  });
+
   it('supports the packages object and brace patterns', () => {
     put('package.json', { private: true, workspaces: { packages: ['packages/{a,deep/b}'] } });
     expect(check().findings.filter((finding) => finding.ruleId === 'files-field')).toHaveLength(2);
@@ -336,7 +376,11 @@ describe('native workspace discovery', () => {
   });
 
   it('does not recurse into directory symlinks', () => {
-    symlinkSync(path.join(root, 'unrelated'), path.join(root, 'packages', 'linked'), 'dir');
+    symlinkSync(
+      path.join(root, 'unrelated'),
+      path.join(root, 'packages', 'linked'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
     expect(check().findings.some((finding) => finding.file?.includes('linked'))).toBe(false);
   });
 

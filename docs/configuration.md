@@ -90,7 +90,12 @@ Run from the workspace root; siro does not search parent directories for it.
 - pnpm reads `pnpm-workspace.yaml#packages`. An existing workspace file must have
   an explicit array in this mode; implicit package-discovery defaults are not inferred.
 - Relative directory patterns use minimatch, including `*`, `**`,
-  and braces. Leading `!` excludes matching directory subtrees. Patterns use `/`;
+  and braces. Leading `!` excludes matching directory subtrees. For npm, a later
+  positive pattern matching an earlier exclusion cancels that exclusion entirely:
+  `['packages/**', '!packages/b/**', 'packages/b/a']` includes both `packages/b/a`
+  and other members under `packages/b`. This cancellation compares declaration
+  strings case-sensitively using npm's default minimatch options. For the other supported managers,
+  exclusions retain priority regardless of order. Patterns use `/`;
   absolute paths, parent traversal, and backslash patterns are rejected.
   Matching is case-insensitive on macOS and Windows, including literal segments
   and exclusions, and case-sensitive elsewhere. This platform policy also applies
