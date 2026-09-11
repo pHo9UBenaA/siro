@@ -4,6 +4,8 @@
 
 ### Features
 
+- Allow custom checks to return a nonempty `violations` group. Report unsupported settings separately per file and Aube lifecycle controls separately per missing file. JSON schema 2 is unchanged; exhaustive `CheckStatus` consumers must handle the new variant.
+
 - Add `unsupported-settings` to report configured settings introduced after a declared or explicit stable PM version. Cover 15 setting/file pairs across npm, pnpm, Yarn, and Bun, with a generated table of release sources.
 - Resolve each manager's target from `package.json#packageManager`, `config.pmVersions`, or the higher-priority `--pm-version` / API `pmVersion` option (which requires `--pm` / `pm`). Expose the resolved target as `RuleContext.pmVersion` for custom rules.
 - Preserve name detection when a declaration has no exact stable version. Reject ranges, tags, partial versions, and prereleases in explicit targets; accept build metadata such as Corepack hashes.

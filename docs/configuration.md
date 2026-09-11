@@ -243,7 +243,7 @@ const approval = defineRule({
 });
 ```
 
-A check returns `ok`, `na`, or one violation, optionally with automatic operations
+A check returns `ok`, `na`, one violation, or a nonempty group of violations, optionally with automatic operations
 or manual steps. The engine validates untyped results before reporting them.
 The binding receives a `RuleContext`: `pmVersion` is the resolved stable version of
 that binding's manager, or `undefined`; `readConfig(file)` reads additional inputs
@@ -301,3 +301,20 @@ Custom checks use `RuleContext` and `getByPath`; custom reporters consume `LintR
 ## Invalid and unsupported data
 
 Malformed types in the `package.json` fields consumed by siro are configuration errors; they are not replaced with defaults. A Deno project using only `deno.jsonc` fails explicitly because the current parser supports strict `deno.json` only. Error exit code `2` means evaluation did not complete.
+
+### Multiple findings from one check
+
+Return `{ state: 'violations', violations: [first, ...rest] }` for independent
+problems. Every entry is a `ViolationStatus` with `state: 'violation'` and its own
+message, optional file, severity, expected/actual values, and remediation. A missing
+file falls back to the binding file. Empty, sparse, nested or malformed groups fail
+with a configuration error before a report is produced. Existing single-result
+checks remain valid; consumers switching exhaustively on `CheckStatus.state` must
+also handle `violations`.
+
+The engine expands groups into ordinary findings; JSON schema 2 and reporter fields
+are unchanged. Multiple findings may share a rule ID. `unsupported-settings` groups
+related keys within each file and preserves separate workspace member paths. Aube's
+lifecycle rule reports missing sandboxing and approval controls separately, each
+with only that file's proposal. Other rules can retain one finding when their
+settings describe a single problem or alternative protections.

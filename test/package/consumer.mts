@@ -1,5 +1,6 @@
 import {
   asAbsPath,
+  asRelPath,
   defineConfig,
   defineRule,
   jsonReporter,
@@ -164,3 +165,45 @@ check(
   oldTarget.findings.find((finding) => finding.ruleId === 'minimum-release-age')?.remediation
     ?.kind === 'manual',
 );
+
+const multiConfig = defineConfig({
+  customRules: [
+    defineRule({
+      id: 'consumer-multiple',
+      title: 'Multiple',
+      description: 'Independent file results',
+      severity: 'warn',
+      bindings: {
+        npm: {
+          check: () => ({
+            state: 'violations',
+            violations: [
+              { state: 'violation', message: 'First file', file: asRelPath('.npmrc') },
+              { state: 'violation', message: 'Second file', file: asRelPath('package.json') },
+            ],
+          }),
+        },
+      },
+    }),
+  ],
+});
+for (const reporter of ['json', 'pretty', 'github'] as const) {
+  let output = '';
+  await lintCommand(
+    {
+      cwd: asAbsPath('/virtual'),
+      pm: 'npm',
+      config: multiConfig,
+      fs: { exists: () => false, readText: () => undefined },
+      reporter,
+    },
+    {
+      stdout(text) {
+        output += text;
+      },
+      stderr() {},
+    },
+  );
+  check(output.includes('First file') && output.includes('Second file'));
+  check(output.includes('.npmrc') && output.includes('package.json'));
+}

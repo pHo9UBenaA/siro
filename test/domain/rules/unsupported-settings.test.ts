@@ -43,11 +43,12 @@ it('reports every affected key across files, without suggesting an automatic rem
       'package.json': '{"publishConfig":{"provenance":true}}',
     }),
   });
-  const finding = result.findings.find((item) => item.ruleId === 'unsupported-settings');
-  expect(finding?.message).toContain('.npmrc#provenance');
-  expect(finding?.message).toContain('package.json#publishConfig.provenance');
-  expect(finding?.message).toContain('.npmrc#min-release-age');
-  expect(finding?.remediation?.kind).toBe('manual');
+  const findings = result.findings.filter((item) => item.ruleId === 'unsupported-settings');
+  expect(findings.map((item) => item.file)).toEqual(['.npmrc', 'package.json']);
+  expect(findings[0]?.message).toContain('provenance');
+  expect(findings[0]?.message).toContain('min-release-age');
+  expect(findings[1]?.message).toContain('publishConfig.provenance');
+  expect(findings.every((item) => item.remediation?.kind === 'manual')).toBe(true);
 });
 
 it.each([false, 0, null, ''])('checks presence even when the configured value is %s', (value) => {
@@ -89,4 +90,41 @@ it.each(['deno', 'aube'] satisfies PM[])('does not invent introduction history f
     }),
   });
   expect(result.findings.some((finding) => finding.ruleId === 'unsupported-settings')).toBe(false);
+});
+
+it('keeps every unsupported key with its own root or workspace file', () => {
+  const files: Record<string, string> = {
+    '/repo/.npmrc': 'provenance=true\nmin-release-age=3',
+    '/repo/package.json':
+      '{"private":true,"workspaces":["child"],"publishConfig":{"provenance":true}}',
+    '/repo/child/package.json': '{"name":"child","publishConfig":{"provenance":true}}',
+  };
+  const result = lint({
+    cwd: asAbsPath('/repo'),
+    pm: 'npm',
+    pmVersion: '9.4.2',
+    workspaces: true,
+    config: { rules: { 'unsupported-settings': 'warn' } },
+    fs: {
+      exists: (file) => Object.hasOwn(files, file.replaceAll('\\', '/')),
+      readText: (file) => files[file.replaceAll('\\', '/')],
+      readDirectories: (directory) =>
+        directory.replaceAll('\\', '/') === '/repo' ? ['child'] : [],
+    },
+  });
+  const findings = result.findings.filter((item) => item.ruleId === 'unsupported-settings');
+  expect(findings.map((item) => item.file)).toEqual([
+    '.npmrc',
+    'package.json',
+    'child/package.json',
+  ]);
+  expect(findings[0]?.message).toContain('min-release-age');
+  expect(findings[0]?.message).not.toContain('package.json#');
+  expect(findings.slice(1).every((item) => item.message.includes('publishConfig.provenance'))).toBe(
+    true,
+  );
+  expect(findings.every((item) => item.severity === 'warn')).toBe(true);
+  expect(result.summary.warn).toBe(
+    result.findings.filter((item) => item.severity === 'warn').length,
+  );
 });

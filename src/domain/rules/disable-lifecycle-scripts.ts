@@ -1,7 +1,7 @@
 import { guardRemediationAvailability } from '../services/remediation-availability.ts';
 import { proposeChanges } from './remediation.ts';
 import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
-import type { RuleBinding, CheckStatus, VersionNote } from '../entities/rule.ts';
+import type { RuleBinding, CheckStatus, VersionNote, ViolationStatus } from '../entities/rule.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
@@ -87,37 +87,35 @@ const aubeBinding: RuleBinding = {
     const jail = getByPath(config, ['jailBuilds']);
     const strict = getByPath(npmConfig, ['strictDepBuilds']);
     if (jail === true && strict === true) return { state: 'ok' };
-    const jailRemedy = proposeChanges(config, [
-      { file: aubeWorkspace, keyPath: ['jailBuilds'], op: 'setKey', value: true },
-    ]);
-    const strictRemedy = proposeChanges(npmConfig, [
-      { file: npmrc, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
-    ]);
-    return {
-      state: 'violation',
-      file: jail !== true ? aubeWorkspace.path : npmrc.path,
-      actual: jail !== true ? jail : strict,
-      expected: true,
-      message:
-        'Set `jailBuilds: true` in aube-workspace.yaml and `strictDepBuilds=true` in .npmrc to sandbox approved builds and reject unreviewed lifecycle scripts.',
-      remediation:
-        jailRemedy.kind === 'automatic' && strictRemedy.kind === 'automatic'
-          ? {
-              kind: 'automatic',
-              operations: [...jailRemedy.operations, ...strictRemedy.operations],
-            }
-          : {
-              kind: 'manual',
-              steps: [
-                ...(jailRemedy.kind === 'manual'
-                  ? jailRemedy.steps
-                  : (['Set `jailBuilds: true` in aube-workspace.yaml.'] as const)),
-                ...(strictRemedy.kind === 'manual'
-                  ? strictRemedy.steps
-                  : (['Set `strictDepBuilds=true` in .npmrc.'] as const)),
-              ],
-            },
-    };
+    const violations: ViolationStatus[] = [];
+    if (jail !== true)
+      violations.push({
+        state: 'violation',
+        file: aubeWorkspace.path,
+        actual: jail,
+        expected: true,
+        message: 'Set `jailBuilds: true` in aube-workspace.yaml to sandbox approved builds.',
+        remediation: proposeChanges(config, [
+          { file: aubeWorkspace, keyPath: ['jailBuilds'], op: 'setKey', value: true },
+        ]),
+      });
+    if (strict !== true)
+      violations.push({
+        state: 'violation',
+        file: npmrc.path,
+        actual: strict,
+        expected: true,
+        message: 'Set `strictDepBuilds=true` in .npmrc to reject unreviewed lifecycle scripts.',
+        remediation: proposeChanges(npmConfig, [
+          { file: npmrc, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
+        ]),
+      });
+    const [first, ...rest] = violations;
+    return !first
+      ? { state: 'ok' }
+      : rest.length === 0
+        ? first
+        : { state: 'violations', violations: [first, ...rest] };
   },
   docs: 'https://aube.jdx.dev/security.html',
   file: aubeWorkspace,

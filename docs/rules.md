@@ -301,7 +301,7 @@ Upstream: <https://pnpm.io/settings#trustpolicy>
 
 ## `unsupported-settings` — error
 
-Report configured settings whose recorded introduction version is newer than the declared or explicit stable PM target. Groups all unsupported settings per manager; the finding points to the first affected file. Only the coverage table below is checked. Unknown targets and unlisted settings are not evaluated for availability.
+Report configured settings whose recorded introduction version is newer than the declared or explicit stable PM target. Reports each affected file separately, grouping its unsupported keys. Workspace findings retain their member directory. Only the coverage table below is checked. Unknown targets and unlisted settings are not evaluated for availability.
 Upstream: <https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error>
 
 | PM | Primary input | Default severity | Version notes | Reference |

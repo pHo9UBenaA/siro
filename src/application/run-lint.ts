@@ -61,27 +61,30 @@ export const runLint = (opts: RunLintOptions): LintResult => {
         readConfig: parseConfig,
         pmVersion: opts.pmVersions?.[pm],
       };
-      const status: unknown = binding.check(ruleContext, parseConfig(binding.file));
-      if (!isCheckStatusShape(status)) {
+      const response: unknown = binding.check(ruleContext, parseConfig(binding.file));
+      if (!isCheckStatusShape(response)) {
         throw new ConfigError(`Rule '${rule.id}' returned an invalid check result.`);
       }
-      if (status.state !== 'violation') {
-        continue;
-      }
+      const statuses = response.state === 'violations' ? response.violations : [response];
+      for (const status of statuses) {
+        if (status.state !== 'violation') {
+          continue;
+        }
 
-      const finding: Finding = {
-        ruleId: rule.id,
-        pm,
-        severity: decideSeverity(status, binding, rule, severityOverrides?.get(rule.id)),
-        message: renderVersionNoteMessage(status.message, binding.versionNote),
-        file: status.file ?? binding.file?.path,
-        docs: binding.docs ?? rule.docs,
-        actual: status.actual,
-        expected: status.expected,
-        remediation: guardRemediationAvailability(pm, ruleContext.pmVersion, status.remediation),
-      };
-      findings.push(finding);
-      summary[finding.severity] += 1;
+        const finding: Finding = {
+          ruleId: rule.id,
+          pm,
+          severity: decideSeverity(status, binding, rule, severityOverrides?.get(rule.id)),
+          message: renderVersionNoteMessage(status.message, binding.versionNote),
+          file: status.file ?? binding.file?.path,
+          docs: binding.docs ?? rule.docs,
+          actual: status.actual,
+          expected: status.expected,
+          remediation: guardRemediationAvailability(pm, ruleContext.pmVersion, status.remediation),
+        };
+        findings.push(finding);
+        summary[finding.severity] += 1;
+      }
     }
   }
 
