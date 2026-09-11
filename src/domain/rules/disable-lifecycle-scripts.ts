@@ -1,4 +1,7 @@
-import { guardRemediationAvailability } from '../services/remediation-availability.ts';
+import {
+  guardRemediationAvailability,
+  settingSupportedByTarget,
+} from '../services/remediation-availability.ts';
 import { proposeChanges } from './remediation.ts';
 import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
 import type { RuleBinding, CheckStatus, VersionNote, ViolationStatus } from '../entities/rule.ts';
@@ -18,7 +21,38 @@ const pnpmBinding: RuleBinding = {
   check(ctx, config): CheckStatus {
     if (getByPath(config, ['ignoreScripts']) === true) return { state: 'ok' };
     const bypass = getByPath(config, ['dangerouslyAllowAllBuilds']);
+    const strict = getByPath(config, ['strictDepBuilds']);
     if (bypass === true) {
+      const bypassTarget = {
+        file: pnpmWorkspace,
+        keyPath: ['dangerouslyAllowAllBuilds'] as const,
+      };
+      if (settingSupportedByTarget('pnpm', ctx.pmVersion, bypassTarget) === false) {
+        const proposal = {
+          kind: 'manual' as const,
+          steps: [
+            'Remove `dangerouslyAllowAllBuilds: true` before upgrading to pnpm 10.9.0 or newer; the declared target ignores it, but a later version would activate the bypass.',
+            ...(strict === true
+              ? []
+              : [
+                  'Set `strictDepBuilds: true` in pnpm-workspace.yaml to enable lifecycle-script gating for the declared target.',
+                ]),
+          ] as [string, ...string[]],
+        };
+        return {
+          state: 'violation',
+          actual: bypass,
+          expected: false,
+          message:
+            'The declared target ignores this future-version bypass. Removing the ignored bypass alone does not provide protection against lifecycle scripts, and leaving it configured would disable gating after an upgrade.',
+          remediation:
+            strict === true
+              ? proposal
+              : guardRemediationAvailability('pnpm', ctx.pmVersion, proposal, [
+                  { file: pnpmWorkspace, keyPath: ['strictDepBuilds'] },
+                ]),
+        };
+      }
       const proposal = {
         kind: 'manual' as const,
         steps: [
@@ -53,7 +87,6 @@ const pnpmBinding: RuleBinding = {
         state: 'violation',
       };
     }
-    const strict = getByPath(config, ['strictDepBuilds']);
     if (strict === true) {
       return { state: 'ok' };
     }

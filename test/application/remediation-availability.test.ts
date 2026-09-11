@@ -84,6 +84,51 @@ it('does not claim an unsupported bypass removal restores script gating', () => 
   expect(finding?.message).toContain('alone does not provide protection');
 });
 
+it('repairs pnpm 10.8 lifecycle gating without requiring the bypass version', () => {
+  const result = lint({
+    cwd: asAbsPath('/repo'),
+    pm: 'pnpm',
+    pmVersion: '10.8.0',
+    fs: createMemFileSystem({ 'pnpm-workspace.yaml': 'dangerouslyAllowAllBuilds: true' }),
+  });
+  const finding = result.findings.find((item) => item.ruleId === 'disable-lifecycle-scripts');
+  const steps = finding?.remediation?.kind === 'manual' ? finding.remediation.steps : [];
+  expect(steps.join('\n')).toContain('strictDepBuilds');
+  expect(steps.join('\n')).toContain('Remove `dangerouslyAllowAllBuilds: true`');
+  expect(steps.join('\n')).not.toContain('>=10.9.0');
+});
+
+it('removes a future pnpm bypass without re-proposing existing gating', () => {
+  const result = lint({
+    cwd: asAbsPath('/repo'),
+    pm: 'pnpm',
+    pmVersion: '10.8.0',
+    fs: createMemFileSystem({
+      'pnpm-workspace.yaml': 'strictDepBuilds: true\ndangerouslyAllowAllBuilds: true',
+    }),
+  });
+  const finding = result.findings.find((item) => item.ruleId === 'disable-lifecycle-scripts');
+  const steps = finding?.remediation?.kind === 'manual' ? finding.remediation.steps : [];
+  expect(steps).toHaveLength(1);
+  expect(steps[0]).toContain('Remove `dangerouslyAllowAllBuilds: true`');
+  expect(finding?.message).toContain('after an upgrade');
+});
+
+it('treats the pnpm bypass as active from 10.9 onward', () => {
+  const result = lint({
+    cwd: asAbsPath('/repo'),
+    pm: 'pnpm',
+    pmVersion: '10.9.0',
+    fs: createMemFileSystem({
+      'pnpm-workspace.yaml': 'strictDepBuilds: true\ndangerouslyAllowAllBuilds: true',
+    }),
+  });
+  const finding = result.findings.find((item) => item.ruleId === 'disable-lifecycle-scripts');
+  expect(finding?.remediation?.steps).toHaveLength(1);
+  expect(finding?.remediation?.steps?.[0]).toContain('strictDepBuilds: true` alone has no effect');
+  expect(finding?.message).toContain('bypasses strictDepBuilds');
+});
+
 it('guards a custom automatic proposal atomically without changing severity', () => {
   const result = lint({
     cwd: asAbsPath('/repo'),
