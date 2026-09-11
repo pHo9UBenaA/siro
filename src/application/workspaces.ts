@@ -84,8 +84,8 @@ export const workspaceDirectories = (
     throw new UsageError(
       'Workspace discovery requires FileSystem.readDirectories; no host filesystem fallback is used.',
     );
-  const included = positive.map(compileWorkspaceGlob);
-  const excluded = negative.map(compileWorkspaceGlob);
+  const included = positive.map((pattern) => compileWorkspaceGlob(pattern));
+  const excluded = negative.map((pattern) => compileWorkspaceGlob(pattern));
   const result: RelPath[] = [];
   const pending = ['.'];
   while (pending.length > 0) {
