@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { anchorWorkspacePrefix } from './workspace-prefix.ts';
 import { compileWorkspaceGlob } from './workspace-globs.ts';
 import { compileAdditionalWorkspaceGlob } from './workspace-dialects.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
@@ -112,20 +113,106 @@ export const workspaceDirectories = (
   const negative = patterns
     .filter((pattern) => pattern.startsWith('!'))
     .map((pattern) => path.posix.normalize(pattern.slice(1)).replace(/\/+$/u, ''));
-  const compile = (pattern: string, excluded = false) =>
-    pm === 'deno' || pm === 'aube'
-      ? compileAdditionalWorkspaceGlob(pattern, pm, excluded)
-      : compileWorkspaceGlob(pattern);
+  const directoryCache = new Map<string, readonly string[]>();
+  const readDirectories = (directory: string): readonly string[] => {
+    const cached = directoryCache.get(directory);
+    if (cached) return cached;
+    if (!fs.readDirectories)
+      throw new UsageError(
+        'Workspace discovery requires FileSystem.readDirectories; no host filesystem fallback is used.',
+      );
+    const names = fs.readDirectories(resolveIn(ctx.root, asRelPath(directory)));
+    if (!Array.isArray(names))
+      throw new ConfigError('FileSystem.readDirectories must return an array of directory names.');
+    for (const name of Array.from(names)) {
+      if (!isRelPath(name) || name === '.' || name === '..' || /[\\/]/u.test(name)) {
+        throw new ConfigError(
+          'FileSystem.readDirectories returned an invalid child directory name.',
+        );
+      }
+    }
+    const result = [...new Set(names)].sort();
+    directoryCache.set(directory, result);
+    return result;
+  };
+  const resolveChild = (parent: string, name: string): string | undefined => {
+    if (name === '.git' || name === 'node_modules') return undefined;
+    const names = readDirectories(parent);
+    const resolved = names.includes(name)
+      ? name
+      : fs.resolveDirectory?.(resolveIn(ctx.root, asRelPath(parent)), name);
+    if (resolved !== undefined && !names.includes(resolved)) {
+      throw new ConfigError(
+        'FileSystem.resolveDirectory must return an enumerated ordinary child directory name.',
+      );
+    }
+    return resolved === '.git' || resolved === 'node_modules' ? undefined : resolved;
+  };
+  const compile = (pattern: string, excluded = false) => {
+    if (pm !== 'deno' && pm !== 'aube') return compileWorkspaceGlob(pattern);
+    const glob = compileAdditionalWorkspaceGlob(pattern, pm, excluded);
+    return pm === 'deno' && !excluded ? anchorWorkspacePrefix(pattern, glob, resolveChild) : glob;
+  };
   const included = positive.map((pattern) => compile(pattern));
   const excluded = negative.map((pattern) => compile(pattern, true));
+  const declaredBase = (pattern: string) => {
+    const parts = pattern.split('/');
+    const wildcard = parts.findIndex((part) => /[*?]/u.test(part));
+    return parts.slice(0, wildcard < 0 ? parts.length : wildcard).join('/') || '.';
+  };
+  const relatedBases = (left: string, right: string) =>
+    left === '.' ||
+    right === '.' ||
+    left === right ||
+    left.startsWith(`${right}/`) ||
+    right.startsWith(`${left}/`);
+  const denoPositive =
+    pm === 'deno'
+      ? positive
+          .filter((pattern) => /[*?]/u.test(pattern))
+          .map((pattern) => ({
+            base: declaredBase(pattern),
+            scope: anchorWorkspacePrefix(
+              declaredBase(pattern),
+              {
+                matches: () => true,
+                canDescend: () => true,
+              },
+              resolveChild,
+            ),
+          }))
+      : [];
   const denoOrdered =
     pm === 'deno'
       ? patterns
           .filter((pattern) => /[*?]/u.test(pattern) || pattern.startsWith('!'))
-          .map((pattern) => ({
-            excluded: pattern.startsWith('!'),
-            glob: compile(path.posix.normalize(pattern.replace(/^!/u, '')).replace(/\/+$/u, '')),
-          }))
+          .map((raw) => {
+            const isExcluded = raw.startsWith('!');
+            const pattern = path.posix.normalize(raw.replace(/^!/u, '')).replace(/\/+$/u, '');
+            const glob = compile(pattern, isExcluded);
+            if (!isExcluded) return { excluded: false, glob };
+            return {
+              excluded: true,
+              glob: {
+                ...glob,
+                matches(directory: string) {
+                  // Negative paths are lexical, not filesystem lookups. Negative globs
+                  // only apply to related declared positive bases, then match without case.
+                  if (!/[*?]/u.test(pattern)) return directory === pattern;
+                  if (!glob.matches(directory)) return false;
+                  const applicable = denoPositive
+                    .filter((item) => item.scope.matches(directory))
+                    .map((item) => relatedBases(item.base, declaredBase(pattern)));
+                  if (applicable.some(Boolean) && applicable.some((value) => !value)) {
+                    throw new ConfigError(
+                      'Deno workspace exclusion has ambiguous overlapping bases; use consistent prefix spelling or separate non-overlapping patterns.',
+                    );
+                  }
+                  return applicable.some(Boolean);
+                },
+              },
+            };
+          })
       : [];
   const denoLiteral =
     pm === 'deno'
@@ -147,15 +234,7 @@ export const workspaceDirectories = (
   while (pending.length > 0) {
     const current = pending.pop();
     if (current === undefined) break;
-    const names = fs.readDirectories(resolveIn(ctx.root, asRelPath(current)));
-    if (!Array.isArray(names))
-      throw new ConfigError('FileSystem.readDirectories must return an array of directory names.');
-    for (const name of [...new Set(names)].sort()) {
-      if (!isRelPath(name) || name === '.' || name === '..' || /[\\/]/u.test(name)) {
-        throw new ConfigError(
-          'FileSystem.readDirectories returned an invalid child directory name.',
-        );
-      }
+    for (const name of readDirectories(current)) {
       if (name === '.git' || name === 'node_modules') continue;
       const directory = asRelPath(current === '.' ? name : `${current}/${name}`);
       const inVendor = skipVendor && (directory === 'vendor' || directory.startsWith('vendor/'));
@@ -164,10 +243,10 @@ export const workspaceDirectories = (
         !denoLiteral.some((pattern) => pattern.matches(directory) || pattern.canDescend(directory))
       )
         continue;
-      const isExcluded = excluded.some(
-        (pattern) => pattern.matches(directory) || pattern.matches(`${directory}/`),
-      );
-      if (isExcluded && pm !== 'aube' && pm !== 'deno') continue;
+      const isExcluded =
+        pm !== 'deno' &&
+        excluded.some((pattern) => pattern.matches(directory) || pattern.matches(`${directory}/`));
+      if (isExcluded && pm !== 'aube') continue;
       const lastDenoMatch = denoOrdered.findLast(({ glob }) => glob.matches(directory));
       const selected =
         pm === 'deno'

@@ -1,13 +1,18 @@
-import { asAbsPath, lint, type PM } from '../../src/index.ts';
+import { asAbsPath, lint, type PM, type FileSystem } from '../../src/index.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
-const evaluate = (pm: PM, files: Record<string, string>) =>
+const evaluate = (
+  pm: PM,
+  files: Record<string, string>,
+  resolveDirectory?: FileSystem['resolveDirectory'],
+) =>
   lint({
     cwd: asAbsPath('/repo'),
     pm,
     workspaces: true,
     fs: {
       ...createMemFileSystem(files),
+      ...(resolveDirectory ? { resolveDirectory } : {}),
       readDirectories(dir) {
         const prefix = dir.replaceAll('\\', '/').replace(/^\/repo\/?/u, '');
         const children = Object.keys(files)
@@ -141,3 +146,88 @@ it('Deno vendor mode excludes globbed copies but keeps explicit members', () => 
     childFiles('deno', { ...files, 'deno.json': '{"vendor":true,"workspace":["vendor/a"]}' }),
   ).toEqual(['vendor/a/deno.json']);
 });
+
+it('resolves Deno fixed prefixes exactly in a case-sensitive virtual filesystem', () => {
+  expect(
+    childFiles('deno', {
+      'deno.json': '{"workspace":["Packages/*"]}',
+      'packages/a/deno.json': '{"name":"@test/a","exports":"./mod.ts"}',
+    }),
+  ).toEqual([]);
+});
+it('does not merge distinct Deno fixed prefixes while matching wildcard suffixes without case', () => {
+  expect(
+    childFiles('deno', {
+      'deno.json': '{"workspace":["Packages/*/CHILD"]}',
+      'Packages/a/child/deno.json': '{"name":"@test/a","exports":"./mod.ts"}',
+      'packages/b/child/deno.json': '{"name":"@test/b","exports":"./mod.ts"}',
+    }),
+  ).toEqual(['Packages/a/child/deno.json']);
+});
+
+const aliasedDenoFiles = {
+  'deno.json': '{"workspace":["PACKAGES/*"]}',
+  'packages/a/deno.json': '{"name":"@test/a","exports":"./mod.ts"}',
+};
+it('uses the injected resolver for native aliases, retaining actual finding paths', () => {
+  const result = evaluate('deno', aliasedDenoFiles, (_parent, name) =>
+    name === 'PACKAGES' ? 'packages' : undefined,
+  );
+  expect(
+    result.findings.filter((item) => item.ruleId === 'files-field').map((item) => item.file),
+  ).toContain('packages/a/deno.json');
+});
+it('compares negative literal paths exactly without native alias resolution', () => {
+  const files = { ...aliasedDenoFiles, 'deno.json': '{"workspace":["packages/*","!PACKAGES/a"]}' };
+  expect(childFiles('deno', files)).toEqual(['packages/a/deno.json']);
+  expect(
+    evaluate('deno', files, (_parent, name) =>
+      name === 'PACKAGES' ? 'packages' : undefined,
+    ).findings.some((item) => item.file === 'packages/a/deno.json'),
+  ).toBe(true);
+});
+it.each([
+  [['**', '!.', '!Packages/*'], []],
+  [['packages/*', '!PACKAGES/*'], ['packages/a/deno.json']],
+  [['**', '!.', '!Packages/*', 'packages/a*'], ['packages/a/deno.json']],
+] as const)(
+  'applies negative globs by declared base without native lookup: %j',
+  (workspace, expected) => {
+    expect(
+      childFiles('deno', { ...aliasedDenoFiles, 'deno.json': JSON.stringify({ workspace }) }),
+    ).toEqual(expected);
+  },
+);
+it.each(['EACCES', 'ETIMEDOUT'])('propagates directory resolution %s', (code) => {
+  const error = Object.assign(new Error(code), { code });
+  expect(() =>
+    evaluate('deno', aliasedDenoFiles, () => {
+      throw error;
+    }),
+  ).toThrow(error);
+});
+it('rejects a resolver result outside the enumerated ordinary children', () => {
+  expect(() => evaluate('deno', aliasedDenoFiles, () => '../outside')).toThrow(
+    'enumerated ordinary child',
+  );
+});
+it('resolves every component of a literal Deno member', () => {
+  const files = { ...aliasedDenoFiles, 'deno.json': '{"workspace":["PACKAGES/A"]}' };
+  expect(
+    evaluate('deno', files, (_parent, name) => name.toLowerCase()).findings.some(
+      (item) => item.file === 'packages/a/deno.json',
+    ),
+  ).toBe(true);
+});
+
+it.each(['packages/*', 'packages/*/z'])(
+  'rejects overlapping Deno base %s with conflicting exclusion applicability',
+  (pattern) => {
+    expect(() =>
+      childFiles('deno', {
+        ...aliasedDenoFiles,
+        'deno.json': JSON.stringify({ workspace: ['**', '!.', pattern, '!PACKAGES/*'] }),
+      }),
+    ).toThrow('ambiguous overlapping bases');
+  },
+);

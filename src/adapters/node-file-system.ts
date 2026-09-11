@@ -1,6 +1,6 @@
 import { ConfigError, UsageError } from '../shared/errors.ts';
 import { type AbsPath, type RelPath, asRelPath, asAbsPath } from '../shared/paths.ts';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, lstatSync } from 'node:fs';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import { isNodeError } from './node-errors.ts';
 import path from 'node:path';
@@ -19,6 +19,30 @@ export const nodeFileSystem: FileSystem = {
     return readdirSync(directory, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name);
+  },
+  resolveDirectory(parent, name) {
+    let target;
+    try {
+      target = lstatSync(path.join(parent, name), { bigint: true });
+    } catch (error) {
+      if (isNodeError(error) && error.code === 'ENOENT') return undefined;
+      throw error;
+    }
+    if (!target.isDirectory()) return undefined;
+    const names = readdirSync(parent, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+    if (names.includes(name)) return name;
+    // Resolve native aliases without guessing case policy from the OS or using
+    // realpath's platform-dependent spelling. Directory identities must be unique.
+    const matches = names.filter((candidate) => {
+      const entry = lstatSync(path.join(parent, candidate), { bigint: true });
+      return entry.isDirectory() && entry.dev === target.dev && entry.ino === target.ino;
+    });
+    if (target.ino === 0n || matches.length !== 1) {
+      throw new ConfigError(`${parent}: cannot identify the resolved workspace directory ${name}.`);
+    }
+    return matches[0];
   },
   exists(filePath) {
     try {

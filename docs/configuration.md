@@ -113,11 +113,18 @@ Run from the workspace root; siro does not search parent directories for it.
 - Deno combines `deno.json#workspace` with package.json workspaces. The former
   discovers Deno or npm manifests; the latter requires package.json. Deno uses
   `*`, `?`, and whole-component `**`, treats brackets/braces literally, and uses
-  case-insensitive glob matching, including literal prefixes. Explicit paths follow
-  the platform case policy. Unlike native Deno prefix lookup, `Packages/*` can
-  therefore select `packages/` on a case-sensitive volume. Per-volume prefix
-  lookup is not reproduced by the injected filesystem contract.
+  case-insensitive matching after the first wildcard. The fixed prefix before that
+  wildcard (or the entire explicit path) uses native filesystem name resolution.
+  Thus `Packages/*` selects `packages/` only if the actual filesystem resolves
+  those names to the same directory. Findings retain the enumerated spelling.
+  Negative literal paths compare exactly. Negative globs match without case only
+  when their declared base and a positive base whose resolved scope contains the
+  candidate are related
+  as ancestor/descendant paths (compared exactly); they perform no native lookup.
   Later matching glob entries win; explicit positive paths remain included.
+  If overlapping positive bases disagree on a matching exclusion's applicability,
+  inspection fails explicitly. Use consistent prefix spelling or non-overlapping
+  patterns. Deno's full base-order/visited-directory collector is not reproduced.
   Glob expansion excludes the root `vendor` directory when `vendor: true`.
   Selected JSONC-only members and nested workspace declarations fail explicitly.
   An existing explicitly named directory without the required manifest is an error.
@@ -155,6 +162,12 @@ Injected `FileSystem` implementations can supply `readDirectories(path)`, return
 ordinary child directory names without symlinks and propagating access errors. It is
 required only when member discovery needs directory enumeration. A missing implementation
 fails explicitly; siro never falls back to host filesystem reads for a virtual repository.
+The optional `resolveDirectory(parent, name)` returns the enumerated ordinary child
+name according to that filesystem's lookup semantics, or `undefined` for absence.
+Other errors must propagate. Deno uses it for literal prefixes; without it, injected
+filesystems use exact child names, regardless of the host OS. Returned names must
+belong to `readDirectories(parent)`. Native lookup excludes directory symlinks and
+fails explicitly if an alias cannot be identified uniquely from filesystem identities.
 Native manifest-file symlinks follow the existing file-read behavior.
 `FileSystem.exists` checks for a regular file, following file symlinks. Only a missing
 path (`ENOENT`) returns false; non-file entries and other filesystem errors must throw.
