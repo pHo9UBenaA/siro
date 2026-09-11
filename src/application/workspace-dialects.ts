@@ -1,6 +1,34 @@
 import { compileWorkspaceGlob } from './workspace-globs.ts';
 import { ConfigError } from '../shared/errors.ts';
 
+const matchesCrossPathGlob = (pattern: string, value: string): boolean => {
+  const patternCharacters = [...pattern];
+  const valueCharacters = [...value];
+  let patternIndex = 0;
+  let valueIndex = 0;
+  let starIndex = -1;
+  let retryIndex = 0;
+  while (valueIndex < valueCharacters.length) {
+    const character = patternCharacters[patternIndex];
+    if (character === '?' || character === valueCharacters[valueIndex]) {
+      patternIndex += 1;
+      valueIndex += 1;
+    } else if (character === '*') {
+      starIndex = patternIndex;
+      retryIndex = valueIndex;
+      patternIndex += 1;
+    } else if (starIndex >= 0) {
+      patternIndex = starIndex + 1;
+      retryIndex += 1;
+      valueIndex = retryIndex;
+    } else {
+      return false;
+    }
+  }
+  while (patternCharacters[patternIndex] === '*') patternIndex += 1;
+  return patternIndex === patternCharacters.length;
+};
+
 /** The bounded glob subset verified against the recorded Deno/Aube sources. */
 export const compileAdditionalWorkspaceGlob = (
   pattern: string,
@@ -57,14 +85,9 @@ export const compileAdditionalWorkspaceGlob = (
   }
   if (pm !== 'aube' || !excluded) return matcher;
   // Aube filters candidates (not traversal), and ordinary negative * crosses /.
-  const source = pattern
-    .replace(/[.+^$|\\]/gu, '\\$&')
-    .replaceAll('?', '.')
-    .replaceAll('*', '.*');
-  const regex = new RegExp(`^${source}$`, 'u');
   const self = pattern.endsWith('/**') ? pattern.slice(0, -3) : undefined;
   return {
     ...matcher,
-    matches: (directory: string) => regex.test(directory) || directory === self,
+    matches: (directory: string) => matchesCrossPathGlob(pattern, directory) || directory === self,
   };
 };

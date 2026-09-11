@@ -107,6 +107,17 @@ it('Aube negative stars span path separators without pruning other candidates', 
     }),
   ).toEqual(['p/b/package.json']);
 });
+it('evaluates overlapping Aube negative stars without regex backtracking', () => {
+  const candidate = 'a'.repeat(36);
+  expect(
+    childFiles('aube', {
+      'aube-workspace.yaml': JSON.stringify({
+        packages: ['**', `!${'a*'.repeat(12)}b`],
+      }),
+      [`${candidate}/package.json`]: '{"name":"candidate"}',
+    }),
+  ).toEqual([`${candidate}/package.json`]);
+});
 it('treats Deno bracket directory names literally and honors pattern reinclusion', () => {
   expect(
     childFiles('deno', {

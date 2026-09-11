@@ -22,6 +22,9 @@
 
 ### Fixes
 
+- Keep nested workspace candidates visible when only their ancestor candidate is excluded. Prune traversal only when a trailing `/**` exclusion covers the subtree.
+- Reject workspace patterns whose brace-expanded alternatives contain parent traversal or exceed 8,192 entries before compilation, and avoid backtracking in Aube exclusion matching.
+- Match npm's odd/even interpretation of repeated leading `!` characters.
 - Honor npm's ordered cancellation of workspace exclusions so re-included members are inspected.
 - Report rejected workspace glob patterns as configuration errors (exit 2) instead of internal crashes (exit 70).
 - Reject non-file manifest inputs before reading, preventing root and workspace FIFO manifests from blocking the scan.

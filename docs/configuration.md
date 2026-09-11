@@ -42,8 +42,8 @@ Arguments after `--` are rejected.
 The `unsupported-settings` rule reports settings introduced after the target version.
 For example, `packageManager: "npm@11.9.0"` with `min-release-age=3` produces an error:
 the setting requires npm 11.10.0. Setting presence is checked even for `false`, zero,
-or null values. All affected keys for one manager are grouped in one finding, with
-the first affected file as its location and source links in the manual steps.
+or null values. Affected keys are grouped within each configuration file, producing
+one finding per file with its own location and source links in the manual steps.
 
 Targets are resolved separately for each selected manager, in this priority order:
 
@@ -90,13 +90,18 @@ Run from the workspace root; siro does not search parent directories for it.
 - pnpm reads `pnpm-workspace.yaml#packages`. Omitted or empty `packages` adds no
   members, matching the root-only default verified in pnpm 10.17.1.
 - For npm, pnpm, Yarn, and Bun, relative directory patterns use minimatch, including `*`, `**`,
-  and braces. Leading `!` excludes matching directory subtrees. For npm, a later
+  and braces. Leading `!` excludes matching workspace candidates; a trailing `/**`
+  exclusion also prunes the covered subtree. Other exclusions do not hide nested
+  candidates that match a positive pattern. For npm, a later
   positive pattern matching earlier exclusions cancels all of them entirely, including duplicates:
   `['packages/**', '!packages/b/**', 'packages/b/a']` includes both `packages/b/a`
   and other members under `packages/b`. This cancellation compares declaration
-  strings case-sensitively using npm's default minimatch options. For the other supported managers,
+  strings case-sensitively using npm's default minimatch options. npm also treats an odd
+  number of leading `!` characters as negative and an even number as positive. For the other supported managers,
   exclusions retain priority regardless of order. Patterns use `/`;
   absolute paths, parent traversal, and backslash patterns are rejected.
+  Brace expansion is limited to 8,192 expanded alternatives before
+  compilation; larger expansions fail as configuration errors.
   Matching is case-insensitive on macOS and Windows, including literal segments
   and exclusions, and case-sensitive elsewhere. This platform policy also applies
   to injected filesystems and does not detect individual volume settings.
@@ -135,7 +140,7 @@ Run from the workspace root; siro does not search parent directories for it.
 These are bounded inspection semantics, not a replacement for a PM resolver or
 publication dry run. Deno/Aube behavior is based on Deno 2.9.4 and Aube commit
 `afcf46f39c070b8549642cd4cc0b53b0db0287da`; historical versions can differ. siro
-retains root confinement, skipped directory symlinks, fail-loud reads, and deduplicated
+retains relative-path validation, skipped directory symlinks, fail-loud reads, and deduplicated
 members. It does not reproduce every upstream glob form or duplicate-member error.
 See [policy sources](policy-sources.md) for the versioned implementation references.
 

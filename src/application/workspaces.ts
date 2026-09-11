@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { anchorWorkspacePrefix } from './workspace-prefix.ts';
-import { compileWorkspaceGlob } from './workspace-globs.ts';
+import { compileWorkspaceGlob, expandWorkspaceGlob } from './workspace-globs.ts';
 import { compileAdditionalWorkspaceGlob } from './workspace-dialects.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
 import type { PM } from '../domain/entities/pms.ts';
@@ -14,13 +14,18 @@ import { resolveIn } from '../adapters/node-file-system.ts';
 import { isPlainRecord } from '../shared/records.ts';
 
 /** npm cancels an earlier exclusion when a later positive pattern matches it. */
+const splitNpmPattern = (raw: string) => {
+  const prefix = /^!+/u.exec(raw)?.[0] ?? '';
+  return { excluded: prefix.length % 2 === 1, pattern: raw.slice(prefix.length) };
+};
+
 const npmPatterns = (patterns: readonly string[]): readonly string[] => {
   const positive: string[] = [];
   let negative: { pattern: string; glob: ReturnType<typeof compileWorkspaceGlob> }[] = [];
   for (const raw of patterns) {
-    const excluded = raw.startsWith('!');
-    const pattern = (excluded ? raw.slice(1) : raw).replace(/^\.?\/+/u, '');
-    if (excluded) {
+    const parsed = splitNpmPattern(raw);
+    const pattern = parsed.pattern.replace(/^\.?\/+/u, '');
+    if (parsed.excluded) {
       // npm compares declaration strings with default minimatch options,
       // independently of the platform policy used to enumerate directories.
       negative.push({ pattern, glob: compileWorkspaceGlob(pattern, {}) });
@@ -46,8 +51,20 @@ export const workspaceDefinitions = (ctx: RepoContext, pm: PM): readonly Workspa
       throw new ConfigError(`${source}: expected an array of directory patterns.`);
     }
     for (const pattern of value) {
-      const positive = pattern.startsWith('!') ? pattern.slice(1) : pattern;
-      if (!isRelPath(positive) || /[\\:]/u.test(positive) || positive.startsWith('!')) {
+      const positive =
+        pm === 'npm'
+          ? splitNpmPattern(pattern).pattern
+          : pattern.startsWith('!')
+            ? pattern.slice(1)
+            : pattern;
+      const alternatives =
+        pm === 'deno' || pm === 'aube' ? [positive] : expandWorkspaceGlob(positive);
+      if (
+        alternatives.some(
+          (alternative) =>
+            !isRelPath(alternative) || /[\\:]/u.test(alternative) || alternative.startsWith('!'),
+        )
+      ) {
         throw new ConfigError(
           `${source}: use relative directory patterns without parent traversal: ${JSON.stringify(pattern)}.`,
         );
@@ -154,7 +171,18 @@ export const workspaceDirectories = (
     return pm === 'deno' && !excluded ? anchorWorkspacePrefix(pattern, glob, resolveChild) : glob;
   };
   const included = positive.map((pattern) => compile(pattern));
-  const excluded = negative.map((pattern) => compile(pattern, true));
+  const excluded = negative.map((pattern) => {
+    const glob = compile(pattern, true);
+    const subtree =
+      pm === 'deno' || pm === 'aube'
+        ? undefined
+        : pattern === '**'
+          ? { matches: () => true }
+          : pattern.endsWith('/**')
+            ? compile(pattern.slice(0, -3), true)
+            : undefined;
+    return { glob, subtree };
+  });
   const declaredBase = (pattern: string) => {
     const parts = pattern.split('/');
     const wildcard = parts.findIndex((part) => /[*?]/u.test(part));
@@ -245,8 +273,8 @@ export const workspaceDirectories = (
         continue;
       const isExcluded =
         pm !== 'deno' &&
-        excluded.some((pattern) => pattern.matches(directory) || pattern.matches(`${directory}/`));
-      if (isExcluded && pm !== 'aube') continue;
+        excluded.some(({ glob }) => glob.matches(directory) || glob.matches(`${directory}/`));
+      if (excluded.some(({ subtree }) => subtree?.matches(directory))) continue;
       const lastDenoMatch = denoOrdered.findLast(({ glob }) => glob.matches(directory));
       const selected =
         pm === 'deno'

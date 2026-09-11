@@ -97,6 +97,35 @@ it('does not open unrelated subdirectories for a fixed-depth declaration', () =>
   expect(visited).toEqual(['/repo', '/repo/packages']);
 });
 
+it('does not open a subtree excluded by a trailing globstar', () => {
+  const fs = createMemFileSystem({
+    'package.json': '{"private":true,"workspaces":["tree/**","!tree/excluded/**"]}',
+    'tree/included/package.json': '{"name":"included"}',
+    'tree/excluded/nested/package.json': '{"name":"excluded"}',
+  });
+  const directories = new Map([
+    ['/repo', ['tree']],
+    ['/repo/tree', ['excluded', 'included']],
+    ['/repo/tree/included', []],
+  ]);
+  expect(
+    repo({
+      pm: 'npm',
+      workspaces: true,
+      fs: {
+        ...fs,
+        readDirectories(directory) {
+          const names = directories.get(posix(directory));
+          if (!names) throw new Error(`EACCES: unnecessary directory read ${directory}`);
+          return names;
+        },
+      },
+    })
+      .findings.filter((finding) => finding.ruleId === 'files-field')
+      .map((finding) => finding.file),
+  ).toEqual(['tree/included/package.json']);
+});
+
 it('propagates directory read errors and rejects invalid adapter output', () => {
   const fs = createMemFileSystem({
     'package.json': '{"packageManager":"npm@11.10.0","workspaces":["*"]}',
@@ -170,6 +199,27 @@ it.each(['npm', 'pnpm'] satisfies PM[])(
           ...createMemFileSystem({
             'package.json': JSON.stringify({ private: true, workspaces: [pattern] }),
             'pnpm-workspace.yaml': JSON.stringify({ packages: [pattern] }),
+          }),
+          readDirectories: () => [],
+        },
+      }),
+    ).toThrow(ConfigError);
+  },
+);
+
+it.each(['{a,b}'.repeat(16), '{1..100000}'])(
+  'rejects excessive brace expansion before compiling the workspace pattern: %s',
+  (pattern) => {
+    expect(() =>
+      repo({
+        pm: 'npm',
+        workspaces: true,
+        fs: {
+          ...createMemFileSystem({
+            'package.json': JSON.stringify({
+              private: true,
+              workspaces: [pattern],
+            }),
           }),
           readDirectories: () => [],
         },
@@ -274,6 +324,25 @@ it('accepts brace lists beyond the former custom expansion limit', () => {
   expect(readDirectories).toHaveBeenCalledOnce();
 });
 
+it('accepts nested brace patterns within the compiled alternative limit', () => {
+  const readDirectories = vi.fn<NonNullable<FileSystem['readDirectories']>>(() => []);
+  expect(() =>
+    repo({
+      pm: 'npm',
+      workspaces: true,
+      fs: {
+        ...createMemFileSystem({
+          'package.json': JSON.stringify({
+            workspaces: ['{a,{b,c}}'.repeat(8)],
+          }),
+        }),
+        readDirectories,
+      },
+    }),
+  ).not.toThrow();
+  expect(readDirectories).toHaveBeenCalledOnce();
+});
+
 describe('native workspace discovery', () => {
   let root: string;
   const put = (file: string, value: unknown) => {
@@ -349,6 +418,24 @@ describe('native workspace discovery', () => {
     );
   });
 
+  it.each(['npm', 'pnpm'] satisfies PM[])(
+    'excludes a %s workspace candidate without pruning its nested members',
+    (pm) => {
+      put('package.json', {
+        private: true,
+        workspaces: ['tree/**', '!tree/a'],
+      });
+      if (pm === 'pnpm') put('pnpm-workspace.yaml', { packages: ['tree/**', '!tree/a'] });
+      put('tree/a/package.json', { name: 'excluded-parent' });
+      put('tree/a/nested/package.json', { name: 'included-child' });
+      expect(
+        check(pm)
+          .findings.filter((finding) => finding.ruleId === 'files-field')
+          .map((finding) => finding.file),
+      ).toEqual(['tree/a/nested/package.json']);
+    },
+  );
+
   it('uses npm case-sensitive pattern comparison when cancelling exclusions', () => {
     put('package.json', {
       private: true,
@@ -358,6 +445,23 @@ describe('native workspace discovery', () => {
     expect(
       check('npm').findings.some((finding) => /^packages\/b\//iu.test(finding.file ?? '')),
     ).toBe(false);
+  });
+
+  it.each([
+    { patterns: ['!!tree/*'], expected: ['tree/a/package.json'] },
+    {
+      patterns: ['tree/**', '!!!tree/a'],
+      expected: ['tree/a/nested/package.json'],
+    },
+  ])('uses npm repeated-bang parity for $patterns', ({ patterns, expected }) => {
+    put('package.json', { private: true, workspaces: patterns });
+    put('tree/a/package.json', { name: 'candidate' });
+    put('tree/a/nested/package.json', { name: 'nested' });
+    expect(
+      check('npm')
+        .findings.filter((finding) => finding.ruleId === 'files-field')
+        .map((finding) => finding.file),
+    ).toEqual(expected);
   });
 
   it('supports the packages object and brace patterns', () => {
@@ -438,6 +542,7 @@ describe('native workspace discovery', () => {
       ['../outside'],
       ['/tmp/*'],
       ['packages/../../*'],
+      ['packages/{a,../outside}'],
       ['C:\\*'],
       ['!'],
       'packages/*',
