@@ -88,6 +88,17 @@ const isNonDisabledDenoDuration = (value: unknown): boolean => {
   return value.age == null || isActiveDenoAge(value.age);
 };
 
+const denoAgeUsesFallback = (value: unknown): boolean => {
+  if (value === undefined || value === null) return true;
+  if (!isPlainRecord(value)) return false;
+  if (Object.keys(value).some((key) => key !== 'age' && key !== 'exclude')) return false;
+  if (value.exclude !== undefined && !isStringList(value.exclude)) return false;
+  return value.age == null;
+};
+
+const isPositiveDenoNpmrcDays = (value: unknown): boolean =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+
 const baseRule = requireConfigKey({
   bindings: {
     aube: {
@@ -213,10 +224,34 @@ const denoBinding: RuleBinding = {
   docs: 'https://docs.deno.com/runtime/reference/deno_json/',
   versionNote: {
     defaultSafeSince: 'deno 2.9.0 (1440 minutes)',
-    note: 'object age may be omitted',
+    note: 'object age may be omitted; project .npmrc fallback available since deno 2.8.1',
   },
-  check(_ctx, config) {
+  check(ctx, config) {
     const actual = getByPath(config, ['minimumDependencyAge']);
+    if (denoAgeUsesFallback(actual)) {
+      const npmrcConfig = ctx.readConfig(npmrc);
+      const npmrcAge = getByPath(npmrcConfig, ['min-release-age']);
+      if (isPositiveDenoNpmrcDays(npmrcAge)) return { state: 'ok' };
+      // Deno treats zero as an explicit opt-out. Do not let an omitted object
+      // age fall through to the version-dependent default in that case.
+      if (npmrcAge === 0) {
+        return {
+          state: 'violation',
+          actual: npmrcAge,
+          expected: RECOMMENDED_RELEASE_AGE_DAYS,
+          file: npmrc.path,
+          message: `Set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days in .npmrc, or set minimumDependencyAge in deno.json.`,
+          remediation: proposeChanges(npmrcConfig, [
+            {
+              file: npmrc,
+              op: 'setKey',
+              keyPath: ['min-release-age'],
+              value: RECOMMENDED_RELEASE_AGE_DAYS,
+            },
+          ]),
+        };
+      }
+    }
     if (isNonDisabledDenoDuration(actual)) return { state: 'ok' };
     const objectAge = isPlainRecord(actual);
     const invalidObject =

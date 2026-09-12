@@ -182,7 +182,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#set-minimal-
 | `pnpm` | `pnpm-workspace.yaml` | warn | (available since pnpm 10.16.0; default safe since pnpm 11.0.0 (1440 minutes)) | [official docs](https://pnpm.io/settings#minimumreleaseage) |
 | `yarn` | `.yarnrc.yml` | warn | (available since yarn 4.10.0; default safe since yarn 4.15.0 (1440 minutes)) | [official docs](https://yarnpkg.com/configuration/yarnrc#npmMinimalAgeGate) |
 | `bun` | `bunfig.toml` | warn | (available since bun 1.3.0) | [official docs](https://bun.com/docs/runtime/bunfig#install-minimumreleaseage) |
-| `deno` | `deno.json` | warn | (default safe since deno 2.9.0 (1440 minutes); object age may be omitted) | [official docs](https://docs.deno.com/runtime/reference/deno_json/) |
+| `deno` | `deno.json` | warn | (default safe since deno 2.9.0 (1440 minutes); object age may be omitted; project .npmrc fallback available since deno 2.8.1) | [official docs](https://docs.deno.com/runtime/reference/deno_json/) |
 | `aube` | `aube-workspace.yaml` | warn | — | [official docs](https://aube.sh/settings/) |
 
 ## `named-registries` — info
@@ -310,10 +310,11 @@ Upstream: <https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupporte
 | `pnpm` | Repository | error | — | [upstream guide](https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error) |
 | `yarn` | Repository | error | — | [upstream guide](https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error) |
 | `bun` | Repository | error | — | [upstream guide](https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error) |
+| `deno` | Repository | error | — | [upstream guide](https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error) |
 
 ### Checked introduction versions
 
-Only the following setting/file pairs are checked. This is not whole-schema validation or a guarantee of support in all later versions. Deno and Aube have no availability entries in this release.
+Only the following setting/file pairs are checked. This is not whole-schema validation or a guarantee of support in all later versions. Deno coverage is limited to `.npmrc#min-release-age`; Aube has no availability entries in this release.
 
 | PM | File | Setting | First stable version in this file | Source |
 | --- | --- | --- | --- | --- |
@@ -332,6 +333,7 @@ Only the following setting/file pairs are checked. This is not whole-schema vali
 | yarn | `.yarnrc.yml` | `npmPreapprovedPackages` | 4.10.0 | [release history](https://github.com/yarnpkg/berry/releases/tag/@yarnpkg/cli/4.10.0) |
 | bun | `bunfig.toml` | `install.minimumReleaseAge` | 1.3.0 | [release history](https://bun.com/blog/bun-v1.3#minimum-release-age) |
 | bun | `bunfig.toml` | `install.security.scanner` | 1.2.21 | [release history](https://bun.com/blog/bun-v1.2.21#security-scanner-api-for-bun-install) |
+| deno | `.npmrc` | `min-release-age` | 2.8.1 | [release history](https://github.com/denoland/deno/releases/tag/v2.8.1) |
 
 For pnpm, strictDepBuilds was introduced in 10.3.0; the checked YAML location requires 10.6.0. A prerelease or range in packageManager leaves availability unknown. See [target versions](configuration.md#target-pm-versions) for explicit versions and precedence.
 

@@ -123,4 +123,11 @@ export const settingAvailability = [
     since: '1.2.21',
     source: 'https://bun.com/blog/bun-v1.2.21#security-scanner-api-for-bun-install',
   },
+  {
+    pm: 'deno',
+    file: npmrc,
+    keyPath: ['min-release-age'],
+    since: '2.8.1',
+    source: 'https://github.com/denoland/deno/releases/tag/v2.8.1',
+  },
 ] as const satisfies readonly SettingAvailability[];

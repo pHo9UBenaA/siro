@@ -174,6 +174,31 @@ it('checks declared, configured, and CLI PM targets through the executable', () 
   }
 });
 
+it("honors Deno's project .npmrc release age through the executable", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-deno-npmrc-'));
+  try {
+    writeFileSync(path.join(dir, 'package.json'), '{"private":true}');
+    writeFileSync(path.join(dir, '.npmrc'), 'min-release-age=3\n');
+
+    const supported = spawnBin(['lint', dir, '--pm', 'deno', '--pm-version', '2.8.1', '--json']);
+    expect(supported.status).not.toBe(EXIT_USAGE);
+    expect(supported.status).not.toBe(EXIT_CRASH);
+    expect(
+      parseJsonOutput(supported.stdout, supported.stderr).findings.filter((finding) =>
+        ['minimum-release-age', 'unsupported-settings'].includes(finding.ruleId),
+      ),
+    ).toStrictEqual([]);
+
+    const unsupported = spawnBin(['lint', dir, '--pm', 'deno', '--pm-version', '2.8.0', '--json']);
+    expect(unsupported.status).toBe(EXIT_FAILURE);
+    expect(parseJsonOutput(unsupported.stdout, unsupported.stderr).findings).toContainEqual(
+      expect.objectContaining({ ruleId: 'unsupported-settings' }),
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 it.each(['application', 'package'])(
   'lints npm private publish access under %s policy through the executable',
   (projectType) => {

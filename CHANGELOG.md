@@ -7,7 +7,7 @@
 - Allow custom checks to return a nonempty `violations` group. Report unsupported settings separately per file and Aube lifecycle controls separately per missing file. JSON schema 2 is unchanged; exhaustive `CheckStatus` consumers must handle the new variant.
 - Add optional `FileSystem.resolveDirectory` for Deno's native positive literal-prefix lookup, retaining minimatch and existing dependencies. Virtual filesystems without this port resolve exact child names. Negative patterns retain lexical applicability; conflicting overlapping bases fail explicitly.
 
-- Add `unsupported-settings` to report configured settings introduced after a declared or explicit stable PM version. Cover 15 setting/file pairs across npm, pnpm, Yarn, and Bun, with a generated table of release sources.
+- Add `unsupported-settings` to report configured settings introduced after a declared or explicit stable PM version. Cover 16 setting/file pairs across npm, pnpm, Yarn, Bun, and Deno, with a generated table of release sources.
 - Resolve each manager's target from `package.json#packageManager`, `config.pmVersions`, or the higher-priority `--pm-version` / API `pmVersion` option (which requires `--pm` / `pm`). Expose the resolved target as `RuleContext.pmVersion` for custom rules.
 - Preserve name detection when a declaration has no exact stable version. Reject ranges, tags, partial versions, and prereleases in explicit targets; accept build metadata such as Corepack hashes.
 - Add opt-in `--workspaces` / API `workspaces: true` to inspect declared npm, pnpm, Yarn, Bun, Deno, and Aube members' publication metadata. Reuse existing rules, identify member file paths, and aggregate severity counts and CLI exit status.
@@ -16,13 +16,14 @@
 ### Behavior and scope
 
 - The new rule defaults to `error`; projects with previously accepted unsupported settings may now exit 1. Existing security checks, severity overrides, and JSON schema 2 remain in effect.
-- Availability checks cover recorded introductions in the listed files, not whole PM schemas, runtime discovery, removals, backports, version-specific value syntax, or effective defaults. Deno and Aube retain their existing checks without introduction coverage in this release.
+- Availability checks cover recorded introductions in the listed files, not whole PM schemas, runtime discovery, removals, backports, version-specific value syntax, or effective defaults. Deno coverage is limited to `.npmrc#min-release-age`; Aube retains its existing checks without introduction coverage in this release.
 - Distinguish pnpm's strict-build setting introduction (10.3.0) from general workspace YAML support (10.6.0), and correct Bun's scanner introduction note to 1.2.21.
 - Keep shared installation and lockfile checks at the root. Members infer their own publication status and use the root's PM target; child executable configs are not loaded. Workspace discovery requires explicit declarations, excludes directory symlinks, and does not cover effective configuration inheritance. Deno/Aube use bounded, source-derived declaration semantics.
 
 ### Fixes
 
 - Update `smol-toml` to 1.8.0 and Vitest to 4.1.11 to include upstream security fixes.
+- Honor Deno 2.8.1+'s project `.npmrc#min-release-age` fallback when `deno.json` does not provide an age, while retaining `deno.json` precedence and reporting an explicit zero opt-out.
 - For pnpm targets before 10.9.0, recommend supported `strictDepBuilds` gating without claiming that the ignored future-version bypass requires pnpm 10.9.0.
 - Keep nested workspace candidates visible when only their ancestor candidate is excluded. Prune traversal only when a trailing `/**` exclusion covers the subtree.
 - Reject workspace patterns whose brace-expanded alternatives contain parent traversal or exceed 8,192 entries before compilation, and avoid backtracking in Aube exclusion matching.

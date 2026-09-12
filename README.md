@@ -52,7 +52,7 @@ The CLI reads `siro.config.*` as executable code. Review repository configuratio
   See [docs/json-output.md](docs/json-output.md).
 - **Target PM versions.** Flag settings introduced after the declared or explicit stable PM
   version. See [checked settings and sources](docs/rules.md#checked-introduction-versions)
-  for the npm, pnpm, Yarn, and Bun coverage.
+  for the npm, pnpm, Yarn, Bun, and Deno coverage.
 - **Workspace members.** `--workspaces` adds publication-metadata checks for declared npm,
   pnpm, Yarn, Bun, Deno, and Aube members, including public packages under a private root.
   See [workspace inspection](docs/configuration.md#workspace-members) for scope and exclusions.

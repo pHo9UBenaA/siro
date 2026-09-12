@@ -68,8 +68,9 @@ with exit 2. Such `packageManager` declarations leave the version unknown, prese
 name detection and existing checks. No PM binary is executed or downloaded.
 
 Only the [listed setting/file pairs](rules.md#checked-introduction-versions) have
-availability checks in this release (npm, pnpm, Yarn, Bun). Deno and Aube still have
-their existing security checks but no verified introduction table. Unlisted keys,
+availability checks in this release (npm, pnpm, Yarn, Bun, and Deno's
+`.npmrc#min-release-age`). Aube still has its existing security checks but no verified
+introduction table. Unlisted keys,
 unknown targets, later removals, backports, and version-specific value syntax are
 outside this check. A passing result does not establish that every setting works.
 The target is the user's declaration, not proof of what CI actually runs.

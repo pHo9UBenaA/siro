@@ -37,6 +37,18 @@ it('reports a configured npm security setting that predates its introduction', (
   expect(result.findings.some((finding) => finding.ruleId === 'minimum-release-age')).toBe(false);
 });
 
+it('reports Deno .npmrc release age before Deno 2.8.1 support', () => {
+  expect(unsupported(evaluate('deno@2.8.0', { pm: 'deno' }))).toMatchObject([
+    {
+      pm: 'deno',
+      file: '.npmrc',
+      severity: 'error',
+      message: expect.stringContaining('min-release-age'),
+    },
+  ]);
+  expect(unsupported(evaluate('deno@2.8.1', { pm: 'deno' }))).toStrictEqual([]);
+});
+
 it.each(['11.10.0', '11.10.0+sha512.abcdef', '12.0.0'])(
   'accepts the introduction boundary and newer stable npm versions: %s',
   (version) => {

@@ -54,5 +54,6 @@ export const unsupportedSettings = defineRule({
     pnpm: bindingFor('pnpm'),
     yarn: bindingFor('yarn'),
     bun: bindingFor('bun'),
+    deno: bindingFor('deno'),
   },
 });
