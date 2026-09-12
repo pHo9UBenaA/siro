@@ -188,7 +188,7 @@ export const workspaceDirectories = (
   const excluded = negative.map((pattern) => {
     const glob = compile(pattern, true);
     const subtree =
-      pm === 'deno' || pm === 'aube'
+      pm === 'deno' || pm === 'aube' || pm === 'bun'
         ? undefined
         : pattern === '**'
           ? { matches: () => true }
@@ -256,6 +256,44 @@ export const workspaceDirectories = (
             };
           })
       : [];
+  const bunPatterns =
+    pm === 'bun'
+      ? patterns.map((raw) => {
+          const isExcluded = raw.startsWith('!');
+          const pattern = path.posix.normalize(raw.replace(/^!/u, '')).replace(/\/+$/u, '');
+          // Bun inserts literal members directly. Only its syntax markers enter
+          // the ordered glob pass, where later negatives filter each positive.
+          const usesGlob =
+            isExcluded ||
+            pattern.includes('*') ||
+            pattern.includes('?') ||
+            pattern.includes('{') ||
+            pattern.includes('[');
+          const glob = compileWorkspaceGlob(pattern, {
+            ...defaultWorkspaceGlobOptions,
+            noext: true,
+          });
+          const subtree =
+            isExcluded && pattern.endsWith('/**')
+              ? compileWorkspaceGlob(pattern.slice(0, -3), {
+                  ...defaultWorkspaceGlobOptions,
+                  noext: true,
+                })
+              : undefined;
+          return {
+            isExcluded,
+            usesGlob,
+            glob,
+            matches: (directory: string) =>
+              glob.matches(directory) ||
+              glob.matches(`${directory}/`) ||
+              subtree?.matches(directory) === true,
+          };
+        })
+      : [];
+  const bunOrdered = bunPatterns.filter(({ usesGlob }) => usesGlob);
+  const bunLiterals = bunPatterns.filter(({ isExcluded, usesGlob }) => !isExcluded && !usesGlob);
+  const bunTraversal = bunPatterns.filter(({ isExcluded }) => !isExcluded).map(({ glob }) => glob);
   const denoLiteral =
     pm === 'deno'
       ? positive.filter((pattern) => !/[*?]/u.test(pattern)).map((pattern) => compile(pattern))
@@ -279,6 +317,12 @@ export const workspaceDirectories = (
     for (const name of readDirectories(current)) {
       if (name === '.git' || name === 'node_modules') continue;
       const directory = asRelPath(current === '.' ? name : `${current}/${name}`);
+      if (
+        pm === 'bun' &&
+        name === 'CMakeFiles' &&
+        !bunLiterals.some(({ glob }) => glob.matches(directory) || glob.canDescend(directory))
+      )
+        continue;
       const inVendor = skipVendor && (directory === 'vendor' || directory.startsWith('vendor/'));
       if (
         inVendor &&
@@ -290,14 +334,19 @@ export const workspaceDirectories = (
         excluded.some(({ glob }) => glob.matches(directory) || glob.matches(`${directory}/`));
       if (excluded.some(({ subtree }) => subtree?.matches(directory))) continue;
       const lastDenoMatch = denoOrdered.findLast(({ glob }) => glob.matches(directory));
+      const lastBunMatch = bunOrdered.findLast(({ matches }) => matches(directory));
       const selected =
         pm === 'deno'
           ? denoLiteral.some((pattern) => pattern.matches(directory)) ||
             (!inVendor && lastDenoMatch?.excluded === false)
-          : !isExcluded && included.some((pattern) => pattern.matches(directory));
+          : pm === 'bun'
+            ? bunLiterals.some(({ glob }) => glob.matches(directory)) ||
+              lastBunMatch?.isExcluded === false
+            : !isExcluded && included.some((pattern) => pattern.matches(directory));
       if (selected) result.push(directory);
       // Fixed-depth declarations do not require opening member subdirectories.
-      if ((inVendor ? denoLiteral : included).some((pattern) => pattern.canDescend(directory))) {
+      const traversalPatterns = pm === 'bun' ? bunTraversal : inVendor ? denoLiteral : included;
+      if (traversalPatterns.some((pattern) => pattern.canDescend(directory))) {
         pending.push(directory);
       }
     }

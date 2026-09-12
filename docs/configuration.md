@@ -89,8 +89,10 @@ Run from the workspace root; siro does not search parent directories for it.
   `{ packages: [...] }` form is also accepted.
 - pnpm reads `pnpm-workspace.yaml#packages`. Omitted or empty `packages` adds no
   members, matching the root-only default verified in pnpm 10.17.1.
-- For npm, pnpm, Yarn, and Bun, relative directory patterns use minimatch, including `*`, `**`,
-  and braces. Leading `!` excludes matching workspace candidates; a trailing `/**`
+- For npm, pnpm, and Yarn, relative directory patterns use minimatch, including `*`, `**`,
+  and braces. Bun uses the same bounded matcher with extglob disabled: leading `!`, `*`,
+  `?`, `{`, and `[` select its glob path, while extglob parentheses remain literal.
+  Leading `!` excludes matching workspace candidates; a trailing `/**`
   exclusion also prunes the covered subtree. Other exclusions do not hide nested
   candidates that match a positive pattern. For npm, a later
   positive pattern matching earlier exclusions cancels them according to npm's forward scan:
@@ -99,8 +101,10 @@ Run from the workspace root; siro does not search parent directories for it.
   `['packages/**', '!packages/b/**', '!packages/b/**', 'packages/b/a']` remains
   excluded because npm's scan skips the shifted duplicate. Cancellation compares declaration
   strings case-sensitively using npm's default minimatch options. npm also treats an odd
-  number of leading `!` characters as negative and an even number as positive. For the other supported managers,
-  exclusions retain priority regardless of order. Patterns use `/`;
+  number of leading `!` characters as negative and an even number as positive. Bun keeps
+  explicitly named positive members regardless of negative globs. Each positive Bun glob is
+  filtered only by later negative patterns, so a later positive glob can re-include an earlier
+  exclusion. For pnpm and Yarn, exclusions retain priority regardless of order. Patterns use `/`;
   absolute paths, parent traversal, and backslash patterns are rejected. A leading
   `#` makes an npm pattern a comment, while `#` within a later path segment is literal.
   Colons in ordinary relative segments are accepted; drive-letter paths remain invalid.
@@ -110,7 +114,9 @@ Run from the workspace root; siro does not search parent directories for it.
   and exclusions, and case-sensitive elsewhere. This platform policy also applies
   to injected filesystems and does not detect individual volume settings.
 - Root `.` entries, duplicate matches, `node_modules`, `.git`, and directory symlinks
-  are excluded from member traversal. Node-PM directories without `package.json` are skipped.
+  are excluded from member traversal. Bun excludes `CMakeFiles` from glob traversal,
+  matching its walker, but still accepts an explicitly named member below it.
+  Node-PM directories without `package.json` are skipped.
   Only the root declaration is expanded; nested workspace declarations are not followed.
 - Aube reads `aube-workspace.yaml#packages`, then `pnpm-workspace.yaml#packages`,
   then package.json workspaces when neither YAML file exists. An existing YAML file

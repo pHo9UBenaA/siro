@@ -36,6 +36,7 @@ When changing a rule, verify the relevant configuration location, accepted value
 ## Workspace declaration sources
 
 - [pnpm 10.17.1 configuration](https://github.com/pnpm/pnpm/blob/v10.17.1/config/config/src/index.ts): omitted packages resolves to the root.
+- [Bun workspace collection](https://github.com/oven-sh/bun/blob/b99371011f0cf8664c31d4290b3bdb2d0b2e31e8/src/install/lockfile/Package/WorkspaceMap.rs): each positive pattern is filtered by later negative patterns, so a later positive can re-include an earlier exclusion. The ordering was also reproduced with Bun 1.2.0.
 - [Deno 2.9.4 discovery](https://github.com/denoland/deno/blob/14eea3160ae5834476aa3b9d317b8d41d991b982/libs/config/workspace/discovery.rs) and [glob matching](https://github.com/denoland/deno/blob/14eea3160ae5834476aa3b9d317b8d41d991b982/libs/config/glob/mod.rs): declaration sources, manifest eligibility, ordering, and literal brackets.
 - [Aube discovery](https://github.com/jdx/aube/blob/afcf46f39c070b8549642cd4cc0b53b0db0287da/crates/aube-workspace/src/lib.rs) and [configuration selection](https://github.com/jdx/aube/blob/afcf46f39c070b8549642cd4cc0b53b0db0287da/crates/aube-manifest/src/workspace/config.rs): YAML precedence, empty defaults, candidate exclusions.
 

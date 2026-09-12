@@ -59,6 +59,58 @@ it('keeps Aube descendants when only their ancestor candidate is excluded', () =
     }),
   ).toEqual(['p/a/nested/package.json']);
 });
+it('lets a later Bun positive pattern re-include an earlier negative match', () => {
+  expect(
+    childFiles('bun', {
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['!packages/excluded', 'packages/*'],
+      }),
+      'packages/excluded/package.json': '{"name":"excluded"}',
+      'packages/included/package.json': '{"name":"included"}',
+    }),
+  ).toEqual(['packages/excluded/package.json', 'packages/included/package.json']);
+});
+it('keeps an explicitly named Bun member despite a negative glob', () => {
+  expect(
+    childFiles('bun', {
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['packages/excluded', '!packages/excluded'],
+      }),
+      'packages/excluded/package.json': '{"name":"excluded"}',
+    }),
+  ).toEqual(['packages/excluded/package.json']);
+});
+it('treats Bun extglob punctuation as a literal workspace path', () => {
+  expect(
+    childFiles('bun', {
+      'package.json': JSON.stringify({ private: true, workspaces: ['packages/@(a|b)'] }),
+      'packages/@(a|b)/package.json': '{"name":"literal"}',
+      'packages/a/package.json': '{"name":"expanded"}',
+    }),
+  ).toEqual(['packages/@(a|b)/package.json']);
+});
+it('skips Bun CMakeFiles workspace candidates', () => {
+  expect(
+    childFiles('bun', {
+      'package.json': JSON.stringify({ private: true, workspaces: ['**'] }),
+      'CMakeFiles/generated/package.json': '{"name":"generated"}',
+      'packages/included/package.json': '{"name":"included"}',
+    }),
+  ).toEqual(['packages/included/package.json']);
+});
+it('keeps an explicitly named Bun member under CMakeFiles', () => {
+  expect(
+    childFiles('bun', {
+      'package.json': JSON.stringify({
+        private: true,
+        workspaces: ['CMakeFiles/generated'],
+      }),
+      'CMakeFiles/generated/package.json': '{"name":"generated"}',
+    }),
+  ).toEqual(['CMakeFiles/generated/package.json']);
+});
 it('reads Deno member manifests and respects publish opt-out independently of npm privacy', () => {
   expect(
     childFiles('deno', {

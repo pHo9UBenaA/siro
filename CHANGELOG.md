@@ -27,6 +27,8 @@
 - Keep nested workspace candidates visible when only their ancestor candidate is excluded. Prune traversal only when a trailing `/**` exclusion covers the subtree.
 - Reject workspace patterns whose brace-expanded alternatives contain parent traversal or exceed 8,192 entries before compilation, and avoid backtracking in Aube exclusion matching.
 - Match npm's odd/even interpretation of repeated leading `!` characters.
+- Match Bun's workspace ordering and syntax classification: explicit members remain included, later positive globs can re-include earlier exclusions, and extglob punctuation stays literal.
+- Exclude `CMakeFiles` from Bun glob traversal while retaining explicitly named members below it, matching Bun's walker and literal-member path.
 - Honor npm's ordered cancellation of workspace exclusions, including its handling of adjacent repeated exclusions.
 - Match npm's leading-`#` comment behavior while retaining `#` in nested path segments.
 - Permit colons in ordinary relative workspace segments while continuing to reject absolute and drive-letter paths.
