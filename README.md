@@ -38,7 +38,7 @@ The CLI reads `siro.config.*` as executable code. Review repository configuratio
 
 ## Features
 
-- **Rules across six managers.** 27 rules covering lifecycle scripts, version pinning, lockfiles
+- **Rules across six managers.** 28 rules covering lifecycle scripts, version pinning, lockfiles
   (`commit`/`frozen`), release age, publish provenance, `files`/`publishConfig`, SSL enforcement,
   checksum verification, exotic subdependency blocking, audit suppression review, store integrity,
   Bun's security scanner API, and Yarn 4's hardened-mode — each mapped to the right setting per
@@ -50,6 +50,12 @@ The CLI reads `siro.config.*` as executable code. Review repository configuratio
 - **Machine-readable remediation.** A finding can carry automatic key operations or manual
   instructions. Review proposed changes and rerun the linter after editing.
   See [docs/json-output.md](docs/json-output.md).
+- **Target PM versions.** Flag settings introduced after the declared or explicit stable PM
+  version. See [checked settings and sources](docs/rules.md#checked-introduction-versions)
+  for the npm, pnpm, Yarn, Bun, and Deno coverage.
+- **Workspace members.** `--workspaces` adds publication-metadata checks for declared npm,
+  pnpm, Yarn, Bun, Deno, and Aube members, including public packages under a private root.
+  See [workspace inspection](docs/configuration.md#workspace-members) for scope and exclusions.
 - **Lint with severities.** `error` fails CI by default; `--severity warn` tightens the gate.
 - **Reporters.** `pretty` (default), `json` for CI, `github` for PR annotations; register your own.
 - **Configurable.** Drop a `siro.config.ts` to disable rules, override severities, restrict PMs,
@@ -61,8 +67,10 @@ See the [rule reference](docs/rules.md) for what each check does and why, and th
 ## Versioning policy
 
 siro evaluates the recorded policy snapshot in [docs/policy-sources.md](docs/policy-sources.md).
-It detects package-manager names, not effective runtime versions. Version annotations describe
-verified upstream facts. A version-dependent safe-default annotation prevents an unverified
+It detects package-manager names and reads exact stable targets from `packageManager`,
+`config.pmVersions`, or `--pm-version`. It does not inspect installed binaries. The
+`unsupported-settings` rule checks recorded introduction versions; unlisted settings and
+unknown targets are not evaluated for availability. A version-dependent safe-default annotation prevents an unverified
 severity downgrade; it does not prove that the current version satisfies the rule. See
 [configuration](docs/configuration.md) for defaults, applicability, and limits.
 
@@ -72,6 +80,8 @@ severity downgrade; it does not prove that the current version satisfies the rul
 siro <lint|check> [path] [options]
 
   --pm <npm|pnpm|yarn|bun|deno|aube>   Target a specific package manager (auto-detected; required if detection finds nothing)
+  --pm-version <x.y.z>                Exact stable target version (requires --pm)
+  --workspaces                       Also inspect workspace members' publication metadata
   --project-type <application|package> Select application or published-package policy (default auto)
   --reporter <pretty|json|github>      Output format (default pretty)
   --severity <error|warn|info>         Show and fail on findings at or above this level

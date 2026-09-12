@@ -67,7 +67,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#preinstall-s
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
-| `bun` | `bunfig.toml` | info | (available since bun 1.3.0) | [official docs](https://bun.com/docs/pm/security-scanner-api) |
+| `bun` | `bunfig.toml` | info | (available since bun 1.2.21) | [official docs](https://bun.com/docs/pm/security-scanner-api) |
 
 ## `checksum-verification` — warn
 
@@ -110,7 +110,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#3-disable-li
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
 | `npm` | `.npmrc` | error | — | [official docs](https://docs.npmjs.com/cli/v11/using-npm/config#ignore-scripts) |
-| `pnpm` | `pnpm-workspace.yaml` | error | (available since pnpm 10.3.0; default safe since pnpm 11.0.0) | [official docs](https://pnpm.io/settings#strictdepbuilds) |
+| `pnpm` | `pnpm-workspace.yaml` | error | (available since pnpm 10.3.0; default safe since pnpm 11.0.0; pnpm-workspace.yaml settings require pnpm 10.6.0) | [official docs](https://pnpm.io/settings#strictdepbuilds) |
 | `yarn` | `.yarnrc.yml` | error | (available since yarn 2.0.0; default safe since yarn 4.14.0) | [official docs](https://yarnpkg.com/configuration/yarnrc#enableScripts) |
 | `bun` | `bunfig.toml` | info | (available since bun 1.2.0) | [official docs](https://bun.com/docs/pm/lifecycle) |
 | `aube` | `aube-workspace.yaml` | error | — | [official docs](https://aube.jdx.dev/security.html) |
@@ -182,7 +182,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#set-minimal-
 | `pnpm` | `pnpm-workspace.yaml` | warn | (available since pnpm 10.16.0; default safe since pnpm 11.0.0 (1440 minutes)) | [official docs](https://pnpm.io/settings#minimumreleaseage) |
 | `yarn` | `.yarnrc.yml` | warn | (available since yarn 4.10.0; default safe since yarn 4.15.0 (1440 minutes)) | [official docs](https://yarnpkg.com/configuration/yarnrc#npmMinimalAgeGate) |
 | `bun` | `bunfig.toml` | warn | (available since bun 1.3.0) | [official docs](https://bun.com/docs/runtime/bunfig#install-minimumreleaseage) |
-| `deno` | `deno.json` | warn | (default safe since deno 2.9.0 (1440 minutes); object age may be omitted) | [official docs](https://docs.deno.com/runtime/reference/deno_json/) |
+| `deno` | `deno.json` | warn | (default safe since deno 2.9.0 (1440 minutes); object age may be omitted; project .npmrc fallback available since deno 2.8.1) | [official docs](https://docs.deno.com/runtime/reference/deno_json/) |
 | `aube` | `aube-workspace.yaml` | warn | — | [official docs](https://aube.sh/settings/) |
 
 ## `named-registries` — info
@@ -298,4 +298,42 @@ Upstream: <https://pnpm.io/settings#trustpolicy>
 | --- | --- | --- | --- | --- |
 | `pnpm` | `pnpm-workspace.yaml` | warn | (available since pnpm 10.21.0) | [official docs](https://pnpm.io/settings#trustpolicy) |
 | `aube` | `aube-workspace.yaml` | warn | — | [official docs](https://aube.jdx.dev/security.html) |
+
+## `unsupported-settings` — error
+
+Report configured settings whose recorded introduction version is newer than the declared or explicit stable PM target. Reports each affected file separately, grouping its unsupported keys. Workspace findings retain their member directory. Only the coverage table below is checked. Unknown targets and unlisted settings are not evaluated for availability.
+Upstream: <https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error>
+
+| PM | Primary input | Default severity | Version notes | Reference |
+| --- | --- | --- | --- | --- |
+| `npm` | Repository | error | — | [upstream guide](https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error) |
+| `pnpm` | Repository | error | — | [upstream guide](https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error) |
+| `yarn` | Repository | error | — | [upstream guide](https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error) |
+| `bun` | Repository | error | — | [upstream guide](https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error) |
+| `deno` | Repository | error | — | [upstream guide](https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error) |
+
+### Checked introduction versions
+
+Only the following setting/file pairs are checked. This is not whole-schema validation or a guarantee of support in all later versions. Deno coverage is limited to `.npmrc#min-release-age`; Aube has no availability entries in this release.
+
+| PM | File | Setting | First stable version in this file | Source |
+| --- | --- | --- | --- | --- |
+| npm | `.npmrc` | `provenance` | 9.5.0 | [release history](https://github.com/npm/cli/releases/tag/v9.5.0) |
+| npm | `package.json` | `publishConfig.provenance` | 9.5.0 | [release history](https://github.com/npm/cli/releases/tag/v9.5.0) |
+| npm | `.npmrc` | `min-release-age` | 11.10.0 | [release history](https://github.com/npm/cli/releases/tag/v11.10.0) |
+| pnpm | `pnpm-workspace.yaml` | `strictDepBuilds` | 10.6.0 | [release history](https://github.com/pnpm/pnpm/releases/tag/v10.6.0) |
+| pnpm | `pnpm-workspace.yaml` | `dangerouslyAllowAllBuilds` | 10.9.0 | [release history](https://github.com/pnpm/pnpm/releases/tag/v10.9.0) |
+| pnpm | `pnpm-workspace.yaml` | `minimumReleaseAge` | 10.16.0 | [release history](https://github.com/pnpm/pnpm/releases/tag/v10.16.0) |
+| pnpm | `pnpm-workspace.yaml` | `minimumReleaseAgeExclude` | 10.16.0 | [release history](https://github.com/pnpm/pnpm/releases/tag/v10.16.0) |
+| pnpm | `pnpm-workspace.yaml` | `trustPolicy` | 10.21.0 | [release history](https://github.com/pnpm/pnpm/releases/tag/v10.21.0) |
+| pnpm | `pnpm-workspace.yaml` | `blockExoticSubdeps` | 10.26.0 | [release history](https://github.com/pnpm/pnpm/releases/tag/v10.26.0) |
+| pnpm | `pnpm-workspace.yaml` | `frozenStore` | 11.7.0 | [release history](https://github.com/pnpm/pnpm/releases/tag/v11.7.0) |
+| yarn | `.yarnrc.yml` | `enableHardenedMode` | 4.0.0 | [release history](https://yarnpkg.com/blog/release/4.0) |
+| yarn | `.yarnrc.yml` | `npmMinimalAgeGate` | 4.10.0 | [release history](https://github.com/yarnpkg/berry/releases/tag/@yarnpkg/cli/4.10.0) |
+| yarn | `.yarnrc.yml` | `npmPreapprovedPackages` | 4.10.0 | [release history](https://github.com/yarnpkg/berry/releases/tag/@yarnpkg/cli/4.10.0) |
+| bun | `bunfig.toml` | `install.minimumReleaseAge` | 1.3.0 | [release history](https://bun.com/blog/bun-v1.3#minimum-release-age) |
+| bun | `bunfig.toml` | `install.security.scanner` | 1.2.21 | [release history](https://bun.com/blog/bun-v1.2.21#security-scanner-api-for-bun-install) |
+| deno | `.npmrc` | `min-release-age` | 2.8.1 | [release history](https://github.com/denoland/deno/releases/tag/v2.8.1) |
+
+For pnpm, strictDepBuilds was introduced in 10.3.0; the checked YAML location requires 10.6.0. A prerelease or range in packageManager leaves availability unknown. See [target versions](configuration.md#target-pm-versions) for explicit versions and precedence.
 

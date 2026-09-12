@@ -30,7 +30,7 @@ describe('fileSystem abstraction (memfs)', () => {
       'package.json': JSON.stringify({
         files: ['dist'],
         name: 'demo',
-        packageManager: 'npm@10.9.0',
+        packageManager: 'npm@11.10.0',
         publishConfig: { access: 'public' },
         version: '1.0.0',
       }),

@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 // Process startup can exceed five seconds on a shared runner. Keep a bounded
 // child timeout and give this subprocess suite time to report the actual error.
@@ -66,7 +67,7 @@ const run = (pnpm = output(cleanPnpm), osv = output(cleanOsv)) => {
       syncBuiltinESMExports();
     `,
     );
-    const result = spawnSync(process.execPath, ['--import', preload, script], {
+    const result = spawnSync(process.execPath, ['--import', pathToFileURL(preload).href, script], {
       cwd: root,
       encoding: 'utf8',
       timeout: 20_000,
@@ -74,6 +75,8 @@ const run = (pnpm = output(cleanPnpm), osv = output(cleanOsv)) => {
     if (result.error) throw result.error;
     if (result.signal) throw new Error(`Audit test process terminated by ${result.signal}`);
     const commands: unknown = JSON.parse(readFileSync(path.join(root, 'commands.json'), 'utf8'));
+    if (!Array.isArray(commands) || commands.length === 0)
+      throw new Error(`Audit test did not reach scanner execution:\n${result.stderr}`);
     return { ...result, commands };
   } finally {
     rmSync(root, { recursive: true, force: true });

@@ -9,12 +9,16 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-slim
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       matrix:
+        os: [ubuntu-slim, windows-latest]
         node-version: ['22.x', '24.x']
     steps:
+      - name: Preserve repository line endings on Windows
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false

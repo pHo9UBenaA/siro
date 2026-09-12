@@ -1,3 +1,4 @@
+import { collectWorkspaceMembers } from './workspace-contexts.ts';
 import { type AbsPath, isAbsPath, asRelPath } from '../shared/paths.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import { type PM, isPM } from '../domain/entities/pms.ts';
@@ -12,11 +13,17 @@ import { applyConfig } from '../domain/services/apply-config.ts';
 import { resolvePMs } from '../domain/services/resolve-pms.ts';
 import { parseConfig } from './config.ts';
 import { runLint } from './run-lint.ts';
+import { declaredPMVersion, isStableVersion } from '../domain/services/pm-versions.ts';
+import { nodeFileSystem } from '../adapters/node-file-system.ts';
 
 export interface LintOptions {
   readonly cwd: AbsPath;
   readonly fs?: FileSystem;
   readonly pm?: PM;
+  /** Exact stable version for `pm`; overrides config.pmVersions and packageManager. */
+  readonly pmVersion?: string;
+  /** Also inspect declared workspace members' publication settings. */
+  readonly workspaces?: boolean;
   readonly projectType?: ProjectType;
   /** Explicit configuration; the library never imports files from the target repository. */
   readonly config?: SiroConfig;
@@ -36,6 +43,14 @@ export const prepareLint = (options: LintOptions) => {
   if (options.projectType !== undefined && !isProjectType(options.projectType)) {
     throw new UsageError(`Unknown project type: ${String(options.projectType)}`);
   }
+  if (options.pmVersion !== undefined && (!options.pm || !isStableVersion(options.pmVersion))) {
+    throw new UsageError(
+      'pmVersion / --pm-version requires pm / --pm and an exact stable version such as 10.16.0.',
+    );
+  }
+  if (options.workspaces !== undefined && typeof options.workspaces !== 'boolean') {
+    throw new UsageError('workspaces must be a boolean.');
+  }
   const config = options.config === undefined ? undefined : parseConfig(options.config);
   const ctx = createRepoContext(
     options.cwd,
@@ -53,9 +68,20 @@ export const prepareLint = (options: LintOptions) => {
     );
   }
   const configured = applyConfig(rules, config);
+  const pmVersions = {
+    ...declaredPMVersion(ctx.packageJson?.packageManager),
+    ...config?.pmVersions,
+    ...(options.pm && options.pmVersion ? { [options.pm]: options.pmVersion } : {}),
+  };
+  const fs = options.fs ?? nodeFileSystem;
+  const members = options.workspaces
+    ? collectWorkspaceMembers(ctx, fs, pms, options.projectType ?? config?.projectType)
+    : [];
   return {
     ctx,
     pms,
+    pmVersions,
+    members,
     ruleSet: configured.rules,
     severityOverrides: configured.severityOverrides,
     codecFor,
@@ -63,4 +89,36 @@ export const prepareLint = (options: LintOptions) => {
   };
 };
 
-export const lint = (options: LintOptions): LintResult => runLint(prepareLint(options));
+/** Reuse the existing manifest checks; installation policy remains rooted at cwd. */
+export const runPreparedLint = (prepared: ReturnType<typeof prepareLint>): LintResult => {
+  const result = runLint(prepared);
+  const findings = [...result.findings];
+  const summary = { ...result.summary };
+  const memberRules = prepared.ruleSet.filter((rule) =>
+    ['files-field', 'publish-access', 'unsupported-settings'].includes(rule.id),
+  );
+  for (const member of prepared.members) {
+    const child = runLint({ ...prepared, ctx: member.ctx, pms: [member.pm], ruleSet: memberRules });
+    for (const finding of child.findings) {
+      findings.push({
+        ...finding,
+        file: `${member.directory}/${finding.file ?? 'package.json'}`,
+        message: `${member.directory}: ${finding.message}`,
+        remediation:
+          finding.remediation?.kind === 'manual'
+            ? {
+                kind: 'manual',
+                steps: [
+                  `Work in ${member.directory} for this finding.`,
+                  ...finding.remediation.steps,
+                ],
+              }
+            : finding.remediation,
+      });
+    }
+    for (const level of ['error', 'warn', 'info'] as const) summary[level] += child.summary[level];
+  }
+  return { findings, summary };
+};
+
+export const lint = (options: LintOptions): LintResult => runPreparedLint(prepareLint(options));

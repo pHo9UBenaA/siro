@@ -4,8 +4,7 @@ import { exitCodeForLint, filterBySeverity } from '../../domain/services/filter.
 import type { IO } from '../../domain/ports/io.ts';
 import { UsageError } from '../../shared/errors.ts';
 import { DEFAULT_REPORTER_NAME, createRegistry } from '../../adapters/reporters/registry.ts';
-import { prepareLint, type LintOptions } from '../lint.ts';
-import { runLint } from '../run-lint.ts';
+import { prepareLint, runPreparedLint, type LintOptions } from '../lint.ts';
 
 export interface LintCommandOptions extends LintOptions {
   readonly reporter?: string | Reporter;
@@ -27,8 +26,8 @@ export const lintCommand = async (options: LintCommandOptions, io: IO): Promise<
       `${typeof selection === 'string' ? 'Unknown' : 'Invalid'} reporter: ${String(selection)} (available: ${[...registry.keys()].join(', ')})`,
     );
   }
-  const result = runLint(prepared);
+  const result = runPreparedLint(prepared);
   const exitCode = exitCodeForLint(result, options.severity ?? 'error');
-  reporter.format(filterBySeverity(result, options.severity ?? 'info'), io);
+  await reporter.format(filterBySeverity(result, options.severity ?? 'info'), io);
   return exitCode;
 };

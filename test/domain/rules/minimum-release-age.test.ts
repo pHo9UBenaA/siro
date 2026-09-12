@@ -100,7 +100,10 @@ describe('minimum-release-age (npm)', () => {
     const result = npm.check(ctx, codecFor('npmrc').parse(`${setting}\nmin-release-age=3`));
     expect(result).toMatchObject({
       state: 'violation',
-      remediation: { kind: 'manual', steps: [expect.stringContaining('before')] },
+      remediation: {
+        kind: 'manual',
+        steps: expect.arrayContaining([expect.stringContaining('before')]),
+      },
     });
   });
 
@@ -142,6 +145,47 @@ describe('minimum-release-age (deno)', () => {
   it('passes when minimumDependencyAge is a positive number (minutes)', () => {
     expect.hasAssertions();
     expect(deno.check(ctx, { minimumDependencyAge: 4320 }).state).toBe('ok');
+  });
+
+  it("honors Deno's project .npmrc release-age fallback", () => {
+    const result = runLint({
+      codecFor,
+      ctx: makeCtx({
+        readText: (file) => (file === '.npmrc' ? 'min-release-age=3\n' : undefined),
+      }),
+      pms: ['deno'],
+      ruleSet: [minimumReleaseAge],
+    });
+    expect(result.findings).toStrictEqual([]);
+  });
+
+  it('keeps deno.json priority over the project .npmrc fallback', () => {
+    const disabledFallback = makeCtx({
+      readText: (file) => (file === '.npmrc' ? 'min-release-age=0\n' : undefined),
+    });
+    const activeFallback = makeCtx({
+      readText: (file) => (file === '.npmrc' ? 'min-release-age=3\n' : undefined),
+    });
+    expect(deno.check(disabledFallback, { minimumDependencyAge: 'P3D' }).state).toBe('ok');
+    expect(deno.check(activeFallback, { minimumDependencyAge: 0 }).state).toBe('violation');
+  });
+
+  it("flags Deno's explicit .npmrc release-age opt-out", () => {
+    const result = runLint({
+      codecFor,
+      ctx: makeCtx({
+        readText: (file) => (file === '.npmrc' ? 'min-release-age=0\n' : undefined),
+      }),
+      pms: ['deno'],
+      ruleSet: [minimumReleaseAge],
+    });
+    expect(result.findings).toMatchObject([
+      {
+        file: '.npmrc',
+        actual: 0,
+        remediation: { kind: 'automatic', operations: [{ file: { path: '.npmrc' } }] },
+      },
+    ]);
   });
 
   it('passes when minimumDependencyAge is an object with age property', () => {

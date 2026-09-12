@@ -16,17 +16,19 @@ export type ParsedCommand =
       kind: 'lint';
       cwd: AbsPath;
       pm?: PM;
+      pmVersion?: string;
+      workspaces?: boolean;
       projectType?: ProjectType;
       reporter: string;
       severity?: Severity;
     };
 
-const VALUE_FLAGS = new Set(['pm', 'project-type', 'reporter', 'severity']);
-const BOOLEAN_FLAGS = new Set(['help', 'version', 'json']);
+const VALUE_FLAGS = new Set(['pm', 'pm-version', 'project-type', 'reporter', 'severity']);
+const BOOLEAN_FLAGS = new Set(['help', 'version', 'json', 'workspaces']);
 
 export const parseCommand = (argv: readonly string[]): ParsedCommand => {
   // Tokenize first so a missing option value cannot consume a following --help.
-  // Only siro's four value options consume the next positional token.
+  // Only siro's known value options consume the next positional token.
   const { tokens } = parseArgs({
     args: [...argv],
     options: { help: { type: 'boolean', short: 'h' }, version: { type: 'boolean', short: 'v' } },
@@ -93,10 +95,13 @@ export const parseCommand = (argv: readonly string[]): ParsedCommand => {
     throw new UsageError('Invalid reporter selection: use either --reporter or --json.');
   }
   const reporter = flags.get('reporter');
+  const pmVersion = flags.get('pm-version');
   return {
     kind: 'lint',
     cwd: asAbsPath(path.resolve(cwd ?? process.cwd())),
     pm: parsePmFlag(flags.get('pm')),
+    pmVersion: typeof pmVersion === 'string' ? pmVersion : undefined,
+    workspaces: flags.has('workspaces') || undefined,
     projectType: parseProjectTypeFlag(flags.get('project-type')),
     severity: parseSeverityFlag(flags.get('severity')),
     reporter:

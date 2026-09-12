@@ -1,6 +1,6 @@
 {
   "name": "@pho9ubenaa/siro",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "Security best-practices linter for the npm ecosystem (npm, pnpm, deno, bun, yarn, aube).",
   "keywords": [
     "aube",
@@ -65,9 +65,10 @@
   },
   "dependencies": {
     "ini": "7.0.0",
+    "minimatch": "10.2.5",
     "picocolors": "1.1.1",
     "semver": "7.8.1",
-    "smol-toml": "1.6.1",
+    "smol-toml": "1.8.0",
     "valibot": "1.4.2",
     "yaml": "2.9.0"
   },
@@ -77,7 +78,7 @@
     "@types/ini": "4.1.1",
     "@types/node": "25.9.1",
     "@types/semver": "7.7.1",
-    "@vitest/coverage-v8": "4.1.7",
+    "@vitest/coverage-v8": "4.1.11",
     "knip": "6.34.0",
     "memfs": "4.57.3",
     "oxfmt": "0.53.0",
@@ -87,7 +88,7 @@
     "typedoc": "0.28.19",
     "typedoc-plugin-markdown": "4.11.0",
     "typescript": "6.0.3",
-    "vitest": "4.1.7"
+    "vitest": "4.1.11"
   },
   "engines": {
     "node": "^22.18.0 || ^24.0.0"

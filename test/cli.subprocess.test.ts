@@ -2,7 +2,7 @@ const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -35,6 +35,169 @@ const spawnBin = (args: readonly string[]) => {
   }
   return spawnSync(DIST_BIN, args, { encoding: 'utf8' });
 };
+
+it('reports an un-compilable workspace pattern with exit 2', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-workspace-pattern-'));
+  try {
+    writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ workspaces: ['a'.repeat(65_537)] }),
+    );
+    const result = spawnBin(['lint', dir, '--pm', 'npm', '--workspaces', '--json']);
+    expect(result.status).toBe(EXIT_USAGE);
+    expect(result.stderr).toContain('workspace pattern');
+    expect(result.stdout).toBe('');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+describe.skipIf(process.platform === 'win32')('FIFO manifests', () => {
+  it.each(['package.json', 'child/package.json'])(
+    'rejects a FIFO manifest at %s without blocking',
+    (manifest) => {
+      const dir = mkdtempSync(path.join(tmpdir(), 'siro-fifo-manifest-'));
+      try {
+        if (manifest.startsWith('child/')) {
+          mkdirSync(path.join(dir, 'child'));
+          writeFileSync(
+            path.join(dir, 'package.json'),
+            JSON.stringify({ private: true, workspaces: ['child'] }),
+          );
+        }
+        expect(spawnSync('mkfifo', [path.join(dir, manifest)]).status).toBe(0);
+        const result = spawnSync(
+          process.execPath,
+          [DIST_BIN, 'lint', dir, '--pm', 'npm', '--workspaces', '--json'],
+          { encoding: 'utf8', timeout: 2000, killSignal: 'SIGKILL' },
+        );
+        expect(result.error).toBeUndefined();
+        expect(result.status).toBe(EXIT_USAGE);
+        expect(result.stderr).toContain(manifest);
+        expect(result.stderr).toContain('expected a regular file');
+        expect(result.stdout).toBe('');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
+});
+
+it('reports workspace member paths and failures through the executable', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-workspace-cli-'));
+  try {
+    mkdirSync(path.join(dir, 'child'));
+    writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ private: true, packageManager: 'npm@11.10.0', workspaces: ['child'] }),
+    );
+    writeFileSync(path.join(dir, '.npmrc'), 'ignore-scripts=true\nsave-exact=true');
+    writeFileSync(path.join(dir, 'package-lock.json'), '{}');
+    writeFileSync(
+      path.join(dir, 'siro.config.mjs'),
+      "export default { rules: { 'files-field': 'error' } };\n",
+    );
+    writeFileSync(path.join(dir, 'child/package.json'), '{"name":"child"}');
+    writeFileSync(path.join(dir, 'child/siro.config.mjs'), 'throw new Error("must not execute")');
+    expect(spawnBin(['lint', dir]).status).toBe(EXIT_SUCCESS);
+    const result = spawnBin(['lint', dir, '--workspaces', '--json']);
+    expect(result.status).toBe(EXIT_FAILURE);
+    expect(parseJsonOutput(result.stdout, result.stderr).findings).toContainEqual(
+      expect.objectContaining({
+        ruleId: 'files-field',
+        file: 'child/package.json',
+        severity: 'error',
+      }),
+    );
+    const annotations = spawnBin(['lint', dir, '--workspaces', '--reporter', 'github']);
+    expect(annotations.stdout).toContain('file=child/package.json');
+    writeFileSync(path.join(dir, 'child/package.json'), '{');
+    const broken = spawnBin(['lint', dir, '--workspaces', '--json']);
+    expect(broken.status).toBe(EXIT_USAGE);
+    expect(broken.stderr).toContain('child/package.json');
+    expect(broken.stdout).toBe('');
+    expect(spawnBin(['lint', dir, '--workspaces=false']).status).toBe(EXIT_USAGE);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}, 15_000);
+
+it('rejects a directory masquerading as a lockfile instead of reporting a successful check', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-lock-directory-'));
+  try {
+    writeFileSync(
+      path.join(dir, 'package.json'),
+      '{"private":true,"packageManager":"npm@11.10.0"}',
+    );
+    writeFileSync(path.join(dir, '.npmrc'), 'ignore-scripts=true\nsave-exact=true\n');
+    mkdirSync(path.join(dir, 'package-lock.json'));
+    const result = spawnBin(['lint', dir, '--json']);
+    expect(result.status).toBe(EXIT_USAGE);
+    expect(result.stderr).toContain('package-lock.json');
+    expect(result.stdout).toBe('');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+it('checks declared, configured, and CLI PM targets through the executable', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-pm-version-'));
+  try {
+    writeFileSync(path.join(dir, 'package.json'), '{"private":true,"packageManager":"npm@11.9.0"}');
+    writeFileSync(
+      path.join(dir, '.npmrc'),
+      'min-release-age=3\nignore-scripts=true\nsave-exact=true',
+    );
+    writeFileSync(path.join(dir, 'package-lock.json'), '{}');
+    const args = ['lint', dir, '--json'];
+    const old = spawnBin(args);
+    expect(old.status).toBe(EXIT_FAILURE);
+    expect(parseJsonOutput(old.stdout, old.stderr).findings).toContainEqual(
+      expect.objectContaining({ ruleId: 'unsupported-settings' }),
+    );
+    writeFileSync(
+      path.join(dir, 'siro.config.mjs'),
+      "export default { pmVersions: { npm: '11.10.0' } };\n",
+    );
+    expect(spawnBin(args).status).toBe(EXIT_SUCCESS);
+    expect(spawnBin([...args, '--pm', 'npm', '--pm-version=11.9.0']).status).toBe(EXIT_FAILURE);
+    expect(spawnBin([...args, '--pm', 'npm', '--pm-version', '11.10.0']).status).toBe(EXIT_SUCCESS);
+    for (const flags of [
+      ['--pm-version', '11.10.0'],
+      ['--pm', 'npm', '--pm-version', '^11.10.0'],
+      ['--pm', 'npm', '--pm-version'],
+      ['--pm', 'npm', '--pm-version', '11.10.0', '--pm-version', '11.9.0'],
+    ])
+      expect(spawnBin([...args, ...flags]).status).toBe(EXIT_USAGE);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+it("honors Deno's project .npmrc release age through the executable", () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-deno-npmrc-'));
+  try {
+    writeFileSync(path.join(dir, 'package.json'), '{"private":true}');
+    writeFileSync(path.join(dir, '.npmrc'), 'min-release-age=3\n');
+
+    const supported = spawnBin(['lint', dir, '--pm', 'deno', '--pm-version', '2.8.1', '--json']);
+    expect(supported.status).not.toBe(EXIT_USAGE);
+    expect(supported.status).not.toBe(EXIT_CRASH);
+    expect(
+      parseJsonOutput(supported.stdout, supported.stderr).findings.filter((finding) =>
+        ['minimum-release-age', 'unsupported-settings'].includes(finding.ruleId),
+      ),
+    ).toStrictEqual([]);
+
+    const unsupported = spawnBin(['lint', dir, '--pm', 'deno', '--pm-version', '2.8.0', '--json']);
+    expect(unsupported.status).toBe(EXIT_FAILURE);
+    expect(parseJsonOutput(unsupported.stdout, unsupported.stderr).findings).toContainEqual(
+      expect.objectContaining({ ruleId: 'unsupported-settings' }),
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 it.each(['application', 'package'])(
   'lints npm private publish access under %s policy through the executable',
@@ -173,7 +336,7 @@ describe('CLI binary — error handling', () => {
     }
   });
 
-  test('exits 70 when a config reporter throws (uncaught user-extension error)', () => {
+  test.each(['', 'async '])('exits 70 when a %sconfig reporter throws', (modifier) => {
     expect.hasAssertions();
     const dir = mkdtempSync(path.join(tmpdir(), 'siro-boom-'));
     try {
@@ -183,7 +346,7 @@ describe('CLI binary — error handling', () => {
       );
       writeFileSync(
         path.join(dir, 'siro.config.ts'),
-        "export default { reporters: [{ name: 'boom', format() { throw new Error('boom from reporter'); } }] };\n",
+        `export default { reporters: [{ name: 'boom', ${modifier}format() { throw new Error('boom from reporter'); } }] };\n`,
       );
       const result = spawnBin(['lint', '--reporter', 'boom', dir]);
       expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(EXIT_CRASH);

@@ -37,19 +37,26 @@ export type Remediation =
       readonly operations?: never;
     };
 
+export interface ViolationStatus {
+  readonly state: 'violation';
+  readonly message: string;
+  /** File responsible for this individual violation. */
+  readonly file?: RelPath;
+  readonly expected?: ConfigValue;
+  readonly actual?: ConfigReadValue;
+  /** User configuration takes precedence over this per-result severity. */
+  readonly severity?: Severity;
+  readonly remediation?: Remediation;
+}
+
 export type CheckStatus =
   | { readonly state: 'ok' }
   | { readonly state: 'na' }
+  | ViolationStatus
   | {
-      readonly state: 'violation';
-      readonly message: string;
-      /** Override the primary file when the violation concerns another input. */
-      readonly file?: RelPath;
-      readonly expected?: ConfigValue;
-      readonly actual?: ConfigReadValue;
-      /** User configuration takes precedence over this per-result severity. */
-      readonly severity?: Severity;
-      readonly remediation?: Remediation;
+      readonly state: 'violations';
+      /** Independent findings; a rule chooses its own grouping granularity. */
+      readonly violations: readonly [ViolationStatus, ...ViolationStatus[]];
     };
 
 /** Display-only package-manager version metadata. */
@@ -109,6 +116,18 @@ export const isCheckStatusShape = (value: unknown): value is CheckStatus => {
   if (value.state === 'ok' || value.state === 'na') {
     return true;
   }
+  if (value.state === 'violations') {
+    return (
+      Array.isArray(value.violations) &&
+      value.violations.length > 0 &&
+      Array.from(value.violations).every(isViolationStatusShape)
+    );
+  }
+  return isViolationStatusShape(value);
+};
+
+const isViolationStatusShape = (value: unknown): value is ViolationStatus => {
+  if (!isPlainRecord(value)) return false;
   return (
     value.state === 'violation' &&
     typeof value.message === 'string' &&

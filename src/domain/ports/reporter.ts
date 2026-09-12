@@ -4,7 +4,7 @@ import { isPlainRecord } from '../../shared/records.ts';
 
 export interface Reporter<Name extends string = string> {
   readonly name: Name;
-  format: (result: LintResult, io: IO) => void;
+  format: (result: LintResult, io: IO) => void | Promise<void>;
 }
 
 export const isReporterShape = (value: unknown): value is Reporter => {

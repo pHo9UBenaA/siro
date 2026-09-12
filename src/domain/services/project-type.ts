@@ -17,4 +17,8 @@ export const resolvePackageJsonProjectType = (ctx: RepoContext): ProjectType => 
 };
 
 export const resolveDenoProjectType = (ctx: RepoContext, denoConfig: ParsedConfig): ProjectType =>
-  resolveProjectType(ctx.projectType, isPublishableName(getByPath(denoConfig, ['name'])));
+  resolveProjectType(
+    ctx.projectType,
+    getByPath(denoConfig, ['publish']) !== false &&
+      isPublishableName(getByPath(denoConfig, ['name'])),
+  );

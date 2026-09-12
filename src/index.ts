@@ -26,6 +26,7 @@ export {
 export { defineRule } from './domain/entities/rule.ts';
 export type {
   CheckStatus,
+  ViolationStatus,
   ConfigFileRef,
   Remediation,
   SetKeyOperation,
