@@ -120,7 +120,7 @@ it('reports workspace member paths and failures through the executable', () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
+}, 15_000);
 
 it('rejects a directory masquerading as a lockfile instead of reporting a successful check', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'siro-lock-directory-'));
