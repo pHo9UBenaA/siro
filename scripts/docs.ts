@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import type { Rule } from '../src/domain/entities/rule.ts';
 import { PMS } from '../src/domain/entities/pms.ts';
 import { rules as defaultRules } from '../src/domain/builtin-rules.ts';
+import { settingAvailability } from '../src/domain/setting-availability.ts';
 
 const COMPARISON_INTRO = `<!-- AUTO-GENERATED from the rule registry. Run \`pnpm gen:docs\` to update. -->
 # Package manager comparison
@@ -47,7 +48,11 @@ const renderRule = (rule: Rule): string => {
     overview = `\nUpstream: <${rule.docs}>`;
   }
   const scope = rule.projectTypes ? `\nApplies to: ${rule.projectTypes.join(', ')}.` : '';
-  return `${header}\n\n${description}${scope}${overview}${renderBindingsBlock(rule)}\n`;
+  const coverage =
+    rule.id === 'unsupported-settings'
+      ? `\n\n### Checked introduction versions\n\nOnly the following setting/file pairs are checked. This is not whole-schema validation or a guarantee of support in all later versions. Deno coverage is limited to \`.npmrc#min-release-age\`; Aube has no availability entries in this release.\n\n| PM | File | Setting | First stable version in this file | Source |\n| --- | --- | --- | --- | --- |\n${settingAvailability.map((setting) => `| ${setting.pm} | \`${setting.file.path}\` | \`${setting.keyPath.join('.')}\` | ${setting.since} | [release history](${setting.source}) |`).join('\n')}\n\nFor pnpm, strictDepBuilds was introduced in 10.3.0; the checked YAML location requires 10.6.0. A prerelease or range in packageManager leaves availability unknown. See [target versions](configuration.md#target-pm-versions) for explicit versions and precedence.`
+      : '';
+  return `${header}\n\n${description}${scope}${overview}${renderBindingsBlock(rule)}${coverage}\n`;
 };
 
 export const renderComparison = (rules: readonly Rule[] = defaultRules): string => {

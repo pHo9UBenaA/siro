@@ -19,6 +19,8 @@ export type RuleSetting = Severity | 'off';
  */
 export interface SiroConfig {
   readonly pms?: readonly PM[];
+  /** Exact stable target versions; does not select managers or inspect installed binaries. */
+  readonly pmVersions?: Readonly<Partial<Record<PM, string>>>;
   readonly projectType?: ProjectType;
   // `string & {}` keeps autocompletion for BuiltinRuleId while still
   // permitting arbitrary keys from customRules.

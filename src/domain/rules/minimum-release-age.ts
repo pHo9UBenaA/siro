@@ -1,3 +1,4 @@
+import { guardRemediationAvailability } from '../services/remediation-availability.ts';
 import { getByPath } from '../entities/config-value.ts';
 import { proposeChanges } from './remediation.ts';
 import type { RuleBinding } from '../entities/rule.ts';
@@ -87,6 +88,17 @@ const isNonDisabledDenoDuration = (value: unknown): boolean => {
   return value.age == null || isActiveDenoAge(value.age);
 };
 
+const denoAgeUsesFallback = (value: unknown): boolean => {
+  if (value === undefined || value === null) return true;
+  if (!isPlainRecord(value)) return false;
+  if (Object.keys(value).some((key) => key !== 'age' && key !== 'exclude')) return false;
+  if (value.exclude !== undefined && !isStringList(value.exclude)) return false;
+  return value.age == null;
+};
+
+const isPositiveDenoNpmrcDays = (value: unknown): boolean =>
+  typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+
 const baseRule = requireConfigKey({
   bindings: {
     aube: {
@@ -146,7 +158,7 @@ const npmBinding: RuleBinding = {
   file: npmrc,
   docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#min-release-age',
   versionNote: { note: 'min-release-age available since npm 11.10.0' },
-  check(_ctx, config) {
+  check(ctx, config) {
     const now = Date.now();
     // npm gives an explicit before priority over min-release-age in the same source.
     if (Object.hasOwn(config, 'before')) {
@@ -165,7 +177,18 @@ const npmBinding: RuleBinding = {
         remediation: {
           kind: 'manual',
           steps: [
-            `In .npmrc, set before to a valid past date, or remove before and set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days. A future or disabled before overrides min-release-age in this file.`,
+            'In .npmrc, set before to a valid past date. A future or disabled before overrides min-release-age in this file.',
+            ...(guardRemediationAvailability(
+              'npm',
+              ctx.pmVersion,
+              {
+                kind: 'manual',
+                steps: [
+                  `Alternatively, remove before and set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days.`,
+                ],
+              },
+              [{ file: npmrc, keyPath: ['min-release-age'] }],
+            )?.steps ?? []),
           ],
         },
       };
@@ -179,14 +202,19 @@ const npmBinding: RuleBinding = {
       actual,
       expected: RECOMMENDED_RELEASE_AGE_DAYS,
       message: `Set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days to quarantine brand-new releases.`,
-      remediation: proposeChanges(config, [
-        {
-          file: npmrc,
-          op: 'setKey',
-          keyPath: ['min-release-age'],
-          value: RECOMMENDED_RELEASE_AGE_DAYS,
-        },
-      ]),
+      remediation: guardRemediationAvailability(
+        'npm',
+        ctx.pmVersion,
+        proposeChanges(config, [
+          {
+            file: npmrc,
+            op: 'setKey',
+            keyPath: ['min-release-age'],
+            value: RECOMMENDED_RELEASE_AGE_DAYS,
+          },
+        ]),
+        [{ file: npmrc, keyPath: ['min-release-age'] }],
+      ),
     };
   },
 };
@@ -196,10 +224,34 @@ const denoBinding: RuleBinding = {
   docs: 'https://docs.deno.com/runtime/reference/deno_json/',
   versionNote: {
     defaultSafeSince: 'deno 2.9.0 (1440 minutes)',
-    note: 'object age may be omitted',
+    note: 'object age may be omitted; project .npmrc fallback available since deno 2.8.1',
   },
-  check(_ctx, config) {
+  check(ctx, config) {
     const actual = getByPath(config, ['minimumDependencyAge']);
+    if (denoAgeUsesFallback(actual)) {
+      const npmrcConfig = ctx.readConfig(npmrc);
+      const npmrcAge = getByPath(npmrcConfig, ['min-release-age']);
+      if (isPositiveDenoNpmrcDays(npmrcAge)) return { state: 'ok' };
+      // Deno treats zero as an explicit opt-out. Do not let an omitted object
+      // age fall through to the version-dependent default in that case.
+      if (npmrcAge === 0) {
+        return {
+          state: 'violation',
+          actual: npmrcAge,
+          expected: RECOMMENDED_RELEASE_AGE_DAYS,
+          file: npmrc.path,
+          message: `Set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days in .npmrc, or set minimumDependencyAge in deno.json.`,
+          remediation: proposeChanges(npmrcConfig, [
+            {
+              file: npmrc,
+              op: 'setKey',
+              keyPath: ['min-release-age'],
+              value: RECOMMENDED_RELEASE_AGE_DAYS,
+            },
+          ]),
+        };
+      }
+    }
     if (isNonDisabledDenoDuration(actual)) return { state: 'ok' };
     const objectAge = isPlainRecord(actual);
     const invalidObject =

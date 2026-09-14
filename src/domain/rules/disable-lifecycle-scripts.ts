@@ -1,6 +1,10 @@
+import {
+  guardRemediationAvailability,
+  settingSupportedByTarget,
+} from '../services/remediation-availability.ts';
 import { proposeChanges } from './remediation.ts';
 import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
-import type { RuleBinding, CheckStatus, VersionNote } from '../entities/rule.ts';
+import type { RuleBinding, CheckStatus, VersionNote, ViolationStatus } from '../entities/rule.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
@@ -10,13 +14,65 @@ const { npmrc, pnpmWorkspace, yarnrc, aubeWorkspace, bunfig } = CONFIG_FILES;
 const pnpmStrictDepBuildsDocs = 'https://pnpm.io/settings#strictdepbuilds';
 const pnpmVersionNote: VersionNote = {
   configAvailableSince: 'pnpm 10.3.0',
+  note: 'pnpm-workspace.yaml settings require pnpm 10.6.0',
   defaultSafeSince: 'pnpm 11.0.0',
 };
 const pnpmBinding: RuleBinding = {
-  check(_ctx, config): CheckStatus {
+  check(ctx, config): CheckStatus {
     if (getByPath(config, ['ignoreScripts']) === true) return { state: 'ok' };
     const bypass = getByPath(config, ['dangerouslyAllowAllBuilds']);
+    const strict = getByPath(config, ['strictDepBuilds']);
     if (bypass === true) {
+      const bypassTarget = {
+        file: pnpmWorkspace,
+        keyPath: ['dangerouslyAllowAllBuilds'] as const,
+      };
+      if (settingSupportedByTarget('pnpm', ctx.pmVersion, bypassTarget) === false) {
+        const proposal = {
+          kind: 'manual' as const,
+          steps: [
+            'Remove `dangerouslyAllowAllBuilds: true` before upgrading to pnpm 10.9.0 or newer; the declared target ignores it, but a later version would activate the bypass.',
+            ...(strict === true
+              ? []
+              : [
+                  'Set `strictDepBuilds: true` in pnpm-workspace.yaml to enable lifecycle-script gating for the declared target.',
+                ]),
+          ] as [string, ...string[]],
+        };
+        return {
+          state: 'violation',
+          actual: bypass,
+          expected: false,
+          message:
+            'The declared target ignores this future-version bypass. Removing the ignored bypass alone does not provide protection against lifecycle scripts, and leaving it configured would disable gating after an upgrade.',
+          remediation:
+            strict === true
+              ? proposal
+              : guardRemediationAvailability('pnpm', ctx.pmVersion, proposal, [
+                  { file: pnpmWorkspace, keyPath: ['strictDepBuilds'] },
+                ]),
+        };
+      }
+      const proposal = {
+        kind: 'manual' as const,
+        steps: [
+          'After upgrading, remove `dangerouslyAllowAllBuilds: true` (or set it to false) and configure lifecycle-script gating.',
+        ] as const,
+      };
+      const guarded = guardRemediationAvailability('pnpm', ctx.pmVersion, proposal, [
+        { file: pnpmWorkspace, keyPath: ['strictDepBuilds'] },
+        { file: pnpmWorkspace, keyPath: ['dangerouslyAllowAllBuilds'] },
+      ]);
+      if (guarded !== proposal) {
+        return {
+          state: 'violation',
+          actual: bypass,
+          expected: false,
+          message:
+            'The target cannot use the proposed YAML lifecycle-script controls. Removing an unsupported bypass alone does not provide protection.',
+          remediation: guarded,
+        };
+      }
       return {
         actual: bypass,
         expected: false,
@@ -31,7 +87,6 @@ const pnpmBinding: RuleBinding = {
         state: 'violation',
       };
     }
-    const strict = getByPath(config, ['strictDepBuilds']);
     if (strict === true) {
       return { state: 'ok' };
     }
@@ -43,9 +98,14 @@ const pnpmBinding: RuleBinding = {
         strict === undefined
           ? 'Set `strictDepBuilds: true` in pnpm-workspace.yaml to pin lifecycle-script gating across versions.'
           : 'Set `strictDepBuilds: true` in pnpm-workspace.yaml to block silent skips of un-approved dep builds.',
-      remediation: proposeChanges(config, [
-        { file: pnpmWorkspace, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
-      ]),
+      remediation: guardRemediationAvailability(
+        'pnpm',
+        ctx.pmVersion,
+        proposeChanges(config, [
+          { file: pnpmWorkspace, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
+        ]),
+        [{ file: pnpmWorkspace, keyPath: ['strictDepBuilds'] }],
+      ),
     };
   },
   docs: pnpmStrictDepBuildsDocs,
@@ -60,37 +120,35 @@ const aubeBinding: RuleBinding = {
     const jail = getByPath(config, ['jailBuilds']);
     const strict = getByPath(npmConfig, ['strictDepBuilds']);
     if (jail === true && strict === true) return { state: 'ok' };
-    const jailRemedy = proposeChanges(config, [
-      { file: aubeWorkspace, keyPath: ['jailBuilds'], op: 'setKey', value: true },
-    ]);
-    const strictRemedy = proposeChanges(npmConfig, [
-      { file: npmrc, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
-    ]);
-    return {
-      state: 'violation',
-      file: jail !== true ? aubeWorkspace.path : npmrc.path,
-      actual: jail !== true ? jail : strict,
-      expected: true,
-      message:
-        'Set `jailBuilds: true` in aube-workspace.yaml and `strictDepBuilds=true` in .npmrc to sandbox approved builds and reject unreviewed lifecycle scripts.',
-      remediation:
-        jailRemedy.kind === 'automatic' && strictRemedy.kind === 'automatic'
-          ? {
-              kind: 'automatic',
-              operations: [...jailRemedy.operations, ...strictRemedy.operations],
-            }
-          : {
-              kind: 'manual',
-              steps: [
-                ...(jailRemedy.kind === 'manual'
-                  ? jailRemedy.steps
-                  : (['Set `jailBuilds: true` in aube-workspace.yaml.'] as const)),
-                ...(strictRemedy.kind === 'manual'
-                  ? strictRemedy.steps
-                  : (['Set `strictDepBuilds=true` in .npmrc.'] as const)),
-              ],
-            },
-    };
+    const violations: ViolationStatus[] = [];
+    if (jail !== true)
+      violations.push({
+        state: 'violation',
+        file: aubeWorkspace.path,
+        actual: jail,
+        expected: true,
+        message: 'Set `jailBuilds: true` in aube-workspace.yaml to sandbox approved builds.',
+        remediation: proposeChanges(config, [
+          { file: aubeWorkspace, keyPath: ['jailBuilds'], op: 'setKey', value: true },
+        ]),
+      });
+    if (strict !== true)
+      violations.push({
+        state: 'violation',
+        file: npmrc.path,
+        actual: strict,
+        expected: true,
+        message: 'Set `strictDepBuilds=true` in .npmrc to reject unreviewed lifecycle scripts.',
+        remediation: proposeChanges(npmConfig, [
+          { file: npmrc, keyPath: ['strictDepBuilds'], op: 'setKey', value: true },
+        ]),
+      });
+    const [first, ...rest] = violations;
+    return !first
+      ? { state: 'ok' }
+      : rest.length === 0
+        ? first
+        : { state: 'violations', violations: [first, ...rest] };
   },
   docs: 'https://aube.jdx.dev/security.html',
   file: aubeWorkspace,

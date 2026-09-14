@@ -26,6 +26,7 @@ import { strictAllowScripts } from './rules/strict-allow-scripts.ts';
 import { strictReleaseAge } from './rules/strict-release-age.ts';
 import { strictStoreIntegrity } from './rules/strict-store-integrity.ts';
 import { trustPolicy } from './rules/trust-policy.ts';
+import { unsupportedSettings } from './rules/unsupported-settings.ts';
 
 export const rules = [
   advisoryCheck,
@@ -55,6 +56,7 @@ export const rules = [
   strictReleaseAge,
   strictStoreIntegrity,
   trustPolicy,
+  unsupportedSettings,
 ] as const satisfies readonly Rule[];
 
 export type BuiltinRuleId = (typeof rules)[number]['id'];

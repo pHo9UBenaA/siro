@@ -115,6 +115,41 @@ it.each(['unknown', { name: 'broken' }])(
   },
 );
 
+it('waits for asynchronous reporting before returning the lint exit code', async () => {
+  const { io, out } = captureIO();
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let settled = false;
+  const command = lintCommand(
+    {
+      ...options,
+      reporter: {
+        name: 'async',
+        async format() {
+          await ready;
+          io.stdout('reported');
+        },
+      },
+    },
+    io,
+  ).then((code) => {
+    settled = true;
+    return code;
+  });
+  try {
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(out()).toBe('');
+  } finally {
+    release();
+    await command;
+  }
+  expect(await command).toBe(0);
+  expect(out()).toContain('reported');
+});
+
 it('rejects legacy extension options instead of silently ignoring their policies', () => {
   expect(() => lint({ ...options, customRules: [rule('legacy')] } as never)).toThrow(
     /inside the config option/u,

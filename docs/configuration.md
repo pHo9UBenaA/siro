@@ -3,9 +3,9 @@
 ## Versioning policy
 
 siro evaluates repository settings against the recorded policy snapshot in
-[policy-sources.md](policy-sources.md). It detects package-manager names and does
-not change rules based on installed or declared versions. Version annotations
-record upstream facts, but do not establish the current version. Defaults that
+[policy-sources.md](policy-sources.md). It detects package-manager names and checks
+selected settings against a declared or explicit stable target version. It does
+not inspect installed binaries. Defaults that
 depend on a version, CI, or a public pull request retain the configured severity
 when their setting is absent.
 
@@ -33,9 +33,162 @@ tracking or lockfile contents. Deno currently supports strict `deno.json`, not
 `deno.jsonc` or external import maps.
 
 Value options must be specified once with a non-empty value. Boolean flags
-(`--json`, `--help`, `--version`) take no values or `--no-` variants.
+(`--json`, `--help`, `--version`, `--workspaces`) take no values or `--no-` variants.
 `--help` takes precedence over other arguments; `--version` comes next.
 Arguments after `--` are rejected.
+
+## Target PM versions
+
+The `unsupported-settings` rule reports settings introduced after the target version.
+For example, `packageManager: "npm@11.9.0"` with `min-release-age=3` produces an error:
+the setting requires npm 11.10.0. Setting presence is checked even for `false`, zero,
+or null values. Affected keys are grouped within each configuration file, producing
+one finding per file with its own location and source links in the manual steps.
+
+Targets are resolved separately for each selected manager, in this priority order:
+
+1. CLI `--pm-version` / API `pmVersion`, together with `--pm` / `pm`.
+2. `config.pmVersions`, such as `{ npm: '11.10.0', pnpm: '10.16.0' }`.
+3. An exact stable `package.json#packageManager` declaration for that manager.
+
+```sh
+siro lint --pm npm --pm-version 11.10.0
+```
+
+```ts
+lint({ cwd, pm: 'pnpm', pmVersion: '10.16.0' });
+```
+
+Version maps do not select managers or bypass `pms` restrictions. Lockfiles do not
+establish a runtime version. A declaration for npm never supplies pnpm's version.
+Versions are exact stable SemVer strings; build metadata, including Corepack's
+`+sha512.…` suffix, is accepted and ignored for ordering. Ranges, tags, partial
+versions, `v` prefixes, and prereleases are rejected in explicit options/config
+with exit 2. Such `packageManager` declarations leave the version unknown, preserving
+name detection and existing checks. No PM binary is executed or downloaded.
+
+Only the [listed setting/file pairs](rules.md#checked-introduction-versions) have
+availability checks in this release (npm, pnpm, Yarn, Bun, and Deno's
+`.npmrc#min-release-age`). Aube still has its existing security checks but no verified
+introduction table. Unlisted keys,
+unknown targets, later removals, backports, and version-specific value syntax are
+outside this check. A passing result does not establish that every setting works.
+The target is the user's declaration, not proof of what CI actually runs.
+
+The new rule defaults to `error`, so previously passing projects with unsupported
+settings can exit 1. It supports the usual `rules` severity override or `'off'`.
+Existing security rules and their remediation remain in effect; a target version
+does not lower severity for missing settings or prove environment-dependent defaults.
+
+## Workspace members
+
+Use `siro lint --workspaces` or `lint({ cwd, workspaces: true })` to add checks of
+declared members' publication metadata (`package.json`, or `deno.json` for Deno). The default remains one root.
+Run from the workspace root; siro does not search parent directories for it.
+
+- npm, Yarn, and Bun read the root `package.json#workspaces` array. The
+  `{ packages: [...] }` form is also accepted.
+- pnpm reads `pnpm-workspace.yaml#packages`. Omitted or empty `packages` adds no
+  members, matching the root-only default verified in pnpm 10.17.1.
+- For npm, pnpm, and Yarn, relative directory patterns use minimatch, including `*`, `**`,
+  and braces. Bun uses the same bounded matcher with extglob disabled: leading `!`, `*`,
+  `?`, `{`, and `[` select its glob path, while extglob parentheses remain literal.
+  Leading `!` excludes matching workspace candidates; a trailing `/**`
+  exclusion also prunes the covered subtree. Other exclusions do not hide nested
+  candidates that match a positive pattern. For npm, a later
+  positive pattern matching earlier exclusions cancels them according to npm's forward scan:
+  `['packages/**', '!packages/b/**', 'packages/b/a']` includes both `packages/b/a`
+  and other members under `packages/b`. Adjacent duplicate exclusions are significant:
+  `['packages/**', '!packages/b/**', '!packages/b/**', 'packages/b/a']` remains
+  excluded because npm's scan skips the shifted duplicate. Cancellation compares declaration
+  strings case-sensitively using npm's default minimatch options. npm also treats an odd
+  number of leading `!` characters as negative and an even number as positive. Bun keeps
+  explicitly named positive members regardless of negative globs. Each positive Bun glob is
+  filtered only by later negative patterns, so a later positive glob can re-include an earlier
+  exclusion. For pnpm and Yarn, exclusions retain priority regardless of order. Patterns use `/`;
+  absolute paths, parent traversal, and backslash patterns are rejected. A leading
+  `#` makes an npm pattern a comment, while `#` within a later path segment is literal.
+  Colons in ordinary relative segments are accepted; drive-letter paths remain invalid.
+  Brace expansion is limited to 8,192 expanded alternatives before
+  compilation; larger expansions fail as configuration errors.
+  Matching is case-insensitive on macOS and Windows, including literal segments
+  and exclusions, and case-sensitive elsewhere. This platform policy also applies
+  to injected filesystems and does not detect individual volume settings.
+- Root `.` entries, duplicate matches, `node_modules`, `.git`, and directory symlinks
+  are excluded from member traversal. Bun excludes `CMakeFiles` from glob traversal,
+  matching its walker, but still accepts an explicitly named member below it.
+  Node-PM directories without `package.json` are skipped.
+  Only the root declaration is expanded; nested workspace declarations are not followed.
+- Aube reads `aube-workspace.yaml#packages`, then `pnpm-workspace.yaml#packages`,
+  then package.json workspaces when neither YAML file exists. An existing YAML file
+  wins even when `packages` is empty or omitted. Supported patterns are literals,
+  component `*`/`?`, and trailing `**` after a literal prefix (or `**` alone).
+  Braces, character classes, extglobs, and mixed recursive patterns fail explicitly.
+  Matching is case-sensitive and includes dot directories. Exclusions filter
+  candidates without pruning their descendants; negative `*` can span `/`.
+- Deno combines `deno.json#workspace` with package.json workspaces. The former
+  discovers Deno or npm manifests; the latter requires package.json. Deno uses
+  `*`, `?`, and whole-component `**`, treats brackets/braces literally, and uses
+  case-insensitive matching after the first wildcard. The fixed prefix before that
+  wildcard (or the entire explicit path) uses native filesystem name resolution.
+  Thus `Packages/*` selects `packages/` only if the actual filesystem resolves
+  those names to the same directory. Findings retain the enumerated spelling.
+  Negative literal paths compare exactly. Negative globs match without case only
+  when their declared base and a positive base whose resolved scope contains the
+  candidate are related
+  as ancestor/descendant paths (compared exactly); they perform no native lookup.
+  Later matching glob entries win; explicit positive paths remain included.
+  If overlapping positive bases disagree on a matching exclusion's applicability,
+  inspection fails explicitly. Use consistent prefix spelling or non-overlapping
+  patterns. Deno's full base-order/visited-directory collector is not reproduced.
+  Glob expansion excludes the root `vendor` directory when `vendor: true`.
+  Selected JSONC-only members and nested workspace declarations fail explicitly.
+  An existing explicitly named directory without the required manifest is an error.
+  An absent member directory adds no findings. A Deno declaration selecting its
+  own root is an error. Named Deno packages with `publish: false` are internal;
+  npm `private` does not opt a Deno manifest out of JSR publication checks.
+
+These are bounded inspection semantics, not a replacement for a PM resolver or
+publication dry run. Deno/Aube behavior is based on Deno 2.9.4 and Aube commit
+`afcf46f39c070b8549642cd4cc0b53b0db0287da`; historical versions can differ. siro
+retains relative-path validation, skipped directory symlinks, fail-loud reads, and deduplicated
+members. It does not reproduce every upstream glob form or duplicate-member error.
+See [policy sources](policy-sources.md) for the versioned implementation references.
+
+The root receives the usual checks once. Members reuse `files-field`, `publish-access`,
+and the manifest entries of `unsupported-settings`; Deno uses `files-field` for
+`publish.include`. Findings identify paths such
+as `packages/ui/package.json`. Missing `files` or access settings use their existing
+informational severity; overrides and the CLI threshold apply to the combined result.
+Malformed selected manifests and directory-read failures stop the command with an error
+instead of producing a partial report. The JSON schema remains 2.
+
+Each child infers its own publication status, so a private root does not hide a public
+child. An explicit `projectType` applies to both root and children. Members use the
+root's selected PM and resolved target version; a child's `packageManager` does not
+override the workspace target. Multiple selected managers expand their own declarations.
+
+Installation settings and lockfiles are checked only at the root. Child installation
+configs, effective setting inheritance, dependency graphs, and child provenance policy
+are outside this inspection. The availability check on `publishConfig.provenance`
+establishes only its introduction version, not whether publication emits attestations.
+Root custom rules run once; child `siro.config.*` files are never loaded or executed.
+
+Injected `FileSystem` implementations can supply `readDirectories(path)`, returning
+ordinary child directory names without symlinks and propagating access errors. It is
+required only when member discovery needs directory enumeration. A missing implementation
+fails explicitly; siro never falls back to host filesystem reads for a virtual repository.
+The optional `resolveDirectory(parent, name)` returns the enumerated ordinary child
+name according to that filesystem's lookup semantics, or `undefined` for absence.
+Other errors must propagate. Deno uses it for literal prefixes; without it, injected
+filesystems use exact child names, regardless of the host OS. Returned names must
+belong to `readDirectories(parent)`. Native lookup excludes directory symlinks and
+fails explicitly if an alias cannot be identified uniquely from filesystem identities.
+Native manifest-file symlinks follow the existing file-read behavior.
+`FileSystem.exists` checks for a regular file, following file symlinks. Only a missing
+path (`ENOENT`) returns false; non-file entries and other filesystem errors must throw.
+`FileSystem.readText` likewise accepts only regular files (including file symlinks),
+returns `undefined` only for `ENOENT`, and throws for non-file entries before reading.
 
 ## Executable CLI configuration
 
@@ -119,9 +272,10 @@ const approval = defineRule({
 });
 ```
 
-A check returns `ok`, `na`, or one violation, optionally with automatic operations
+A check returns `ok`, `na`, one violation, or a nonempty group of violations, optionally with automatic operations
 or manual steps. The engine validates untyped results before reporting them.
-The binding receives a `RuleContext`: `readConfig(file)` reads additional inputs
+The binding receives a `RuleContext`: `pmVersion` is the resolved stable version of
+that binding's manager, or `undefined`; `readConfig(file)` reads additional inputs
 through the same validated parsers and per-run cache. A violation may return
 `file` to identify a different repository-relative input. Otherwise the binding
 file is used. A binding may omit `file` when it only needs the repository context.
@@ -139,8 +293,8 @@ User `rules` overrides take precedence over result, binding, and rule severities
 `'off'` removes a rule. A `requireConfigKey` binding may use `documentedDefault`
 to emit `info` only when an omitted key is safe across every supported package-manager
 version and target environment. A `defaultSafeSince` note does not establish that
-the current version satisfies the condition: siro does not detect package-manager
-versions in v0.4.0, so version- or environment-dependent defaults retain the rule's
+the effective runtime satisfies the condition: declared targets are used only for
+availability checks, so version- or environment-dependent defaults retain the rule's
 configured severity. `defaultSatisfiedSeverity: 'off'` suppresses only an
 unconditionally safe default; a severity override cannot resurrect a finding the
 check did not emit.
@@ -149,6 +303,8 @@ check did not emit.
 and `github` emits workflow annotations. Configured reporters register by name;
 later registrations replace earlier ones. An explicit reporter object is also
 accepted by `lintCommand`. The exit decision is computed before the reporter runs.
+Reporters may return a promise; `lintCommand` waits for completion and propagates
+reporting failures. Unexpected rejections use exit 70, just like synchronous exceptions.
 
 By default all findings are displayed and only `error` fails. `--severity warn`
 or `--severity info` changes both display and failure thresholds.
@@ -174,3 +330,20 @@ Custom checks use `RuleContext` and `getByPath`; custom reporters consume `LintR
 ## Invalid and unsupported data
 
 Malformed types in the `package.json` fields consumed by siro are configuration errors; they are not replaced with defaults. A Deno project using only `deno.jsonc` fails explicitly because the current parser supports strict `deno.json` only. Error exit code `2` means evaluation did not complete.
+
+### Multiple findings from one check
+
+Return `{ state: 'violations', violations: [first, ...rest] }` for independent
+problems. Every entry is a `ViolationStatus` with `state: 'violation'` and its own
+message, optional file, severity, expected/actual values, and remediation. A missing
+file falls back to the binding file. Empty, sparse, nested or malformed groups fail
+with a configuration error before a report is produced. Existing single-result
+checks remain valid; consumers switching exhaustively on `CheckStatus.state` must
+also handle `violations`.
+
+The engine expands groups into ordinary findings; JSON schema 2 and reporter fields
+are unchanged. Multiple findings may share a rule ID. `unsupported-settings` groups
+related keys within each file and preserves separate workspace member paths. Aube's
+lifecycle rule reports missing sandboxing and approval controls separately, each
+with only that file's proposal. Other rules can retain one finding when their
+settings describe a single problem or alternative protections.

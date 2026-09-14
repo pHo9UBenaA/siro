@@ -36,7 +36,7 @@ describe('aube bindings: lifecycle and lockfile rules', () => {
         const bd = disableLifecycleScripts.bindings.aube;
         assert(bd, 'expected binding');
         expect(bd.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
-        expect(bd.check(ctx(), config).state).toBe('violation');
+        expect(bd.check(ctx(), config).state).toBe('violations');
       },
     );
 
@@ -45,7 +45,7 @@ describe('aube bindings: lifecycle and lockfile rules', () => {
       const bd = disableLifecycleScripts.bindings.aube;
       assert(bd, 'expected binding');
       expect(bd.check(ctx(), { jailBuilds: true }).state).toBe('violation');
-      expect(bd.check(ctx(), { strictDepBuilds: true }).state).toBe('violation');
+      expect(bd.check(ctx(), { strictDepBuilds: true }).state).toBe('violations');
       expect(bd.check(ctx(), { jailBuilds: true, strictDepBuilds: true }).state).toBe('violation');
       expect(
         bd.check(ctx({ readText: () => 'strictDepBuilds=true' }), { jailBuilds: true }).state,
@@ -56,7 +56,10 @@ describe('aube bindings: lifecycle and lockfile rules', () => {
       expect.hasAssertions();
       const bd = disableLifecycleScripts.bindings.aube;
       assert(bd, 'expected binding');
-      const ops = automaticOperations(bd.check(ctx(), {}));
+      const status = bd.check(ctx(), {});
+      assert(status.state === 'violations');
+      expect(status.violations.map((item) => item.file)).toEqual(['aube-workspace.yaml', '.npmrc']);
+      const ops = status.violations.flatMap((item) => automaticOperations(item));
       const aubeFile = { kind: 'yaml', path: 'aube-workspace.yaml' };
       expect(ops).toStrictEqual([
         { file: aubeFile, keyPath: ['jailBuilds'], op: 'setKey', value: true },
@@ -150,4 +153,37 @@ it('uses the documented advisory and trust defaults without downgrading explicit
       ['trust-policy', severity],
     ]);
   }
+});
+
+it.each([
+  [{ jailBuilds: true }, {}, '.npmrc', 'strictDepBuilds'],
+  [{}, { strictDepBuilds: true }, 'aube-workspace.yaml', 'jailBuilds'],
+] as const)(
+  'proposes only the independently missing Aube control: %j %j',
+  (yaml, npm, file, key) => {
+    const status = disableLifecycleScripts.bindings.aube!.check(
+      ctx({ readConfig: () => npm }),
+      yaml,
+    );
+    expect(status).toMatchObject({ state: 'violation', file });
+    expect(automaticOperations(status)).toEqual([
+      {
+        file: { path: file, kind: file === '.npmrc' ? 'npmrc' : 'yaml' },
+        keyPath: [key],
+        op: 'setKey',
+        value: true,
+      },
+    ]);
+  },
+);
+
+it('keeps the independent Aube proposal automatic when the other file needs manual repair', () => {
+  const status = disableLifecycleScripts.bindings.aube!.check(ctx(), {
+    jailBuilds: { nested: true },
+  });
+  assert(status.state === 'violations');
+  expect(status.violations.map((item) => [item.file, item.remediation?.kind])).toEqual([
+    ['aube-workspace.yaml', 'manual'],
+    ['.npmrc', 'automatic'],
+  ]);
 });

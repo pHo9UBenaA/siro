@@ -4,6 +4,7 @@ import {
   copyFileSync,
   cpSync,
   mkdtempSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -25,6 +26,19 @@ let tarball = cliArgs.length === 1 ? resolve(cliArgs[0]) : undefined;
 const consumer = mkdtempSync(join(tmpdir(), 'siro-consumer-'));
 
 function run(command, args, cwd = consumer, status = 0) {
+  if (process.platform === 'win32') {
+    if (command === 'pnpm') {
+      assert.ok(process.env.npm_execpath, 'Run package verification through pnpm');
+      args = [process.env.npm_execpath, ...args];
+      command = process.execPath;
+    } else if (command.endsWith('siro.cmd')) {
+      // Exercise the installed Windows shim. All CLI arguments below are fixed
+      // test inputs; use a relative executable to avoid quoting the temp path.
+      assert.ok(args.every((arg) => /^[\w./-]+$/u.test(arg)));
+      args = ['/d', '/s', '/c', `node_modules\\.bin\\siro.cmd ${args.join(' ')}`];
+      command = process.env.ComSpec ?? 'cmd.exe';
+    }
+  }
   const result = spawnSync(command, args, {
     cwd,
     encoding: 'utf8',
@@ -49,7 +63,7 @@ try {
     assert.equal(archives.length, 1, 'Packing must produce exactly one tarball');
     tarball = join(consumer, archives[0]);
   }
-  const files = run('tar', ['-tzf', tarball]).trim().split('\n');
+  const files = run('tar', ['-tzf', tarball]).trim().split(/\r?\n/u);
   for (const file of files) {
     assert.match(
       file,
@@ -103,14 +117,43 @@ try {
   run(process.execPath, ['consumer.mts']);
 
   // Use the installed executable link, including its shebang and package bin mapping.
-  const cli = join(consumer, 'node_modules/.bin/siro');
+  const cli = join(consumer, `node_modules/.bin/siro${process.platform === 'win32' ? '.cmd' : ''}`);
   assert.equal(run(cli, ['--version']).trim(), manifest.version);
   cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'good'), { recursive: true });
   cpSync(join(root, 'test/fixtures/npm-bad'), join(consumer, 'bad'), { recursive: true });
   const report = JSON.parse(run(cli, ['lint', 'good', '--json']));
   assert.equal(report.schemaVersion, 2);
   assert.equal(report.siroVersion, manifest.version);
+  const versionReport = JSON.parse(
+    run(cli, ['lint', 'good', '--pm', 'npm', '--pm-version', '11.9.0', '--json'], consumer, 1),
+  );
+  assert.ok(versionReport.findings.some((finding) => finding.ruleId === 'unsupported-settings'));
+  run(cli, ['lint', 'good', '--pm', 'npm', '--pm-version', '11.10.0']);
+  run(cli, ['lint', 'good', '--pm-version', '11.10.0'], consumer, 2);
   run(cli, ['lint', 'bad'], consumer, 1);
+  cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'workspace'), { recursive: true });
+  const workspaceManifest = JSON.parse(
+    readFileSync(join(consumer, 'workspace/package.json'), 'utf8'),
+  );
+  writeFileSync(
+    join(consumer, 'workspace/package.json'),
+    JSON.stringify({ ...workspaceManifest, workspaces: ['child'] }),
+  );
+  mkdirSync(join(consumer, 'workspace/child'));
+  writeFileSync(join(consumer, 'workspace/child/package.json'), '{"name":"child"}');
+  writeFileSync(
+    join(consumer, 'workspace/siro.config.mjs'),
+    "export default { rules: { 'files-field': 'error' } };\n",
+  );
+  run(cli, ['lint', 'workspace']);
+  const workspaceReport = JSON.parse(
+    run(cli, ['lint', 'workspace', '--workspaces', '--json'], consumer, 1),
+  );
+  assert.ok(
+    workspaceReport.findings.some(
+      (finding) => finding.ruleId === 'files-field' && finding.file === 'child/package.json',
+    ),
+  );
   run(cli, ['--invalid-option'], consumer, 2);
   writeFileSync(
     join(consumer, 'good/siro.config.mjs'),

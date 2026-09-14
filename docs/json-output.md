@@ -61,3 +61,13 @@ The `fix`, `fixable`, and `manualSteps` finding fields were replaced by
 `remediation`. `setKey` operations move under `remediation.operations`;
 `note` and `ensureFileTracked` messages become manual `steps`. A manual remedy
 is chosen by the check itself, so there is no second operation list to suppress.
+
+### Target-version prerequisites
+
+For settings in the [availability table](rules.md#checked-introduction-versions),
+automatic proposals become manual when the declared target predates support. The
+whole operation group is retained as instructions requiring an upgrade; siro does
+not emit a partial automatic remedy. Built-in manual proposals for these settings
+also explain the prerequisite. Findings and severities remain unchanged. Unknown
+targets and settings outside the table retain their usual proposals; this is not
+a general guarantee that every proposed setting works on every PM release.

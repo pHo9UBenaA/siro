@@ -179,3 +179,95 @@ it('reports Aube install-command guidance without reading workspace configuratio
     { ruleId: 'frozen-lockfile', remediation: { kind: 'manual' } },
   ]);
 });
+
+it('expands independent violations with fallback paths, metadata and severity overrides', () => {
+  const rule = ruleWith('multiple', ['npm'], {
+    state: 'violations',
+    violations: [
+      { state: 'violation', message: 'first', actual: false, expected: true, severity: 'error' },
+      {
+        state: 'violation',
+        message: 'second',
+        file: asRelPath('package.json'),
+        severity: 'info',
+        remediation: { kind: 'manual', steps: ['Review second file'] },
+      },
+    ],
+  });
+  const result = lint(noopCtx, [rule], ['npm']);
+  expect(result.findings).toMatchObject([
+    { file: '.npmrc', message: 'first', actual: false, expected: true, severity: 'error' },
+    {
+      file: 'package.json',
+      message: 'second',
+      severity: 'info',
+      remediation: { kind: 'manual', steps: ['Review second file'] },
+    },
+  ]);
+  expect(result.summary).toMatchObject({ error: 1, warn: 0, info: 1 });
+});
+it.each([
+  [],
+  [{ state: 'ok' }],
+  [{ state: 'violations', violations: [] }],
+  Array(1),
+  [
+    { state: 'violation', message: 'valid' },
+    { state: 'violation', message: 42 },
+  ],
+])('rejects an invalid violation group without a partial result: %j', (violations) => {
+  const rule = ruleWith('invalid-group', ['npm'], {
+    state: 'violations',
+    violations,
+  } as CheckStatus);
+  expect(() => lint(noopCtx, [rule], ['npm'])).toThrow('invalid check result');
+});
+
+it('guards each grouped remediation and applies an override to every entry', () => {
+  const rule = ruleWith('guarded-group', ['npm'], {
+    state: 'violations',
+    violations: [
+      {
+        state: 'violation',
+        message: 'age',
+        remediation: {
+          kind: 'automatic',
+          operations: [
+            {
+              file: { kind: 'npmrc', path: asRelPath('.npmrc') },
+              op: 'setKey',
+              keyPath: ['min-release-age'],
+              value: 3,
+            },
+          ],
+        },
+      },
+      {
+        state: 'violation',
+        message: 'scripts',
+        remediation: {
+          kind: 'automatic',
+          operations: [
+            {
+              file: { kind: 'npmrc', path: asRelPath('.npmrc') },
+              op: 'setKey',
+              keyPath: ['ignore-scripts'],
+              value: true,
+            },
+          ],
+        },
+      },
+    ],
+  });
+  const result = runLint({
+    ctx: noopCtx,
+    codecFor: noopCodecFor,
+    pms: ['npm'],
+    pmVersions: { npm: '11.9.0' },
+    ruleSet: [rule],
+    severityOverrides: new Map([['guarded-group', 'info']]),
+  });
+  expect(result.findings.map((item) => item.remediation?.kind)).toEqual(['manual', 'automatic']);
+  expect(result.findings.map((item) => item.severity)).toEqual(['info', 'info']);
+  expect(result.summary).toEqual({ error: 0, warn: 0, info: 2 });
+});

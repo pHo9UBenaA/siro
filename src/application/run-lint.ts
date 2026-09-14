@@ -12,11 +12,13 @@ import {
   resolvePackageJsonProjectType,
 } from '../domain/services/project-type.ts';
 import { renderVersionNoteMessage } from '../domain/services/render-version-note.ts';
+import { guardRemediationAvailability } from '../domain/services/remediation-availability.ts';
 import { ConfigError } from '../shared/errors.ts';
 
 export interface RunLintOptions {
   readonly ctx: RepoContext;
   readonly pms: readonly PM[];
+  readonly pmVersions?: Readonly<Partial<Record<PM, string>>>;
   readonly ruleSet: readonly Rule[];
   readonly severityOverrides?: ReadonlyMap<string, Severity>;
   readonly codecFor: CodecFor;
@@ -42,7 +44,6 @@ export const runLint = (opts: RunLintOptions): LintResult => {
   const findings: Finding[] = [];
   const summary: Record<Severity, number> = { error: 0, info: 0, warn: 0 };
   const parseConfig = createConfigParser(codecFor, ctx);
-  const ruleContext: RuleContext = { ...ctx, readConfig: parseConfig };
 
   for (const rule of ruleSet) {
     for (const pm of pms) {
@@ -55,27 +56,35 @@ export const runLint = (opts: RunLintOptions): LintResult => {
         continue;
       }
 
-      const status: unknown = binding.check(ruleContext, parseConfig(binding.file));
-      if (!isCheckStatusShape(status)) {
+      const ruleContext: RuleContext = {
+        ...ctx,
+        readConfig: parseConfig,
+        pmVersion: opts.pmVersions?.[pm],
+      };
+      const response: unknown = binding.check(ruleContext, parseConfig(binding.file));
+      if (!isCheckStatusShape(response)) {
         throw new ConfigError(`Rule '${rule.id}' returned an invalid check result.`);
       }
-      if (status.state !== 'violation') {
-        continue;
-      }
+      const statuses = response.state === 'violations' ? response.violations : [response];
+      for (const status of statuses) {
+        if (status.state !== 'violation') {
+          continue;
+        }
 
-      const finding: Finding = {
-        ruleId: rule.id,
-        pm,
-        severity: decideSeverity(status, binding, rule, severityOverrides?.get(rule.id)),
-        message: renderVersionNoteMessage(status.message, binding.versionNote),
-        file: status.file ?? binding.file?.path,
-        docs: binding.docs ?? rule.docs,
-        actual: status.actual,
-        expected: status.expected,
-        remediation: status.remediation,
-      };
-      findings.push(finding);
-      summary[finding.severity] += 1;
+        const finding: Finding = {
+          ruleId: rule.id,
+          pm,
+          severity: decideSeverity(status, binding, rule, severityOverrides?.get(rule.id)),
+          message: renderVersionNoteMessage(status.message, binding.versionNote),
+          file: status.file ?? binding.file?.path,
+          docs: binding.docs ?? rule.docs,
+          actual: status.actual,
+          expected: status.expected,
+          remediation: guardRemediationAvailability(pm, ruleContext.pmVersion, status.remediation),
+        };
+        findings.push(finding);
+        summary[finding.severity] += 1;
+      }
     }
   }
 

@@ -1,5 +1,51 @@
 # Changelog
 
+## [0.5.0]
+
+### Features
+
+- Allow custom checks to return a nonempty `violations` group. Report unsupported settings separately per file and Aube lifecycle controls separately per missing file. JSON schema 2 is unchanged; exhaustive `CheckStatus` consumers must handle the new variant.
+- Add optional `FileSystem.resolveDirectory` for Deno's native positive literal-prefix lookup, retaining minimatch and existing dependencies. Virtual filesystems without this port resolve exact child names. Negative patterns retain lexical applicability; conflicting overlapping bases fail explicitly.
+
+- Add `unsupported-settings` to report configured settings introduced after a declared or explicit stable PM version. Cover 16 setting/file pairs across npm, pnpm, Yarn, Bun, and Deno, with a generated table of release sources.
+- Resolve each manager's target from `package.json#packageManager`, `config.pmVersions`, or the higher-priority `--pm-version` / API `pmVersion` option (which requires `--pm` / `pm`). Expose the resolved target as `RuleContext.pmVersion` for custom rules.
+- Preserve name detection when a declaration has no exact stable version. Reject ranges, tags, partial versions, and prereleases in explicit targets; accept build metadata such as Corepack hashes.
+- Add opt-in `--workspaces` / API `workspaces: true` to inspect declared npm, pnpm, Yarn, Bun, Deno, and Aube members' publication metadata. Reuse existing rules, identify member file paths, and aggregate severity counts and CLI exit status.
+- Add optional `FileSystem.readDirectories` for workspace discovery in virtual repositories, without falling back to host IO.
+
+### Behavior and scope
+
+- The new rule defaults to `error`; projects with previously accepted unsupported settings may now exit 1. Existing security checks, severity overrides, and JSON schema 2 remain in effect.
+- Availability checks cover recorded introductions in the listed files, not whole PM schemas, runtime discovery, removals, backports, version-specific value syntax, or effective defaults. Deno coverage is limited to `.npmrc#min-release-age`; Aube retains its existing checks without introduction coverage in this release.
+- Distinguish pnpm's strict-build setting introduction (10.3.0) from general workspace YAML support (10.6.0), and correct Bun's scanner introduction note to 1.2.21.
+- Keep shared installation and lockfile checks at the root. Members infer their own publication status and use the root's PM target; child executable configs are not loaded. Workspace discovery requires explicit declarations, excludes directory symlinks, and does not cover effective configuration inheritance. Deno/Aube use bounded, source-derived declaration semantics.
+
+### Fixes
+
+- Update `smol-toml` to 1.8.0 and Vitest to 4.1.11 to include upstream security fixes.
+- Honor Deno 2.8.1+'s project `.npmrc#min-release-age` fallback when `deno.json` does not provide an age, while retaining `deno.json` precedence and reporting an explicit zero opt-out.
+- For pnpm targets before 10.9.0, recommend supported `strictDepBuilds` gating without claiming that the ignored future-version bypass requires pnpm 10.9.0.
+- Keep nested workspace candidates visible when only their ancestor candidate is excluded. Prune traversal only when a trailing `/**` exclusion covers the subtree.
+- Reject workspace patterns whose brace-expanded alternatives contain parent traversal or exceed 8,192 entries before compilation, and avoid backtracking in Aube exclusion matching.
+- Match npm's odd/even interpretation of repeated leading `!` characters.
+- Match Bun's workspace ordering and syntax classification: explicit members remain included, later positive globs can re-include earlier exclusions, and extglob punctuation stays literal.
+- Exclude `CMakeFiles` from Bun glob traversal while retaining explicitly named members below it, matching Bun's walker and literal-member path.
+- Honor npm's ordered cancellation of workspace exclusions, including its handling of adjacent repeated exclusions.
+- Match npm's leading-`#` comment behavior while retaining `#` in nested path segments.
+- Permit colons in ordinary relative workspace segments while continuing to reject absolute and drive-letter paths.
+- Report rejected workspace glob patterns as configuration errors (exit 2) instead of internal crashes (exit 70).
+- Reject non-file manifest inputs before reading, preventing root and workspace FIFO manifests from blocking the scan.
+- Match literal workspace path segments and exclusions case-insensitively on macOS and Windows, so declaration casing does not silently omit members.
+- Use minimatch consistently for workspace membership, exclusions, and traversal. Remove custom brace expansion and globstar matching.
+- Limit workspace traversal using each applicable pattern's own depth, preserving errors from required directory reads.
+- Wait for asynchronous reporters and propagate their failures through the command's error handling.
+- Reject non-file entries at configuration and lockfile paths instead of accepting directories as existing files.
+
+### Verification
+
+- Exercise version boundaries, selection precedence, multi-manager isolation, invalid targets, CLI exit codes, custom-rule context, and the installed package's API and strict types.
+- Exercise workspace patterns, exclusions, duplicate matches, malformed child manifests, private roots with public children, injected IO, and installed CLI/API member inspection.
+
 ## [0.4.3]
 
 ### Maintenance

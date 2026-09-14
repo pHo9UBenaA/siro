@@ -1,3 +1,4 @@
+import { guardRemediationAvailability } from '../services/remediation-availability.ts';
 import { type RuleBinding, defineRule } from '../entities/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { getByPath } from '../entities/config-value.ts';
@@ -5,18 +6,23 @@ import { getByPath } from '../entities/config-value.ts';
 const { pnpmWorkspace } = CONFIG_FILES;
 
 const pnpmBinding: RuleBinding = {
-  check(_ctx, config) {
+  check(ctx, config) {
     const value = getByPath(config, ['frozenStore']);
     if (value === true) {
       return { state: 'ok' };
     }
     return {
-      remediation: {
-        kind: 'manual',
-        steps: [
-          'Populate the store before enabling `frozenStore: true`. Use it for read-only deployments; it is incompatible with --force and a configured pnpr server.',
-        ],
-      },
+      remediation: guardRemediationAvailability(
+        'pnpm',
+        ctx.pmVersion,
+        {
+          kind: 'manual',
+          steps: [
+            'Populate the store before enabling `frozenStore: true`. Use it for read-only deployments; it is incompatible with --force and a configured pnpr server.',
+          ],
+        },
+        [{ file: pnpmWorkspace, keyPath: ['frozenStore'] }],
+      ),
       actual: value,
       message:
         'For a pre-populated read-only store, consider `frozenStore` in pnpm-workspace.yaml. Normal installs need a writable store.',
