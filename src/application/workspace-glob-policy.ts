@@ -1,10 +1,9 @@
 import type { WorkspaceGlobOptions } from './ports/workspace-glob.ts';
 
-export const workspaceGlobOptions = (caseInsensitive: boolean): WorkspaceGlobOptions => ({
-  platform: 'linux',
-  nocase: caseInsensitive,
-  windowsPathsNoEscape: true,
-  nonegate: true,
-  nocomment: true,
-  optimizationLevel: 2,
+export const workspaceGlobOptions = (
+  caseInsensitive: boolean,
+): Extract<WorkspaceGlobOptions, { kind: 'directory' }> => ({
+  kind: 'directory',
+  syntax: 'shell',
+  caseInsensitive,
 });

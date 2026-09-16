@@ -6,7 +6,7 @@ import type { SiroConfig } from '../domain/entities/siro-config.ts';
 import { ConfigError } from '../shared/errors.ts';
 import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from './node-version.ts';
 import { nodeFileSystem } from './node-file-system.ts';
-import { parseConfig } from '../application/config.ts';
+import { parseConfig } from '../domain/services/parse-siro-config.ts';
 
 const CONFIG_NAMES = ['siro.config.ts', 'siro.config.mjs', 'siro.config.js'] as const;
 const describeError = (error: unknown): string =>

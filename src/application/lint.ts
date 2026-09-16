@@ -9,7 +9,7 @@ import type { LintResult } from '../domain/entities/lint-result.ts';
 import { UsageError, ConfigError } from '../shared/errors.ts';
 import { applyConfig } from '../domain/services/apply-config.ts';
 import { resolvePMs } from '../domain/services/resolve-pms.ts';
-import { parseConfig } from './config.ts';
+import { parseConfig } from '../domain/services/parse-siro-config.ts';
 import { runLint } from './run-lint.ts';
 import { declaredPMVersion, isStableVersion } from '../domain/services/pm-versions.ts';
 

@@ -1,4 +1,4 @@
-import type { ConfigFileRef } from '../../../src/domain/entities/rule.ts';
+import type { ConfigFileRef } from '../../../src/domain/entities/config-file-ref.ts';
 import assert from 'node:assert/strict';
 import { rules } from '../../../src/composition/rules.ts';
 import { makePublishableCtx } from '../../helpers/ctx.ts';

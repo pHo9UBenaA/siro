@@ -7,6 +7,7 @@ const LAYERS = [
   'shared',
   'domain',
   'application',
+  'application-ports',
   'adapters',
   'composition',
   'cli',
@@ -21,13 +22,21 @@ interface SourceFile {
 const allowedTargets: Readonly<Record<Layer, ReadonlySet<Layer>>> = {
   shared: new Set(),
   domain: new Set(['shared']),
-  application: new Set(['shared', 'domain']),
-  adapters: new Set(['shared', 'domain', 'application']),
-  composition: new Set(['shared', 'domain', 'application', 'adapters']),
-  cli: new Set(['shared', 'domain', 'application', 'adapters', 'composition']),
-  public: new Set(['shared', 'domain', 'application', 'adapters', 'composition']),
+  'application-ports': new Set(['shared', 'domain']),
+  application: new Set(['shared', 'domain', 'application-ports']),
+  adapters: new Set(['shared', 'domain', 'application-ports']),
+  composition: new Set(['shared', 'domain', 'application-ports', 'application', 'adapters']),
+  cli: new Set(['shared', 'domain', 'application-ports', 'application', 'adapters', 'composition']),
+  public: new Set([
+    'shared',
+    'domain',
+    'application-ports',
+    'application',
+    'adapters',
+    'composition',
+  ]),
 };
-const core = new Set<Layer>(['shared', 'domain', 'application']);
+const core = new Set<Layer>(['shared', 'domain', 'application-ports', 'application']);
 // Audited computation libraries; runtime and format libraries belong outside the core.
 const coreLibraries = new Set(['semver', 'valibot']);
 const runtimeGlobals = new Set([
@@ -46,7 +55,18 @@ const runtimeGlobals = new Set([
   'crypto',
 ]);
 
+const sourceRoot = path.resolve(import.meta.dirname, '../src');
+const projectRoot = path.resolve(sourceRoot, '..');
+const config = ts.readConfigFile(path.join(projectRoot, 'tsconfig.json'), ts.sys.readFile);
+const compilerOptions = ts.convertCompilerOptionsFromJson(
+  config.config.compilerOptions,
+  projectRoot,
+).options;
+const packageJson = JSON.parse(readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
+const runtimeLibraries = new Set(Object.keys(packageJson.dependencies));
+
 const layerOf = (file: string): Layer | undefined => {
+  if (file.startsWith('application/ports/')) return 'application-ports';
   if (/^index\.(?:ts|js)$/u.test(file)) return 'public';
   if (/^version\.(?:ts|js)$/u.test(file)) return 'shared';
   if (file === 'cli.ts' || file === 'cli.js' || file.startsWith('cli/')) return 'cli';
@@ -56,6 +76,12 @@ const layerOf = (file: string): Layer | undefined => {
 
 const findViolations = (files: readonly SourceFile[]): string[] => {
   const violations: string[] = [];
+  const graph = new Map(files.map((file) => [file.path, new Set<string>()]));
+  const contents = new Map(files.map((file) => [path.join(sourceRoot, file.path), file.content]));
+  const host: ts.ModuleResolutionHost = {
+    fileExists: (file) => contents.has(file),
+    readFile: (file) => contents.get(file),
+  };
   for (const file of files) {
     const sourceLayer = layerOf(file.path);
     const fail = (reason: string) => violations.push(`${file.path}: ${reason}`);
@@ -65,16 +91,34 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
     }
     const inCore = core.has(sourceLayer);
     const inspectImport = (specifier: string) => {
-      if (!specifier.startsWith('.')) {
-        if (inCore && (isBuiltin(specifier) || !coreLibraries.has(specifier.split('/')[0] ?? ''))) {
+      const packageMetadata = path.resolve(sourceRoot, path.dirname(file.path), specifier);
+      if (file.path === 'version.ts' && packageMetadata === path.join(projectRoot, 'package.json'))
+        return;
+      // Use the same resolution as the compiler: .js specifiers may resolve to
+      // .ts files; aliases and index modules must not hide a reverse edge/cycle.
+      const resolved = ts.resolveModuleName(
+        specifier,
+        path.join(sourceRoot, file.path),
+        compilerOptions,
+        host,
+      ).resolvedModule;
+      if (!resolved) {
+        const library = specifier.startsWith('@')
+          ? specifier.split('/').slice(0, 2).join('/')
+          : specifier.split('/')[0];
+        if (specifier.startsWith('.') || path.isAbsolute(specifier)) {
+          fail(`unresolved source dependency ${specifier}`);
+        } else if (
+          inCore
+            ? !coreLibraries.has(library ?? '')
+            : !isBuiltin(specifier) && !runtimeLibraries.has(library ?? '')
+        ) {
           fail(`forbidden external dependency ${specifier}`);
         }
         return;
       }
-      const target = path.posix.normalize(
-        path.posix.join(path.posix.dirname(file.path), specifier),
-      );
-      if (file.path === 'version.ts' && target === '../package.json') return;
+      const target = path.relative(sourceRoot, resolved.resolvedFileName).split(path.sep).join('/');
+      graph.get(file.path)?.add(target);
       const targetLayer = layerOf(target);
       if (!targetLayer) fail(`unclassified dependency ${specifier}`);
       else if (targetLayer !== sourceLayer && !allowedTargets[sourceLayer].has(targetLayer)) {
@@ -97,11 +141,23 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
         inspectImport(node.argument.literal.text);
       } else if (
         ts.isCallExpression(node) &&
-        node.expression.kind === ts.SyntaxKind.ImportKeyword
+        (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+          (ts.isIdentifier(node.expression) && node.expression.text === 'require'))
       ) {
         const [argument] = node.arguments;
-        if (argument && ts.isStringLiteral(argument)) inspectImport(argument.text);
+        if (
+          argument &&
+          (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument))
+        )
+          inspectImport(argument.text);
         else if (inCore) fail('dynamic module selection in core');
+      }
+      if (
+        ts.isImportEqualsDeclaration(node) &&
+        ts.isExternalModuleReference(node.moduleReference)
+      ) {
+        const reference = node.moduleReference.expression;
+        if (reference && ts.isStringLiteral(reference)) inspectImport(reference.text);
       }
       if (inCore && ts.isIdentifier(node) && runtimeGlobals.has(node.text)) {
         const deterministicDate =
@@ -124,6 +180,27 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
     };
     visit(source);
   }
+  // All edges count, including type-only references and re-exports. A completed
+  // node may be shared by multiple branches; only an active ancestor is a cycle.
+  const completed = new Set<string>();
+  const active = new Set<string>();
+  const trail: string[] = [];
+  const visitDependency = (file: string): void => {
+    if (active.has(file)) {
+      violations.push(
+        `dependency cycle: ${[...trail.slice(trail.indexOf(file)), file].join(' -> ')}`,
+      );
+      return;
+    }
+    if (completed.has(file)) return;
+    active.add(file);
+    trail.push(file);
+    for (const target of graph.get(file) ?? []) visitDependency(target);
+    trail.pop();
+    active.delete(file);
+    completed.add(file);
+  };
+  for (const file of graph.keys()) visitDependency(file);
   return violations;
 };
 
@@ -131,12 +208,12 @@ const readSources = (root: string, relative = ''): SourceFile[] =>
   readdirSync(path.join(root, relative), { withFileTypes: true }).flatMap((entry) => {
     const entryPath = path.posix.join(relative, entry.name);
     if (entry.isDirectory()) return readSources(root, entryPath);
-    if (!entry.isFile() || !entry.name.endsWith('.ts')) return [];
+    if (!entry.isFile() || !/\.(?:[cm]?[jt]sx?)$/u.test(entry.name)) return [];
     return [{ path: entryPath, content: readFileSync(path.join(root, entryPath), 'utf8') }];
   });
 
-it('keeps every core dependency inside the hexagon and isolates runtime composition', () => {
-  expect(findViolations(readSources(path.resolve(import.meta.dirname, '../src')))).toEqual([]);
+it('keeps the source graph acyclic, including types, with only inward dependencies', () => {
+  expect(findViolations(readSources(sourceRoot))).toEqual([]);
 });
 
 it.each([
@@ -149,6 +226,8 @@ it.each([
   ['domain/rule.ts', "export { value } from '../application/value.ts';"],
   ['shared/value.ts', "const value = import('../domain/value.ts');"],
   ['adapters/fs.ts', "export { lint } from '../composition/lint.ts';"],
+  ['adapters/fs.ts', "import { lint } from '../application/lint.ts';"],
+  ['application/ports/path.ts', "import type { LintOptions } from '../lint.ts';"],
   ['application/glob.ts', 'const insensitive = process.platform === "darwin";'],
   ['shared/value.ts', 'const value = globalThis.process;'],
   ['application/load.ts', 'const value = import(name);'],
@@ -167,6 +246,11 @@ it('allows ports, pure computation libraries, and outer composition', () => {
   expect(
     findViolations([
       { path: 'domain/value.ts', content: "import { lt } from 'semver';" },
+      { path: 'domain/ports/repo-context.ts', content: 'export interface RepoContext {}' },
+      {
+        path: 'application/ports/repository-paths.ts',
+        content: 'export interface RepositoryPaths {}',
+      },
       {
         path: 'application/lint.ts',
         content: "import type { RepoContext } from '../domain/ports/repo-context.ts';",
@@ -174,7 +258,7 @@ it('allows ports, pure computation libraries, and outer composition', () => {
       {
         path: 'adapters/fs.ts',
         content:
-          "import type { LintDependencies } from '../application/ports/lint-dependencies.ts'; import fs from 'node:fs';",
+          "import type { RepositoryPaths } from '../application/ports/repository-paths.ts'; import fs from 'node:fs';",
       },
       {
         path: 'composition/lint.ts',
@@ -183,4 +267,87 @@ it('allows ports, pure computation libraries, and outer composition', () => {
       },
     ]),
   ).toEqual([]);
+});
+
+it.each([
+  ["import { value } from './b.ts';", "export { value } from './a.ts';"],
+  ["import type { Value } from './b.ts';", "export type { Value } from './a.ts';"],
+  ["type Value = import('./b.ts').Value;", "type Value = import('./a.ts').Value;"],
+  ["const value = import('./b.ts');", "export * from './a.ts';"],
+])('rejects same-layer cycles through imports, exports and type references', (a, b) => {
+  expect(
+    findViolations([
+      { path: 'domain/a.ts', content: a },
+      { path: 'domain/b.ts', content: b },
+    ]),
+  ).toContain('dependency cycle: domain/a.ts -> domain/b.ts -> domain/a.ts');
+});
+
+it('rejects self imports and cycles hidden behind intermediate modules', () => {
+  expect(
+    findViolations([
+      { path: 'domain/a.ts', content: "import type { Value } from './b.ts';" },
+      { path: 'domain/b.ts', content: "export type { Value } from './c.ts';" },
+      { path: 'domain/c.ts', content: "import type { Value } from './a.ts';" },
+      { path: 'shared/self.ts', content: "export * from './self.ts';" },
+    ]),
+  ).toEqual([
+    'dependency cycle: domain/a.ts -> domain/b.ts -> domain/c.ts -> domain/a.ts',
+    'dependency cycle: shared/self.ts -> shared/self.ts',
+  ]);
+});
+
+it('allows diamond dependencies on a shared contract without treating them as cycles', () => {
+  expect(
+    findViolations([
+      { path: 'domain/a.ts', content: "import './b.ts'; import './c.ts';" },
+      { path: 'domain/b.ts', content: "export type { Value } from './d.ts';" },
+      { path: 'domain/c.ts', content: "import type { Value } from './d.ts';" },
+      { path: 'domain/d.ts', content: 'export type Value = string;' },
+    ]),
+  ).toEqual([]);
+});
+
+it('resolves JavaScript extensions to TypeScript sources before checking cycles', () => {
+  expect(
+    findViolations([
+      { path: 'domain/a.ts', content: "import type { Value } from './b.js';" },
+      { path: 'domain/b.ts', content: "export type { Value } from './a.js';" },
+    ]),
+  ).toContain('dependency cycle: domain/a.ts -> domain/b.ts -> domain/a.ts');
+});
+
+it('rejects adapters coupled to application implementations and ports coupled to use cases', () => {
+  expect(
+    findViolations([
+      {
+        path: 'adapters/fs.ts',
+        content: "import type { LintOptions } from '../application/lint.ts';",
+      },
+      {
+        path: 'application/ports/fs.ts',
+        content: "export type { LintOptions } from '../lint.ts';",
+      },
+      { path: 'application/lint.ts', content: 'export interface LintOptions {}' },
+    ]),
+  ).toEqual([
+    'adapters/fs.ts: forbidden application dependency ../application/lint.ts',
+    'application/ports/fs.ts: forbidden application dependency ../lint.ts',
+  ]);
+});
+
+it('rejects unresolved local imports instead of silently omitting their edges', () => {
+  expect(
+    findViolations([{ path: 'domain/a.ts', content: "export * from './missing.ts';" }]),
+  ).toEqual(['domain/a.ts: unresolved source dependency ./missing.ts']);
+});
+
+it('follows static dynamic imports and CommonJS references in outer adapters', () => {
+  expect(
+    findViolations([
+      { path: 'adapters/a.ts', content: 'const b = import(`./b.ts`);' },
+      { path: 'adapters/b.ts', content: "import c = require('./c.ts');" },
+      { path: 'adapters/c.ts', content: "const a = require('./a.ts');" },
+    ]),
+  ).toContain('dependency cycle: adapters/a.ts -> adapters/b.ts -> adapters/c.ts -> adapters/a.ts');
 });

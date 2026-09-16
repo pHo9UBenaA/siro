@@ -25,9 +25,9 @@ const npmPatterns = (patterns: readonly string[], globs: WorkspaceGlobs): readon
     const parsed = splitNpmPattern(raw);
     const pattern = parsed.pattern.replace(/^\.?\/+/u, '');
     if (parsed.excluded) {
-      // npm compares declaration strings with default minimatch options,
+      // npm compares declaration strings with its shell-pattern semantics,
       // independently of the platform policy used to enumerate directories.
-      negative.push({ pattern, glob: globs.compile(pattern, {}) });
+      negative.push({ pattern, glob: globs.compile(pattern, { kind: 'declaration' }) });
     } else {
       // Match @npmcli/map-workspaces' forward splice exactly. Adjacent duplicate
       // exclusions are not all removed because the shifted entry is skipped.
@@ -180,7 +180,7 @@ export const workspaceDirectories = (
       return globs.compile(
         pattern,
         pm === 'npm'
-          ? { ...defaultWorkspaceGlobOptions, nocomment: false }
+          ? { ...defaultWorkspaceGlobOptions, hashComments: true }
           : defaultWorkspaceGlobOptions,
       );
     const glob = compileAdditionalWorkspaceGlob(pattern, pm, excluded, caseInsensitiveGlobs, globs);
@@ -273,13 +273,13 @@ export const workspaceDirectories = (
             pattern.includes('[');
           const glob = globs.compile(pattern, {
             ...defaultWorkspaceGlobOptions,
-            noext: true,
+            extendedPatterns: false,
           });
           const subtree =
             isExcluded && pattern.endsWith('/**')
               ? globs.compile(pattern.slice(0, -3), {
                   ...defaultWorkspaceGlobOptions,
-                  noext: true,
+                  extendedPatterns: false,
                 })
               : undefined;
           return {

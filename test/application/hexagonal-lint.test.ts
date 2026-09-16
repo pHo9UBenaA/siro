@@ -1,3 +1,4 @@
+import { compileAdditionalWorkspaceGlob } from '../../src/application/workspace-dialects.ts';
 import { lint } from '../../src/application/lint.ts';
 import { lintCommand } from '../../src/application/commands/lint.ts';
 import type { LintDependencies } from '../../src/application/ports/lint-dependencies.ts';
@@ -88,7 +89,7 @@ it.each([false, true])(
     lint(request, { ...dependencies, caseInsensitiveGlobs });
     expect(compile).toHaveBeenCalledWith(
       'packages/*',
-      expect.objectContaining({ nocase: caseInsensitiveGlobs }),
+      expect.objectContaining({ caseInsensitive: caseInsensitiveGlobs }),
     );
   },
 );
@@ -138,4 +139,20 @@ it('does not fall back to the default filesystem for an explicitly invalid null 
   const { dependencies, readText } = host();
   expect(() => lint({ ...request, fs: null as never }, dependencies)).toThrow(TypeError);
   expect(readText).not.toHaveBeenCalled();
+});
+
+it('passes literal PM patterns to the glob port without engine-specific escaping', () => {
+  const { dependencies, compile } = host();
+  compileAdditionalWorkspaceGlob('packages/[api]/*', 'deno', false, false, dependencies.globs);
+  expect(compile).toHaveBeenCalledWith('packages/[api]/*', {
+    kind: 'directory',
+    syntax: 'wildcards',
+    includeDotDirectories: false,
+    caseInsensitive: true,
+  });
+  expect(compile).toHaveBeenCalledWith('packages/[api]/*/package.json', {
+    kind: 'directory',
+    syntax: 'wildcards',
+    caseInsensitive: true,
+  });
 });

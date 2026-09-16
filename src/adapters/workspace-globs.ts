@@ -1,5 +1,5 @@
 import type { WorkspaceGlobs, WorkspaceGlobOptions } from '../application/ports/workspace-glob.ts';
-import { braceExpand, GLOBSTAR, Minimatch } from 'minimatch';
+import { braceExpand, GLOBSTAR, Minimatch, type MinimatchOptions } from 'minimatch';
 import { ConfigError } from '../shared/errors.ts';
 
 const MAX_WORKSPACE_GLOB_ALTERNATIVES = 8_192;
@@ -26,13 +26,34 @@ const expandWorkspaceGlob = (pattern: string): readonly string[] => {
   }
 };
 
+/** Engine choices live here; the application supplies only PM matching policy. */
+const engineOptions = (options: WorkspaceGlobOptions): MinimatchOptions => {
+  if (options.kind === 'declaration') return {};
+  return {
+    platform: 'linux',
+    windowsPathsNoEscape: true,
+    nonegate: true,
+    nocomment: !options.hashComments,
+    nocase: options.caseInsensitive,
+    dot: options.includeDotDirectories ?? false,
+    nobrace: options.syntax === 'wildcards',
+    noext: options.syntax === 'wildcards' || options.extendedPatterns === false,
+    optimizationLevel: options.syntax === 'shell' ? 2 : 1,
+  };
+};
+
 /** Compile once so membership, exclusions, and traversal share glob semantics. */
 const compileWorkspaceGlob = (pattern: string, options: WorkspaceGlobOptions) => {
   let matcher: Minimatch;
   try {
-    if (!options.nobrace) boundedBraceExpand(pattern);
-    matcher = new Minimatch(pattern, {
-      ...options,
+    const settings = engineOptions(options);
+    if (!settings.nobrace) boundedBraceExpand(pattern);
+    const translated =
+      options.kind === 'directory' && options.syntax === 'wildcards'
+        ? pattern.replace(/[[\]]/gu, (character) => (character === '[' ? '[[]' : '[]]'))
+        : pattern;
+    matcher = new Minimatch(translated, {
+      ...settings,
       braceExpandMax: BRACE_EXPANSION_PROBE_LIMIT,
     });
   } catch (error) {

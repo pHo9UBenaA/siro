@@ -1,6 +1,5 @@
+import { type ConfigFileRef, isConfigFileRefShape } from './config-file-ref.ts';
 import {
-  CODEC_KINDS,
-  type CodecKind,
   type ConfigReadValue,
   type ConfigValue,
   type KeyPath,
@@ -11,11 +10,6 @@ import { type RelPath, isRelPath } from '../../shared/paths.ts';
 import type { RuleContext } from '../ports/repo-context.ts';
 import { type ProjectType, isProjectType } from './project-type.ts';
 import { isPlainRecord } from '../../shared/records.ts';
-
-export interface ConfigFileRef {
-  readonly kind: CodecKind;
-  readonly path: RelPath;
-}
 
 export interface SetKeyOperation {
   readonly op: 'setKey';
@@ -91,15 +85,6 @@ export const defineRule = <const Id extends string>(rule: Rule<Id>): Rule<Id> =>
 
 const isOptionalString = (value: unknown): boolean =>
   typeof value === 'undefined' || typeof value === 'string';
-
-const CONFIG_FILE_KINDS: ReadonlySet<string> = new Set(CODEC_KINDS);
-
-const isConfigFileRefShape = (value: unknown): value is ConfigFileRef => {
-  if (!isPlainRecord(value) || typeof value.kind !== 'string' || !isRelPath(value.path)) {
-    return false;
-  }
-  return CONFIG_FILE_KINDS.has(value.kind);
-};
 
 const isConfigValueShape = (value: unknown): value is ConfigValue =>
   typeof value === 'string' ||

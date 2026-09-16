@@ -1,7 +1,7 @@
 import type { CodecFor, ConfigCodec } from '../../../src/domain/ports/config-codec.ts';
 import { yamlCodec } from '../../../src/adapters/codecs/yaml.ts';
 import { ConfigError } from '../../../src/shared/errors.ts';
-import type { ConfigFileRef } from '../../../src/domain/entities/rule.ts';
+import type { ConfigFileRef } from '../../../src/domain/entities/config-file-ref.ts';
 import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
 import { asRelPath } from '../../../src/shared/paths.ts';
 import { createConfigParser } from '../../../src/domain/services/parse-config-file.ts';

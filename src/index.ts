@@ -27,7 +27,6 @@ export { defineRule } from './domain/entities/rule.ts';
 export type {
   CheckStatus,
   ViolationStatus,
-  ConfigFileRef,
   Remediation,
   SetKeyOperation,
   Rule,
@@ -48,3 +47,4 @@ export { ConfigError, SiroError, UsageError } from './shared/errors.ts';
 export { type AbsPath, asRelPath, type RelPath } from './shared/paths.ts';
 export { version } from './version.ts';
 export { asAbsPath } from './adapters/node-paths.ts';
+export type { ConfigFileRef } from './domain/entities/config-file-ref.ts';

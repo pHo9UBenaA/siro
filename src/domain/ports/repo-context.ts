@@ -1,4 +1,4 @@
-import type { ConfigFileRef } from '../entities/rule.ts';
+import type { ConfigFileRef } from '../entities/config-file-ref.ts';
 import type { ParsedConfig } from '../entities/config-value.ts';
 import type { AbsPath, RelPath } from '../../shared/paths.ts';
 import type { PackageJson } from '../schemas/package-json.ts';

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { type AbsPath, asRelPath } from '../shared/paths.ts';
-import type { RepositoryPaths } from '../application/ports/lint-dependencies.ts';
+import type { RepositoryPaths } from '../application/ports/repository-paths.ts';
 
 const isAbsPath = (value: unknown): value is AbsPath =>
   typeof value === 'string' && !value.includes('\0') && path.isAbsolute(value);

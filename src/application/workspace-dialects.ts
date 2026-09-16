@@ -51,31 +51,19 @@ export const compileAdditionalWorkspaceGlob = (
       'Aube workspace inspection supports literals, * and ?, and a trailing ** after a literal prefix; other glob forms are not yet supported.',
     );
   }
-  // Deno treats brackets/braces/extglob punctuation literally. Aube's broader
-  // Rust glob forms are rejected above rather than reinterpreted as minimatch.
-  const escaped =
-    pm === 'deno'
-      ? pattern.replace(/[[\]]/gu, (character) => (character === '[' ? '[[]' : '[]]'))
-      : pattern;
-  const matcher = globs.compile(escaped, {
-    platform: 'linux',
-    windowsPathsNoEscape: true,
-    nonegate: true,
-    nocomment: true,
-    nobrace: true,
-    noext: true,
-    dot: pm === 'aube',
-    nocase: pm === 'deno' && (/[*?]/u.test(pattern) || caseInsensitive),
+  // Punctuation outside the wildcard subset is literal. The adapter translates
+  // that semantic contract into its engine's syntax.
+  const matcher = globs.compile(pattern, {
+    kind: 'directory',
+    syntax: 'wildcards',
+    includeDotDirectories: pm === 'aube',
+    caseInsensitive: pm === 'deno' && (/[*?]/u.test(pattern) || caseInsensitive),
   });
   if (pm === 'deno' && /[*?]/u.test(pattern)) {
-    const files = globs.compile(`${escaped}/package.json`, {
-      platform: 'linux',
-      windowsPathsNoEscape: true,
-      nonegate: true,
-      nocomment: true,
-      nobrace: true,
-      noext: true,
-      nocase: true,
+    const files = globs.compile(`${pattern}/package.json`, {
+      kind: 'directory',
+      syntax: 'wildcards',
+      caseInsensitive: true,
     });
     return {
       ...matcher,

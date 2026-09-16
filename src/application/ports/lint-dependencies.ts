@@ -1,17 +1,11 @@
+import type { RepositoryPaths } from './repository-paths.ts';
 import type { Rule } from '../../domain/entities/rule.ts';
 import type { WorkspaceGlobs } from './workspace-glob.ts';
-import type { AbsPath, RelPath } from '../../shared/paths.ts';
+import type { AbsPath } from '../../shared/paths.ts';
 import type { FileSystem } from '../../domain/ports/file-system.ts';
 import type { RepoContext } from '../../domain/ports/repo-context.ts';
 import type { ProjectType } from '../../domain/entities/project-type.ts';
 import type { CodecFor } from '../../domain/ports/config-codec.ts';
-
-/** Native roots and repository-relative POSIX patterns have distinct semantics. */
-export interface RepositoryPaths {
-  isAbsolute: (value: unknown) => value is AbsPath;
-  resolve: (root: AbsPath, relative: RelPath) => AbsPath;
-  normalizePattern: (pattern: string) => string;
-}
 
 /** Supplied by the host; the application never selects a runtime implementation. */
 export interface LintDependencies {

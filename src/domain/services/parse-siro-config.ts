@@ -1,12 +1,12 @@
 import * as vb from 'valibot';
-import { isPM, PMS, SEVERITIES } from '../domain/entities/pms.ts';
-import { PROJECT_TYPES } from '../domain/entities/project-type.ts';
-import { type Reporter, isReporterShape } from '../domain/ports/reporter.ts';
-import { type Rule, isRuleShape } from '../domain/entities/rule.ts';
-import type { RuleSetting, SiroConfig } from '../domain/entities/siro-config.ts';
-import { isPlainRecord } from '../shared/records.ts';
-import { ConfigError } from '../shared/errors.ts';
-import { isStableVersion } from '../domain/services/pm-versions.ts';
+import { isPM, PMS, SEVERITIES } from '../entities/pms.ts';
+import { PROJECT_TYPES } from '../entities/project-type.ts';
+import { type Reporter, isReporterShape } from '../ports/reporter.ts';
+import { type Rule, isRuleShape } from '../entities/rule.ts';
+import type { RuleSetting, SiroConfig } from '../entities/siro-config.ts';
+import { isPlainRecord } from '../../shared/records.ts';
+import { ConfigError } from '../../shared/errors.ts';
+import { isStableVersion } from '../services/pm-versions.ts';
 
 const RuleSettingSchema = vb.union([vb.picklist(SEVERITIES), vb.literal('off')]);
 

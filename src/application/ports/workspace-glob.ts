@@ -4,18 +4,22 @@ export interface WorkspaceGlob {
   canDescend: (directory: string) => boolean;
 }
 
-/** Only switches used by siro's PM dialect policies cross this boundary. */
-export interface WorkspaceGlobOptions {
-  readonly platform?: 'linux';
-  readonly nocase?: boolean;
-  readonly windowsPathsNoEscape?: boolean;
-  readonly nonegate?: boolean;
-  readonly nocomment?: boolean;
-  readonly optimizationLevel?: 2;
-  readonly nobrace?: boolean;
-  readonly noext?: boolean;
-  readonly dot?: boolean;
-}
+/** PM policy expressed as matching behavior, without engine or OS switches. */
+export type WorkspaceGlobOptions =
+  // npm compares declaration strings before filesystem enumeration. This uses
+  // case-sensitive shell syntax, including leading comments and negation.
+  | { readonly kind: 'declaration' }
+  | {
+      readonly kind: 'directory';
+      /** shell: braces/classes/extglobs; wildcards: only *, ? and whole-segment **. */
+      readonly syntax: 'shell' | 'wildcards';
+      readonly caseInsensitive: boolean;
+      readonly includeDotDirectories?: boolean;
+      /** Treat leading # as a comment. Directory patterns are otherwise literal. */
+      readonly hashComments?: boolean;
+      /** Disable shell extglobs for PMs that treat that punctuation literally. */
+      readonly extendedPatterns?: boolean;
+    };
 
 export interface WorkspaceGlobs {
   /** Reject excessive expansion and invalid syntax with ConfigError. */

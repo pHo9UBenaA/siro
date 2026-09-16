@@ -7,21 +7,62 @@ and `lintCommand(options, io)` without assembling internal dependencies.
 
 ## Dependency direction
 
-| Area                         | Responsibility                                                                                  | Allowed internal dependencies                      |
-| ---------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `shared/`                    | Errors, records, branded path types and relative-path validation                                | Shared only                                        |
-| `domain/`                    | Rules, PM bindings, severity, version availability and domain ports                             | Domain, shared                                     |
-| `application/`               | Input validation, PM/workspace selection, evaluation and reporting use cases; application ports | Application, domain, shared                        |
-| `adapters/`                  | Node filesystem/paths, configuration import, codecs, glob engine and output formats             | Adapters, application, domain, shared              |
-| `composition/`               | Connect standard adapters and time-dependent rules                                              | Composition, adapters, application, domain, shared |
-| `cli/`, `cli.ts`, `index.ts` | CLI driving adapter and public package facade                                                   | Inward dependencies; never imported by the core    |
+The hexagon contains application use cases, domain policy and their ports. The CLI
+is a driving adapter; filesystem, codecs, glob matching and reporters are driven
+adapters. Composition is outside the hexagon and supplies concrete implementations.
+These are source dependencies, not the chronological order of execution:
+
+```text
+                         inside the hexagon
+CLI / public facade ---> application use cases ---> domain policy
+                                |                       |
+                                v                       v
+                         application ports        domain ports
+                                ^                       ^
+                                |                       |
+                         concrete adapters (outside)
+
+composition (outside) ---> use cases + concrete adapters
+shared <--- core and outer modules
+```
+
+Ports belong to the core responsibility that needs them. Use-case functions are
+input ports; an extra interface/class is not required around each function. During
+execution the core calls supplied output ports, which dispatch to adapters. That
+outward call does not create an outward source dependency.
+
+| Area                         | Responsibility                                                                                | Allowed internal dependencies                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `shared/`                    | Errors, records, branded path types and relative-path validation                              | Shared                                                                |
+| `domain/`                    | Rules, PM bindings, configuration validation, severity, version availability and domain ports | Domain, shared                                                        |
+| `application/ports/`         | Host-neutral contracts for application operations                                             | Application ports, domain, shared                                     |
+| `application/` (other files) | Input validation, PM/workspace selection, evaluation and reporting use cases                  | Application, application ports, domain, shared                        |
+| `adapters/`                  | Node filesystem/paths, configuration import, codecs, glob engine and output formats           | Adapters, application ports, domain, shared                           |
+| `composition/`               | Connect standard adapters and time-dependent rules                                            | Composition, adapters, application, application ports, domain, shared |
+| `cli/`, `cli.ts`, `index.ts` | CLI driving adapter and public package facade                                                 | Inward dependencies; never imported by the core                       |
+
+Driven adapters must not import application implementations. The config loader
+imports domain configuration validation, shared with the library use case. The
+path adapter imports only its small `RepositoryPaths` contract, not the aggregate
+lint dependency contract.
+
+**All statically resolved internal source dependencies must form a directed
+acyclic graph, including type imports and re-exports within the same layer.**
+This is an explicit siro maintenance constraint in addition to the hexagonal
+boundary. `ConfigFileRef` lives in an independent domain value module: both rules
+and repository ports depend on it, rather than depending on each other. Built-in
+rule ID completion is derived from the rule registry as a type-only dependency;
+this keeps one source of truth without introducing a cycle.
 
 `version.ts` exposes static package metadata. It is not a runtime dependency
 provider. The core permits `semver` and `valibot` for computation and validation;
-format, filesystem and glob libraries remain in adapters. Architecture tests
-check every source file, imports/re-exports (including type imports), known host
-globals, and dynamic module selection in the core. They enforce source boundaries,
-not a security sandbox for custom rules or dependencies.
+format, filesystem and glob libraries remain in adapters. The architecture test
+uses TypeScript module resolution, including `.js` references to `.ts` sources,
+before checking direction and cycles. It rejects unresolved local references,
+checks imports/re-exports (including types and static dynamic imports), known host
+globals, and dynamic module selection in the core. Executable user configuration
+is intentionally loaded dynamically by the outer config adapter. The test does
+not inspect third-party library internals or sandbox user code.
 
 ## Execution and ports
 
@@ -42,7 +83,10 @@ errors and non-file entries propagate. Workspace discovery requires directory
 operations on the supplied filesystem and never falls back to the host filesystem.
 `RepositoryPaths` separates native absolute paths from POSIX workspace patterns.
 `WorkspaceGlobs` supplies bounded expansion, membership and traversal predicates;
-the application owns PM dialect options, inclusion order and member scope.
+the application owns PM syntax policy, inclusion order and member scope.
+The glob port distinguishes declaration comparison from directory matching and
+expresses case, punctuation, hidden-directory and extended-pattern behavior.
+Minimatch options, optimization and literal-bracket escaping stay in its adapter.
 The explicit case policy preserves the host's existing glob behavior. Native
 literal-directory resolution is a separate filesystem operation.
 
@@ -67,7 +111,9 @@ in composition, never in core defaults or a shared module that imports adapters.
 - Core tests supply ports and verify decisions, precedence, failures and isolation.
 - Adapter tests exercise parsing, filesystem semantics and output contracts.
 - Composition/API/CLI tests exercise real wiring, trust boundaries and exit codes.
-- `pnpm verify` includes architecture checks and behavioral tests.
+- `pnpm verify` includes the graph/direction gate and behavioral tests. Gate
+  examples cover type cycles, transitive cycles, shared acyclic dependencies,
+  module resolution, and adapter-to-use-case violations.
 - `pnpm test:package` checks installed exports, types and the executable. Source
   imports alone do not establish package compatibility.
 
@@ -75,3 +121,12 @@ Keep the public exports, synchronous `lint`, asynchronous `lintCommand`, JSON
 schema, error categories and PM semantics stable during structural refactors.
 Private consumers must use the built package entry point; they must not import
 internal application ports or expand the public API solely for harness convenience.
+
+## Completion evidence for an architecture change
+
+A structural change is complete when the resolved source graph has no cycles or
+forbidden edges; ports describe siro operations without concrete engine switches;
+core behavior can run with supplied test ports; and adapter, CLI and installed
+package checks preserve the observable contract. Keep the public design guide,
+private maintainer material and private package consumers aligned with that state.
+Do not substitute a green graph check for behavioral and integration evidence.

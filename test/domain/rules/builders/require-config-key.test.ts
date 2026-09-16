@@ -1,10 +1,6 @@
 import assert from 'node:assert';
-import type {
-  RuleBinding,
-  ConfigFileRef,
-  Rule,
-  VersionNote,
-} from '../../../../src/domain/entities/rule.ts';
+import type { RuleBinding, Rule, VersionNote } from '../../../../src/domain/entities/rule.ts';
+import type { ConfigFileRef } from '../../../../src/domain/entities/config-file-ref.ts';
 import {
   overrideBindings,
   requireConfigKey,
