@@ -7,7 +7,7 @@ import {
   isSeverity,
 } from '../domain/entities/pms.ts';
 import { PROJECT_TYPES, type ProjectType, isProjectType } from '../domain/entities/project-type.ts';
-import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../shared/node-version.ts';
+import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../adapters/node-version.ts';
 import { UsageError } from '../shared/errors.ts';
 
 export const parsePmFlag = (raw: unknown): PM | undefined => {

@@ -1,5 +1,5 @@
-import { lint } from '../../src/application/lint.ts';
-import { asAbsPath } from '../../src/shared/paths.ts';
+import { lint } from '../../src/composition/lint.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
 it.each(['application', 'package'] as const)(

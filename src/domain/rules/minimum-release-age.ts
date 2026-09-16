@@ -1,3 +1,4 @@
+import type { DateTime } from '../ports/date-time.ts';
 import { guardRemediationAvailability } from '../services/remediation-availability.ts';
 import { getByPath } from '../entities/config-value.ts';
 import { proposeChanges } from './remediation.ts';
@@ -23,7 +24,7 @@ const { npmrc, pnpmWorkspace, yarnrc, bunfig, denoJson, aubeWorkspace } = CONFIG
 // See denoland/deno v2.9.4, libs/config/util.rs. Months and years are unsupported.
 const DENO_DURATION = /^\+?P(?:\+?\d+[Ww]|(?:\d+[Dd])*(?:T(?:\d+[HhMm]|\d+(?:\.\d+)?[Ss])+)?)$/u;
 // Chrono's minimum date bounds the cutoff accepted by Deno.
-const DENO_MIN_TIMESTAMP = Date.parse('-262143-01-01T00:00:00Z');
+const DENO_MIN_TIMESTAMP = Date.UTC(-262143, 0, 1);
 const DENO_UNIT_SECONDS: Readonly<Record<string, number>> = {
   w: 604800,
   d: 86400,
@@ -48,15 +49,15 @@ const isPositiveYarnDuration = (value: unknown): boolean =>
     Number.isFinite(Number.parseFloat(value)) &&
     Number.parseFloat(value) > 0);
 
-const isPositiveDenoSeconds = (seconds: number): boolean =>
-  seconds > 0 && Number.isFinite(seconds) && Date.now() - seconds * 1000 >= DENO_MIN_TIMESTAMP;
+const isPositiveDenoSeconds = (seconds: number, now: number): boolean =>
+  seconds > 0 && Number.isFinite(seconds) && now - seconds * 1000 >= DENO_MIN_TIMESTAMP;
 
-const isActiveDenoAge = (value: unknown): boolean => {
+const isActiveDenoAge = (value: unknown, now: number, parse: DateTime['parse']): boolean => {
   if (typeof value === 'number')
-    return Number.isSafeInteger(value) && isPositiveDenoSeconds(value * 60);
+    return Number.isSafeInteger(value) && isPositiveDenoSeconds(value * 60, now);
   if (typeof value !== 'string') return false;
   if (/^\d+$/u.test(value))
-    return Number.isSafeInteger(Number(value)) && isPositiveDenoSeconds(Number(value) * 60);
+    return Number.isSafeInteger(Number(value)) && isPositiveDenoSeconds(Number(value) * 60, now);
   if (DENO_DURATION.test(value)) {
     let seconds = 0;
     for (const [, integer, fraction, unit] of value.matchAll(/(\d+)(?:\.(\d+))?([WDHMS])/giu)) {
@@ -64,7 +65,7 @@ const isActiveDenoAge = (value: unknown): boolean => {
       const amount = Number(integer) + Number(`0.${(fraction ?? '').slice(0, 9) || '0'}`);
       seconds += amount * (DENO_UNIT_SECONDS[unit?.toLowerCase() ?? ''] ?? 0);
     }
-    return isPositiveDenoSeconds(seconds);
+    return isPositiveDenoSeconds(seconds, now);
   }
   if (!DENO_DATE.test(value) && !DENO_TIMESTAMP.test(value) && !DENO_OFFSET_TIMESTAMP.test(value))
     return false;
@@ -72,20 +73,23 @@ const isActiveDenoAge = (value: unknown): boolean => {
   const midnight = new Date(`${date}T00:00:00Z`);
   // Chrono accepts leap seconds; JavaScript Date does not. Normalize only that second.
   const leapSecond = /:60(?=\.|Z|z|[+-])/u.test(value);
-  const timestamp =
-    Date.parse(value.replace(/:60(?=\.|Z|z|[+-])/u, ':59')) + (leapSecond ? 1000 : 0);
+  const timestamp = parse(value.replace(/:60(?=\.|Z|z|[+-])/u, ':59')) + (leapSecond ? 1000 : 0);
   return (
     !Number.isNaN(midnight.valueOf()) &&
     midnight.toISOString().slice(0, 10) === date &&
-    timestamp < Date.now()
+    timestamp < now
   );
 };
 
-const isNonDisabledDenoDuration = (value: unknown): boolean => {
-  if (!isPlainRecord(value)) return isActiveDenoAge(value);
+const isNonDisabledDenoDuration = (
+  value: unknown,
+  now: number,
+  parse: DateTime['parse'],
+): boolean => {
+  if (!isPlainRecord(value)) return isActiveDenoAge(value, now, parse);
   if (Object.keys(value).some((key) => key !== 'age' && key !== 'exclude')) return false;
   if (value.exclude !== undefined && !isStringList(value.exclude)) return false;
-  return value.age == null || isActiveDenoAge(value.age);
+  return value.age == null || isActiveDenoAge(value.age, now, parse);
 };
 
 const denoAgeUsesFallback = (value: unknown): boolean => {
@@ -154,18 +158,18 @@ const baseRule = requireConfigKey({
   title: 'Set a minimum release age',
 });
 
-const npmBinding: RuleBinding = {
+const createNpmBinding = (time: DateTime): RuleBinding => ({
   file: npmrc,
   docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#min-release-age',
   versionNote: { note: 'min-release-age available since npm 11.10.0' },
   check(ctx, config) {
-    const now = Date.now();
+    const now = time.now();
     // npm gives an explicit before priority over min-release-age in the same source.
     if (Object.hasOwn(config, 'before')) {
       const actual = config.before;
       if (
         (typeof actual === 'string' || typeof actual === 'number') &&
-        Date.parse(String(actual)) < now
+        time.parse(String(actual)) < now
       ) {
         return { state: 'ok' };
       }
@@ -217,9 +221,9 @@ const npmBinding: RuleBinding = {
       ),
     };
   },
-};
+});
 
-const denoBinding: RuleBinding = {
+const createDenoBinding = (time: DateTime): RuleBinding => ({
   file: denoJson,
   docs: 'https://docs.deno.com/runtime/reference/deno_json/',
   versionNote: {
@@ -252,7 +256,7 @@ const denoBinding: RuleBinding = {
         };
       }
     }
-    if (isNonDisabledDenoDuration(actual)) return { state: 'ok' };
+    if (isNonDisabledDenoDuration(actual, time.now(), time.parse)) return { state: 'ok' };
     const objectAge = isPlainRecord(actual);
     const invalidObject =
       objectAge &&
@@ -280,6 +284,7 @@ const denoBinding: RuleBinding = {
           ]),
     };
   },
-};
+});
 
-export const minimumReleaseAge = overrideBindings(baseRule, { npm: npmBinding, deno: denoBinding });
+export const createMinimumReleaseAge = (time: DateTime) =>
+  overrideBindings(baseRule, { npm: createNpmBinding(time), deno: createDenoBinding(time) });

@@ -1,9 +1,6 @@
-import path from 'node:path';
+import type { LintDependencies } from './ports/lint-dependencies.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
 import { createConfigParser } from '../domain/services/parse-config-file.ts';
-import { codecFor } from '../adapters/codecs/store.ts';
-import { createRepoContext } from '../adapters/repo-context.ts';
-import { resolveIn } from '../adapters/node-file-system.ts';
 import { asRelPath } from '../shared/paths.ts';
 import { ConfigError } from '../shared/errors.ts';
 import type { RepoContext } from '../domain/ports/repo-context.ts';
@@ -18,15 +15,17 @@ export const collectWorkspaceMembers = (
   fs: FileSystem,
   pms: readonly PM[],
   projectType: ProjectType | undefined,
-) =>
-  pms.flatMap((pm) => {
+  dependencies: LintDependencies,
+) => {
+  const { codecFor, createRepoContext, paths } = dependencies;
+  return pms.flatMap((pm) => {
     const seen = new Set<string>();
-    return workspaceDefinitions(ctx, pm).flatMap((definition) =>
-      workspaceDirectories(ctx, fs, definition, pm).flatMap((directory) => {
-        const root = resolveIn(ctx.root, directory);
-        const manifest = resolveIn(root, asRelPath('package.json'));
-        const denoManifest = resolveIn(root, asRelPath('deno.json'));
-        const denoJsonc = resolveIn(root, asRelPath('deno.jsonc'));
+    return workspaceDefinitions(ctx, pm, dependencies).flatMap((definition) =>
+      workspaceDirectories(ctx, fs, definition, pm, dependencies).flatMap((directory) => {
+        const root = paths.resolve(ctx.root, directory);
+        const manifest = paths.resolve(root, asRelPath('package.json'));
+        const denoManifest = paths.resolve(root, asRelPath('deno.json'));
+        const denoJsonc = paths.resolve(root, asRelPath('deno.jsonc'));
         // Child publication metadata only; root installation settings are not merged.
         const allowed = new Set(pm === 'deno' ? [manifest, denoManifest, denoJsonc] : [manifest]);
         const memberFs: FileSystem = {
@@ -38,7 +37,7 @@ export const collectWorkspaceMembers = (
             (pattern) =>
               !pattern.startsWith('!') &&
               !/[*?]/u.test(pattern) &&
-              path.posix.normalize(pattern).replace(/\/+$/u, '') === directory,
+              paths.normalizePattern(pattern).replace(/\/+$/u, '') === directory,
           );
           if (!definition.denoManifests && !fs.exists(manifest)) {
             if (pm === 'deno' && explicitMember)
@@ -72,3 +71,4 @@ export const collectWorkspaceMembers = (
       }),
     );
   });
+};

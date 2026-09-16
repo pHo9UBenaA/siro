@@ -1,8 +1,6 @@
 import { automaticOperations } from '../../helpers/remediation.ts';
-import {
-  RECOMMENDED_RELEASE_AGE_SECONDS,
-  minimumReleaseAge,
-} from '../../../src/domain/rules/minimum-release-age.ts';
+import { RECOMMENDED_RELEASE_AGE_SECONDS } from '../../../src/domain/rules/minimum-release-age.ts';
+import { minimumReleaseAge } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';

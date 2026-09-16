@@ -6,8 +6,8 @@ import { automaticOperations } from '../../helpers/remediation.ts';
 import {
   DOCUMENTED_DEFAULT_MINUTES,
   RECOMMENDED_RELEASE_AGE_MINUTES,
-  minimumReleaseAge,
 } from '../../../src/domain/rules/minimum-release-age.ts';
+import { minimumReleaseAge } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
 import { commitLockfile } from '../../../src/domain/rules/commit-lockfile.ts';

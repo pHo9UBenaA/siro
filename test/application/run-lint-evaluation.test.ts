@@ -1,6 +1,7 @@
 import type { CheckStatus, Rule } from '../../src/domain/entities/rule.ts';
 import type { CodecFor, ConfigCodec } from '../../src/domain/ports/config-codec.ts';
-import { asAbsPath, asRelPath } from '../../src/shared/paths.ts';
+import { asRelPath } from '../../src/shared/paths.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import type { ParsedConfig } from '../../src/domain/entities/config-value.ts';
 import type { RepoContext } from '../../src/domain/ports/repo-context.ts';
 import { runLint } from '../../src/application/run-lint.ts';

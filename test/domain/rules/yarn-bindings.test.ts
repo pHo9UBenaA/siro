@@ -2,8 +2,8 @@ import { automaticOperations } from '../../helpers/remediation.ts';
 import {
   DOCUMENTED_DEFAULT_MINUTES,
   RECOMMENDED_RELEASE_AGE_MINUTES,
-  minimumReleaseAge,
 } from '../../../src/domain/rules/minimum-release-age.ts';
+import { minimumReleaseAge } from '../../helpers/rules.ts';
 import {
   expectMessageContains,
   expectMessageContainsAndAvoids,

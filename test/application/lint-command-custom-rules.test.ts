@@ -1,11 +1,12 @@
 import { ConfigError, UsageError } from '../../src/shared/errors.ts';
-import { asAbsPath, asRelPath } from '../../src/shared/paths.ts';
+import { asRelPath } from '../../src/shared/paths.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import type { CheckStatus, Rule } from '../../src/domain/entities/rule.ts';
 import type { SiroConfig } from '../../src/domain/entities/siro-config.ts';
 import type { LintResult } from '../../src/domain/entities/lint-result.ts';
 import { captureIO } from '../helpers/io.ts';
-import { lintCommand } from '../../src/application/commands/lint.ts';
-import { lint } from '../../src/application/lint.ts';
+import { lintCommand } from '../../src/composition/lint.ts';
+import { lint } from '../../src/composition/lint.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
 
 const rule = (

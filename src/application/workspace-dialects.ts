@@ -1,4 +1,4 @@
-import { compileWorkspaceGlob } from './workspace-globs.ts';
+import type { WorkspaceGlobs } from './ports/workspace-glob.ts';
 import { ConfigError } from '../shared/errors.ts';
 
 const matchesCrossPathGlob = (pattern: string, value: string): boolean => {
@@ -34,6 +34,8 @@ export const compileAdditionalWorkspaceGlob = (
   pattern: string,
   pm: 'deno' | 'aube',
   excluded: boolean,
+  caseInsensitive: boolean,
+  globs: WorkspaceGlobs,
 ) => {
   const parts = pattern.split('/');
   if (parts.some((part) => part.includes('**') && part !== '**')) {
@@ -55,7 +57,7 @@ export const compileAdditionalWorkspaceGlob = (
     pm === 'deno'
       ? pattern.replace(/[[\]]/gu, (character) => (character === '[' ? '[[]' : '[]]'))
       : pattern;
-  const matcher = compileWorkspaceGlob(escaped, {
+  const matcher = globs.compile(escaped, {
     platform: 'linux',
     windowsPathsNoEscape: true,
     nonegate: true,
@@ -63,12 +65,10 @@ export const compileAdditionalWorkspaceGlob = (
     nobrace: true,
     noext: true,
     dot: pm === 'aube',
-    nocase:
-      pm === 'deno' &&
-      (/[*?]/u.test(pattern) || process.platform === 'darwin' || process.platform === 'win32'),
+    nocase: pm === 'deno' && (/[*?]/u.test(pattern) || caseInsensitive),
   });
   if (pm === 'deno' && /[*?]/u.test(pattern)) {
-    const files = compileWorkspaceGlob(`${escaped}/package.json`, {
+    const files = globs.compile(`${escaped}/package.json`, {
       platform: 'linux',
       windowsPathsNoEscape: true,
       nonegate: true,

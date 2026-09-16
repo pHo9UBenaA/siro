@@ -1,6 +1,6 @@
 import type { ConfigFileRef } from '../../../src/domain/entities/rule.ts';
 import assert from 'node:assert/strict';
-import { rules } from '../../../src/domain/builtin-rules.ts';
+import { rules } from '../../../src/composition/rules.ts';
 import { makePublishableCtx } from '../../helpers/ctx.ts';
 import { isPlainRecord } from '../../../src/shared/records.ts';
 import { CONFIG_FILES } from '../../../src/domain/entities/config-files.ts';

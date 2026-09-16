@@ -1,5 +1,5 @@
-import { lintCommand } from '../../src/application/commands/lint.ts';
-import { asAbsPath } from '../../src/shared/paths.ts';
+import { lintCommand } from '../../src/composition/lint.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { captureIO } from '../helpers/io.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
 

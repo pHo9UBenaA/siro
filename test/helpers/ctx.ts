@@ -1,7 +1,7 @@
 import { createConfigParser } from '../../src/domain/services/parse-config-file.ts';
 import { codecFor } from '../../src/adapters/codecs/store.ts';
 import type { RepoContext, RuleContext } from '../../src/domain/ports/repo-context.ts';
-import { asAbsPath } from '../../src/shared/paths.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 

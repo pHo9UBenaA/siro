@@ -1,4 +1,5 @@
-import { asAbsPath, asRelPath } from '../../src/shared/paths.ts';
+import { asRelPath } from '../../src/shared/paths.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import assert from 'node:assert';
 import { ConfigError } from '../../src/shared/errors.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';

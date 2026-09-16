@@ -1,4 +1,5 @@
-import { asAbsPath, asRelPath } from '../../src/shared/paths.ts';
+import { asRelPath } from '../../src/shared/paths.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 
 it.each(['', 'relative/repo'])('rejects a non-absolute repository root: %j', (value) => {
   expect(() => asAbsPath(value)).toThrow(/absolute/u);

@@ -3,7 +3,7 @@ import { type Reporter, isReporterShape } from '../../domain/ports/reporter.ts';
 import { exitCodeForLint, filterBySeverity } from '../../domain/services/filter.ts';
 import type { IO } from '../../domain/ports/io.ts';
 import { UsageError } from '../../shared/errors.ts';
-import { DEFAULT_REPORTER_NAME, createRegistry } from '../../adapters/reporters/registry.ts';
+import type { LintDependencies } from '../ports/lint-dependencies.ts';
 import { prepareLint, runPreparedLint, type LintOptions } from '../lint.ts';
 
 export interface LintCommandOptions extends LintOptions {
@@ -12,14 +12,22 @@ export interface LintCommandOptions extends LintOptions {
 }
 
 /** Evaluate and report. Executable config loading belongs to the CLI adapter. */
-export const lintCommand = async (options: LintCommandOptions, io: IO): Promise<number> => {
+export const lintCommand = async (
+  options: LintCommandOptions,
+  io: IO,
+  dependencies: LintDependencies,
+  reporters: {
+    readonly defaultName: string;
+    readonly createRegistry: (extras: readonly Reporter[]) => ReadonlyMap<string, Reporter>;
+  },
+): Promise<number> => {
   if (!options) throw new UsageError('Lint options are required.');
   if (options.severity !== undefined && !isSeverity(options.severity)) {
     throw new UsageError(`Invalid severity: ${String(options.severity)}`);
   }
-  const prepared = prepareLint(options);
-  const registry = createRegistry(prepared.reporters);
-  const selection = options.reporter ?? DEFAULT_REPORTER_NAME;
+  const prepared = prepareLint(options, dependencies);
+  const registry = reporters.createRegistry(prepared.reporters);
+  const selection = options.reporter ?? reporters.defaultName;
   const reporter = typeof selection === 'string' ? registry.get(selection) : selection;
   if (!isReporterShape(reporter)) {
     throw new UsageError(

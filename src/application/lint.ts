@@ -1,20 +1,17 @@
+import type { LintDependencies } from './ports/lint-dependencies.ts';
 import { collectWorkspaceMembers } from './workspace-contexts.ts';
-import { type AbsPath, isAbsPath, asRelPath } from '../shared/paths.ts';
+import { type AbsPath, asRelPath } from '../shared/paths.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import { type PM, isPM } from '../domain/entities/pms.ts';
 import { type ProjectType, isProjectType } from '../domain/entities/project-type.ts';
 import type { SiroConfig } from '../domain/entities/siro-config.ts';
 import type { LintResult } from '../domain/entities/lint-result.ts';
 import { UsageError, ConfigError } from '../shared/errors.ts';
-import { createRepoContext } from '../adapters/repo-context.ts';
-import { codecFor } from '../adapters/codecs/store.ts';
-import { rules } from '../domain/builtin-rules.ts';
 import { applyConfig } from '../domain/services/apply-config.ts';
 import { resolvePMs } from '../domain/services/resolve-pms.ts';
 import { parseConfig } from './config.ts';
 import { runLint } from './run-lint.ts';
 import { declaredPMVersion, isStableVersion } from '../domain/services/pm-versions.ts';
-import { nodeFileSystem } from '../adapters/node-file-system.ts';
 
 export interface LintOptions {
   readonly cwd: AbsPath;
@@ -30,8 +27,9 @@ export interface LintOptions {
 }
 
 /** Evaluate a repository without reporting or executing configuration files. */
-export const prepareLint = (options: LintOptions) => {
-  if (!options || !isAbsPath(options.cwd)) {
+export const prepareLint = (options: LintOptions, dependencies: LintDependencies) => {
+  const { paths, codecFor, createRepoContext } = dependencies;
+  if (!options || !paths.isAbsolute(options.cwd)) {
     throw new UsageError('cwd must be an absolute filesystem path.');
   }
   if ('customRules' in options || 'reporters' in options) {
@@ -52,11 +50,8 @@ export const prepareLint = (options: LintOptions) => {
     throw new UsageError('workspaces must be a boolean.');
   }
   const config = options.config === undefined ? undefined : parseConfig(options.config);
-  const ctx = createRepoContext(
-    options.cwd,
-    options.fs,
-    options.projectType ?? config?.projectType,
-  );
+  const fs = options.fs ?? dependencies.fileSystem;
+  const ctx = createRepoContext(options.cwd, fs, options.projectType ?? config?.projectType);
   const pms = resolvePMs(ctx, { allowed: config?.pms, pmOverride: options.pm });
   if (
     pms.includes('deno') &&
@@ -67,15 +62,20 @@ export const prepareLint = (options: LintOptions) => {
       'deno.jsonc is not supported. siro currently reads strict JSON from deno.json only.',
     );
   }
-  const configured = applyConfig(rules, config);
+  const configured = applyConfig(dependencies.rules, config);
   const pmVersions = {
     ...declaredPMVersion(ctx.packageJson?.packageManager),
     ...config?.pmVersions,
     ...(options.pm && options.pmVersion ? { [options.pm]: options.pmVersion } : {}),
   };
-  const fs = options.fs ?? nodeFileSystem;
   const members = options.workspaces
-    ? collectWorkspaceMembers(ctx, fs, pms, options.projectType ?? config?.projectType)
+    ? collectWorkspaceMembers(
+        ctx,
+        fs,
+        pms,
+        options.projectType ?? config?.projectType,
+        dependencies,
+      )
     : [];
   return {
     ctx,
@@ -121,4 +121,5 @@ export const runPreparedLint = (prepared: ReturnType<typeof prepareLint>): LintR
   return { findings, summary };
 };
 
-export const lint = (options: LintOptions): LintResult => runPreparedLint(prepareLint(options));
+export const lint = (options: LintOptions, dependencies: LintDependencies): LintResult =>
+  runPreparedLint(prepareLint(options, dependencies));

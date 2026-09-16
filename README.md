@@ -112,3 +112,8 @@ Adding a rule or a package manager is a localized change — see
 ## License
 
 MIT
+
+## Architecture
+
+The [architecture guide](docs/architecture.md) describes ports, adapters, runtime
+composition, dependency checks, and the behavioral contracts used when changing siro.

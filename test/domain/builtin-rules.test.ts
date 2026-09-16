@@ -1,4 +1,5 @@
-import { type BuiltinRuleId, rules } from '../../src/domain/builtin-rules.ts';
+import type { BuiltinRuleId } from '../../src/domain/builtin-rules.ts';
+import { rules } from '../../src/composition/rules.ts';
 
 describe('builtin rules registry', () => {
   it('derives a non-widened rule ID union from registry values', () => {

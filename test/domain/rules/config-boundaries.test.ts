@@ -1,5 +1,5 @@
 import { makeCtx } from '../../helpers/ctx.ts';
-import { minimumReleaseAge } from '../../../src/domain/rules/minimum-release-age.ts';
+import { minimumReleaseAge } from '../../helpers/rules.ts';
 import { approvedGitRepos } from '../../../src/domain/rules/approved-git-repos.ts';
 import { filesField } from '../../../src/domain/rules/files-field.ts';
 import { bunSecurityScanner } from '../../../src/domain/rules/bun-security-scanner.ts';

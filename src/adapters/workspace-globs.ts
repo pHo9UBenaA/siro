@@ -1,17 +1,9 @@
-import { braceExpand, GLOBSTAR, Minimatch, type MinimatchOptions } from 'minimatch';
+import type { WorkspaceGlobs, WorkspaceGlobOptions } from '../application/ports/workspace-glob.ts';
+import { braceExpand, GLOBSTAR, Minimatch } from 'minimatch';
 import { ConfigError } from '../shared/errors.ts';
 
 const MAX_WORKSPACE_GLOB_ALTERNATIVES = 8_192;
 const BRACE_EXPANSION_PROBE_LIMIT = MAX_WORKSPACE_GLOB_ALTERNATIVES + 1;
-
-export const defaultWorkspaceGlobOptions: Readonly<MinimatchOptions> = {
-  platform: 'linux',
-  nocase: process.platform === 'darwin' || process.platform === 'win32',
-  windowsPathsNoEscape: true,
-  nonegate: true,
-  nocomment: true,
-  optimizationLevel: 2,
-};
 
 const boundedBraceExpand = (pattern: string): readonly string[] => {
   const alternatives = braceExpand(pattern, { braceExpandMax: BRACE_EXPANSION_PROBE_LIMIT });
@@ -24,7 +16,7 @@ const boundedBraceExpand = (pattern: string): readonly string[] => {
 };
 
 /** Expand with minimatch's own bounded brace semantics. */
-export const expandWorkspaceGlob = (pattern: string): readonly string[] => {
+const expandWorkspaceGlob = (pattern: string): readonly string[] => {
   try {
     return boundedBraceExpand(pattern);
   } catch (error) {
@@ -35,10 +27,7 @@ export const expandWorkspaceGlob = (pattern: string): readonly string[] => {
 };
 
 /** Compile once so membership, exclusions, and traversal share glob semantics. */
-export const compileWorkspaceGlob = (
-  pattern: string,
-  options: MinimatchOptions = defaultWorkspaceGlobOptions,
-) => {
+const compileWorkspaceGlob = (pattern: string, options: WorkspaceGlobOptions) => {
   let matcher: Minimatch;
   try {
     if (!options.nobrace) boundedBraceExpand(pattern);
@@ -64,4 +53,9 @@ export const compileWorkspaceGlob = (
       );
     },
   };
+};
+
+export const minimatchGlobs: WorkspaceGlobs = {
+  expand: expandWorkspaceGlob,
+  compile: compileWorkspaceGlob,
 };

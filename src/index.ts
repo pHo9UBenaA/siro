@@ -1,4 +1,4 @@
-export { lint, type LintOptions } from './application/lint.ts';
+export { lint, type LintOptions } from './composition/lint.ts';
 export { loadConfig } from './adapters/config-loader.ts';
 export { nodeFileSystem } from './adapters/node-file-system.ts';
 export { nodeIO } from './adapters/node-io.ts';
@@ -9,7 +9,7 @@ export {
   jsonReporter,
   prettyReporter,
 } from './adapters/reporters/registry.ts';
-export { type LintCommandOptions, lintCommand } from './application/commands/lint.ts';
+export { type LintCommandOptions, lintCommand } from './composition/lint.ts';
 export { CONFIG_FILES } from './domain/entities/config-files.ts';
 export type { ConfigValue, KeyPath, ParsedConfig } from './domain/entities/config-value.ts';
 export { getByPath } from './domain/entities/config-value.ts';
@@ -45,5 +45,6 @@ export {
   requireConfigKey,
 } from './domain/rules/builders/require-config-key.ts';
 export { ConfigError, SiroError, UsageError } from './shared/errors.ts';
-export { type AbsPath, asAbsPath, asRelPath, type RelPath } from './shared/paths.ts';
+export { type AbsPath, asRelPath, type RelPath } from './shared/paths.ts';
 export { version } from './version.ts';
+export { asAbsPath } from './adapters/node-paths.ts';

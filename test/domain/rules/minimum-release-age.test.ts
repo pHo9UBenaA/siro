@@ -6,7 +6,7 @@ import {
 import { makeCtx } from '../../helpers/ctx.ts';
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
 import { runLint } from '../../../src/application/run-lint.ts';
-import { minimumReleaseAge } from '../../../src/domain/rules/minimum-release-age.ts';
+import { minimumReleaseAge } from '../../helpers/rules.ts';
 
 describe('minimum-release-age (npm)', () => {
   const ctx = makeCtx();

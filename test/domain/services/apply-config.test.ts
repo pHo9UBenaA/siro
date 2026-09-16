@@ -1,6 +1,6 @@
 import { applyConfig } from '../../../src/domain/services/apply-config.ts';
 import { defineConfig } from '../../../src/domain/entities/siro-config.ts';
-import { rules } from '../../../src/domain/builtin-rules.ts';
+import { rules } from '../../../src/composition/rules.ts';
 
 describe('applyConfig (registry)', () => {
   it('preserves the base rule order when no user config is provided', () => {
