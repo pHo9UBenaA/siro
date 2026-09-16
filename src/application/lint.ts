@@ -50,7 +50,7 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
     throw new UsageError('workspaces must be a boolean.');
   }
   const config = options.config === undefined ? undefined : parseConfig(options.config);
-  const fs = options.fs ?? dependencies.fileSystem;
+  const fs = options.fs === undefined ? dependencies.fileSystem : options.fs;
   const ctx = createRepoContext(options.cwd, fs, options.projectType ?? config?.projectType);
   const pms = resolvePMs(ctx, { allowed: config?.pms, pmOverride: options.pm });
   if (

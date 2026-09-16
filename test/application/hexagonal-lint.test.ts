@@ -133,3 +133,9 @@ it('reports through an injected registry and propagates asynchronous output fail
   format.mockRejectedValueOnce(failure);
   await expect(lintCommand(request, io, dependencies, registry)).rejects.toBe(failure);
 });
+
+it('does not fall back to the default filesystem for an explicitly invalid null adapter', () => {
+  const { dependencies, readText } = host();
+  expect(() => lint({ ...request, fs: null as never }, dependencies)).toThrow(TypeError);
+  expect(readText).not.toHaveBeenCalled();
+});
