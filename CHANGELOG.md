@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.5.1]
+
+### Refactoring
+
+- Reorganize runtime code around explicit domain and application ports, concrete adapters, and outer composition while preserving the public API, CLI, JSON schema, package-manager policy, and error behavior.
+- Make the source dependency graph acyclic and enforce inward dependencies with TypeScript module resolution, including type imports, re-exports, host globals, and unresolved local modules.
+- Move filesystem, path, glob, configuration loading, reporting, and clock behavior behind focused boundaries. Keep JavaScript date parsing in the adapter and inject the current time into release-age policy.
+- Centralize workspace pattern classification and Deno release-age parsing, replacing incidental regular expressions and string rewrites where direct string operations are clearer.
+
+### Maintenance
+
+- Consolidate tests around observable decisions, failures, public wiring, CLI behavior, and installed-package contracts. Remove duplicate, implementation-coupled, mock-self-verifying, and library-guarantee cases.
+- Add architecture and maintainer documentation for dependency direction, composition, ports, adapters, and behavioral contracts.
+- Invite real-world feedback through GitHub Issues and explain how GitHub Stars inform time spent on future features and maintenance.
+
+### Compatibility
+
+- This release changes internal structure and test coverage only. Existing public exports, synchronous `lint`, asynchronous `lintCommand`, CLI flags and exit codes, JSON schema 2, supported package-manager behavior, and Node.js range remain unchanged.
+
 ## [0.5.0]
 
 ### Features
