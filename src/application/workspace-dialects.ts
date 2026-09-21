@@ -1,5 +1,8 @@
 import type { WorkspaceGlobs } from './ports/workspace-glob.ts';
 import { ConfigError } from '../shared/errors.ts';
+import { hasBasicWorkspaceWildcard } from './workspace-pattern.ts';
+
+const containsUnsupportedAubeGlobSyntax = (pattern: string): boolean => /[[\]{}()]/u.test(pattern);
 
 const matchesCrossPathGlob = (pattern: string, value: string): boolean => {
   const patternCharacters = [...pattern];
@@ -43,9 +46,9 @@ export const compileAdditionalWorkspaceGlob = (
   }
   if (
     pm === 'aube' &&
-    (/[[\]{}()]/u.test(pattern) ||
+    (containsUnsupportedAubeGlobSyntax(pattern) ||
       (pattern.includes('**') &&
-        (parts.at(-1) !== '**' || /[*?]/u.test(parts.slice(0, -1).join('/')))))
+        (parts.at(-1) !== '**' || hasBasicWorkspaceWildcard(parts.slice(0, -1).join('/')))))
   ) {
     throw new ConfigError(
       'Aube workspace inspection supports literals, * and ?, and a trailing ** after a literal prefix; other glob forms are not yet supported.',
@@ -57,9 +60,9 @@ export const compileAdditionalWorkspaceGlob = (
     kind: 'directory',
     syntax: 'wildcards',
     includeDotDirectories: pm === 'aube',
-    caseInsensitive: pm === 'deno' && (/[*?]/u.test(pattern) || caseInsensitive),
+    caseInsensitive: pm === 'deno' && (hasBasicWorkspaceWildcard(pattern) || caseInsensitive),
   });
-  if (pm === 'deno' && /[*?]/u.test(pattern)) {
+  if (pm === 'deno' && hasBasicWorkspaceWildcard(pattern)) {
     const files = globs.compile(`${pattern}/package.json`, {
       kind: 'directory',
       syntax: 'wildcards',

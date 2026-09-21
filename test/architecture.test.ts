@@ -55,6 +55,45 @@ const runtimeGlobals = new Set([
   'crypto',
 ]);
 
+const explicitDateOffset = /(?:[zZ]|[+-]\d{2}:?\d{2})$/u;
+const numericDateOperators = new Set([
+  ts.SyntaxKind.MinusToken,
+  ts.SyntaxKind.AsteriskToken,
+  ts.SyntaxKind.AsteriskAsteriskToken,
+  ts.SyntaxKind.SlashToken,
+  ts.SyntaxKind.PercentToken,
+]);
+
+const hasExplicitDateOffset = (node: ts.Expression): boolean => {
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return explicitDateOffset.test(node.text);
+  }
+  if (ts.isTemplateExpression(node)) {
+    return explicitDateOffset.test(node.templateSpans.at(-1)?.literal.text ?? node.head.text);
+  }
+  return false;
+};
+
+const isNumericDateExpression = (node: ts.Expression): boolean => {
+  if (ts.isNumericLiteral(node)) return true;
+  if (ts.isParenthesizedExpression(node)) return isNumericDateExpression(node.expression);
+  if (ts.isPrefixUnaryExpression(node)) {
+    return node.operator === ts.SyntaxKind.PlusToken || node.operator === ts.SyntaxKind.MinusToken;
+  }
+  if (!ts.isBinaryExpression(node)) return false;
+  return numericDateOperators.has(node.operatorToken.kind);
+};
+
+const isDeterministicDateConstructor = (node: ts.Identifier): boolean => {
+  if (!ts.isNewExpression(node.parent) || node.parent.expression !== node) return false;
+  const [argument] = node.parent.arguments ?? [];
+  return (
+    node.parent.arguments?.length === 1 &&
+    argument !== undefined &&
+    (isNumericDateExpression(argument) || hasExplicitDateOffset(argument))
+  );
+};
+
 const sourceRoot = path.resolve(import.meta.dirname, '../src');
 const projectRoot = path.resolve(sourceRoot, '..');
 const config = ts.readConfigFile(path.join(projectRoot, 'tsconfig.json'), ts.sys.readFile);
@@ -163,7 +202,7 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
         const deterministicDate =
           node.text === 'Date' &&
           ((ts.isPropertyAccessExpression(node.parent) && node.parent.name.text === 'UTC') ||
-            (ts.isNewExpression(node.parent) && (node.parent.arguments?.length ?? 0) > 0));
+            isDeterministicDateConstructor(node));
         if (!deterministicDate) fail(`runtime global ${node.text} in core`);
       }
       if (inCore && ts.isMetaProperty(node)) fail('runtime metadata in core');
@@ -226,6 +265,8 @@ it.each([
   ['domain/rule.ts', 'const value = Date.now();'],
   ['domain/rule.ts', 'const value = Date.parse(input);'],
   ['domain/rule.ts', 'const value = new Date();'],
+  ['domain/rule.ts', "const value = new Date('2030-01-01T00:00:00');"],
+  ['domain/rule.ts', 'const value = new Date(input);'],
   ['application/load.ts', "import yaml from 'yaml';"],
   ['unclassified.ts', 'export const value = 1;'],
 ])('rejects forbidden dependencies in %s: %s', (file, content) => {
@@ -236,6 +277,11 @@ it('allows ports, pure computation libraries, and outer composition', () => {
   expect(
     findViolations([
       { path: 'domain/value.ts', content: "import { lt } from 'semver';" },
+      { path: 'domain/epoch-date.ts', content: 'const value = new Date(now - age * 1000);' },
+      {
+        path: 'domain/utc-date.ts',
+        content: 'const value = new Date(`${date}T00:00:00Z`);',
+      },
       { path: 'domain/ports/repo-context.ts', content: 'export interface RepoContext {}' },
       {
         path: 'application/ports/repository-paths.ts',

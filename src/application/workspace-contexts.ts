@@ -8,6 +8,7 @@ import type { FileSystem } from '../domain/ports/file-system.ts';
 import type { PM } from '../domain/entities/pms.ts';
 import type { ProjectType } from '../domain/entities/project-type.ts';
 import { workspaceDirectories, workspaceDefinitions } from './workspaces.ts';
+import { hasBasicWorkspaceWildcard, stripTrailingWorkspaceSlashes } from './workspace-pattern.ts';
 
 /** Expand each manager's declarations into isolated publication contexts. */
 export const collectWorkspaceMembers = (
@@ -36,8 +37,8 @@ export const collectWorkspaceMembers = (
           const explicitMember = definition.patterns.some(
             (pattern) =>
               !pattern.startsWith('!') &&
-              !/[*?]/u.test(pattern) &&
-              paths.normalizePattern(pattern).replace(/\/+$/u, '') === directory,
+              !hasBasicWorkspaceWildcard(pattern) &&
+              stripTrailingWorkspaceSlashes(paths.normalizePattern(pattern)) === directory,
           );
           if (!definition.denoManifests && !fs.exists(manifest)) {
             if (pm === 'deno' && explicitMember)

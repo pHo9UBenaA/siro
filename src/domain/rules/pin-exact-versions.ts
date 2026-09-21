@@ -13,7 +13,8 @@ const REGISTRY_VERSION = /^(?:npm|jsr):(?:@[^/@]+\/)?[^/@]+@(?<version>[^/]*)/u;
 const isUnpinnedRegistryImport = (specifier: string): boolean => {
   if (!specifier.startsWith('npm:') && !specifier.startsWith('jsr:')) return false;
   const version = REGISTRY_VERSION.exec(specifier)?.groups?.version;
-  return version === undefined || valid(version.replace(/^=/u, '')) === null;
+  const normalized = version?.startsWith('=') ? version.slice(1) : version;
+  return normalized === undefined || valid(normalized) === null;
 };
 
 const collectUnpinnedImports = (imports: Readonly<Record<string, unknown>>): readonly string[] => {
