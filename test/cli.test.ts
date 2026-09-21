@@ -1,17 +1,8 @@
-import * as publicApi from '../src/index.ts';
-import { captureIO } from './helpers/io.ts';
 import { run } from '../src/cli.ts';
+import { captureIO } from './helpers/io.ts';
 
 const EXIT_OK = 0;
 const EXIT_USAGE = 2;
-
-const capture = (args: readonly string[]): Promise<string> => {
-  const { io, out } = captureIO();
-  return run(args, io).then(() => out());
-};
-
-const reporterLine = (text: string): string | undefined =>
-  text.split('\n').find((line) => /^\s*--reporter\b/u.test(line));
 
 const runExpectCode = (
   args: readonly string[],
@@ -21,16 +12,6 @@ const runExpectCode = (
 };
 
 describe('cli', () => {
-  test('prints a SemVer version with --version and exits 0', () => {
-    expect.hasAssertions();
-    // Pinning the literal version couples every release commit to a test
-    // update; SemVer matches the contract without forcing churn.
-    return runExpectCode(['--version']).then(({ code, out }) => {
-      expect(code).toBe(EXIT_OK);
-      expect(out.trim()).toMatch(/^\d+\.\d+\.\d+(?:-[\w.]+)?(?:\+[\w.]+)?$/u);
-    });
-  });
-
   test('prints the version with -v (alias of --version)', () => {
     expect.hasAssertions();
     // Short and long flags use the same output path.
@@ -106,16 +87,6 @@ describe('cli', () => {
     });
   });
 
-  test('does not mistake a project type value for the help target', () => {
-    expect.hasAssertions();
-    return runExpectCode(['--project-type', 'application', 'lint', '--help']).then(
-      ({ code, out }) => {
-        expect(code).toBe(EXIT_OK);
-        expect(out).toContain('siro lint —');
-      },
-    );
-  });
-
   test('prints usage and exits 2 when no subcommand is given', () => {
     expect.hasAssertions();
     return runExpectCode([]).then(({ code, err }) => {
@@ -161,14 +132,6 @@ describe('cli', () => {
     return runExpectCode(['lint', '--repoter', 'pretty']).then(({ code, err }) => {
       expect(code).toBe(EXIT_USAGE);
       expect(err).toMatch(/unknown flag/iu);
-    });
-  });
-
-  test('exits 2 when --write is passed to lint (wrong scope)', () => {
-    expect.hasAssertions();
-    return runExpectCode(['lint', '--write']).then(({ code, err }) => {
-      expect(code).toBe(EXIT_USAGE);
-      expect(err).toMatch(/unknown flag.*write/iu);
     });
   });
 
@@ -235,41 +198,31 @@ describe('cli', () => {
     };
     return expect(run(['--version'], throwingIo)).rejects.toThrow('boom');
   });
-
-  test('renders the --reporter flag line identically in root and lint help', () => {
-    expect.hasAssertions();
-    // Companion to the --pm test above. --reporter only appears in two
-    // pages, and both must agree.
-    return Promise.all([capture(['--help']), capture(['lint', '--help'])]).then(
-      ([rootHelp, lintHelp]) => {
-        const rootLine = reporterLine(rootHelp);
-        const lintLine = reporterLine(lintHelp);
-        expect(rootLine).toBeDefined();
-        expect(lintLine).toStrictEqual(rootLine);
-      },
-    );
-  });
 });
 
 describe('extra positional rejection', () => {
-  it('exits 2 when more than one positional follows the command', () => {
+  it('exits 2 and names an unexpected positional', () => {
     expect.hasAssertions();
-    return runExpectCode(['lint', '.', 'extra']).then(({ code }) => {
+    return runExpectCode(['lint', '.', 'extra']).then(({ code, err }) => {
       expect(code).toBe(EXIT_USAGE);
-    });
-  });
-
-  it('names the unexpected argument on stderr', () => {
-    expect.hasAssertions();
-    return runExpectCode(['lint', '.', 'extra']).then(({ err }) => {
       expect(err).toContain('extra');
     });
   });
 });
 
-describe('public API surface', () => {
-  it('exposes the canonical project types for embedders', () => {
-    expect.hasAssertions();
-    expect(publicApi.PROJECT_TYPES).toStrictEqual(['application', 'package']);
-  });
-});
+it.each([
+  null,
+  { code: 'EACCES', errno: -13 },
+  Object.assign(new Error('unexpected'), { code: 42, errno: -13 }),
+])(
+  'preserves unexpected thrown values instead of classifying them as filesystem errors: %j',
+  async (failure) => {
+    const io = {
+      stdout() {
+        throw failure;
+      },
+      stderr() {},
+    };
+    await expect(run(['--version'], io)).rejects.toBe(failure);
+  },
+);

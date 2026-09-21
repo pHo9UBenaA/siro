@@ -1,9 +1,9 @@
-import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
-import { filesField } from '../../../src/domain/rules/files-field.ts';
-import { makeCtx } from '../../helpers/ctx.ts';
-import type { PackageJson } from '../../../src/domain/schemas/package-json.ts';
 import type { RuleContext } from '../../../src/domain/ports/repo-context.ts';
+import { filesField } from '../../../src/domain/rules/files-field.ts';
+import type { PackageJson } from '../../../src/domain/schemas/package-json.ts';
+import { makeCtx } from '../../helpers/ctx.ts';
+import { manualSteps } from '../../helpers/remediation.ts';
 
 const ctxWith = (packageJson?: PackageJson): RuleContext => makeCtx({ packageJson });
 
@@ -13,34 +13,29 @@ describe('files-field (npm)', () => {
     throw new TypeError('expected npm binding');
   }
 
-  it('is an info-severity rule', () => {
-    expect.hasAssertions();
-    expect(filesField.severity).toBe('info');
-  });
-
   it('is N/A for private packages', () => {
     expect.hasAssertions();
     expect(npmBinding.check(ctxWith({ name: 'x', private: true }), {}).state).toBe('na');
   });
 
-  it('flags a violation when files is missing or empty', () => {
-    expect.hasAssertions();
-    expect(npmBinding.check(ctxWith({ name: 'x' }), {}).state).toBe('violation');
+  it('reports missing and empty publication allow-lists with manual guidance', () => {
+    const status = npmBinding.check(ctxWith({ name: 'x' }), {});
+
+    expect(status.state).toBe('violation');
     expect(npmBinding.check(ctxWith({ files: [], name: 'x' }), {}).state).toBe('violation');
+
+    expect(filesField.severity).toBe('info');
+
+    const ops = manualSteps(status)!;
+
+    const firstOp = ops[0];
+    assert(firstOp, 'expected at least one fix op');
+    expect(firstOp).toContain('npm pack --dry-run');
   });
 
   it('passes when a non-empty files allow-list is present', () => {
     expect.hasAssertions();
     expect(npmBinding.check(ctxWith({ files: ['dist'], name: 'x' }), {}).state).toBe('ok');
-  });
-
-  it('provides manual remediation', () => {
-    expect.hasAssertions();
-    const ops = manualSteps(npmBinding.check(ctxWith({ name: 'x' }), {}))!;
-
-    const firstOp = ops[0];
-    assert(firstOp, 'expected at least one fix op');
-    expect(firstOp).toContain('npm pack --dry-run');
   });
 });
 
@@ -56,6 +51,7 @@ describe('files-field (deno)', () => {
     // `publish.include` finding for an internal/CLI-only deno repo is
     // noise — mirror the package.json binding's `isPublishable` guard.
     expect(denoBinding.check(ctxWith(), {}).state).toBe('na');
+    expect(denoBinding.check(ctxWith(), { name: '   ' }).state).toBe('na');
   });
 
   it('flags a violation when publish.include is absent on a publishable deno.json', () => {
@@ -77,3 +73,13 @@ describe('files-field (deno)', () => {
     ).toBe('ok');
   });
 });
+
+it.each(['npm', 'pnpm', 'yarn', 'bun', 'aube'] as const)(
+  'routes %s publication allow-list checks',
+  (pm) => {
+    const binding = filesField.bindings[pm];
+    assert(binding);
+    expect(binding.check(ctxWith({ name: 'x' }), {}).state).toBe('violation');
+    expect(binding.check(ctxWith({ name: 'x', files: ['dist'] }), {}).state).toBe('ok');
+  },
+);

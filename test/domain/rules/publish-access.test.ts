@@ -1,7 +1,7 @@
-import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
-import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
 import { publishAccess } from '../../../src/domain/rules/publish-access.ts';
+import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
+import { manualSteps } from '../../helpers/remediation.ts';
 
 const { npm } = publishAccess.bindings;
 if (!npm) {
@@ -9,20 +9,24 @@ if (!npm) {
 }
 
 describe('publish-access (npm)', () => {
-  it('is info-severity, targets package.json', () => {
-    expect.hasAssertions();
-    expect(publishAccess.severity).toBe('info');
-    expect(npm.file).toStrictEqual({ kind: 'json', path: 'package.json' });
-  });
-
   it('is N/A for private packages', () => {
     expect.hasAssertions();
     expect(npm.check(ctx({ packageJson: { private: true } }), {}).state).toBe('na');
   });
 
-  it('flags a violation when publishConfig.access is missing', () => {
-    expect.hasAssertions();
-    expect(npm.check(ctx(), {}).state).toBe('violation');
+  it('requests manual access selection for a publishable package', () => {
+    const status = npm.check(ctx(), {});
+
+    expect(status.state).toBe('violation');
+
+    expect(publishAccess.severity).toBe('info');
+    expect(npm.file).toStrictEqual({ kind: 'json', path: 'package.json' });
+
+    const ops = manualSteps(status)!;
+
+    const firstOp = ops[0];
+    assert(firstOp, 'expected at least one fix op');
+    expect(firstOp).toContain('publishConfig');
   });
 
   it('passes for "public" or "restricted"', () => {
@@ -31,15 +35,6 @@ describe('publish-access (npm)', () => {
       npm.check(ctx({ packageJson: { publishConfig: { access } } }), {}).state;
     expect(passes('public')).toBe('ok');
     expect(passes('restricted')).toBe('ok');
-  });
-
-  it('provides manual remediation', () => {
-    expect.hasAssertions();
-    const ops = manualSteps(npm.check(ctx(), {}))!;
-
-    const firstOp = ops[0];
-    assert(firstOp, 'expected at least one fix op');
-    expect(firstOp).toContain('publishConfig');
   });
 
   it('accepts the private alias only for npm and preserves application scope', () => {

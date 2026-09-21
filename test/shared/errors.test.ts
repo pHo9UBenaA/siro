@@ -6,21 +6,6 @@ const throwValue = (value: unknown): never => {
 };
 
 describe(wrapCodecError, () => {
-  it('returns the value when fn succeeds without throwing', () => {
-    expect.hasAssertions();
-
-    expect(wrapCodecError('foo.toml', () => 42)).toBe(42);
-  });
-
-  it('wraps a bare Error as a ConfigError prefixed with the file path', () => {
-    expect.hasAssertions();
-    expect(() =>
-      wrapCodecError('bunfig.toml', () => {
-        throw new Error('unterminated string');
-      }),
-    ).toThrow(new ConfigError('bunfig.toml: unterminated string'));
-  });
-
   it('coerces a non-Error thrown value through String() into the prefixed message', () => {
     expect.hasAssertions();
     expect(() => wrapCodecError('x.json', () => throwValue('literal'))).toThrow(

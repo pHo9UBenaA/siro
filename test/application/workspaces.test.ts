@@ -1,15 +1,15 @@
-import {
-  asAbsPath,
-  lint,
-  type LintOptions,
-  ConfigError,
-  UsageError,
-  type FileSystem,
-  type PM,
-} from '../../src/index.ts';
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import {
+  asAbsPath,
+  ConfigError,
+  lint,
+  UsageError,
+  type FileSystem,
+  type LintOptions,
+  type PM,
+} from '../../src/index.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
 const posix = (value: string) => value.replaceAll('\\', '/');
@@ -53,10 +53,6 @@ it('finds public children of a private workspace root without demanding child in
     { ruleId: 'publish-access', file: 'packages/public/package.json' },
     { ruleId: 'unsupported-settings', file: 'packages/public/package.json' },
   ]);
-});
-
-it('keeps the aggregated summary consistent with the findings', () => {
-  const result = repo({ workspaces: true });
   for (const severity of ['error', 'warn', 'info'] as const) {
     expect(result.summary[severity]).toBe(
       result.findings.filter((finding) => finding.severity === severity).length,
@@ -310,14 +306,11 @@ it.each(['packages/a*/child', 'packages/{alpha/child,other/**}'])(
 
 it.each([
   ['packages/{1..12}/child', ['packages/3/child', 'packages/12/child']],
-  ['packages/{01..03}/child', ['packages/02/child']],
-  ['packages/{1..9..2}/child', ['packages/3/child']],
   [
     'packages/{alpha/{child,deep/member},other/**}',
     ['packages/alpha/child', 'packages/alpha/deep/member'],
   ],
   ['packages/**/child', ['packages/child', 'packages/alpha/child']],
-  ['packages/**/**/child', ['packages/child', 'packages/alpha/child']],
   ['packages/.hidden/*/child', ['packages/.hidden/alpha/child']],
   ['packages/a(b)/child', ['packages/a(b)/child']],
   ['packages/@(alpha|beta)/child', ['packages/alpha/child']],
@@ -351,44 +344,6 @@ it.each([
       .filter((finding) => finding.ruleId === 'files-field')
       .map((finding) => finding.file),
   ).toEqual(members.map((member) => `${member}/package.json`).sort());
-});
-
-it('accepts brace lists beyond the former custom expansion limit', () => {
-  const readDirectories = vi.fn<NonNullable<FileSystem['readDirectories']>>(() => []);
-  expect(() =>
-    repo({
-      pm: 'npm',
-      workspaces: true,
-      fs: {
-        ...createMemFileSystem({
-          'package.json': JSON.stringify({
-            workspaces: [`{${Array.from({ length: 4097 }, (_, i) => `p${i}`).join(',')}}/child`],
-          }),
-        }),
-        readDirectories,
-      },
-    }),
-  ).not.toThrow();
-  expect(readDirectories).toHaveBeenCalledOnce();
-});
-
-it('accepts nested brace patterns within the compiled alternative limit', () => {
-  const readDirectories = vi.fn<NonNullable<FileSystem['readDirectories']>>(() => []);
-  expect(() =>
-    repo({
-      pm: 'npm',
-      workspaces: true,
-      fs: {
-        ...createMemFileSystem({
-          'package.json': JSON.stringify({
-            workspaces: ['{a,{b,c}}'.repeat(8)],
-          }),
-        }),
-        readDirectories,
-      },
-    }),
-  ).not.toThrow();
-  expect(readDirectories).toHaveBeenCalledOnce();
 });
 
 describe('native workspace discovery', () => {

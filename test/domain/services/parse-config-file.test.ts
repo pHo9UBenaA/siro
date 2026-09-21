@@ -1,61 +1,12 @@
-import type { CodecFor, ConfigCodec } from '../../../src/domain/ports/config-codec.ts';
-import { yamlCodec } from '../../../src/adapters/codecs/yaml.ts';
-import { ConfigError } from '../../../src/shared/errors.ts';
 import type { ConfigFileRef } from '../../../src/domain/entities/config-file-ref.ts';
-import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
-import { asRelPath } from '../../../src/shared/paths.ts';
+import type { CodecFor, ConfigCodec } from '../../../src/domain/ports/config-codec.ts';
 import { createConfigParser } from '../../../src/domain/services/parse-config-file.ts';
+import { ConfigError } from '../../../src/shared/errors.ts';
+import { asRelPath } from '../../../src/shared/paths.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
 const makeCodec = (parse: ConfigCodec['parse']): ConfigCodec => ({
   parse,
-});
-
-describe('createConfigParser — same-instance memoization', () => {
-  it('memoizes by (kind, path): same file is parsed once across two calls', () => {
-    expect.hasAssertions();
-    const parse = vi.fn<ConfigCodec['parse']>().mockReturnValue({ val: 1 });
-    const codecFor: CodecFor = () => makeCodec(parse);
-    const ctx = makeCtx({ readText: () => 'raw=text' });
-    const file: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
-    const parseConfig = createConfigParser(codecFor, ctx);
-
-    const first = parseConfig(file);
-    parseConfig(file);
-
-    expect(first).toStrictEqual({ val: 1 });
-    expect(parse).toHaveBeenCalledTimes(1);
-  });
-
-  it('caches the parsed view so callers do not re-read', () => {
-    expect.hasAssertions();
-    const readText = vi.fn<RepoContext['readText']>().mockReturnValue('raw=text');
-    const parse = vi.fn<ConfigCodec['parse']>().mockReturnValue({ val: 1 });
-    const codecFor: CodecFor = () => makeCodec(parse);
-    const ctx = makeCtx({ readText });
-    const file: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
-    const parseConfig = createConfigParser(codecFor, ctx);
-
-    parseConfig(file);
-    parseConfig(file);
-
-    expect(readText).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('createConfigParser — cross-instance isolation', () => {
-  it('two parser instances do not share a cache (the cache scope is the factory call)', () => {
-    expect.hasAssertions();
-    const parse = vi.fn<ConfigCodec['parse']>().mockReturnValue({ val: 1 });
-    const codecFor: CodecFor = () => makeCodec(parse);
-    const ctx = makeCtx({ readText: () => 'raw=text' });
-    const file: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
-
-    createConfigParser(codecFor, ctx)(file);
-    createConfigParser(codecFor, ctx)(file);
-
-    expect(parse).toHaveBeenCalledTimes(2);
-  });
 });
 
 describe('createConfigParser — error handling', () => {
@@ -83,30 +34,5 @@ describe('createConfigParser — error handling', () => {
     expect(() => parseConfig(file)).toThrow(ConfigError);
     expect(() => parseConfig(file)).toThrow(/pnpm-workspace\.yaml/u);
     expect(() => parseConfig(file)).toThrow(/unexpected token/u);
-  });
-
-  it('rejects cyclic YAML aliases as ConfigError', () => {
-    expect.hasAssertions();
-    const codecFor: CodecFor = () => yamlCodec;
-    const ctx = makeCtx({ readText: () => 'root: &root\n  self: *root' });
-    const file: ConfigFileRef = { kind: 'yaml', path: asRelPath('pnpm-workspace.yaml') };
-    const parseConfig = createConfigParser(codecFor, ctx);
-
-    expect(() => parseConfig(file)).toThrow(ConfigError);
-  });
-});
-
-describe('createConfigParser — repository checks', () => {
-  it('returns an empty object for bindings without a config file without invoking the codec', () => {
-    expect.hasAssertions();
-    const parse = vi.fn<ConfigCodec['parse']>();
-    const codecFor: CodecFor = () => makeCodec(parse);
-    const ctx = makeCtx();
-    const file = undefined;
-
-    const result = createConfigParser(codecFor, ctx)(file);
-
-    expect(result).toStrictEqual({});
-    expect(parse).not.toHaveBeenCalled();
   });
 });

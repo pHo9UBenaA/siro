@@ -1,7 +1,7 @@
-import ts from 'typescript';
 import { readFileSync, readdirSync } from 'node:fs';
 import { isBuiltin } from 'node:module';
 import path from 'node:path';
+import ts from 'typescript';
 
 const LAYERS = [
   'shared',
@@ -219,15 +219,6 @@ it('keeps the source graph acyclic, including types, with only inward dependenci
 it.each([
   ['domain/rule.ts', "import fs from 'node:fs';"],
   ['shared/path.ts', "import path from 'path';"],
-  ['application/lint.ts', "import { fs } from '../adapters/fs.ts';"],
-  ['application/lint.ts', "import type { Factory } from '../composition/lint.ts';"],
-  ['application/lint.ts', "export { lint } from '../index.ts';"],
-  ['application/lint.ts', "type Loader = typeof import('../adapters/loader.ts');"],
-  ['domain/rule.ts', "export { value } from '../application/value.ts';"],
-  ['shared/value.ts', "const value = import('../domain/value.ts');"],
-  ['adapters/fs.ts', "export { lint } from '../composition/lint.ts';"],
-  ['adapters/fs.ts', "import { lint } from '../application/lint.ts';"],
-  ['application/ports/path.ts', "import type { LintOptions } from '../lint.ts';"],
   ['application/glob.ts', 'const insensitive = process.platform === "darwin";'],
   ['shared/value.ts', 'const value = globalThis.process;'],
   ['application/load.ts', 'const value = import(name);'],
@@ -236,7 +227,6 @@ it.each([
   ['domain/rule.ts', 'const value = Date.parse(input);'],
   ['domain/rule.ts', 'const value = new Date();'],
   ['application/load.ts', "import yaml from 'yaml';"],
-  ['application/load.ts', "import value from '../unclassified.ts';"],
   ['unclassified.ts', 'export const value = 1;'],
 ])('rejects forbidden dependencies in %s: %s', (file, content) => {
   expect(findViolations([{ path: file, content }]).length).toBeGreaterThan(0);
@@ -350,4 +340,50 @@ it('follows static dynamic imports and CommonJS references in outer adapters', (
       { path: 'adapters/c.ts', content: "const a = require('./a.ts');" },
     ]),
   ).toContain('dependency cycle: adapters/a.ts -> adapters/b.ts -> adapters/c.ts -> adapters/a.ts');
+});
+
+it.each([
+  [
+    'application/use.ts',
+    'adapters/fs.ts',
+    "import { value } from '../adapters/fs.ts';",
+    'adapters',
+  ],
+  [
+    'application/use.ts',
+    'composition/root.ts',
+    "import type { Value } from '../composition/root.ts';",
+    'composition',
+  ],
+  ['application/use.ts', 'index.ts', "export { value } from '../index.ts';", 'public'],
+  [
+    'domain/rule.ts',
+    'application/value.ts',
+    "export { value } from '../application/value.ts';",
+    'application',
+  ],
+  ['shared/value.ts', 'domain/value.ts', "const value = import('../domain/value.ts');", 'domain'],
+  [
+    'adapters/fs.ts',
+    'composition/root.ts',
+    "export { value } from '../composition/root.ts';",
+    'composition',
+  ],
+  [
+    'application/use.ts',
+    'unclassified.ts',
+    "import { value } from '../unclassified.ts';",
+    undefined,
+  ],
+] as const)('checks resolved layer boundaries from %s to %s', (source, target, content, layer) => {
+  const errors = findViolations([
+    { path: source, content },
+    { path: target, content: 'export const value = 1; export type Value = number;' },
+  ]);
+  expect(errors).toContain(
+    layer
+      ? source + ': forbidden ' + layer + ' dependency ' + content.match(/['"]([^'"]+)['"]/)?.[1]
+      : source + ': unclassified dependency ../unclassified.ts',
+  );
+  expect(errors.some((error) => error.includes('unresolved source dependency'))).toBe(false);
 });

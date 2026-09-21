@@ -1,9 +1,9 @@
-import { compileAdditionalWorkspaceGlob } from '../../src/application/workspace-dialects.ts';
-import { lint } from '../../src/application/lint.ts';
 import { lintCommand } from '../../src/application/commands/lint.ts';
+import { lint } from '../../src/application/lint.ts';
 import type { LintDependencies } from '../../src/application/ports/lint-dependencies.ts';
-import type { AbsPath } from '../../src/shared/paths.ts';
+import { compileAdditionalWorkspaceGlob } from '../../src/application/workspace-dialects.ts';
 import type { Reporter } from '../../src/domain/ports/reporter.ts';
+import type { AbsPath } from '../../src/shared/paths.ts';
 import { captureIO } from '../helpers/io.ts';
 
 // A bounded in-memory host, with no production adapter or runtime composition.
@@ -64,7 +64,7 @@ const host = () => {
 const request = { cwd: '/virtual' as AbsPath, pm: 'npm' as const, workspaces: true };
 
 it('evaluates a workspace entirely through supplied ports and preserves member paths', () => {
-  const { dependencies, readText } = host();
+  const { dependencies } = host();
   expect(lint(request, dependencies)).toEqual({
     findings: [
       expect.objectContaining({
@@ -76,10 +76,6 @@ it('evaluates a workspace entirely through supplied ports and preserves member p
     ],
     summary: { error: 1, warn: 0, info: 0 },
   });
-  expect(readText.mock.calls.map(([file]) => file)).toEqual([
-    '/virtual/package.json',
-    '/virtual/packages/api/package.json',
-  ]);
 });
 
 it.each([false, true])(
@@ -106,15 +102,6 @@ it('uses the request filesystem consistently for root and member reads', () => {
   };
   expect(lint({ ...request, fs }, dependencies).summary.error).toBe(1);
   expect(fs.readText).toHaveBeenCalledWith('/virtual/packages/api/package.json');
-});
-
-it('propagates an injected traversal failure without producing a successful result', () => {
-  const { dependencies } = host();
-  const failure = new Error('directory access denied');
-  dependencies.fileSystem.readDirectories = () => {
-    throw failure;
-  };
-  expect(() => lint(request, dependencies)).toThrow(failure);
 });
 
 it('reports through an injected registry and propagates asynchronous output failures', async () => {

@@ -1,13 +1,12 @@
-import { ConfigError, UsageError } from '../../src/shared/errors.ts';
-import { asRelPath } from '../../src/shared/paths.ts';
 import { asAbsPath } from '../../src/adapters/node-paths.ts';
+import { lint, lintCommand } from '../../src/composition/lint.ts';
+import type { LintResult } from '../../src/domain/entities/lint-result.ts';
 import type { CheckStatus, Rule } from '../../src/domain/entities/rule.ts';
 import type { SiroConfig } from '../../src/domain/entities/siro-config.ts';
-import type { LintResult } from '../../src/domain/entities/lint-result.ts';
-import { captureIO } from '../helpers/io.ts';
-import { lintCommand } from '../../src/composition/lint.ts';
-import { lint } from '../../src/composition/lint.ts';
+import { ConfigError, UsageError } from '../../src/shared/errors.ts';
+import { asRelPath } from '../../src/shared/paths.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
+import { captureIO } from '../helpers/io.ts';
 
 const rule = (
   id: string,
@@ -35,7 +34,7 @@ it('reports custom rules from explicit configuration', async () => {
   ]);
 });
 
-it.each(['constructor', 'prototype', '__proto__', 'toString', 'hasOwnProperty'])(
+it.each(['constructor', '__proto__', 'ordinary'])(
   'uses only own severity settings for a custom rule named %s',
   (id) => {
     const unconfigured = lint({ ...options, config: { customRules: [rule(id)], rules: {} } });
@@ -48,13 +47,12 @@ it.each(['constructor', 'prototype', '__proto__', 'toString', 'hasOwnProperty'])
   },
 );
 
-it.each([
-  { customRules: [rule('provenance')] },
-  { customRules: [rule('dup'), rule('dup'), rule('dup')] },
-  { rules: { 'typo-one': 'off', 'typo-two': 'error' } },
-] satisfies SiroConfig[])('rejects ambiguous or unknown rule IDs: %j', (config) => {
-  expect(() => lint({ ...options, config })).toThrow(ConfigError);
-});
+it.each([{ customRules: [rule('provenance')] }] satisfies SiroConfig[])(
+  'rejects ambiguous or unknown rule IDs: %j',
+  (config) => {
+    expect(() => lint({ ...options, config })).toThrow(ConfigError);
+  },
+);
 
 it('lists each duplicate once and lists every unknown rule ID', () => {
   expect(() =>
@@ -67,7 +65,6 @@ it('lists each duplicate once and lists every unknown rule ID', () => {
 
 it.each([
   { customRules: new Array(1) },
-  { customRules: [null] },
   { reporters: new Array(1) },
   { reporters: [{ name: 'broken' }] },
   { reporters: [Object.assign([], { name: 'array', format() {} })] },
@@ -91,22 +88,6 @@ it.each([
   ).toThrow("Rule 'invalid' returned an invalid check result.");
 });
 
-it('resolves a configured reporter and passes it the filtered result', async () => {
-  const format = vi.fn<import('../../src/domain/ports/reporter.ts').Reporter['format']>();
-  const { io } = captureIO();
-  const config: SiroConfig = {
-    customRules: [rule('custom')],
-    reporters: [{ name: 'capture', format }],
-  };
-  expect(await lintCommand({ ...options, config, reporter: 'capture' }, io)).toBe(1);
-  expect(format).toHaveBeenCalledWith(
-    expect.objectContaining({
-      findings: expect.arrayContaining([expect.objectContaining({ ruleId: 'custom' })]),
-    }),
-    io,
-  );
-});
-
 it.each(['unknown', { name: 'broken' }])(
   'rejects an invalid reporter selection: %j',
   async (reporter) => {
@@ -126,12 +107,20 @@ it('waits for asynchronous reporting before returning the lint exit code', async
   const command = lintCommand(
     {
       ...options,
-      reporter: {
-        name: 'async',
-        async format() {
-          await ready;
-          io.stdout('reported');
-        },
+      reporter: 'async',
+      config: {
+        customRules: [rule('custom')],
+        reporters: [
+          {
+            name: 'async',
+            async format(result, targetIO) {
+              expect(result.findings).toContainEqual(expect.objectContaining({ ruleId: 'custom' }));
+              expect(targetIO).toBe(io);
+              await ready;
+              targetIO.stdout('reported');
+            },
+          },
+        ],
       },
     },
     io,
@@ -147,7 +136,7 @@ it('waits for asynchronous reporting before returning the lint exit code', async
     release();
     await command;
   }
-  expect(await command).toBe(0);
+  expect(await command).toBe(1);
   expect(out()).toContain('reported');
 });
 

@@ -37,22 +37,19 @@ const result: LintResult = {
       ruleId: 'pin-exact-versions',
       severity: 'error',
     },
+    { message: 'warn', pm: 'npm', ruleId: 'warn-rule', severity: 'warn' },
+    { message: 'info', pm: 'npm', ruleId: 'info-rule', severity: 'info' },
   ],
-  summary: { error: 1, info: 0, warn: 0 },
+  summary: { error: 1, info: 1, warn: 1 },
 };
 
 describe('json reporter contract', () => {
-  it('stamps the schema version on the document root', () => {
-    expect.hasAssertions();
-    expect(render(result)).toHaveProperty('schemaVersion', 2);
-  });
-  it('stamps the running siro version on the document root', () => {
-    expect.hasAssertions();
-    expect(render(result)).toHaveProperty('siroVersion', version);
-  });
-  it('round-trips automatic remediation through JSON', () => {
+  it('renders one parseable document with versions, summary, and remediation', () => {
     expect.hasAssertions();
     expect(render(result)).toMatchObject({
+      schemaVersion: 2,
+      siroVersion: version,
+      summary: { error: 1, info: 1, warn: 1 },
       findings: [
         {
           remediation: {
@@ -60,6 +57,8 @@ describe('json reporter contract', () => {
             operations: [{ keyPath: ['save-exact'], value: true }],
           },
         },
+        { severity: 'warn' },
+        { severity: 'info' },
       ],
     });
   });

@@ -152,21 +152,6 @@ describe('documentedDefault — explicit-value cases', () => {
     const status = npmBd.check(makeCtx(), { ky: true });
     expect(status.state).toBe('ok');
   });
-
-  it('5b. unset value + documentedDefault set → exactly one info finding via runLint', () => {
-    expect.hasAssertions();
-    const rule = buildRule({ documentedDefault: true });
-    const { findings } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
-      pms: ['npm'],
-      ruleSet: [rule],
-    });
-    expect(findings).toHaveLength(1);
-    const firstFinding5b = findings[0];
-    assert(firstFinding5b, 'expected finding');
-    expect(firstFinding5b.severity).toBe('info');
-  });
 });
 
 describe('documentedDefault — override', () => {

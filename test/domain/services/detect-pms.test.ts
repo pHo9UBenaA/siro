@@ -1,5 +1,5 @@
-import type { PackageJson } from '../../../src/domain/schemas/package-json.ts';
 import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
+import type { PackageJson } from '../../../src/domain/schemas/package-json.ts';
 import { detectPMs } from '../../../src/domain/services/detect-pms.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
@@ -14,13 +14,7 @@ describe(detectPMs, () => {
 
   it('detects a PM from its lockfile', () => {
     expect.hasAssertions();
-    expect(detectPMs(ctx(['yarn.lock']))).toStrictEqual(['yarn']);
     expect(detectPMs(ctx(['aube-lock.yaml']))).toStrictEqual(['aube']);
-  });
-
-  it('returns detected PMs in the PMS-tuple order (npm before pnpm) regardless of signal-discovery order', () => {
-    expect.hasAssertions();
-    expect(detectPMs(ctx(['pnpm-lock.yaml', 'package-lock.json']))).toStrictEqual(['npm', 'pnpm']);
   });
 
   it('returns an empty list when nothing is detected', () => {

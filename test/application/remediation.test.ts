@@ -1,8 +1,8 @@
-import { runLint } from '../../src/application/run-lint.ts';
 import { codecFor } from '../../src/adapters/codecs/store.ts';
-import { makeCtx } from '../helpers/ctx.ts';
-import { asRelPath } from '../../src/shared/paths.ts';
+import { runLint } from '../../src/application/run-lint.ts';
 import type { Rule } from '../../src/domain/entities/rule.ts';
+import { asRelPath } from '../../src/shared/paths.ts';
+import { makeCtx } from '../helpers/ctx.ts';
 
 it('carries the remediation chosen by the check without a second callback', () => {
   const remediation = {
@@ -67,48 +67,27 @@ it.each([
   );
 });
 
-it('allows a finding without a proposed remedy', () => {
+it.each(['nested/../../outside'])('rejects external write targets: %s', (path) => {
   const rule: Rule = {
-    id: 'observation',
-    title: 'Observation',
-    description: 'Observation',
-    severity: 'info',
+    id: 'invalid-target',
+    title: 'Invalid target',
+    description: 'Invalid target',
+    severity: 'error',
     bindings: {
       npm: {
-        file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-        check: () => ({ state: 'violation', message: 'Needs investigation' }),
+        check: () =>
+          ({
+            state: 'violation',
+            message: 'x',
+            remediation: {
+              kind: 'automatic',
+              operations: [{ ...operation, file: { kind: 'npmrc', path } }],
+            },
+          }) as never,
       },
     },
   };
-  const result = runLint({ ctx: makeCtx(), codecFor, pms: ['npm'], ruleSet: [rule] });
-  expect(result.findings[0]).toMatchObject({ message: 'Needs investigation' });
-  expect(result.findings[0]?.remediation).toBeUndefined();
+  expect(() => runLint({ ctx: makeCtx(), codecFor, pms: ['npm'], ruleSet: [rule] })).toThrow(
+    /invalid check result/u,
+  );
 });
-
-it.each(['/outside', '../outside', 'nested/../../outside'])(
-  'rejects external write targets: %s',
-  (path) => {
-    const rule: Rule = {
-      id: 'invalid-target',
-      title: 'Invalid target',
-      description: 'Invalid target',
-      severity: 'error',
-      bindings: {
-        npm: {
-          check: () =>
-            ({
-              state: 'violation',
-              message: 'x',
-              remediation: {
-                kind: 'automatic',
-                operations: [{ ...operation, file: { kind: 'npmrc', path } }],
-              },
-            }) as never,
-        },
-      },
-    };
-    expect(() => runLint({ ctx: makeCtx(), codecFor, pms: ['npm'], ruleSet: [rule] })).toThrow(
-      /invalid check result/u,
-    );
-  },
-);

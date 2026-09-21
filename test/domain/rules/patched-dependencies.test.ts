@@ -1,7 +1,6 @@
-import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
-import { makeCtx } from '../../helpers/ctx.ts';
 import { patchedDependencies } from '../../../src/domain/rules/patched-dependencies.ts';
+import { makeCtx } from '../../helpers/ctx.ts';
 
 const { pnpm } = patchedDependencies.bindings;
 assert(pnpm, 'expected pnpm binding');
@@ -18,41 +17,19 @@ describe('patched-dependencies: check states', () => {
     expect(pnpmBinding.check(makeCtx(), { patchedDependencies: {} }).state).toBe('ok');
   });
 
-  it('violation when patchedDependencies has entries', () => {
-    expect.hasAssertions();
+  it('reports configured patchedDependencies for manual review', () => {
     const status = pnpmBinding.check(makeCtx(), {
       patchedDependencies: { 'express@4.18.2': 'patches/express.patch' },
     });
     assert(status.state === 'violation');
     expect(status.message).toContain('patchedDependencies');
     expect(status.message).toContain('pnpm-workspace.yaml');
-  });
-});
 
-describe('patched-dependencies: scope, metadata, and fix', () => {
-  it('only binds to pnpm', () => {
-    expect.hasAssertions();
-    expect(patchedDependencies.bindings.npm).toBeUndefined();
-    expect(patchedDependencies.bindings.yarn).toBeUndefined();
-    expect(patchedDependencies.bindings.bun).toBeUndefined();
-    expect(patchedDependencies.bindings.deno).toBeUndefined();
-    expect(patchedDependencies.bindings.aube).toBeUndefined();
-    expect(patchedDependencies.bindings.pnpm).toBeDefined();
-  });
+    expect(status.remediation).toMatchObject({ kind: 'manual', steps: expect.any(Array) });
 
-  it('ships at info severity and targets pnpm-workspace.yaml', () => {
-    expect.hasAssertions();
+    expect(Object.keys(patchedDependencies.bindings).sort()).toEqual(['pnpm']);
+
     expect(patchedDependencies.severity).toBe('info');
     expect(pnpmBinding.file).toStrictEqual({ kind: 'yaml', path: 'pnpm-workspace.yaml' });
-  });
-
-  it('provides actionable manual remediation', () => {
-    expect.hasAssertions();
-    const ops = manualSteps(
-      pnpmBinding.check(makeCtx(), { patchedDependencies: { dep: './dep.patch' } }),
-    )!;
-
-    expect(ops).toHaveLength(1);
-    expect(ops[0]).toContain('verify patches');
   });
 });

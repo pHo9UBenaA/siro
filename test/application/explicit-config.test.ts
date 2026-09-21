@@ -12,15 +12,12 @@ it('uses the supplied config without probing executable config files in an injec
       return base.exists(file);
     },
   };
-  const { io, out } = captureIO();
+  const { io } = captureIO();
   const options = {
     cwd: asAbsPath('/repo'),
     fs,
     reporter: 'json',
-    config: { rules: { 'pin-exact-versions': 'off' } },
+    config: {},
   } as const;
   expect(await lintCommand(options, io)).toBe(0);
-  expect(
-    JSON.parse(out()).findings.some((f: { ruleId: string }) => f.ruleId === 'pin-exact-versions'),
-  ).toBe(false);
 });

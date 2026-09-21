@@ -1,7 +1,6 @@
-import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
-import { makeCtx } from '../../helpers/ctx.ts';
 import { auditSuppression } from '../../../src/domain/rules/audit-suppression.ts';
+import { makeCtx } from '../../helpers/ctx.ts';
 
 const { yarn } = auditSuppression.bindings;
 assert(yarn, 'expected yarn binding');
@@ -13,14 +12,12 @@ describe('audit-suppression: check states', () => {
     expect(yarnBinding.check(makeCtx(), {}).state).toBe('ok');
   });
 
-  it('ok when npmAuditIgnoreAdvisories is an empty array', () => {
+  it('ok when both suppression lists are empty', () => {
     expect.hasAssertions();
-    expect(yarnBinding.check(makeCtx(), { npmAuditIgnoreAdvisories: [] }).state).toBe('ok');
-  });
-
-  it('ok when npmAuditExcludePackages is an empty array', () => {
-    expect.hasAssertions();
-    expect(yarnBinding.check(makeCtx(), { npmAuditExcludePackages: [] }).state).toBe('ok');
+    expect(
+      yarnBinding.check(makeCtx(), { npmAuditIgnoreAdvisories: [], npmAuditExcludePackages: [] })
+        .state,
+    ).toBe('ok');
   });
 
   it('violation when npmAuditIgnoreAdvisories has entries', () => {
@@ -37,8 +34,7 @@ describe('audit-suppression: check states', () => {
     expect(status.message).toContain('npmAuditExcludePackages');
   });
 
-  it('violation names both keys when both are present', () => {
-    expect.hasAssertions();
+  it('reports both suppression lists for manual review', () => {
     const status = yarnBinding.check(makeCtx(), {
       npmAuditExcludePackages: ['lodash'],
       npmAuditIgnoreAdvisories: ['1234567'],
@@ -46,31 +42,12 @@ describe('audit-suppression: check states', () => {
     assert(status.state === 'violation');
     expect(status.message).toContain('npmAuditIgnoreAdvisories');
     expect(status.message).toContain('npmAuditExcludePackages');
-  });
-});
 
-describe('audit-suppression: scope, metadata, and fix', () => {
-  it('only binds to yarn', () => {
-    expect.hasAssertions();
-    expect(auditSuppression.bindings.npm).toBeUndefined();
-    expect(auditSuppression.bindings.pnpm).toBeUndefined();
-    expect(auditSuppression.bindings.bun).toBeUndefined();
-    expect(auditSuppression.bindings.deno).toBeUndefined();
-    expect(auditSuppression.bindings.aube).toBeUndefined();
-    expect(auditSuppression.bindings.yarn).toBeDefined();
-  });
+    expect(status.remediation).toMatchObject({ kind: 'manual', steps: expect.any(Array) });
 
-  it('ships at info severity and targets .yarnrc.yml', () => {
-    expect.hasAssertions();
+    expect(Object.keys(auditSuppression.bindings).sort()).toEqual(['yarn']);
+
     expect(auditSuppression.severity).toBe('info');
     expect(yarnBinding.file).toStrictEqual({ kind: 'yaml', path: '.yarnrc.yml' });
-  });
-
-  it('provides actionable manual remediation', () => {
-    expect.hasAssertions();
-    const ops = manualSteps(yarnBinding.check(makeCtx(), { npmAuditIgnoreAdvisories: ['*'] }))!;
-
-    expect(ops).toHaveLength(1);
-    expect(ops[0]).toContain('remove stale suppressions');
   });
 });

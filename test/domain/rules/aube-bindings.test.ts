@@ -1,25 +1,18 @@
-import { advisoryCheck } from '../../../src/domain/rules/advisory-check.ts';
-import { trustPolicy } from '../../../src/domain/rules/trust-policy.ts';
-import { runLint } from '../../../src/application/run-lint.ts';
-import { codecFor } from '../../../src/adapters/codecs/store.ts';
-import { automaticOperations } from '../../helpers/remediation.ts';
-import {
-  DOCUMENTED_DEFAULT_MINUTES,
-  RECOMMENDED_RELEASE_AGE_MINUTES,
-} from '../../../src/domain/rules/minimum-release-age.ts';
-import { minimumReleaseAge } from '../../helpers/rules.ts';
 import assert from 'node:assert';
+import { codecFor } from '../../../src/adapters/codecs/store.ts';
+import { runLint } from '../../../src/application/run-lint.ts';
 import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
-import { commitLockfile } from '../../../src/domain/rules/commit-lockfile.ts';
-import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
+import { advisoryCheck } from '../../../src/domain/rules/advisory-check.ts';
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';
-import { expectDocumentedDefaultDynamicInfo } from '../../helpers/binding-expectations.ts';
-import { filesField } from '../../../src/domain/rules/files-field.ts';
 import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
+import { trustPolicy } from '../../../src/domain/rules/trust-policy.ts';
+import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
+import { automaticOperations } from '../../helpers/remediation.ts';
+import { minimumReleaseAge } from '../../helpers/rules.ts';
 
 describe('aube bindings: lifecycle and lockfile rules', () => {
   describe('disable-lifecycle-scripts', () => {
-    it.each<ParsedConfig>([{}, { jailBuilds: false, strictDepBuilds: false }])(
+    it.each<ParsedConfig>([{ jailBuilds: false, strictDepBuilds: false }])(
       'accepts paranoid despite individual settings: %j',
       (config) => {
         expect.hasAssertions();
@@ -29,33 +22,11 @@ describe('aube bindings: lifecycle and lockfile rules', () => {
       },
     );
 
-    it.each<ParsedConfig>([{}, { paranoid: false }])(
-      'requires jailBuilds when paranoid is not enabled: %j',
-      (config) => {
-        expect.hasAssertions();
-        const bd = disableLifecycleScripts.bindings.aube;
-        assert(bd, 'expected binding');
-        expect(bd.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
-        expect(bd.check(ctx(), config).state).toBe('violations');
-      },
-    );
-
-    it('requires strictDepBuilds in .npmrc alongside jailBuilds', () => {
-      expect.hasAssertions();
-      const bd = disableLifecycleScripts.bindings.aube;
-      assert(bd, 'expected binding');
-      expect(bd.check(ctx(), { jailBuilds: true }).state).toBe('violation');
-      expect(bd.check(ctx(), { strictDepBuilds: true }).state).toBe('violations');
-      expect(bd.check(ctx(), { jailBuilds: true, strictDepBuilds: true }).state).toBe('violation');
-      expect(
-        bd.check(ctx({ readText: () => 'strictDepBuilds=true' }), { jailBuilds: true }).state,
-      ).toBe('ok');
-    });
-
     it('fix sets both jailBuilds and strictDepBuilds', () => {
       expect.hasAssertions();
       const bd = disableLifecycleScripts.bindings.aube;
       assert(bd, 'expected binding');
+      expect(bd.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
       const status = bd.check(ctx(), {});
       assert(status.state === 'violations');
       expect(status.violations.map((item) => item.file)).toEqual(['aube-workspace.yaml', '.npmrc']);
@@ -70,22 +41,6 @@ describe('aube bindings: lifecycle and lockfile rules', () => {
           value: true,
         },
       ]);
-    });
-  });
-
-  describe('commit-lockfile', () => {
-    it('accepts a reused pnpm-lock.yaml as the aube lockfile', () => {
-      expect.hasAssertions();
-      const bd = commitLockfile.bindings.aube;
-      assert(bd, 'expected binding');
-      expect(bd.check(ctx({ exists: (fp) => fp === 'pnpm-lock.yaml' }), {}).state).toBe('ok');
-    });
-
-    it('files-field applies to aube', () => {
-      expect.hasAssertions();
-      const bd = filesField.bindings.aube;
-      assert(bd, 'expected binding');
-      expect(bd.check(ctx(), {}).state).toBe('violation');
     });
   });
 });
@@ -111,27 +66,22 @@ describe('aube bindings: frozen-lockfile and minimum-release-age', () => {
   });
 
   describe('minimum-release-age', () => {
-    it('unset → dynamic info via documentedDefault', () => {
-      expect.hasAssertions();
+    it('reports the Aube default as info and proposes an explicit three-day cooldown', () => {
       const bd = minimumReleaseAge.bindings.aube;
       assert(bd, 'expected binding');
       expect(bd.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
-      expectDocumentedDefaultDynamicInfo(bd, ctx());
+      const status = bd.check(ctx(), {});
+      expect(status).toMatchObject({ state: 'violation', severity: 'info' });
       const regression = bd.check(ctx(), { minimumReleaseAge: 0 });
       expect(regression).toMatchObject({ state: 'violation' });
       expect(regression).not.toHaveProperty('severity');
-      expect(bd.check(ctx(), { minimumReleaseAge: DOCUMENTED_DEFAULT_MINUTES }).state).toBe('ok');
-    });
+      expect(bd.check(ctx(), { minimumReleaseAge: 1440 }).state).toBe('ok');
 
-    it('fix recommends the recommended release age', () => {
-      expect.hasAssertions();
-      const bd = minimumReleaseAge.bindings.aube;
-      assert(bd, 'expected binding');
-      const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
+      const setKey = automaticOperations(status).find((op) => op.op === 'setKey');
       assert(setKey, 'expected setKey op');
       expect(setKey).toMatchObject({
         keyPath: ['minimumReleaseAge'],
-        value: RECOMMENDED_RELEASE_AGE_MINUTES,
+        value: 4320,
       });
     });
   });

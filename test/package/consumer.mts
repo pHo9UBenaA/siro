@@ -7,6 +7,7 @@ import {
   lint,
   lintCommand,
   PMS,
+  PROJECT_TYPES,
   version,
   type LintResult,
   type SiroConfig,
@@ -42,7 +43,14 @@ const config: SiroConfig = defineConfig({
   ],
 });
 
-check(PMS.length === 6);
+for (const projectType of PROJECT_TYPES) {
+  lint({
+    cwd: asAbsPath('/virtual'),
+    pm: 'npm',
+    projectType,
+    fs: { exists: () => false, readText: () => undefined },
+  });
+}
 let reported = false;
 await lintCommand(
   {
@@ -60,6 +68,7 @@ await lintCommand(
   { stdout() {}, stderr() {} },
 );
 check(reported);
+let npmResult: LintResult | undefined;
 for (const pm of PMS) {
   const result: LintResult = lint({
     cwd: asAbsPath('/virtual'),
@@ -69,22 +78,24 @@ for (const pm of PMS) {
   });
   check(Array.isArray(result.findings));
   if (pm === 'npm') {
+    npmResult = result;
     const finding = result.findings.find((item) => item.ruleId === 'consumer-probe');
     check(finding?.severity === 'warn');
     check(finding?.message === 'Installed rule targets 11.9.0');
     check(finding?.remediation?.kind === 'manual');
   }
-  let output = '';
-  jsonReporter.format(result, {
-    stdout: (text) => {
-      output += text;
-    },
-    stderr: () => {},
-  });
-  const report = JSON.parse(output);
-  check(report.schemaVersion === 2 && report.siroVersion === version);
-  check(JSON.stringify(report.findings) === JSON.stringify(result.findings));
 }
+if (!npmResult) throw new Error('npm result was not produced');
+let output = '';
+jsonReporter.format(npmResult, {
+  stdout: (text) => {
+    output += text;
+  },
+  stderr: () => {},
+});
+const report = JSON.parse(output);
+check(report.schemaVersion === 2 && report.siroVersion === version);
+check(JSON.stringify(report.findings) === JSON.stringify(npmResult.findings));
 
 for (const pmVersion of ['11.9.0', '11.10.0']) {
   const result = lint({
@@ -188,7 +199,7 @@ const multiConfig = defineConfig({
   ],
 });
 for (const reporter of ['json', 'pretty', 'github'] as const) {
-  let output = '';
+  let reporterOutput = '';
   await lintCommand(
     {
       cwd: asAbsPath('/virtual'),
@@ -199,11 +210,11 @@ for (const reporter of ['json', 'pretty', 'github'] as const) {
     },
     {
       stdout(text) {
-        output += text;
+        reporterOutput += text;
       },
       stderr() {},
     },
   );
-  check(output.includes('First file') && output.includes('Second file'));
-  check(output.includes('.npmrc') && output.includes('package.json'));
+  check(reporterOutput.includes('First file') && reporterOutput.includes('Second file'));
+  check(reporterOutput.includes('.npmrc') && reporterOutput.includes('package.json'));
 }

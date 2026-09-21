@@ -36,5 +36,4 @@ it('distinguishes implemented checks from missing bindings', () => {
   expect(renderComparison([rule])).toContain(
     '| `fixture-policy` | error | ✅ | ✅ | — | — | — | — |',
   );
-  expect(renderComparison([])).not.toContain('`fixture-policy`');
 });

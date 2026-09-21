@@ -109,11 +109,11 @@ Different layer of the supply-chain pipeline; you want both.
 Adding a rule or a package manager is a localized change — see
 [docs/contributing.md](docs/contributing.md).
 
+If siro is useful to you, a [GitHub Star](https://github.com/pHo9UBenaA/siro) would be appreciated.
+Stars help me decide how much time to devote to future features and maintenance.
+Please share feedback from real-world use and feature requests in
+[GitHub Issues](https://github.com/pHo9UBenaA/siro/issues).
+
 ## License
 
 MIT
-
-## Architecture
-
-The [architecture guide](docs/architecture.md) describes ports, adapters, runtime
-composition, dependency checks, and the behavioral contracts used when changing siro.
