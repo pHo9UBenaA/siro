@@ -96,6 +96,10 @@ const isDeterministicDateConstructor = (node: ts.Identifier): boolean => {
 
 const sourceRoot = path.resolve(import.meta.dirname, '../src');
 const projectRoot = path.resolve(sourceRoot, '..');
+const canonicalFileName = (file: string): string => {
+  const absolute = path.resolve(file).split(path.sep).join('/');
+  return ts.sys.useCaseSensitiveFileNames ? absolute : absolute.toLowerCase();
+};
 const config = ts.readConfigFile(path.join(projectRoot, 'tsconfig.json'), ts.sys.readFile);
 const compilerOptions = ts.convertCompilerOptionsFromJson(
   config.config.compilerOptions,
@@ -116,10 +120,12 @@ const layerOf = (file: string): Layer | undefined => {
 const findViolations = (files: readonly SourceFile[]): string[] => {
   const violations: string[] = [];
   const graph = new Map(files.map((file) => [file.path, new Set<string>()]));
-  const contents = new Map(files.map((file) => [path.join(sourceRoot, file.path), file.content]));
+  const contents = new Map(
+    files.map((file) => [canonicalFileName(path.join(sourceRoot, file.path)), file.content]),
+  );
   const host: ts.ModuleResolutionHost = {
-    fileExists: (file) => contents.has(file),
-    readFile: (file) => contents.get(file),
+    fileExists: (file) => contents.has(canonicalFileName(file)),
+    readFile: (file) => contents.get(canonicalFileName(file)),
   };
   for (const file of files) {
     const sourceLayer = layerOf(file.path);
