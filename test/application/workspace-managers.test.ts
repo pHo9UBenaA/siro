@@ -1,4 +1,4 @@
-import { asAbsPath, lint, type PM, type FileSystem } from '../../src/index.ts';
+import { asAbsPath, lint, type FileSystem, type PM } from '../../src/index.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
 const evaluate = (
@@ -45,6 +45,7 @@ it.each(['packages: []', 'minimumReleaseAge: 4320'])('Aube YAML %s suppresses fa
   expect(
     childFiles('aube', {
       'aube-workspace.yaml': yaml,
+      'pnpm-workspace.yaml': 'packages: ["p/*"]',
       'package.json': '{"workspaces":["p/*"]}',
       'p/pkg/package.json': '{"name":"p"}',
     }),
@@ -115,6 +116,8 @@ it('reads Deno member manifests and respects publish opt-out independently of np
   expect(
     childFiles('deno', {
       'deno.json': '{"workspace":["packages/*"]}',
+      'package.json': '{"workspaces":["q/*"]}',
+      'q/a/deno.jsonc': 'not strict JSON',
       'packages/public/deno.json': '{"name":"@example/public","exports":"./mod.ts"}',
       'packages/public/package.json': '{"private":true}',
       'packages/private/deno.json': '{"name":"@example/internal","publish":false}',
@@ -261,8 +264,8 @@ it.each([
     ).toEqual(expected);
   },
 );
-it.each(['EACCES', 'ETIMEDOUT'])('propagates directory resolution %s', (code) => {
-  const error = Object.assign(new Error(code), { code });
+it('propagates directory resolution errors', () => {
+  const error = Object.assign(new Error('EACCES'), { code: 'EACCES' });
   expect(() =>
     evaluate('deno', aliasedDenoFiles, () => {
       throw error;

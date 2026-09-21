@@ -1,60 +1,75 @@
-import { Bench } from 'tinybench';
+import type { Task } from 'tinybench';
 import { extractBenchRows, printBench, type BenchRow } from '../../bench/bench-row.ts';
 
-const makeBench = () => new Bench({ time: 0, iterations: 2, warmup: false });
+const completedResult = {
+  state: 'completed',
+  latency: { mean: 0.08125, p99: 0.1525, samplesCount: 100, sd: 0.0054 },
+  throughput: { mean: 12_345 },
+} as unknown as Task['result'];
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
 });
 
-it('reports statistics from real completed tasks in registration order', async () => {
-  const bench = makeBench()
-    .add('first', () => 1 + 1)
-    .add('second', () => Math.sqrt(2));
-  await bench.run();
-  const rows = extractBenchRows(bench.tasks);
-  expect(rows.map((row) => row.fixture)).toEqual(['first', 'second']);
-  for (const row of rows) {
-    expect(row.samples).toBeGreaterThanOrEqual(2);
-    expect(row.msPerOp).toBeGreaterThanOrEqual(0);
-    expect(row.p99).toBeGreaterThanOrEqual(0);
-    expect(row.sd).toBeGreaterThanOrEqual(0);
-  }
+it('maps completed task statistics in registration order', () => {
+  expect(
+    extractBenchRows([
+      { name: 'first', result: completedResult },
+      {
+        name: 'second',
+        result: {
+          ...completedResult,
+          latency: { mean: 0.25, p99: 0.4, samplesCount: 20, sd: 0.02 },
+          throughput: { mean: 4000 },
+        } as Task['result'],
+      },
+    ]),
+  ).toEqual([
+    {
+      fixture: 'first',
+      msPerOp: 0.08125,
+      opsPerSec: 12_345,
+      p99: 0.1525,
+      samples: 100,
+      sd: 0.0054,
+    },
+    {
+      fixture: 'second',
+      msPerOp: 0.25,
+      opsPerSec: 4000,
+      p99: 0.4,
+      samples: 20,
+      sd: 0.02,
+    },
+  ]);
 });
 
-it('fails when a measured task throws', async () => {
-  const bench = makeBench().add('broken', () => {
-    throw new Error('measurement failed');
-  });
-  await bench.run();
-  expect(() => extractBenchRows(bench.tasks)).toThrow(
-    "Benchmark 'broken' failed: measurement failed",
-  );
+it('fails when a measured task throws', () => {
+  expect(() =>
+    extractBenchRows([
+      {
+        name: 'broken',
+        result: {
+          error: new Error('measurement failed'),
+          state: 'errored',
+        } as Task['result'],
+      },
+    ]),
+  ).toThrow("Benchmark 'broken' failed: measurement failed");
 });
 
 it('rejects an empty measurement', () => {
   expect(() => extractBenchRows([])).toThrow('No benchmark tasks');
 });
 
-it.each(['not-started', 'started', 'aborted'] as const)('rejects a %s task', (state) => {
-  const [task] = makeBench().add('incomplete', () => {}).tasks;
-  if (!task) throw new Error('Fixture task missing');
-  expect(() => extractBenchRows([{ name: task.name, result: { ...task.result, state } }])).toThrow(
-    'did not complete',
-  );
-});
-
-it('rejects an aborted task even when partial statistics are available', async () => {
-  const bench = makeBench().add('partial', () => Math.sqrt(2));
-  await bench.run();
-  const [task] = bench.tasks;
-  if (!task) throw new Error('Fixture task missing');
-  const result = task.result;
-  if (result.state !== 'completed') throw new Error('Fixture measurement failed');
+it('rejects an incomplete task even when partial statistics are available', () => {
   expect(() =>
     extractBenchRows([
-      { name: 'partial', result: { ...result, state: 'aborted-with-statistics' } },
+      {
+        name: 'partial',
+        result: { ...completedResult, state: 'aborted-with-statistics' } as Task['result'],
+      },
     ]),
   ).toThrow('did not complete');
 });
@@ -72,9 +87,14 @@ it('preserves numeric precision in JSON output', () => {
   vi.stubEnv('BENCH_JSON', '1');
   const log = vi.spyOn(console, 'log').mockImplementation(() => {});
   printBench([row]);
-  expect(log).toHaveBeenCalledExactlyOnceWith(
-    JSON.stringify({ bench: 'lint', node: process.version, results: [row] }),
-  );
+  expect(log).toHaveBeenCalledOnce();
+  const output = log.mock.calls[0]?.[0];
+  if (typeof output !== 'string') throw new TypeError('Expected JSON output');
+  expect(JSON.parse(output)).toStrictEqual({
+    bench: 'lint',
+    node: process.version,
+    results: [row],
+  });
 });
 
 it('formats the table without rounding small variation to zero', () => {

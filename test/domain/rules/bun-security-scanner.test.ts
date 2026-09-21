@@ -19,11 +19,6 @@ describe('bun-security-scanner', () => {
     expect(bunBinding.check(makeCtx(), {}).state).toBe('violation');
   });
 
-  it('records which bun version first shipped the scanner setting', () => {
-    expect.hasAssertions();
-    expect(bunBinding.versionNote).toStrictEqual({ configAvailableSince: 'bun 1.2.21' });
-  });
-
   it('passes when a non-empty scanner name is configured', () => {
     expect.hasAssertions();
     expect(

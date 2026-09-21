@@ -1,13 +1,14 @@
-import type { compileWorkspaceGlob } from './workspace-globs.ts';
+import type { WorkspaceGlob } from './ports/workspace-glob.ts';
+import { hasBasicWorkspaceWildcard } from './workspace-pattern.ts';
 
 /** Anchor Deno's native literal prefix before applying its glob suffix. */
 export const anchorWorkspacePrefix = (
   pattern: string,
-  glob: ReturnType<typeof compileWorkspaceGlob>,
+  glob: WorkspaceGlob,
   resolveChild: (parent: string, name: string) => string | undefined,
-): ReturnType<typeof compileWorkspaceGlob> => {
+): WorkspaceGlob => {
   const parts = pattern.split('/');
-  const firstWildcard = parts.findIndex((part) => /[*?]/u.test(part));
+  const firstWildcard = parts.findIndex(hasBasicWorkspaceWildcard);
   const prefix = parts.slice(0, firstWildcard < 0 ? parts.length : firstWildcard);
   if (prefix.length === 0 || pattern === '.') return glob;
   const declared = prefix.join('/');

@@ -1,7 +1,7 @@
-import { automaticOperations } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { blockAutoInstall } from '../../../src/domain/rules/block-auto-install.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
+import { automaticOperations } from '../../helpers/remediation.ts';
 
 const { bun } = blockAutoInstall.bindings;
 assert(bun, 'expected bun binding');
@@ -12,53 +12,17 @@ describe('block-auto-install: check behaviour', () => {
     expect(bun.check(makeCtx(), { install: { auto: 'disable' } }).state).toBe('ok');
   });
 
-  it('flags a violation when unset', () => {
-    expect.hasAssertions();
+  it('reports the missing setting with its severity, scope and remediation', () => {
     const status = bun.check(makeCtx(), {});
+
     assert(status.state === 'violation');
     expect(status.severity).toBeUndefined();
-  });
+    expect(Object.keys(blockAutoInstall.bindings).sort()).toEqual(['bun']);
 
-  it('flags a violation when set to auto', () => {
-    expect.hasAssertions();
-    const status = bun.check(makeCtx(), { install: { auto: 'auto' } });
-    assert(status.state === 'violation');
-    expect(status.severity).toBeUndefined();
-  });
-
-  it('flags a violation when set to force', () => {
-    expect.hasAssertions();
-    const status = bun.check(makeCtx(), { install: { auto: 'force' } });
-    expect(status.state).toBe('violation');
-  });
-
-  it('flags a violation when set to fallback', () => {
-    expect.hasAssertions();
-    const status = bun.check(makeCtx(), { install: { auto: 'fallback' } });
-    expect(status.state).toBe('violation');
-  });
-});
-
-describe('block-auto-install: scope, metadata, and fix', () => {
-  it('only binds to bun', () => {
-    expect.hasAssertions();
-    expect(blockAutoInstall.bindings.bun).toBeDefined();
-    expect(blockAutoInstall.bindings.npm).toBeUndefined();
-    expect(blockAutoInstall.bindings.yarn).toBeUndefined();
-    expect(blockAutoInstall.bindings.pnpm).toBeUndefined();
-    expect(blockAutoInstall.bindings.deno).toBeUndefined();
-    expect(blockAutoInstall.bindings.aube).toBeUndefined();
-  });
-
-  it('ships at warn severity and targets bunfig.toml', () => {
-    expect.hasAssertions();
     expect(blockAutoInstall.severity).toBe('warn');
     expect(bun.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
-  });
 
-  it('fix returns setKey op for install.auto: disable', () => {
-    expect.hasAssertions();
-    const ops = automaticOperations(bun.check(makeCtx(), {}));
+    const ops = automaticOperations(status);
     expect(ops).toStrictEqual([
       {
         file: { kind: 'toml', path: 'bunfig.toml' },
@@ -67,6 +31,13 @@ describe('block-auto-install: scope, metadata, and fix', () => {
         value: 'disable',
       },
     ]);
+  });
+
+  it('flags a violation when set to force', () => {
+    expect.hasAssertions();
+    const status = bun.check(makeCtx(), { install: { auto: 'force' } });
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
   });
 });
 

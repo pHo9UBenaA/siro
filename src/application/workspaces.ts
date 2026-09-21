@@ -1,21 +1,17 @@
-import path from 'node:path';
+import type { LintDependencies } from './ports/lint-dependencies.ts';
 import { anchorWorkspacePrefix } from './workspace-prefix.ts';
-import {
-  compileWorkspaceGlob,
-  defaultWorkspaceGlobOptions,
-  expandWorkspaceGlob,
-} from './workspace-globs.ts';
+import { workspaceGlobOptions } from './workspace-glob-policy.ts';
+import type { WorkspaceGlob, WorkspaceGlobs } from './ports/workspace-glob.ts';
 import { compileAdditionalWorkspaceGlob } from './workspace-dialects.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
 import type { PM } from '../domain/entities/pms.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import type { RepoContext } from '../domain/ports/repo-context.ts';
 import { createConfigParser } from '../domain/services/parse-config-file.ts';
-import { codecFor } from '../adapters/codecs/store.ts';
 import { ConfigError, UsageError } from '../shared/errors.ts';
 import { asRelPath, isRelPath, type RelPath } from '../shared/paths.ts';
-import { resolveIn } from '../adapters/node-file-system.ts';
 import { isPlainRecord } from '../shared/records.ts';
+import { hasBasicWorkspaceWildcard, stripTrailingWorkspaceSlashes } from './workspace-pattern.ts';
 
 /** npm cancels an earlier exclusion when a later positive pattern matches it. */
 const splitNpmPattern = (raw: string) => {
@@ -23,16 +19,16 @@ const splitNpmPattern = (raw: string) => {
   return { excluded: prefix.length % 2 === 1, pattern: raw.slice(prefix.length) };
 };
 
-const npmPatterns = (patterns: readonly string[]): readonly string[] => {
+const npmPatterns = (patterns: readonly string[], globs: WorkspaceGlobs): readonly string[] => {
   const positive: string[] = [];
-  let negative: { pattern: string; glob: ReturnType<typeof compileWorkspaceGlob> }[] = [];
+  let negative: { pattern: string; glob: WorkspaceGlob }[] = [];
   for (const raw of patterns) {
     const parsed = splitNpmPattern(raw);
     const pattern = parsed.pattern.replace(/^\.?\/+/u, '');
     if (parsed.excluded) {
-      // npm compares declaration strings with default minimatch options,
+      // npm compares declaration strings with its shell-pattern semantics,
       // independently of the platform policy used to enumerate directories.
-      negative.push({ pattern, glob: compileWorkspaceGlob(pattern, {}) });
+      negative.push({ pattern, glob: globs.compile(pattern, { kind: 'declaration' }) });
     } else {
       // Match @npmcli/map-workspaces' forward splice exactly. Adjacent duplicate
       // exclusions are not all removed because the shifted entry is skipped.
@@ -51,7 +47,12 @@ export interface WorkspaceDefinition {
 }
 
 /** Read declaration sources separately so Deno's two manifest sets stay distinct. */
-export const workspaceDefinitions = (ctx: RepoContext, pm: PM): readonly WorkspaceDefinition[] => {
+export const workspaceDefinitions = (
+  ctx: RepoContext,
+  pm: PM,
+  dependencies: LintDependencies,
+): readonly WorkspaceDefinition[] => {
+  const { codecFor, paths, globs } = dependencies;
   const parse = createConfigParser(codecFor, ctx);
   const validate = (value: unknown, source: string, denoManifests = false): WorkspaceDefinition => {
     if (value === undefined) return { patterns: [], denoManifests };
@@ -65,8 +66,7 @@ export const workspaceDefinitions = (ctx: RepoContext, pm: PM): readonly Workspa
           : pattern.startsWith('!')
             ? pattern.slice(1)
             : pattern;
-      const alternatives =
-        pm === 'deno' || pm === 'aube' ? [positive] : expandWorkspaceGlob(positive);
+      const alternatives = pm === 'deno' || pm === 'aube' ? [positive] : globs.expand(positive);
       if (
         alternatives.some(
           (alternative) =>
@@ -81,12 +81,12 @@ export const workspaceDefinitions = (ctx: RepoContext, pm: PM): readonly Workspa
         pm === 'deno' &&
         denoManifests &&
         !pattern.startsWith('!') &&
-        path.posix.normalize(positive) === '.'
+        paths.normalizePattern(positive) === '.'
       ) {
         throw new ConfigError(`${source}: a Deno workspace cannot contain itself.`);
       }
     }
-    return { patterns: pm === 'npm' ? npmPatterns(value) : value, denoManifests };
+    return { patterns: pm === 'npm' ? npmPatterns(value, globs) : value, denoManifests };
   };
   const packageDefinition = () => {
     let value = ctx.packageJson?.workspaces;
@@ -128,16 +128,19 @@ export const workspaceDirectories = (
   fs: FileSystem,
   definition: WorkspaceDefinition,
   pm: PM,
+  dependencies: LintDependencies,
 ): readonly RelPath[] => {
+  const { codecFor, paths, globs, caseInsensitiveGlobs } = dependencies;
+  const defaultWorkspaceGlobOptions = workspaceGlobOptions(caseInsensitiveGlobs);
   const { patterns } = definition;
   const skipVendor =
     pm === 'deno' && createConfigParser(codecFor, ctx)(CONFIG_FILES.denoJson).vendor === true;
   const positive = patterns
     .filter((pattern) => !pattern.startsWith('!'))
-    .map((pattern) => path.posix.normalize(pattern).replace(/\/+$/u, ''));
+    .map((pattern) => stripTrailingWorkspaceSlashes(paths.normalizePattern(pattern)));
   const negative = patterns
     .filter((pattern) => pattern.startsWith('!'))
-    .map((pattern) => path.posix.normalize(pattern.slice(1)).replace(/\/+$/u, ''));
+    .map((pattern) => stripTrailingWorkspaceSlashes(paths.normalizePattern(pattern.slice(1))));
   const directoryCache = new Map<string, readonly string[]>();
   const readDirectories = (directory: string): readonly string[] => {
     const cached = directoryCache.get(directory);
@@ -146,7 +149,7 @@ export const workspaceDirectories = (
       throw new UsageError(
         'Workspace discovery requires FileSystem.readDirectories; no host filesystem fallback is used.',
       );
-    const names = fs.readDirectories(resolveIn(ctx.root, asRelPath(directory)));
+    const names = fs.readDirectories(paths.resolve(ctx.root, asRelPath(directory)));
     if (!Array.isArray(names))
       throw new ConfigError('FileSystem.readDirectories must return an array of directory names.');
     for (const name of Array.from(names)) {
@@ -165,7 +168,7 @@ export const workspaceDirectories = (
     const names = readDirectories(parent);
     const resolved = names.includes(name)
       ? name
-      : fs.resolveDirectory?.(resolveIn(ctx.root, asRelPath(parent)), name);
+      : fs.resolveDirectory?.(paths.resolve(ctx.root, asRelPath(parent)), name);
     if (resolved !== undefined && !names.includes(resolved)) {
       throw new ConfigError(
         'FileSystem.resolveDirectory must return an enumerated ordinary child directory name.',
@@ -175,13 +178,13 @@ export const workspaceDirectories = (
   };
   const compile = (pattern: string, excluded = false) => {
     if (pm !== 'deno' && pm !== 'aube')
-      return compileWorkspaceGlob(
+      return globs.compile(
         pattern,
         pm === 'npm'
-          ? { ...defaultWorkspaceGlobOptions, nocomment: false }
+          ? { ...defaultWorkspaceGlobOptions, hashComments: true }
           : defaultWorkspaceGlobOptions,
       );
-    const glob = compileAdditionalWorkspaceGlob(pattern, pm, excluded);
+    const glob = compileAdditionalWorkspaceGlob(pattern, pm, excluded, caseInsensitiveGlobs, globs);
     return pm === 'deno' && !excluded ? anchorWorkspacePrefix(pattern, glob, resolveChild) : glob;
   };
   const included = positive.map((pattern) => compile(pattern));
@@ -199,7 +202,7 @@ export const workspaceDirectories = (
   });
   const declaredBase = (pattern: string) => {
     const parts = pattern.split('/');
-    const wildcard = parts.findIndex((part) => /[*?]/u.test(part));
+    const wildcard = parts.findIndex(hasBasicWorkspaceWildcard);
     return parts.slice(0, wildcard < 0 ? parts.length : wildcard).join('/') || '.';
   };
   const relatedBases = (left: string, right: string) =>
@@ -210,27 +213,27 @@ export const workspaceDirectories = (
     right.startsWith(`${left}/`);
   const denoPositive =
     pm === 'deno'
-      ? positive
-          .filter((pattern) => /[*?]/u.test(pattern))
-          .map((pattern) => ({
-            base: declaredBase(pattern),
-            scope: anchorWorkspacePrefix(
-              declaredBase(pattern),
-              {
-                matches: () => true,
-                canDescend: () => true,
-              },
-              resolveChild,
-            ),
-          }))
+      ? positive.filter(hasBasicWorkspaceWildcard).map((pattern) => ({
+          base: declaredBase(pattern),
+          scope: anchorWorkspacePrefix(
+            declaredBase(pattern),
+            {
+              matches: () => true,
+              canDescend: () => true,
+            },
+            resolveChild,
+          ),
+        }))
       : [];
   const denoOrdered =
     pm === 'deno'
       ? patterns
-          .filter((pattern) => /[*?]/u.test(pattern) || pattern.startsWith('!'))
+          .filter((pattern) => hasBasicWorkspaceWildcard(pattern) || pattern.startsWith('!'))
           .map((raw) => {
             const isExcluded = raw.startsWith('!');
-            const pattern = path.posix.normalize(raw.replace(/^!/u, '')).replace(/\/+$/u, '');
+            const pattern = stripTrailingWorkspaceSlashes(
+              paths.normalizePattern(isExcluded ? raw.slice(1) : raw),
+            );
             const glob = compile(pattern, isExcluded);
             if (!isExcluded) return { excluded: false, glob };
             return {
@@ -240,7 +243,7 @@ export const workspaceDirectories = (
                 matches(directory: string) {
                   // Negative paths are lexical, not filesystem lookups. Negative globs
                   // only apply to related declared positive bases, then match without case.
-                  if (!/[*?]/u.test(pattern)) return directory === pattern;
+                  if (!hasBasicWorkspaceWildcard(pattern)) return directory === pattern;
                   if (!glob.matches(directory)) return false;
                   const applicable = denoPositive
                     .filter((item) => item.scope.matches(directory))
@@ -260,24 +263,25 @@ export const workspaceDirectories = (
     pm === 'bun'
       ? patterns.map((raw) => {
           const isExcluded = raw.startsWith('!');
-          const pattern = path.posix.normalize(raw.replace(/^!/u, '')).replace(/\/+$/u, '');
+          const pattern = stripTrailingWorkspaceSlashes(
+            paths.normalizePattern(isExcluded ? raw.slice(1) : raw),
+          );
           // Bun inserts literal members directly. Only its syntax markers enter
           // the ordered glob pass, where later negatives filter each positive.
           const usesGlob =
             isExcluded ||
-            pattern.includes('*') ||
-            pattern.includes('?') ||
+            hasBasicWorkspaceWildcard(pattern) ||
             pattern.includes('{') ||
             pattern.includes('[');
-          const glob = compileWorkspaceGlob(pattern, {
+          const glob = globs.compile(pattern, {
             ...defaultWorkspaceGlobOptions,
-            noext: true,
+            extendedPatterns: false,
           });
           const subtree =
             isExcluded && pattern.endsWith('/**')
-              ? compileWorkspaceGlob(pattern.slice(0, -3), {
+              ? globs.compile(pattern.slice(0, -3), {
                   ...defaultWorkspaceGlobOptions,
-                  noext: true,
+                  extendedPatterns: false,
                 })
               : undefined;
           return {
@@ -296,7 +300,9 @@ export const workspaceDirectories = (
   const bunTraversal = bunPatterns.filter(({ isExcluded }) => !isExcluded).map(({ glob }) => glob);
   const denoLiteral =
     pm === 'deno'
-      ? positive.filter((pattern) => !/[*?]/u.test(pattern)).map((pattern) => compile(pattern))
+      ? positive
+          .filter((pattern) => !hasBasicWorkspaceWildcard(pattern))
+          .map((pattern) => compile(pattern))
       : [];
   if (
     definition.denoManifests &&

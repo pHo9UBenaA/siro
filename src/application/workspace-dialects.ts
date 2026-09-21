@@ -1,5 +1,8 @@
-import { compileWorkspaceGlob } from './workspace-globs.ts';
+import type { WorkspaceGlobs } from './ports/workspace-glob.ts';
 import { ConfigError } from '../shared/errors.ts';
+import { hasBasicWorkspaceWildcard } from './workspace-pattern.ts';
+
+const containsUnsupportedAubeGlobSyntax = (pattern: string): boolean => /[[\]{}()]/u.test(pattern);
 
 const matchesCrossPathGlob = (pattern: string, value: string): boolean => {
   const patternCharacters = [...pattern];
@@ -34,6 +37,8 @@ export const compileAdditionalWorkspaceGlob = (
   pattern: string,
   pm: 'deno' | 'aube',
   excluded: boolean,
+  caseInsensitive: boolean,
+  globs: WorkspaceGlobs,
 ) => {
   const parts = pattern.split('/');
   if (parts.some((part) => part.includes('**') && part !== '**')) {
@@ -41,41 +46,27 @@ export const compileAdditionalWorkspaceGlob = (
   }
   if (
     pm === 'aube' &&
-    (/[[\]{}()]/u.test(pattern) ||
+    (containsUnsupportedAubeGlobSyntax(pattern) ||
       (pattern.includes('**') &&
-        (parts.at(-1) !== '**' || /[*?]/u.test(parts.slice(0, -1).join('/')))))
+        (parts.at(-1) !== '**' || hasBasicWorkspaceWildcard(parts.slice(0, -1).join('/')))))
   ) {
     throw new ConfigError(
       'Aube workspace inspection supports literals, * and ?, and a trailing ** after a literal prefix; other glob forms are not yet supported.',
     );
   }
-  // Deno treats brackets/braces/extglob punctuation literally. Aube's broader
-  // Rust glob forms are rejected above rather than reinterpreted as minimatch.
-  const escaped =
-    pm === 'deno'
-      ? pattern.replace(/[[\]]/gu, (character) => (character === '[' ? '[[]' : '[]]'))
-      : pattern;
-  const matcher = compileWorkspaceGlob(escaped, {
-    platform: 'linux',
-    windowsPathsNoEscape: true,
-    nonegate: true,
-    nocomment: true,
-    nobrace: true,
-    noext: true,
-    dot: pm === 'aube',
-    nocase:
-      pm === 'deno' &&
-      (/[*?]/u.test(pattern) || process.platform === 'darwin' || process.platform === 'win32'),
+  // Punctuation outside the wildcard subset is literal. The adapter translates
+  // that semantic contract into its engine's syntax.
+  const matcher = globs.compile(pattern, {
+    kind: 'directory',
+    syntax: 'wildcards',
+    includeDotDirectories: pm === 'aube',
+    caseInsensitive: pm === 'deno' && (hasBasicWorkspaceWildcard(pattern) || caseInsensitive),
   });
-  if (pm === 'deno' && /[*?]/u.test(pattern)) {
-    const files = compileWorkspaceGlob(`${escaped}/package.json`, {
-      platform: 'linux',
-      windowsPathsNoEscape: true,
-      nonegate: true,
-      nocomment: true,
-      nobrace: true,
-      noext: true,
-      nocase: true,
+  if (pm === 'deno' && hasBasicWorkspaceWildcard(pattern)) {
+    const files = globs.compile(`${pattern}/package.json`, {
+      kind: 'directory',
+      syntax: 'wildcards',
+      caseInsensitive: true,
     });
     return {
       ...matcher,

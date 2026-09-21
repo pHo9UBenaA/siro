@@ -1,10 +1,10 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert';
-import { captureIO } from './helpers/io.ts';
-import { parseGithubAnnotation } from './helpers/github-annotation.ts';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { run } from '../src/cli.ts';
-import { tmpdir } from 'node:os';
+import { parseGithubAnnotation } from './helpers/github-annotation.ts';
+import { captureIO } from './helpers/io.ts';
 
 const FIXTURES = path.join(import.meta.dirname, 'fixtures');
 
@@ -76,15 +76,11 @@ describe('e2E siro.config.ts rule overrides', () => {
   });
   afterEach(() => rmSync(dir, { force: true, recursive: true }));
 
-  it("demotes a rule's reported severity to warn when the user config sets the rule to 'warn'", () => {
+  it('applies warn and off rule overrides from the same config', () => {
     expect.hasAssertions();
     const finding = parsed.findings.find((entry) => entry.ruleId === 'pin-exact-versions');
     assert(finding, 'expected a pin-exact-versions finding');
     expect(finding.severity).toBe('warn');
-  });
-
-  it("omits a rule entirely from the findings when the user config sets the rule to 'off'", () => {
-    expect.hasAssertions();
     const ids = new Set(parsed.findings.map((entry) => entry.ruleId));
     expect(ids.has('provenance')).toBe(false);
   });
@@ -140,4 +136,43 @@ describe('e2E siro.config.ts error exits', () => {
     );
     return lintAndExpectConfigError(dir, /no-such-rule/u);
   });
+});
+
+it('exits 2 and names a JSON config whose root is not a mapping', async () => {
+  expect.hasAssertions();
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-invalid-config-root-'));
+  try {
+    writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'demo' }));
+    writeFileSync(path.join(dir, 'deno.json'), '[]');
+    const { io, out, err } = captureIO();
+    const status = await run(['lint', dir], io);
+    const result = { status, stdout: out(), stderr: err() };
+    expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(
+      EXIT_CODE_CONFIG_ERROR,
+    );
+    expect(result.stderr).toMatch(/deno\.json: config root must be a mapping/iu);
+  } finally {
+    rmSync(dir, { force: true, recursive: true });
+  }
+});
+
+it('exits 2 when a config contains a malformed custom rule', async () => {
+  expect.hasAssertions();
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-invalid-rule-'));
+  try {
+    writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ name: 'demo', packageManager: 'pnpm@10.0.0' }),
+    );
+    writeFileSync(path.join(dir, 'siro.config.mjs'), 'export default { customRules: [null] };\n');
+    const { io, out, err } = captureIO();
+    const status = await run(['lint', dir], io);
+    const result = { status, stdout: out(), stderr: err() };
+    expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(
+      EXIT_CODE_CONFIG_ERROR,
+    );
+    expect(result.stderr).toMatch(/customRules\.0/iu);
+  } finally {
+    rmSync(dir, { force: true, recursive: true });
+  }
 });

@@ -1,6 +1,6 @@
-import { lint } from '../../src/application/lint.ts';
+import { lint } from '../../src/composition/lint.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
-import { asAbsPath } from '../../src/shared/paths.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 
 it.each([undefined, 'deno'] as const)('reports unsupported deno.jsonc for pm %s', (pm) => {
   const fs = createMemFileSystem({

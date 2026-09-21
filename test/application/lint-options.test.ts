@@ -1,6 +1,6 @@
-import { lintCommand } from '../../src/application/commands/lint.ts';
+import { lintCommand } from '../../src/composition/lint.ts';
 import { ConfigError, UsageError } from '../../src/shared/errors.ts';
-import { asAbsPath } from '../../src/shared/paths.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
 import { captureIO } from '../helpers/io.ts';
 

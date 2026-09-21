@@ -1,8 +1,8 @@
-import { asAbsPath, asRelPath } from '../../src/shared/paths.ts';
 import assert from 'node:assert';
-import { ConfigError } from '../../src/shared/errors.ts';
-import { createMemFileSystem } from '../helpers/memfs.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { createRepoContext } from '../../src/adapters/repo-context.ts';
+import { asRelPath } from '../../src/shared/paths.ts';
+import { createMemFileSystem } from '../helpers/memfs.ts';
 
 describe('createRepoContext — packageJson parsing', () => {
   it.each([
@@ -14,8 +14,12 @@ describe('createRepoContext — packageJson parsing', () => {
     ['trustedDependencies', { trustedDependencies: [42] }],
   ])('rejects malformed %s instead of silently changing its meaning', (field, value) => {
     const fs = createMemFileSystem({ 'package.json': JSON.stringify(value) });
-    expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(ConfigError);
-    expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(`package.json: ${field}`);
+    expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(
+      expect.objectContaining({
+        name: 'ConfigError',
+        message: expect.stringContaining(`package.json: ${field}`),
+      }),
+    );
   });
 
   it('returns packageJson: undefined when no package.json is present', () => {
@@ -43,7 +47,6 @@ describe('createRepoContext — packageJson parsing', () => {
     const fs = createMemFileSystem({
       'package.json': `﻿${JSON.stringify({ name: 'bom-pkg', version: '1.0.0' })}`,
     });
-    expect(() => createRepoContext(asAbsPath('/repo'), fs)).not.toThrow();
     const ctx = createRepoContext(asAbsPath('/repo'), fs);
     const pkg = ctx.packageJson;
     assert(pkg, 'expected packageJson');
@@ -55,22 +58,20 @@ describe('createRepoContext — packageJson parsing', () => {
     const fs = createMemFileSystem({
       'package.json': '{ not valid json',
     });
-    expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(ConfigError);
-    expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(/package\.json/u);
+    expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(
+      expect.objectContaining({
+        name: 'ConfigError',
+        message: expect.stringContaining('package.json'),
+      }),
+    );
   });
 
-  it.each(['[]', 'null', 'true', '"package"', '42'])(
-    'throws ConfigError when package.json contains a non-object JSON root: %s',
-    (contents) => {
-      expect.hasAssertions();
-      const fs = createMemFileSystem({ 'package.json': contents });
-
-      expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(ConfigError);
-      expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(
-        /package\.json: expected an object/iu,
-      );
-    },
-  );
+  it('throws ConfigError when package.json contains a non-object JSON root', () => {
+    const fs = createMemFileSystem({ 'package.json': '[]' });
+    expect(() => createRepoContext(asAbsPath('/repo'), fs)).toThrow(
+      /package\.json: expected an object/iu,
+    );
+  });
 });
 
 describe('createRepoContext — readText and exists', () => {

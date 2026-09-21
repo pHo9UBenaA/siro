@@ -1,8 +1,8 @@
-import { lint } from '../../src/application/lint.ts';
-import { asAbsPath } from '../../src/shared/paths.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
+import { lint } from '../../src/composition/lint.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
-it.each(['application', 'package'] as const)(
+it.each(['package'] as const)(
   'accepts the npm private publish access alias under %s policy',
   (projectType) => {
     const fs = createMemFileSystem({

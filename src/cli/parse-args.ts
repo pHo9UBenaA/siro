@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 import path from 'node:path';
-import { type AbsPath, asAbsPath } from '../shared/paths.ts';
+import { type AbsPath } from '../shared/paths.ts';
+import { asAbsPath } from '../adapters/node-paths.ts';
 import { UsageError } from '../shared/errors.ts';
 import { type CommandName, isCommandName } from './commands.ts';
 import type { PM, Severity } from '../domain/entities/pms.ts';

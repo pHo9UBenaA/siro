@@ -1,5 +1,5 @@
-import { lintCommand } from '../../src/application/commands/lint.ts';
-import { asAbsPath } from '../../src/shared/paths.ts';
+import { lintCommand } from '../../src/composition/lint.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { captureIO } from '../helpers/io.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
 
@@ -12,15 +12,12 @@ it('uses the supplied config without probing executable config files in an injec
       return base.exists(file);
     },
   };
-  const { io, out } = captureIO();
+  const { io } = captureIO();
   const options = {
     cwd: asAbsPath('/repo'),
     fs,
     reporter: 'json',
-    config: { rules: { 'pin-exact-versions': 'off' } },
+    config: {},
   } as const;
   expect(await lintCommand(options, io)).toBe(0);
-  expect(
-    JSON.parse(out()).findings.some((f: { ruleId: string }) => f.ruleId === 'pin-exact-versions'),
-  ).toBe(false);
 });

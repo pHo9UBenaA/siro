@@ -1,17 +1,9 @@
 import assert from 'node:assert';
-import type {
-  RuleBinding,
-  ConfigFileRef,
-  Rule,
-  VersionNote,
-} from '../../../../src/domain/entities/rule.ts';
-import {
-  overrideBindings,
-  requireConfigKey,
-} from '../../../../src/domain/rules/builders/require-config-key.ts';
-import { asRelPath } from '../../../../src/shared/paths.ts';
+import type { ConfigFileRef } from '../../../../src/domain/entities/config-file-ref.ts';
 import { CONFIG_FILES } from '../../../../src/domain/entities/config-files.ts';
-import { applyConfig } from '../../../../src/domain/services/apply-config.ts';
+import type { Rule, VersionNote } from '../../../../src/domain/entities/rule.ts';
+import { requireConfigKey } from '../../../../src/domain/rules/builders/require-config-key.ts';
+import { asRelPath } from '../../../../src/shared/paths.ts';
 import { makeCtx } from '../../../helpers/ctx.ts';
 
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
@@ -35,42 +27,27 @@ const vnRule = (versionNote?: VersionNote): Rule => {
 };
 
 describe('requireConfigKey passes spec.severity into binding', () => {
-  it('binding.severity reflects spec.severity when provided', () => {
+  it('copies an explicit binding severity and otherwise leaves it unset', () => {
     expect.hasAssertions();
-    const rule = requireConfigKey({
-      bindings: {
-        npm: {
-          file: npmrc,
-          keyPath: ['x'],
-          message: 'm',
-          severity: 'info',
-          value: true,
+    const bindingSeverity = (severity?: 'info') => {
+      const rule = requireConfigKey({
+        bindings: {
+          npm: {
+            file: npmrc,
+            keyPath: ['x'],
+            message: 'm',
+            severity,
+            value: true,
+          },
         },
-      },
-      description: 'd',
-      id: 'test-d1-set',
-      severity: 'error',
-      title: 't',
-    });
-    const npmBdSet = rule.bindings.npm;
-    assert(npmBdSet, 'expected npm binding');
-    expect(npmBdSet.severity).toBe('info');
-  });
-
-  it('binding.severity is undefined when spec.severity is unset', () => {
-    expect.hasAssertions();
-    const rule = requireConfigKey({
-      bindings: {
-        npm: { file: npmrc, keyPath: ['x'], message: 'm', value: true },
-      },
-      description: 'd',
-      id: 'test-d1-unset',
-      severity: 'error',
-      title: 't',
-    });
-    const npmBdUnset = rule.bindings.npm;
-    assert(npmBdUnset, 'expected npm binding');
-    expect(npmBdUnset.severity).toBeUndefined();
+        description: 'd',
+        id: 'test-d1',
+        severity: 'error',
+        title: 't',
+      });
+      return rule.bindings.npm?.severity;
+    };
+    expect([bindingSeverity('info'), bindingSeverity()]).toStrictEqual(['info', undefined]);
   });
 });
 
@@ -81,94 +58,19 @@ describe('versionNote metadata', () => {
     return bd;
   };
 
-  it('copies structured metadata to the binding', () => {
+  it('copies structured metadata without putting presentation data in the check result', () => {
     expect.hasAssertions();
-    expect(binding({ configAvailableSince: 'npm 9.0.0' }).versionNote).toStrictEqual({
-      configAvailableSince: 'npm 9.0.0',
+    const withMetadata = binding({ configAvailableSince: 'npm 9.0.0' });
+    const check = withMetadata.check(makeCtx(), {});
+    expect({
+      absent: binding().versionNote,
+      versionNote: withMetadata.versionNote,
+    }).toStrictEqual({
+      absent: undefined,
+      versionNote: { configAvailableSince: 'npm 9.0.0' },
     });
-  });
-
-  it('leaves metadata absent when the spec omits it', () => {
-    expect.hasAssertions();
-    expect(binding().versionNote).toBeUndefined();
-  });
-
-  it('keeps the check result free of presentation metadata', () => {
-    expect.hasAssertions();
-    expect(binding({ defaultSafeSince: 'npm 11.0.0' }).check(makeCtx(), {})).toMatchObject({
-      message: 'Pin the key explicitly.',
-      state: 'violation',
-    });
-  });
-});
-
-describe(overrideBindings, () => {
-  const yarnBinding: RuleBinding = {
-    check: () => ({ state: 'ok' }),
-    file: { kind: 'yaml', path: asRelPath('.yarnrc.yml') },
-  };
-  const baseRule = requireConfigKey({
-    bindings: {
-      npm: { file: npmrc, keyPath: ['x'], message: 'm', value: true },
-    },
-    description: 'd',
-    id: 'override-fixture',
-    severity: 'warn',
-    title: 't',
-  });
-
-  it('replaces the named PM binding while leaving others intact', () => {
-    expect.hasAssertions();
-    const out = overrideBindings(baseRule, { yarn: yarnBinding });
-    expect(out.bindings.yarn).toBe(yarnBinding);
-    expect(out.bindings.npm).toBe(baseRule.bindings.npm);
-  });
-
-  it('returns a fresh rule object so callers cannot mutate the base by accident', () => {
-    expect.hasAssertions();
-    const out = overrideBindings(baseRule, { yarn: yarnBinding });
-    expect(out).not.toBe(baseRule);
-    expect(out.bindings).not.toBe(baseRule.bindings);
-    expect(baseRule.bindings.yarn).toBeUndefined();
-  });
-
-  it('preserves rule-level metadata (id, title, severity, docs)', () => {
-    expect.hasAssertions();
-    const out = overrideBindings(baseRule, { yarn: yarnBinding });
-    expect(out.id).toBe(baseRule.id);
-    expect(out.title).toBe(baseRule.title);
-    expect(out.severity).toBe(baseRule.severity);
-    expect(out.description).toBe(baseRule.description);
-  });
-});
-
-describe("defaultSatisfiedSeverity 'off' under a user rules override", () => {
-  const ctx = makeCtx();
-
-  it('keeps the unset-and-default-safe case silent even when rules overrides severity', () => {
-    expect.hasAssertions();
-    const rule = requireConfigKey({
-      bindings: {
-        npm: {
-          defaultSatisfiedSeverity: 'off',
-          documentedDefault: true,
-          file: CONFIG_FILES.npmrc,
-          keyPath: ['k'],
-          message: 'm',
-          value: true,
-        },
-      },
-      description: 'd',
-      id: 'synthetic-off-override',
-      severity: 'warn',
-      title: 't',
-    });
-    const configured = applyConfig([rule], { rules: { 'synthetic-off-override': 'error' } });
-    const [overridden] = configured.rules;
-    assert(overridden, 'expected overridden rule');
-    const overriddenBd = overridden.bindings.npm;
-    assert(overriddenBd, 'expected npm binding');
-    expect(overriddenBd.check(ctx, {})).toStrictEqual({ state: 'ok' });
+    expect(check).not.toHaveProperty('versionNote');
+    expect(check).toMatchObject({ message: 'Pin the key explicitly.', state: 'violation' });
   });
 });
 

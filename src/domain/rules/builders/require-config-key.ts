@@ -1,12 +1,7 @@
 import { guardRemediationAvailability } from '../../services/remediation-availability.ts';
 import { proposeChanges } from '../remediation.ts';
-import type {
-  RuleBinding,
-  CheckStatus,
-  Rule,
-  VersionNote,
-  ConfigFileRef,
-} from '../../entities/rule.ts';
+import type { RuleBinding, CheckStatus, Rule, VersionNote } from '../../entities/rule.ts';
+import type { ConfigFileRef } from '../../entities/config-file-ref.ts';
 import {
   type ConfigValue,
   type KeyPath,

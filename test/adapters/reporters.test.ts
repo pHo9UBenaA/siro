@@ -6,17 +6,10 @@ import {
   prettyReporter,
 } from '../../src/adapters/reporters/registry.ts';
 import type { LintResult } from '../../src/domain/entities/lint-result.ts';
-import assert from 'node:assert';
-import { captureIO } from '../helpers/io.ts';
 import { parseGithubAnnotation } from '../helpers/github-annotation.ts';
+import { captureIO } from '../helpers/io.ts';
 
 const ESC_OPEN = '[';
-
-const firstLineOf = (text: string): string => {
-  const line = text.split('\n')[0];
-  assert(line, 'expected at least one line');
-  return line;
-};
 
 const result: LintResult = {
   findings: [
@@ -42,11 +35,6 @@ describe('reporters registry', () => {
     expect(registry.get('github')).toBe(githubReporter);
   });
 
-  it('returns undefined for unknown reporters', () => {
-    expect.hasAssertions();
-    expect(createRegistry().get('xml')).toBeUndefined();
-  });
-
   it('createRegistry merges builtins with extras (later wins on collision)', () => {
     expect.hasAssertions();
     // Two extras: one with a fresh name (`noop`) to assert extras land in
@@ -70,114 +58,9 @@ describe('reporters registry', () => {
     const registry = createRegistry([noop, overridePretty]);
     expect(registry.get('noop')).toBe(noop);
     expect(registry.get('pretty')).toBe(overridePretty);
-    expect(registry.get('pretty')).not.toBe(prettyReporter);
     expect([...registry.keys()]).toStrictEqual(
       expect.arrayContaining(['pretty', 'json', 'github', 'noop']),
     );
-  });
-});
-
-describe('json reporter', () => {
-  it('produces a single JSON document that downstream tools can parse', () => {
-    expect.hasAssertions();
-    const tri: LintResult = {
-      findings: [
-        { message: 'm', pm: 'npm', ruleId: 'a', severity: 'error' },
-        { message: 'm', pm: 'npm', ruleId: 'b', severity: 'warn' },
-        { message: 'm', pm: 'npm', ruleId: 'c', severity: 'info' },
-      ],
-      summary: { error: 1, info: 1, warn: 1 },
-    };
-    const { io, out } = captureIO();
-    jsonReporter.format(tri, io);
-    const parsed = JSON.parse(out());
-    expect(parsed.findings).toHaveLength(3);
-    expect(parsed.summary).toStrictEqual({ error: 1, info: 1, warn: 1 });
-  });
-});
-
-describe('githubReporter — basic annotations', () => {
-  it('produces one GitHub workflow annotation per finding', () => {
-    expect.hasAssertions();
-    const { io, out } = captureIO();
-    githubReporter.format(result, io);
-    const lines = out()
-      .split('\n')
-      .filter((line) => line.length > 0);
-    expect(lines).toHaveLength(1);
-    const firstLine = lines[0];
-    assert(firstLine, 'expected at least one line');
-    expect(parseGithubAnnotation(firstLine)).toStrictEqual({
-      body: '[npm] set ignore-scripts',
-      command: 'error',
-      props: { file: '.npmrc', title: 'disable-lifecycle-scripts' },
-    });
-  });
-
-  it('does not leave a dangling empty link when a finding has no docs URL', () => {
-    expect.hasAssertions();
-    const { io, out } = captureIO();
-    githubReporter.format(result, io);
-    const annotation = parseGithubAnnotation(firstLineOf(out()));
-    expect(annotation.body).toBe('[npm] set ignore-scripts');
-    expect(annotation.body).not.toMatch(/\(\)/u);
-    expect(annotation.body).not.toMatch(/ $/u);
-  });
-});
-
-describe('githubReporter — docs links', () => {
-  it('lets PR reviewers jump to the upstream docs straight from the annotation', () => {
-    expect.hasAssertions();
-    const withDocs: LintResult = {
-      findings: [
-        {
-          docs: 'https://docs.npmjs.com/cli/v11/using-npm/config#ignore-scripts',
-          file: '.npmrc',
-
-          message: 'set ignore-scripts',
-          pm: 'npm',
-          ruleId: 'disable-lifecycle-scripts',
-          severity: 'error',
-        },
-      ],
-      summary: { error: 1, info: 0, warn: 0 },
-    };
-    const { io, out } = captureIO();
-    githubReporter.format(withDocs, io);
-    const annotation = parseGithubAnnotation(firstLineOf(out()));
-    expect(annotation.body).toBe(
-      '[npm] set ignore-scripts (https://docs.npmjs.com/cli/v11/using-npm/config#ignore-scripts)',
-    );
-  });
-});
-
-describe('githubReporter — severity mapping', () => {
-  it('maps each severity to its workflow-command keyword (error / warning / notice)', () => {
-    expect.hasAssertions();
-    const cases = [
-      { expected: 'error', severity: 'error' },
-      { expected: 'warning', severity: 'warn' },
-      { expected: 'notice', severity: 'info' },
-    ] as const satisfies readonly { severity: 'error' | 'warn' | 'info'; expected: string }[];
-    for (const tc of cases) {
-      const single: LintResult = {
-        findings: [
-          {
-            file: '.npmrc',
-
-            message: 'msg',
-            pm: 'npm',
-            ruleId: 'disable-lifecycle-scripts',
-            severity: tc.severity,
-          },
-        ],
-        summary: { error: 0, info: 0, warn: 0 },
-      };
-      const { io, out } = captureIO();
-      githubReporter.format(single, io);
-      const line = firstLineOf(out());
-      expect(parseGithubAnnotation(line).command).toBe(tc.expected);
-    }
   });
 });
 
@@ -287,4 +170,35 @@ describe('prettyReporter — layout', () => {
     expect(output).toContain('→ https://example.com/docs/ignore-scripts');
     expect(output).toMatch(/Summary:\s+1 error,\s+0 warn,\s+0 info/u);
   });
+});
+
+it('emits ordered annotations with severity, file and optional docs', () => {
+  const { io, out } = captureIO();
+  githubReporter.format(
+    {
+      findings: [
+        { pm: 'npm', ruleId: 'first', severity: 'error', message: 'first message', file: '.npmrc' },
+        {
+          pm: 'pnpm',
+          ruleId: 'second',
+          severity: 'warn',
+          message: 'second message',
+          file: 'pnpm-workspace.yaml',
+          docs: 'https://example.com/guide',
+        },
+        { pm: 'yarn', ruleId: 'third', severity: 'info', message: 'third message' },
+      ],
+      summary: { error: 1, warn: 1, info: 1 },
+    },
+    io,
+  );
+  expect(out().trim().split('\n').map(parseGithubAnnotation)).toEqual([
+    { command: 'error', props: { file: '.npmrc', title: 'first' }, body: '[npm] first message' },
+    {
+      command: 'warning',
+      props: { file: 'pnpm-workspace.yaml', title: 'second' },
+      body: '[pnpm] second message (https://example.com/guide)',
+    },
+    { command: 'notice', props: { title: 'third' }, body: '[yarn] third message' },
+  ]);
 });

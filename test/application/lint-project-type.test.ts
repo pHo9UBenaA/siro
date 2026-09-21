@@ -1,8 +1,8 @@
 import { run } from '../../src/cli.ts';
-import { asAbsPath } from '../../src/shared/paths.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { captureIO } from '../helpers/io.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
-import { lintCommand } from '../../src/application/commands/lint.ts';
+import { lintCommand } from '../../src/composition/lint.ts';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';

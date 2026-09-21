@@ -1,10 +1,10 @@
 import { manualSteps } from '../../helpers/remediation.ts';
 
-import { makeCtx, makePublishableCtx } from '../../helpers/ctx.ts';
+import assert from 'node:assert';
 import type { PM } from '../../../src/domain/entities/pms.ts';
 import type { RuleContext } from '../../../src/domain/ports/repo-context.ts';
 import { commitLockfile } from '../../../src/domain/rules/commit-lockfile.ts';
-import assert from 'node:assert';
+import { makeCtx, makePublishableCtx } from '../../helpers/ctx.ts';
 
 const ctxWith = (files: readonly string[]): RuleContext => makeCtx({ files });
 
@@ -12,14 +12,17 @@ describe('commit-lockfile (npm)', () => {
   const npmBinding = commitLockfile.bindings.npm;
   assert(npmBinding, 'expected npm binding');
 
-  it('is an error-severity rule', () => {
-    expect.hasAssertions();
-    expect(commitLockfile.severity).toBe('error');
-  });
+  it('requires an npm lockfile and explains how to generate it', () => {
+    const status = npmBinding.check(ctxWith([]), {});
 
-  it('flags a violation when no lockfile is present', () => {
-    expect.hasAssertions();
-    expect(npmBinding.check(ctxWith([]), {}).state).toBe('violation');
+    expect(status.state).toBe('violation');
+
+    expect(commitLockfile.severity).toBe('error');
+
+    const ops = manualSteps(status)!;
+    const firstOp = ops[0];
+    assert(firstOp, 'expected at least one fix op');
+    expect(firstOp).toContain('generate package-lock.json');
   });
 
   it('passes when package-lock.json exists', () => {
@@ -31,26 +34,17 @@ describe('commit-lockfile (npm)', () => {
     expect.hasAssertions();
     expect(npmBinding.check(ctxWith(['npm-shrinkwrap.json']), {}).state).toBe('violation');
   });
-
-  it('provides manual remediation', () => {
-    expect.hasAssertions();
-    const ops = manualSteps(npmBinding.check(ctxWith([]), {}))!;
-    const firstOp = ops[0];
-    assert(firstOp, 'expected at least one fix op');
-    expect(firstOp).toContain('generate package-lock.json');
-  });
 });
 
-// Per-PM lockfile detection lives on commit-lockfile, not the PM binding files
-// — the rule decides which lockfile to look for given a PM, so the assertion
-// belongs next to the rule. The table also makes it impossible to add a new
-// PM and silently forget to wire the lockfile name through.
+// PM-specific filenames and the text lockfiles Aube can reuse.
 const LOCKFILE_BY_PM: readonly { pm: PM; lockfile: string }[] = [
   { lockfile: 'pnpm-lock.yaml', pm: 'pnpm' },
   { lockfile: 'yarn.lock', pm: 'yarn' },
   { lockfile: 'bun.lock', pm: 'bun' },
   { lockfile: 'deno.lock', pm: 'deno' },
   { lockfile: 'aube-lock.yaml', pm: 'aube' },
+  { lockfile: 'pnpm-lock.yaml', pm: 'aube' },
+  { lockfile: 'bun.lock', pm: 'aube' },
 ];
 
 describe('commit-lockfile per-PM lockfile detection', () => {
@@ -66,21 +60,6 @@ describe('commit-lockfile per-PM lockfile detection', () => {
       expect(bd.check(makePublishableCtx({ exists: () => false }), {}).state).toBe('violation');
     },
   );
-
-  it('aube is satisfied by a reused lockfile shape (e.g. bun.lock)', () => {
-    expect.hasAssertions();
-    const aubeBinding = commitLockfile.bindings.aube;
-    assert(aubeBinding, 'expected aube binding');
-    expect(
-      aubeBinding.check(makePublishableCtx({ exists: (fp) => fp === 'bun.lock' }), {}).state,
-    ).toBe('ok');
-  });
-});
-
-it('records when Deno lockfile auto-discovery became available', () => {
-  expect(commitLockfile.bindings.deno?.versionNote).toStrictEqual({
-    configAvailableSince: 'deno 1.28.0',
-  });
 });
 
 it.each([

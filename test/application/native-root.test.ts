@@ -1,8 +1,8 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { lint } from '../../src/application/lint.ts';
-import { asAbsPath } from '../../src/shared/paths.ts';
+import { lint } from '../../src/composition/lint.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 
 it('rejects a missing native repository even with an explicit manager', () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'siro-root-'));

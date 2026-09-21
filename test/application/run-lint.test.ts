@@ -1,11 +1,9 @@
+import { runLint } from '../../src/application/run-lint.ts';
+import type { Rule, RuleBinding, VersionNote } from '../../src/domain/entities/rule.ts';
+import type { CodecFor, ConfigCodec } from '../../src/domain/ports/config-codec.ts';
 import { applyConfig } from '../../src/domain/services/apply-config.ts';
 import { asRelPath } from '../../src/shared/paths.ts';
-import assert from 'node:assert';
-import type { RuleBinding, Rule, VersionNote } from '../../src/domain/entities/rule.ts';
-import type { CodecFor, ConfigCodec } from '../../src/domain/ports/config-codec.ts';
 import { makeCtx } from '../helpers/ctx.ts';
-import { runLint } from '../../src/application/run-lint.ts';
-import { blockExoticSubdeps } from '../../src/domain/rules/block-exotic-subdeps.ts';
 
 // runLint calls parseConfigFile before invoking each binding's `check`. Tests
 // here use synthetic bindings whose `check` ignores `config`, so any codec
@@ -40,155 +38,62 @@ const makeRule = (opts: {
   };
 };
 
-describe('per-binding severity — basic resolution', () => {
-  it('uses binding.severity when set', () => {
-    expect.hasAssertions();
-    const rule = makeRule({ bindingSeverity: 'info', ruleSeverity: 'error' });
-    const { findings, summary } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
-      pms: ['npm'],
-      ruleSet: [rule],
-    });
-    expect(findings).toHaveLength(1);
-    const first = findings[0];
-    assert(first, 'expected finding');
-    expect(first.severity).toBe('info');
-    expect(summary).toStrictEqual({ error: 0, info: 1, warn: 0 });
+it('resolves each severity independently and leaves rule declarations unchanged', () => {
+  const rules = [
+    { ...makeRule({ ruleSeverity: 'error', bindingSeverity: 'info' }), id: 'binding' },
+    { ...makeRule({ ruleSeverity: 'error' }), id: 'fallback' },
+    {
+      ...makeRule({ ruleSeverity: 'error', bindingSeverity: 'warn', statusSeverity: 'info' }),
+      id: 'status',
+    },
+    { ...makeRule({ ruleSeverity: 'error', bindingSeverity: 'warn' }), id: 'user-binding' },
+    { ...makeRule({ ruleSeverity: 'error', statusSeverity: 'info' }), id: 'user-status' },
+  ];
+  const original = rules.map((rule) => ({
+    rule: rule.severity,
+    binding: rule.bindings.npm?.severity,
+  }));
+  const adjusted = applyConfig(rules, { rules: { 'user-binding': 'info', 'user-status': 'warn' } });
+  const result = runLint({
+    codecFor: stubCodecFor,
+    ctx: makeCtx(),
+    pms: ['npm'],
+    ruleSet: adjusted.rules,
+    severityOverrides: adjusted.severityOverrides,
   });
-
-  it('falls back to rule.severity when binding.severity is undefined', () => {
-    expect.hasAssertions();
-    const rule = makeRule({ ruleSeverity: 'error' });
-    const { findings, summary } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
-      pms: ['npm'],
-      ruleSet: [rule],
-    });
-    expect(findings).toHaveLength(1);
-    const first = findings[0];
-    assert(first, 'expected finding');
-    expect(first.severity).toBe('error');
-    expect(summary).toStrictEqual({ error: 1, info: 0, warn: 0 });
-  });
-
-  it('uses status.severity ahead of binding.severity', () => {
-    expect.hasAssertions();
-    const rule = makeRule({
-      bindingSeverity: 'warn',
-      ruleSeverity: 'error',
-      statusSeverity: 'info',
-    });
-    const { findings } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
-      pms: ['npm'],
-      ruleSet: [rule],
-    });
-    const first = findings[0];
-    assert(first, 'expected finding');
-    expect(first.severity).toBe('info');
-  });
+  expect(result.findings.map(({ ruleId, severity }) => ({ ruleId, severity }))).toEqual([
+    { ruleId: 'binding', severity: 'info' },
+    { ruleId: 'fallback', severity: 'error' },
+    { ruleId: 'status', severity: 'info' },
+    { ruleId: 'user-binding', severity: 'info' },
+    { ruleId: 'user-status', severity: 'warn' },
+  ]);
+  expect(result.summary).toEqual({ error: 1, warn: 1, info: 3 });
+  expect(
+    rules.map((rule) => ({ rule: rule.severity, binding: rule.bindings.npm?.severity })),
+  ).toEqual(original);
 });
 
-describe('version notes', () => {
-  it('appends binding metadata to the emitted finding message', () => {
-    expect.hasAssertions();
-    const rule = makeRule({
-      ruleSeverity: 'error',
-      versionNote: {
-        configAvailableSince: 'npm 9.0.0',
-        defaultSafeSince: 'npm 11.0.0',
-      },
-    });
-    const { findings } = runLint({
+it.each([
+  [undefined, 'always violates'],
+  [{}, 'always violates'],
+  [
+    {
+      configAvailableSince: 'npm 9.0.0',
+      defaultSafeSince: 'npm 11.0.0',
+      note: 'Review the target',
+    },
+    'always violates (available since npm 9.0.0; default safe since npm 11.0.0; Review the target)',
+  ],
+] satisfies [VersionNote | undefined, string][])(
+  'renders version metadata through emitted findings: %j',
+  (versionNote, message) => {
+    const result = runLint({
       codecFor: stubCodecFor,
       ctx: makeCtx(),
       pms: ['npm'],
-      ruleSet: [rule],
+      ruleSet: [makeRule({ ruleSeverity: 'error', versionNote })],
     });
-    const first = findings[0];
-    assert(first, 'expected finding');
-    expect(first.message).toBe(
-      'always violates (available since npm 9.0.0; default safe since npm 11.0.0)',
-    );
-  });
-
-  it('reports when blockExoticSubdeps became default-safe', () => {
-    expect.hasAssertions();
-    const { findings } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
-      pms: ['pnpm'],
-      ruleSet: [blockExoticSubdeps],
-    });
-    const first = findings[0];
-    assert(first, 'expected finding');
-    expect(first.message).toContain('available since pnpm 10.26.0');
-    expect(first.message).toContain('default safe since pnpm 10.26.0');
-  });
-});
-
-describe('per-binding severity — user config override', () => {
-  it('user config override outranks binding.severity', () => {
-    expect.hasAssertions();
-    const rule = makeRule({ bindingSeverity: 'info', ruleSeverity: 'error' });
-    const adjusted = applyConfig([rule], { rules: { 'synthetic-d1': 'warn' } });
-    const { findings } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
-      pms: ['npm'],
-      ruleSet: adjusted.rules,
-      severityOverrides: adjusted.severityOverrides,
-    });
-    const first = findings[0];
-    assert(first, 'expected finding');
-    expect(first.severity).toBe('warn');
-  });
-
-  it('user config override downgrades severity past binding.severity (error+warn → info)', () => {
-    expect.hasAssertions();
-    const rule = makeRule({ bindingSeverity: 'warn', ruleSeverity: 'error' });
-    const adjusted = applyConfig([rule], { rules: { 'synthetic-d1': 'info' } });
-    const { findings, summary } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
-      pms: ['npm'],
-      ruleSet: adjusted.rules,
-      severityOverrides: adjusted.severityOverrides,
-    });
-    const first = findings[0];
-    assert(first, 'expected finding');
-    expect(first.severity).toBe('info');
-    expect(summary).toStrictEqual({ error: 0, info: 1, warn: 0 });
-  });
-
-  it('applyConfig does not mutate the input rule or its bindings', () => {
-    expect.hasAssertions();
-    const rule = makeRule({ bindingSeverity: 'info', ruleSeverity: 'error' });
-    const npmBinding = rule.bindings.npm;
-    assert(npmBinding, 'expected npm binding');
-
-    applyConfig([rule], { rules: { 'synthetic-d1': 'warn' } });
-
-    expect(npmBinding.severity).toBe('info');
-    expect(rule.severity).toBe('error');
-  });
-
-  it('user config override outranks status.severity', () => {
-    expect.hasAssertions();
-    const rule = makeRule({ ruleSeverity: 'error', statusSeverity: 'info' });
-    const adjusted = applyConfig([rule], { rules: { 'synthetic-d1': 'warn' } });
-    const { findings } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
-      pms: ['npm'],
-      ruleSet: adjusted.rules,
-      severityOverrides: adjusted.severityOverrides,
-    });
-    const first = findings[0];
-    assert(first, 'expected finding');
-    expect(first.severity).toBe('warn');
-  });
-});
+    expect(result.findings[0]?.message).toBe(message);
+  },
+);

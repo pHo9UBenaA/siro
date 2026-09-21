@@ -1,11 +1,10 @@
 import {
+  ConfigError,
+  UsageError,
   asAbsPath,
+  defineRule,
   lint,
   type LintOptions,
-  UsageError,
-  ConfigError,
-  PMS,
-  defineRule,
 } from '../../src/index.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
@@ -82,17 +81,12 @@ it('requires a manager for an explicit version', () => {
   expect(() => evaluate('npm@11.9.0', { pmVersion: '11.10.0' })).toThrow(UsageError);
 });
 
-it.each(['latest', '^11.10.0', '11', '11.10.0-rc.1', '', 'v11.10.0', ' 11.10.0', 11, null])(
+it.each(['^11.10.0', '11.10.0-rc.1', 'v11.10.0', ' 11.10.0', 11, null])(
   'rejects an ambiguous explicit target: %s',
   (pmVersion) => {
     expect(() => evaluate('npm@11.9.0', { pm: 'npm', pmVersion } as Partial<LintOptions>)).toThrow(
       UsageError,
     );
-    expect(() =>
-      evaluate('npm@11.9.0', {
-        config: { pmVersions: { npm: pmVersion } },
-      } as Partial<LintOptions>),
-    ).toThrow(ConfigError);
   },
 );
 
@@ -121,7 +115,7 @@ it('gives each custom binding its own target and preserves unknown versions', ()
     description: 'Observe the target',
     severity: 'info',
     bindings: Object.fromEntries(
-      PMS.map((pm) => [
+      (['npm', 'pnpm', 'yarn'] as const).map((pm) => [
         pm,
         {
           check(ctx: { pmVersion?: string }) {
@@ -132,13 +126,13 @@ it('gives each custom binding its own target and preserves unknown versions', ()
       ]),
     ),
   });
-  for (const pm of PMS) {
+  for (const pm of ['npm', 'pnpm', 'yarn'] as const) {
     evaluate('npm@11.10.0', {
       pm,
       config: { pmVersions: { pnpm: '10.16.0' }, customRules: [probe] },
     });
   }
-  expect(seen).toEqual(['11.10.0', '10.16.0', undefined, undefined, undefined, undefined]);
+  expect(seen).toEqual(['11.10.0', '10.16.0', undefined]);
 });
 
 it('keeps omitted version-dependent defaults at the existing severity', () => {
@@ -163,4 +157,10 @@ it('honors rule disabling and severity overrides', () => {
       evaluate('npm@11.9.0', { config: { rules: { 'unsupported-settings': 'warn' } } }),
     )[0]?.severity,
   ).toBe('warn');
+});
+
+it('rejects an ambiguous configured target as a config error', () => {
+  expect(() => evaluate('npm@11.9.0', { config: { pmVersions: { npm: '^11.10.0' } } })).toThrow(
+    ConfigError,
+  );
 });

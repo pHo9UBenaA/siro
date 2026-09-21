@@ -1,9 +1,10 @@
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
+import { runLint } from '../../src/application/run-lint.ts';
+import type { ParsedConfig } from '../../src/domain/entities/config-value.ts';
 import type { CheckStatus, Rule } from '../../src/domain/entities/rule.ts';
 import type { CodecFor, ConfigCodec } from '../../src/domain/ports/config-codec.ts';
-import { asAbsPath, asRelPath } from '../../src/shared/paths.ts';
-import type { ParsedConfig } from '../../src/domain/entities/config-value.ts';
 import type { RepoContext } from '../../src/domain/ports/repo-context.ts';
-import { runLint } from '../../src/application/run-lint.ts';
+import { asRelPath } from '../../src/shared/paths.ts';
 
 const noopCtx: RepoContext = {
   exists: () => false,
@@ -44,28 +45,19 @@ describe('runLint binding evaluation', () => {
     const violation: CheckStatus = { message: 'x', state: 'violation' };
     const result = lint(
       noopCtx,
-      [ruleWith('a', ['npm', 'pnpm'], violation), ruleWith('b', ['npm'], violation)],
-      ['npm', 'pnpm'],
+      [
+        ruleWith('ok', ['npm'], { state: 'ok' }),
+        ruleWith('a', ['npm', 'pnpm'], violation),
+        ruleWith('na', ['npm'], { state: 'na' }),
+        ruleWith('b', ['npm'], violation),
+      ],
+      ['npm', 'pnpm', 'yarn'],
     );
     expect(result.findings.map(({ ruleId, pm }) => `${ruleId}:${pm}`)).toStrictEqual([
       'a:npm',
       'a:pnpm',
       'b:npm',
     ]);
-  });
-
-  it('skips bindings that report ok or na and PMs without a binding', () => {
-    expect.hasAssertions();
-    const result = lint(
-      noopCtx,
-      [
-        ruleWith('ok', ['npm'], { state: 'ok' }),
-        ruleWith('na', ['npm'], { state: 'na' }),
-        ruleWith('violation', ['npm'], { message: 'x', state: 'violation' }),
-      ],
-      ['npm', 'pnpm', 'yarn'],
-    );
-    expect(result.findings.map(({ ruleId }) => ruleId)).toStrictEqual(['violation']);
   });
 });
 
@@ -205,6 +197,7 @@ it('expands independent violations with fallback paths, metadata and severity ov
     },
   ]);
   expect(result.summary).toMatchObject({ error: 1, warn: 0, info: 1 });
+  expect(result.findings[0]?.remediation).toBeUndefined();
 });
 it.each([
   [],

@@ -1,3 +1,4 @@
+import type { DateTime } from './ports/date-time.ts';
 import type { Rule } from './entities/rule.ts';
 import { advisoryCheck } from './rules/advisory-check.ts';
 import { approvedGitRepos } from './rules/approved-git-repos.ts';
@@ -14,7 +15,7 @@ import { filesField } from './rules/files-field.ts';
 import { frozenLockfile } from './rules/frozen-lockfile.ts';
 import { frozenStore } from './rules/frozen-store.ts';
 import { hardenedMode } from './rules/hardened-mode.ts';
-import { minimumReleaseAge } from './rules/minimum-release-age.ts';
+import { createMinimumReleaseAge } from './rules/minimum-release-age.ts';
 import { namedRegistries } from './rules/named-registries.ts';
 import { paranoidMode } from './rules/paranoid-mode.ts';
 import { patchedDependencies } from './rules/patched-dependencies.ts';
@@ -28,35 +29,36 @@ import { strictStoreIntegrity } from './rules/strict-store-integrity.ts';
 import { trustPolicy } from './rules/trust-policy.ts';
 import { unsupportedSettings } from './rules/unsupported-settings.ts';
 
-export const rules = [
-  advisoryCheck,
-  approvedGitRepos,
-  auditSuppression,
-  blockAutoInstall,
-  blockExoticSubdeps,
-  bunSecurityScanner,
-  checksumVerification,
-  commitLockfile,
-  dependencyOverrides,
-  disableLifecycleScripts,
-  enforceStrictSsl,
-  filesField,
-  frozenLockfile,
-  frozenStore,
-  hardenedMode,
-  minimumReleaseAge,
-  namedRegistries,
-  paranoidMode,
-  patchedDependencies,
-  pinExactVersions,
-  provenance,
-  publishAccess,
-  storeServer,
-  strictAllowScripts,
-  strictReleaseAge,
-  strictStoreIntegrity,
-  trustPolicy,
-  unsupportedSettings,
-] as const satisfies readonly Rule[];
+export const createBuiltinRules = (time: DateTime) =>
+  [
+    advisoryCheck,
+    approvedGitRepos,
+    auditSuppression,
+    blockAutoInstall,
+    blockExoticSubdeps,
+    bunSecurityScanner,
+    checksumVerification,
+    commitLockfile,
+    dependencyOverrides,
+    disableLifecycleScripts,
+    enforceStrictSsl,
+    filesField,
+    frozenLockfile,
+    frozenStore,
+    hardenedMode,
+    createMinimumReleaseAge(time),
+    namedRegistries,
+    paranoidMode,
+    patchedDependencies,
+    pinExactVersions,
+    provenance,
+    publishAccess,
+    storeServer,
+    strictAllowScripts,
+    strictReleaseAge,
+    strictStoreIntegrity,
+    trustPolicy,
+    unsupportedSettings,
+  ] as const satisfies readonly Rule[];
 
-export type BuiltinRuleId = (typeof rules)[number]['id'];
+export type BuiltinRuleId = ReturnType<typeof createBuiltinRules>[number]['id'];

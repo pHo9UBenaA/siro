@@ -1,16 +1,12 @@
-import { automaticOperations } from '../../helpers/remediation.ts';
-import {
-  RECOMMENDED_RELEASE_AGE_SECONDS,
-  minimumReleaseAge,
-} from '../../../src/domain/rules/minimum-release-age.ts';
 import assert from 'node:assert';
-import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';
-import { expectMessageContains } from '../../helpers/binding-expectations.ts';
-import { filesField } from '../../../src/domain/rules/files-field.ts';
 import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
 import { provenance } from '../../../src/domain/rules/provenance.ts';
+import { parsePackageJson } from '../../../src/domain/schemas/package-json.ts';
+import { makePublishableCtx as ctx, makeCtx } from '../../helpers/ctx.ts';
+import { automaticOperations } from '../../helpers/remediation.ts';
+import { minimumReleaseAge } from '../../helpers/rules.ts';
 
 describe('bun bindings — install config rules', () => {
   describe('pin-exact-versions', () => {
@@ -25,36 +21,18 @@ describe('bun bindings — install config rules', () => {
       assert(setKey, 'expected setKey op');
       expect(setKey).toMatchObject({ keyPath: ['install', 'exact'], value: true });
     });
-    it('pin-exact-versions names a verified version for the install.exact setting', () => {
-      expect.hasAssertions();
-      expectMessageContains({
-        binding: pinExactVersions.bindings.bun,
-        ctx: ctx(),
-        substrings: ['install.exact verified in bun 1.2.0'],
-      });
-    });
   });
   describe('minimum-release-age', () => {
     it('minimum-release-age writes install.minimumReleaseAge (3 days in seconds)', () => {
       expect.hasAssertions();
       const bd = minimumReleaseAge.bindings.bun;
       assert(bd, 'expected binding');
-      expect(
-        bd.check(ctx(), { install: { minimumReleaseAge: RECOMMENDED_RELEASE_AGE_SECONDS } }).state,
-      ).toBe('ok');
+      expect(bd.check(ctx(), { install: { minimumReleaseAge: 259200 } }).state).toBe('ok');
       const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
       assert(setKey, 'expected setKey op');
       expect(setKey).toMatchObject({
         keyPath: ['install', 'minimumReleaseAge'],
-        value: RECOMMENDED_RELEASE_AGE_SECONDS,
-      });
-    });
-    it('minimum-release-age on bun: tells the user from which bun version the key is available', () => {
-      expect.hasAssertions();
-      expectMessageContains({
-        binding: minimumReleaseAge.bindings.bun,
-        ctx: ctx(),
-        substrings: ['available since bun 1.3.0'],
+        value: 259200,
       });
     });
   });
@@ -66,72 +44,20 @@ describe('bun bindings — install config rules', () => {
       expect(bd.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
       expect(bd.check(ctx(), { install: { frozen: true } }).state).toBe('violation');
       expect(bd.check(ctx(), { install: { frozenLockfile: true } }).state).toBe('ok');
-      const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
+      const missing = bd.check(ctx(), {});
+      assert(missing.state === 'violation');
+      expect(missing.severity).toBeUndefined();
+      expect(frozenLockfile.severity).toBe('warn');
+      expect(Object.keys(frozenLockfile.bindings).sort()).toEqual([
+        'aube',
+        'bun',
+        'deno',
+        'pnpm',
+        'yarn',
+      ]);
+      const setKey = automaticOperations(missing).find((op) => op.op === 'setKey');
       assert(setKey, 'expected setKey op');
       expect(setKey).toMatchObject({ keyPath: ['install', 'frozenLockfile'], value: true });
-    });
-    it('frozen-lockfile on bun: tells the user from which bun version install.frozenLockfile is available', () => {
-      expect.hasAssertions();
-      expectMessageContains({
-        binding: frozenLockfile.bindings.bun,
-        ctx: ctx(),
-        substrings: ['available since bun 0.6.10'],
-      });
-    });
-  });
-});
-
-describe('bun bindings — lifecycle scripts', () => {
-  describe('binding shape and check states', () => {
-    it('targets bunfig.toml with static info severity', () => {
-      expect.hasAssertions();
-      const bd = disableLifecycleScripts.bindings.bun;
-      assert(bd, 'expected binding');
-      expect(bd.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
-      expect(bd.severity).toBe('info');
-    });
-    it('violation when install.ignoreScripts is unset', () => {
-      expect.hasAssertions();
-      const bd = disableLifecycleScripts.bindings.bun;
-      assert(bd, 'expected binding');
-      expect(bd.check(ctx(), {}).state).toBe('violation');
-    });
-    it('ok when install.ignoreScripts is true', () => {
-      expect.hasAssertions();
-      const bd = disableLifecycleScripts.bindings.bun;
-      assert(bd, 'expected binding');
-      expect(bd.check(ctx(), { install: { ignoreScripts: true } }).state).toBe('ok');
-    });
-    it('fix writes install.ignoreScripts=true', () => {
-      expect.hasAssertions();
-      const bd = disableLifecycleScripts.bindings.bun;
-      assert(bd, 'expected binding');
-      const setKey = automaticOperations(bd.check(ctx(), {})).find((op) => op.op === 'setKey');
-      expect(setKey).toMatchObject({ keyPath: ['install', 'ignoreScripts'], value: true });
-    });
-  });
-  describe('message content', () => {
-    it('documents both opt-out paths (bunfig.toml and package.json)', () => {
-      expect.hasAssertions();
-      const bd = disableLifecycleScripts.bindings.bun;
-      assert(bd, 'expected binding');
-      expect(bd.check(ctx(), {})).toMatchObject({
-        message: expect.stringMatching(
-          /ignoreScripts.*trustedDependencies|trustedDependencies.*ignoreScripts/u,
-        ),
-        state: 'violation',
-      });
-    });
-    it('records bun 1.2.0 as the key introduction without 1.3 default-on prose', () => {
-      expect.hasAssertions();
-      const bd = disableLifecycleScripts.bindings.bun;
-      assert(bd, 'expected binding');
-      const res = bd.check(ctx(), {});
-      assert(res.state === 'violation', 'expected violation state');
-      expect(bd.versionNote).toStrictEqual({ configAvailableSince: 'bun 1.2.0' });
-      expect(res.message).not.toContain('bun 1.3.0');
-      expect(res.message).not.toMatch(/introduced the curated allow-list/u);
-      expect(res.message).not.toMatch(/bun 1\.3\+/u);
     });
   });
 });
@@ -149,11 +75,52 @@ describe('bun bindings — publish rules', () => {
       });
     });
   });
+});
 
-  it('files-field applies to bun', () => {
+it('reports missing Bun script policy with opt-out guidance and a proposal', () => {
+  const bd = disableLifecycleScripts.bindings.bun;
+  assert(bd);
+  const status = bd.check(ctx(), {});
+
+  expect(bd.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
+  expect(bd.severity).toBe('info');
+
+  expect(status.state).toBe('violation');
+
+  const setKey = automaticOperations(status).find((op) => op.op === 'setKey');
+  expect(setKey).toMatchObject({ keyPath: ['install', 'ignoreScripts'], value: true });
+
+  expect(status).toMatchObject({
+    message: expect.stringMatching(
+      /ignoreScripts.*trustedDependencies|trustedDependencies.*ignoreScripts/u,
+    ),
+    state: 'violation',
+  });
+});
+
+const ctxWithPackageJson = (pkg: unknown) => makeCtx({ packageJson: parsePackageJson(pkg) });
+
+describe('disable-lifecycle-scripts × bun: trustedDependencies opt-out', () => {
+  const { bun } = disableLifecycleScripts.bindings;
+  if (typeof bun === 'undefined') {
+    throw new TypeError('bun binding missing');
+  }
+
+  it('accepts an explicit empty trustedDependencies allow-list', () => {
     expect.hasAssertions();
-    const bd = filesField.bindings.bun;
-    assert(bd, 'expected binding');
-    expect(bd.check(ctx(), {}).state).toBe('violation');
+    const context = ctxWithPackageJson({ name: 'x', trustedDependencies: [] });
+    expect(bun.check(context, {})).toStrictEqual({ state: 'ok' });
+  });
+
+  it('still flags a non-empty trustedDependencies list when ignoreScripts is unset', () => {
+    expect.hasAssertions();
+    const context = ctxWithPackageJson({ name: 'x', trustedDependencies: ['esbuild'] });
+    expect(bun.check(context, {}).state).toBe('violation');
+  });
+
+  it('accepts install.ignoreScripts = true regardless of package.json', () => {
+    expect.hasAssertions();
+    const context = ctxWithPackageJson({ name: 'x', trustedDependencies: ['esbuild'] });
+    expect(bun.check(context, { install: { ignoreScripts: true } })).toStrictEqual({ state: 'ok' });
   });
 });

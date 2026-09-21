@@ -1,8 +1,7 @@
-import { manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
-import { expectMessageContains } from '../../helpers/binding-expectations.ts';
-import { makeCtx } from '../../helpers/ctx.ts';
 import { approvedGitRepos } from '../../../src/domain/rules/approved-git-repos.ts';
+import { makeCtx } from '../../helpers/ctx.ts';
+import { manualSteps } from '../../helpers/remediation.ts';
 
 const { yarn } = approvedGitRepos.bindings;
 assert(yarn, 'expected yarn binding');
@@ -23,45 +22,18 @@ describe('approved-git-repos: check states', () => {
     ).toBe('ok');
   });
 
-  it('flags a violation when key is unset', () => {
-    expect.hasAssertions();
+  it('reports the missing setting with its severity, scope and remediation', () => {
     const status = yarnBinding.check(makeCtx(), {});
+
     assert(status.state === 'violation');
     expect(status.severity).toBeUndefined();
-  });
-});
+    expect(Object.keys(approvedGitRepos.bindings).sort()).toEqual(['yarn']);
 
-describe('approved-git-repos: scope, metadata, and fix', () => {
-  it('only binds to yarn', () => {
-    expect.hasAssertions();
-    expect(approvedGitRepos.bindings.npm).toBeUndefined();
-    expect(approvedGitRepos.bindings.pnpm).toBeUndefined();
-    expect(approvedGitRepos.bindings.bun).toBeUndefined();
-    expect(approvedGitRepos.bindings.deno).toBeUndefined();
-    expect(approvedGitRepos.bindings.aube).toBeUndefined();
-    expect(approvedGitRepos.bindings.yarn).toBeDefined();
-  });
-
-  it('ships at warn severity and targets .yarnrc.yml', () => {
-    expect.hasAssertions();
     expect(approvedGitRepos.severity).toBe('warn');
     expect(yarnBinding.file).toStrictEqual({ kind: 'yaml', path: '.yarnrc.yml' });
-  });
 
-  it('includes version note in violation message', () => {
-    expect.hasAssertions();
-    expectMessageContains({
-      binding: yarnBinding,
-      ctx: makeCtx(),
-      substrings: ['yarn 4.14.0'],
-    });
-  });
+    const ops = manualSteps(status)!;
 
-  it('provides actionable manual remediation', () => {
-    expect.hasAssertions();
-    const ops = manualSteps(yarnBinding.check(makeCtx(), {}))!;
-
-    expect(ops).toHaveLength(1);
     const [first] = ops;
     expect(first).toContain('approvedGitRepositories');
   });

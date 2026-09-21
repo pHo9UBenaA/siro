@@ -1,9 +1,5 @@
-import {
-  type RuleBinding,
-  type CheckStatus,
-  type ConfigFileRef,
-  defineRule,
-} from '../entities/rule.ts';
+import { type RuleBinding, type CheckStatus, defineRule } from '../entities/rule.ts';
+import type { ConfigFileRef } from '../entities/config-file-ref.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { type ParsedConfig, getByPath } from '../entities/config-value.ts';
 

@@ -5,7 +5,7 @@ import { blockExoticSubdeps } from '../../../src/domain/rules/block-exotic-subde
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';
 import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
 import { hardenedMode } from '../../../src/domain/rules/hardened-mode.ts';
-import { minimumReleaseAge } from '../../../src/domain/rules/minimum-release-age.ts';
+import { minimumReleaseAge } from '../../helpers/rules.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
 const VERSION_OR_ENVIRONMENT_DEPENDENT_DEFAULTS = [

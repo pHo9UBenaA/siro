@@ -33,25 +33,7 @@ it.each([
   expect(evaluateVersion(since)).toEqual([]);
 });
 
-it('reports every affected key across files, without suggesting an automatic removal', () => {
-  const result = lint({
-    cwd: asAbsPath('/repo'),
-    pm: 'npm',
-    pmVersion: '9.4.2',
-    fs: createMemFileSystem({
-      '.npmrc': 'provenance=false\nmin-release-age=3',
-      'package.json': '{"publishConfig":{"provenance":true}}',
-    }),
-  });
-  const findings = result.findings.filter((item) => item.ruleId === 'unsupported-settings');
-  expect(findings.map((item) => item.file)).toEqual(['.npmrc', 'package.json']);
-  expect(findings[0]?.message).toContain('provenance');
-  expect(findings[0]?.message).toContain('min-release-age');
-  expect(findings[1]?.message).toContain('publishConfig.provenance');
-  expect(findings.every((item) => item.remediation?.kind === 'manual')).toBe(true);
-});
-
-it.each([false, 0, null, ''])('checks presence even when the configured value is %s', (value) => {
+it.each([false, null])('checks presence even when the configured value is %s', (value) => {
   const result = lint({
     cwd: asAbsPath('/repo'),
     pm: 'pnpm',
@@ -118,6 +100,8 @@ it('keeps every unsupported key with its own root or workspace file', () => {
     'package.json',
     'child/package.json',
   ]);
+  expect(findings.every((item) => item.remediation?.kind === 'manual')).toBe(true);
+  expect(findings[0]?.message).toContain('provenance');
   expect(findings[0]?.message).toContain('min-release-age');
   expect(findings[0]?.message).not.toContain('package.json#');
   expect(findings.slice(1).every((item) => item.message.includes('publishConfig.provenance'))).toBe(

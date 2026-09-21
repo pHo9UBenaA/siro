@@ -2,7 +2,7 @@ import { lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync }
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { nodeFileSystem } from '../../src/adapters/node-file-system.ts';
-import { asAbsPath } from '../../src/shared/paths.ts';
+import { asAbsPath } from '../../src/adapters/node-paths.ts';
 
 it('follows actual volume name lookup while excluding directory aliases through symlinks', () => {
   const root = asAbsPath(mkdtempSync(path.join(tmpdir(), 'siro-native-prefix-')));

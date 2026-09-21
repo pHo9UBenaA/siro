@@ -1,23 +1,30 @@
-import { automaticOperations, manualSteps } from '../../helpers/remediation.ts';
 import assert from 'node:assert';
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
+import { automaticOperations, manualSteps } from '../../helpers/remediation.ts';
 
 describe('disable-lifecycle-scripts (npm)', () => {
   const ctx = makeCtx();
   const npmBinding = disableLifecycleScripts.bindings.npm;
   assert(npmBinding, 'expected npm binding');
 
-  it('has an npm binding targeting .npmrc', () => {
-    expect.hasAssertions();
+  it('requires and proposes ignore-scripts in .npmrc', () => {
+    const status = npmBinding.check(ctx, {});
+
+    expect(status.state).toBe('violation');
+
     expect(npmBinding).toBeDefined();
     expect(npmBinding.file).toStrictEqual({ kind: 'npmrc', path: '.npmrc' });
-  });
 
-  it('flags a violation when ignore-scripts is missing', () => {
-    expect.hasAssertions();
-    const status = npmBinding.check(ctx, {});
-    expect(status.state).toBe('violation');
+    const ops = automaticOperations(status);
+    expect(ops).toStrictEqual([
+      {
+        file: { kind: 'npmrc', path: '.npmrc' },
+        keyPath: ['ignore-scripts'],
+        op: 'setKey',
+        value: true,
+      },
+    ]);
   });
 
   it('flags a violation when ignore-scripts is false', () => {
@@ -31,30 +38,12 @@ describe('disable-lifecycle-scripts (npm)', () => {
     const status = npmBinding.check(ctx, { 'ignore-scripts': true });
     expect(status.state).toBe('ok');
   });
-
-  it('fixes by setting ignore-scripts=true in .npmrc', () => {
-    expect.hasAssertions();
-    const ops = automaticOperations(npmBinding.check(ctx, {}));
-    expect(ops).toStrictEqual([
-      {
-        file: { kind: 'npmrc', path: '.npmrc' },
-        keyPath: ['ignore-scripts'],
-        op: 'setKey',
-        value: true,
-      },
-    ]);
-  });
 });
 
 describe('disable-lifecycle-scripts (pnpm): check states', () => {
   const ctx = makeCtx();
   const pnpmBinding = disableLifecycleScripts.bindings.pnpm;
   assert(pnpmBinding, 'expected pnpm binding');
-
-  it('targets pnpm-workspace.yaml as a yaml binding', () => {
-    expect.hasAssertions();
-    expect(pnpmBinding.file).toStrictEqual({ kind: 'yaml', path: 'pnpm-workspace.yaml' });
-  });
 
   it('returns ok when strictDepBuilds is explicitly true', () => {
     expect.hasAssertions();
@@ -67,14 +56,6 @@ describe('disable-lifecycle-scripts (pnpm): check states', () => {
     expect(status).toMatchObject({ actual: false, expected: true, state: 'violation' });
     // No documentedDefault demotion: an explicit `false` is the user
     // weakening the gate, not relying on the pnpm 11 default.
-    assert(status.state === 'violation');
-    expect(status.severity).toBeUndefined();
-  });
-
-  it('keeps full severity when the pnpm version-dependent default is unverified', () => {
-    expect.hasAssertions();
-    const status = pnpmBinding.check(ctx, {});
-    expect(status).toMatchObject({ state: 'violation' });
     assert(status.state === 'violation');
     expect(status.severity).toBeUndefined();
   });
@@ -103,10 +84,13 @@ describe('disable-lifecycle-scripts (pnpm): bypass and fix', () => {
 
     assert(manualSteps(status), 'expected manualSteps');
     expect(manualSteps(status)![0]).toMatch(/dangerouslyAllowAllBuilds/u);
+    expect(status.message).toMatch(/dangerouslyAllowAllBuilds/u);
+    expect(
+      pnpmBinding.check(ctx, { dangerouslyAllowAllBuilds: false, strictDepBuilds: true }).state,
+    ).toBe('ok');
   });
 
-  it('proposes strictDepBuilds when no bypass is present', () => {
-    expect.hasAssertions();
+  it('proposes strictDepBuilds in pnpm-workspace.yaml when no bypass is present', () => {
     const ops = automaticOperations(pnpmBinding.check(ctx, {}));
     expect(ops).toStrictEqual([
       {
@@ -116,6 +100,8 @@ describe('disable-lifecycle-scripts (pnpm): bypass and fix', () => {
         value: true,
       },
     ]);
+
+    expect(pnpmBinding.file).toStrictEqual({ kind: 'yaml', path: 'pnpm-workspace.yaml' });
   });
 });
 

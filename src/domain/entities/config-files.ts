@@ -1,4 +1,4 @@
-import type { ConfigFileRef } from './rule.ts';
+import type { ConfigFileRef } from './config-file-ref.ts';
 import { asRelPath } from '../../shared/paths.ts';
 
 /** Known configuration locations and their parsers. */

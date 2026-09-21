@@ -5,7 +5,7 @@ import { SiroError } from './shared/errors.ts';
 import { ensureNodeVersion } from './cli/parsers.ts';
 import type { IO } from './domain/ports/io.ts';
 import { isNodeError } from './adapters/node-errors.ts';
-import { lintCommand } from './application/commands/lint.ts';
+import { lintCommand } from './composition/lint.ts';
 import { nodeIO } from './adapters/node-io.ts';
 import { type ParsedCommand, parseCommand } from './cli/parse-args.ts';
 import { pathToFileURL } from 'node:url';

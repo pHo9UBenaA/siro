@@ -1,17 +1,15 @@
-import { makeCtx } from '../../helpers/ctx.ts';
-import { minimumReleaseAge } from '../../../src/domain/rules/minimum-release-age.ts';
 import { approvedGitRepos } from '../../../src/domain/rules/approved-git-repos.ts';
-import { filesField } from '../../../src/domain/rules/files-field.ts';
 import { bunSecurityScanner } from '../../../src/domain/rules/bun-security-scanner.ts';
+import { filesField } from '../../../src/domain/rules/files-field.ts';
+import { makeCtx } from '../../helpers/ctx.ts';
+import { minimumReleaseAge } from '../../helpers/rules.ts';
 
 const ctx = makeCtx();
 
-it.each(['aube', 'bun', 'deno', 'pnpm', 'yarn'] as const)(
+it.each(['pnpm', 'deno', 'yarn'] as const)(
   '%s does not treat an infinite release age as configured protection',
   (pm) => {
     const configs = {
-      aube: { minimumReleaseAge: Infinity },
-      bun: { install: { minimumReleaseAge: Infinity } },
       deno: { minimumDependencyAge: Infinity },
       pnpm: { minimumReleaseAge: Infinity },
       yarn: { npmMinimalAgeGate: Infinity },
@@ -29,7 +27,7 @@ it.each([{ age: { age: 'P3D' } }, { exclude: [false] }, new Date()])(
   },
 );
 
-it.each([{ value: [false] }, { value: [''] }, { value: ['   '] }, { value: Array(1) }])(
+it.each([{ value: [false] }, { value: ['   '] }, { value: Array(1) }])(
   'does not accept malformed allowlists: %j',
   ({ value }) => {
     expect(

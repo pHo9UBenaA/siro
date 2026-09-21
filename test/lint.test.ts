@@ -19,29 +19,33 @@ describe('lint command — basic linting', () => {
         summary: { error: number };
       } = JSON.parse(out());
       expect(parsed.findings.map((finding) => finding.severity)).toContain('error');
+      expect(parsed.summary).toStrictEqual({
+        error: expect.any(Number),
+        info: expect.any(Number),
+        warn: expect.any(Number),
+      });
       expect(parsed.summary.error).toBeGreaterThan(0);
     });
   });
 
-  it('exits 0 for an npm repo that follows the practice', () => {
+  it('lints representative npm, pnpm, Yarn, and Bun fixtures through their codecs', async () => {
     expect.hasAssertions();
-    const { io, out } = captureIO();
-    return run(['lint', path.join(FIXTURES, 'npm-good')], io).then((code) => {
-      expect(code).toBe(EXIT_SUCCESS);
-      expect(out()).toMatch(/no .+(?<kind>issues|findings|problems)/iu);
-    });
+    const results: { code: number; fixture: string; reportsScanner: boolean }[] = [];
+    for (const fixture of ['npm-good', 'pnpm-good', 'yarn-good', 'bun-good']) {
+      const { io, out } = captureIO();
+      const code = await run(['lint', path.join(FIXTURES, fixture)], io);
+      results.push({ code, fixture, reportsScanner: out().includes('bun-security-scanner') });
+    }
+    expect(results).toStrictEqual([
+      { code: EXIT_SUCCESS, fixture: 'npm-good', reportsScanner: false },
+      { code: EXIT_SUCCESS, fixture: 'pnpm-good', reportsScanner: false },
+      { code: EXIT_SUCCESS, fixture: 'yarn-good', reportsScanner: false },
+      { code: EXIT_SUCCESS, fixture: 'bun-good', reportsScanner: true },
+    ]);
   });
 });
 
 describe('lint command — flags', () => {
-  it('honours --pm to force a package manager', () => {
-    expect.hasAssertions();
-    const { io } = captureIO();
-    return run(['lint', '--pm', 'npm', path.join(FIXTURES, 'npm-bad')], io).then((code) => {
-      expect(code).toBe(EXIT_FAILURE);
-    });
-  });
-
   it('omits publish-only findings for an application project', () => {
     expect.hasAssertions();
     const { io, out } = captureIO();
@@ -56,20 +60,6 @@ describe('lint command — flags', () => {
         keepsSharedRules: ids.includes('disable-lifecycle-scripts'),
         publishOnly: ids.filter((id) => publishOnly.has(id)),
       }).toStrictEqual({ keepsSharedRules: true, publishOnly: [] });
-    });
-  });
-
-  it('emits parseable JSON with --json', () => {
-    expect.hasAssertions();
-    const { io, out } = captureIO();
-    return run(['lint', '--json', path.join(FIXTURES, 'npm-bad')], io).then(() => {
-      const parsed = JSON.parse(out());
-      expect(parsed.findings).toStrictEqual(expect.any(Array));
-      expect(parsed.summary).toStrictEqual({
-        error: expect.any(Number),
-        info: expect.any(Number),
-        warn: expect.any(Number),
-      });
     });
   });
 

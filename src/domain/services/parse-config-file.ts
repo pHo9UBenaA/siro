@@ -1,5 +1,5 @@
 import type { CodecFor } from '../ports/config-codec.ts';
-import type { ConfigFileRef } from '../entities/rule.ts';
+import type { ConfigFileRef } from '../entities/config-file-ref.ts';
 import type { ParsedConfig } from '../entities/config-value.ts';
 import type { RepoContext } from '../ports/repo-context.ts';
 import { wrapCodecError } from '../../shared/errors.ts';
