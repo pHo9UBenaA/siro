@@ -60,6 +60,42 @@ it('finds public children of a private workspace root without demanding child in
   }
 });
 
+it('checks a member against the manifest source used to build its context', () => {
+  const files = createMemFileSystem({
+    'package.json': '{"private":true,"workspaces":["packages/member"]}',
+    'packages/member/package.json': '{"name":"member"}',
+  });
+  let memberReads = 0;
+  const result = repo({
+    pm: 'npm',
+    pmVersion: '9.4.0',
+    workspaces: true,
+    fs: {
+      ...files,
+      readDirectories: (directory) =>
+        new Map([
+          ['/repo', ['packages']],
+          ['/repo/packages', ['member']],
+        ]).get(posix(directory)) ?? [],
+      readText: (file) => {
+        if (posix(file) !== '/repo/packages/member/package.json') return files.readText(file);
+        memberReads++;
+        return memberReads === 1
+          ? '{"name":"member"}'
+          : '{"name":"member","publishConfig":{"provenance":true}}';
+      },
+    },
+  });
+  expect(memberReads).toBe(1);
+  expect(
+    result.findings.some(
+      (finding) =>
+        finding.ruleId === 'unsupported-settings' &&
+        finding.file === 'packages/member/package.json',
+    ),
+  ).toBe(false);
+});
+
 it('requires injected directory discovery instead of falling back to host IO', () => {
   expect(() =>
     repo({

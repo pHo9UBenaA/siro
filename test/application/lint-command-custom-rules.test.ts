@@ -1,4 +1,4 @@
-import { asAbsPath } from '../../src/adapters/node-paths.ts';
+import { asAbsPath, CONFIG_FILES, type FileSystem, type LintOptions } from '../../src/index.ts';
 import { lint, lintCommand } from '../../src/composition/lint.ts';
 import type { LintResult } from '../../src/domain/entities/lint-result.ts';
 import type { CheckStatus, Rule } from '../../src/domain/entities/rule.ts';
@@ -19,6 +19,52 @@ const rule = (
   bindings: { npm: { file: { kind: 'npmrc', path: asRelPath('.npmrc') }, check } },
 });
 const options = { cwd: asAbsPath('/repo'), fs: npmGoodFs() };
+
+it.each(['package.json', './package.json'])(
+  'gives manifest metadata and rule config the same package.json source via %s',
+  (rulePath) => {
+    let reads = 0;
+    const fs: FileSystem = {
+      exists: () => false,
+      readText: (file) => {
+        if (file !== '/repo/package.json') return undefined;
+        reads++;
+        return JSON.stringify({ private: reads > 1 });
+      },
+    };
+    const seen: unknown[] = [];
+    const snapshotOptions: LintOptions = {
+      cwd: asAbsPath('/repo'),
+      pm: 'npm' as const,
+      fs,
+      config: {
+        customRules: [
+          {
+            ...rule('package-snapshot'),
+            bindings: {
+              npm: {
+                file: { ...CONFIG_FILES.packageJson, path: asRelPath(rulePath) },
+                check: (ctx, config) => {
+                  seen.push([ctx.packageJson?.private, config.private]);
+                  return { state: 'ok' };
+                },
+              },
+            },
+          },
+        ],
+      },
+    };
+    lint(snapshotOptions);
+    expect(seen).toEqual([[false, false]]);
+    expect(reads).toBe(1);
+    lint(snapshotOptions);
+    expect(seen).toEqual([
+      [false, false],
+      [true, true],
+    ]);
+    expect(reads).toBe(2);
+  },
+);
 
 it('reports custom rules from explicit configuration', async () => {
   const { io, out } = captureIO();

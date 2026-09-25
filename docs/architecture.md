@@ -80,7 +80,10 @@ user configuration is intentionally loaded dynamically by the outer config adapt
    Reporter rejection propagates; the CLI classifies errors and owns process exit.
 
 `FileSystem` distinguishes absence from failure: only ENOENT is absent; other
-errors and non-file entries propagate. Workspace discovery requires directory
+errors and non-file entries propagate. Each repository context reads its
+`package.json` once; its parsed manifest and rule config are derived from the
+same source text. This is not a snapshot of the entire filesystem, and a new
+`lint` call creates new contexts. Workspace discovery requires directory
 operations on the supplied filesystem and never falls back to the host filesystem.
 `RepositoryPaths` separates native absolute paths from POSIX workspace patterns.
 `WorkspaceGlobs` supplies bounded expansion, membership and traversal predicates;

@@ -75,6 +75,54 @@ describe('createRepoContext — packageJson parsing', () => {
 });
 
 describe('createRepoContext — readText and exists', () => {
+  it.each(['/repo', '/repo/packages/member'])(
+    'reuses the %s manifest source while other files remain live',
+    (root) => {
+      let manifestReads = 0;
+      let otherReads = 0;
+      const fs = {
+        exists: () => false,
+        readText: (file: string) => {
+          if (file === `${root}/package.json`) {
+            manifestReads++;
+            return JSON.stringify({ private: manifestReads > 1 });
+          }
+          otherReads++;
+          return String(otherReads);
+        },
+      };
+      const ctx = createRepoContext(asAbsPath(root), fs);
+      expect(ctx.packageJson?.private).toBe(false);
+      expect(ctx.readText(asRelPath('package.json'))).toBe('{"private":false}');
+      expect(ctx.readText(asRelPath('./package.json'))).toBe('{"private":false}');
+      expect(manifestReads).toBe(1);
+      expect(ctx.readText(asRelPath('.npmrc'))).toBe('1');
+      expect(ctx.readText(asRelPath('.npmrc'))).toBe('2');
+    },
+  );
+
+  it('keeps an absent manifest absent for this context', () => {
+    let reads = 0;
+    const ctx = createRepoContext(asAbsPath('/repo'), {
+      exists: () => true,
+      readText: () => (++reads === 1 ? undefined : '{}'),
+    });
+    expect(ctx.packageJson).toBeUndefined();
+    expect(ctx.readText(asRelPath('package.json'))).toBeUndefined();
+    expect(reads).toBe(1);
+  });
+
+  it('propagates a manifest read failure instead of treating it as absent', () => {
+    const failure = new Error('EACCES: package.json');
+    expect(() =>
+      createRepoContext(asAbsPath('/repo'), {
+        exists: () => false,
+        readText: () => {
+          throw failure;
+        },
+      }),
+    ).toThrow(failure);
+  });
   it('resolves readText / exists relative to the root', () => {
     expect.hasAssertions();
     const fs = createMemFileSystem({
