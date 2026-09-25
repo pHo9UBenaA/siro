@@ -38,19 +38,20 @@ const npmPatterns = (patterns: readonly string[], globs: WorkspaceGlobs): readon
 
 export interface WorkspaceDefinition {
   readonly patterns: readonly string[];
-  readonly denoManifests: boolean;
+  /** Native deno.json#workspace declarations can select members without package.json. */
+  readonly fromDenoJson: boolean;
 }
 
 /** Read declaration sources separately so Deno's two manifest sets stay distinct. */
 export const workspaceDefinitions = (
   ctx: RepoContext,
   pm: PM,
-  dependencies: LintDependencies,
+  dependencies: Pick<LintDependencies, 'codecFor' | 'paths' | 'globs'>,
 ): readonly WorkspaceDefinition[] => {
   const { codecFor, paths, globs } = dependencies;
   const parse = createConfigParser(codecFor, ctx);
-  const validate = (value: unknown, source: string, denoManifests = false): WorkspaceDefinition => {
-    if (value === undefined) return { patterns: [], denoManifests };
+  const validate = (value: unknown, source: string, fromDenoJson = false): WorkspaceDefinition => {
+    if (value === undefined) return { patterns: [], fromDenoJson };
     if (!Array.isArray(value) || !Array.from(value).every((item) => typeof item === 'string')) {
       throw new ConfigError(`${source}: expected an array of directory patterns.`);
     }
@@ -74,14 +75,14 @@ export const workspaceDefinitions = (
       }
       if (
         pm === 'deno' &&
-        denoManifests &&
+        fromDenoJson &&
         !pattern.startsWith('!') &&
         paths.normalizePattern(positive) === '.'
       ) {
         throw new ConfigError(`${source}: a Deno workspace cannot contain itself.`);
       }
     }
-    return { patterns: pm === 'npm' ? npmPatterns(value, globs) : value, denoManifests };
+    return { patterns: pm === 'npm' ? npmPatterns(value, globs) : value, fromDenoJson };
   };
   const packageDefinition = () => {
     let value = ctx.packageJson?.workspaces;

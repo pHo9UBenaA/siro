@@ -13,7 +13,7 @@ export const workspaceDirectories = (
   fs: FileSystem,
   definition: WorkspaceDefinition,
   pm: PM,
-  dependencies: LintDependencies,
+  dependencies: Pick<LintDependencies, 'paths' | 'codecFor' | 'globs' | 'caseInsensitiveGlobs'>,
 ): readonly RelPath[] => {
   const { paths } = dependencies;
   const directoryCache = new Map<string, readonly string[]>();

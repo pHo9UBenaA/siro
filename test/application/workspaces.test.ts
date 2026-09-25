@@ -60,6 +60,38 @@ it('finds public children of a private workspace root without demanding child in
   }
 });
 
+it('keeps custom rules at the root while applying publication checks to members', () => {
+  const checkedRoots: string[] = [];
+  const result = repo({
+    pm: 'npm',
+    workspaces: true,
+    config: {
+      customRules: [
+        {
+          id: 'custom-install-probe',
+          title: 'Custom install probe',
+          description: 'Only the repository root installs dependencies',
+          severity: 'error',
+          bindings: {
+            npm: {
+              check(ctx) {
+                checkedRoots.push(ctx.root);
+                return { state: 'violation', message: 'Root only' };
+              },
+            },
+          },
+        },
+      ],
+    },
+  });
+  expect(checkedRoots).toEqual(['/repo']);
+  expect(
+    result.findings
+      .filter((finding) => finding.file?.startsWith('packages/public/'))
+      .map((finding) => finding.ruleId),
+  ).toEqual(['files-field', 'publish-access', 'unsupported-settings']);
+});
+
 it('checks a member against the manifest source used to build its context', () => {
   const files = createMemFileSystem({
     'package.json': '{"private":true,"workspaces":["packages/member"]}',

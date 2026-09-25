@@ -17,7 +17,10 @@ export const collectWorkspaceMembers = (
   fs: FileSystem,
   pms: readonly PM[],
   projectType: ProjectType | undefined,
-  dependencies: LintDependencies,
+  dependencies: Pick<
+    LintDependencies,
+    'codecFor' | 'createRepoContext' | 'paths' | 'globs' | 'caseInsensitiveGlobs'
+  >,
 ) => {
   const { codecFor, createRepoContext, paths } = dependencies;
   return pms.flatMap((pm) => {
@@ -41,7 +44,7 @@ export const collectWorkspaceMembers = (
               !hasBasicWorkspaceWildcard(pattern) &&
               stripTrailingWorkspaceSlashes(paths.normalizePattern(pattern)) === directory,
           );
-          if (!definition.denoManifests && !fs.exists(manifest)) {
+          if (!definition.fromDenoJson && !fs.exists(manifest)) {
             if (pm === 'deno' && explicitMember)
               throw new ConfigError('Declared npm workspace member has no package.json.');
             return [];
@@ -50,9 +53,9 @@ export const collectWorkspaceMembers = (
             throw new ConfigError('deno.jsonc is not supported; use strict deno.json.');
           }
           const memberCtx = createRepoContext(root, memberFs, projectType);
-          if (!definition.denoManifests && !memberCtx.packageJson) return [];
+          if (!definition.fromDenoJson && !memberCtx.packageJson) return [];
           if (!memberCtx.packageJson && !memberCtx.exists(asRelPath('deno.json'))) {
-            if (definition.denoManifests && explicitMember) {
+            if (definition.fromDenoJson && explicitMember) {
               throw new ConfigError('Declared Deno member has no deno.json or package.json.');
             }
             return [];

@@ -1,7 +1,7 @@
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
 import { runLint } from '../../../src/application/run-lint.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
-import { exitCodeForLint } from '../../../src/domain/services/filter.ts';
+import { exitCodeForLint } from '../../../src/application/commands/filter.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 

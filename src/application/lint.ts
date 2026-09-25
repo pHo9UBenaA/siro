@@ -1,4 +1,5 @@
 import type { LintDependencies } from './ports/lint-dependencies.ts';
+import type { BuiltinRuleId } from '../domain/builtin-rules.ts';
 import { collectWorkspaceMembers } from './workspace-contexts.ts';
 import { type AbsPath, asRelPath } from '../shared/paths.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
@@ -89,14 +90,20 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
   };
 };
 
+// Only these built-in publication checks apply to workspace members. Custom
+// rules and installation policy remain rooted at cwd, even if they read a manifest.
+const memberPublicationRuleIds: ReadonlySet<string> = new Set<BuiltinRuleId>([
+  'files-field',
+  'publish-access',
+  'unsupported-settings',
+]);
+
 /** Reuse the existing manifest checks; installation policy remains rooted at cwd. */
 export const runPreparedLint = (prepared: ReturnType<typeof prepareLint>): LintResult => {
   const result = runLint(prepared);
   const findings = [...result.findings];
   const summary = { ...result.summary };
-  const memberRules = prepared.ruleSet.filter((rule) =>
-    ['files-field', 'publish-access', 'unsupported-settings'].includes(rule.id),
-  );
+  const memberRules = prepared.ruleSet.filter((rule) => memberPublicationRuleIds.has(rule.id));
   for (const member of prepared.members) {
     const child = runLint({ ...prepared, ctx: member.ctx, pms: [member.pm], ruleSet: memberRules });
     for (const finding of child.findings) {

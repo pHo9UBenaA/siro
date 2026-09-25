@@ -1,6 +1,6 @@
 import { type Severity, isSeverity } from '../../domain/entities/pms.ts';
 import { type Reporter, isReporterShape } from '../../domain/ports/reporter.ts';
-import { exitCodeForLint, filterBySeverity } from '../../domain/services/filter.ts';
+import { exitCodeForLint, filterBySeverity } from './filter.ts';
 import type { IO } from '../../domain/ports/io.ts';
 import { UsageError } from '../../shared/errors.ts';
 import type { LintDependencies } from '../ports/lint-dependencies.ts';

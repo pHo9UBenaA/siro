@@ -1,5 +1,5 @@
-import type { LintResult } from '../../../src/domain/entities/lint-result.ts';
-import { exitCodeForLint, filterBySeverity } from '../../../src/domain/services/filter.ts';
+import type { LintResult } from '../../src/domain/entities/lint-result.ts';
+import { exitCodeForLint, filterBySeverity } from '../../src/application/commands/filter.ts';
 
 const result: LintResult = {
   findings: [

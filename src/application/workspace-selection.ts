@@ -39,7 +39,7 @@ const denoSelection = (
   positive: readonly string[],
   included: readonly WorkspaceGlob[],
   definition: WorkspaceDefinition,
-  dependencies: LintDependencies,
+  dependencies: Pick<LintDependencies, 'paths'>,
   compile: Compile,
   resolveChild: ResolveChild,
   skipVendor: boolean,
@@ -87,7 +87,7 @@ const denoSelection = (
     .filter((pattern) => !hasBasicWorkspaceWildcard(pattern))
     .map((pattern) => compile(pattern));
   if (
-    definition.denoManifests &&
+    definition.fromDenoJson &&
     ordered.findLast(({ glob }) => glob.matches('.'))?.excluded === false
   ) {
     throw new ConfigError('deno.json#workspace: a Deno workspace cannot contain itself.');
@@ -112,7 +112,7 @@ const denoSelection = (
 
 const bunSelection = (
   patterns: readonly string[],
-  dependencies: LintDependencies,
+  dependencies: Pick<LintDependencies, 'globs' | 'paths' | 'caseInsensitiveGlobs'>,
 ): WorkspaceSelection => {
   const { globs, paths, caseInsensitiveGlobs } = dependencies;
   const options = { ...workspaceGlobOptions(caseInsensitiveGlobs), extendedPatterns: false };
@@ -165,7 +165,7 @@ export const createWorkspaceSelection = (
   ctx: RepoContext,
   definition: WorkspaceDefinition,
   pm: PM,
-  dependencies: LintDependencies,
+  dependencies: Pick<LintDependencies, 'codecFor' | 'globs' | 'paths' | 'caseInsensitiveGlobs'>,
   resolveChild: ResolveChild,
 ): WorkspaceSelection | undefined => {
   const { paths, globs, caseInsensitiveGlobs } = dependencies;
@@ -179,6 +179,14 @@ export const createWorkspaceSelection = (
   const negative = patterns
     .filter((pattern) => pattern.startsWith('!'))
     .map((pattern) => stripTrailingWorkspaceSlashes(paths.normalizePattern(pattern.slice(1))));
+  const hasMembers = positive.some((pattern) => pattern !== '.');
+  // Bun has its own ordered glob pass. Compiling the standard matcher first
+  // creates a second, unused view of each declaration with different options.
+  if (pm === 'bun') {
+    const selection = bunSelection(patterns, dependencies);
+    return hasMembers ? selection : undefined;
+  }
+
   const options = workspaceGlobOptions(caseInsensitiveGlobs);
   const compile: Compile = (pattern, excluded = false) => {
     if (pm !== 'deno' && pm !== 'aube')
@@ -190,7 +198,7 @@ export const createWorkspaceSelection = (
   const excluded = negative.map((pattern) => {
     const glob = compile(pattern, true);
     const subtree =
-      pm === 'deno' || pm === 'aube' || pm === 'bun'
+      pm === 'deno' || pm === 'aube'
         ? undefined
         : pattern === '**'
           ? { matches: () => true }
@@ -199,31 +207,25 @@ export const createWorkspaceSelection = (
             : undefined;
     return { glob, subtree };
   });
-  const selection =
-    pm === 'deno'
-      ? denoSelection(
-          patterns,
-          positive,
-          included,
-          definition,
-          dependencies,
-          compile,
-          resolveChild,
-          skipVendor,
-        )
-      : pm === 'bun'
-        ? bunSelection(patterns, dependencies)
-        : {
-            skipDirectory: (directory: string) =>
-              excluded.some(({ subtree }) => subtree?.matches(directory)),
-            includes: (directory: string) =>
-              !excluded.some(
-                ({ glob }) => glob.matches(directory) || glob.matches(`${directory}/`),
-              ) && included.some((pattern) => pattern.matches(directory)),
-            canDescend: (directory: string) =>
-              included.some((pattern) => pattern.canDescend(directory)),
-          };
-  return positive.length === 0 || positive.every((pattern) => pattern === '.')
-    ? undefined
-    : selection;
+  if (pm === 'deno') {
+    const selection = denoSelection(
+      patterns,
+      positive,
+      included,
+      definition,
+      dependencies,
+      compile,
+      resolveChild,
+      skipVendor,
+    );
+    return hasMembers ? selection : undefined;
+  }
+  const selection: WorkspaceSelection = {
+    skipDirectory: (directory) => excluded.some(({ subtree }) => subtree?.matches(directory)),
+    includes: (directory) =>
+      !excluded.some(({ glob }) => glob.matches(directory) || glob.matches(`${directory}/`)) &&
+      included.some((pattern) => pattern.matches(directory)),
+    canDescend: (directory) => included.some((pattern) => pattern.canDescend(directory)),
+  };
+  return hasMembers ? selection : undefined;
 };

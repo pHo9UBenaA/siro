@@ -76,7 +76,8 @@ user configuration is intentionally loaded dynamically by the outer config adapt
    are cached within each evaluation. Findings and their order remain independent
    of reporter selection.
 4. The command use case selects from the supplied reporter registry, computes the
-   exit status from all findings, and awaits output through `Reporter` and `IO`.
+   exit status from all findings, filters display results in `application/commands/filter.ts`,
+   and awaits output through `Reporter` and `IO`.
    Reporter rejection propagates; the CLI classifies errors and owns process exit.
 
 `FileSystem` distinguishes absence from failure: only ENOENT is absent; other
@@ -93,9 +94,11 @@ expresses case, punctuation, hidden-directory and extended-pattern behavior.
 Minimatch options, optimization and literal-bracket escaping stay in its adapter.
 The explicit case policy preserves the host's existing glob behavior. Native
 literal-directory resolution is a separate filesystem operation.
-`application/workspace-definitions.ts` reads and validates declarations;
+`application/workspace-definitions.ts` reads and validates declarations from PM-specific
+sources; its `fromDenoJson` flag identifies native Deno workspace declarations,
+whose members may use `deno.json` without `package.json`.
 `application/workspace-selection.ts` compiles PM-specific inclusion, exclusion,
-and descent decisions; `application/workspaces.ts` traverses directories only
+and descent decisions without compiling standard globs for Bun's separate ordered pass; `application/workspaces.ts` traverses directories only
 through the supplied filesystem. These are internal boundaries, not public APIs.
 
 The domain owns release-age policy. `DateTime.now()` supplies current epoch
@@ -106,8 +109,11 @@ No new clock or glob injection surface is added to the public API.
 
 PM-specific policy is part of siro's purpose: adding a PM binding does not imply
 moving that policy to an adapter. Similarly, workspace root installation policy
-and child publication policy remain separate. Remediation is a proposal; this
-architecture does not add file-writing capabilities.
+and child publication policy remain separate. `application/lint.ts` explicitly
+selects the built-in publication rule IDs evaluated for members; when adding a
+built-in rule, decide and test its root/member scope there. Custom rules remain
+root-only. Remediation is a proposal; this architecture does not add file-writing
+capabilities.
 
 ## Changing and verifying boundaries
 

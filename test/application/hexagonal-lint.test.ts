@@ -90,6 +90,23 @@ it.each([false, true])(
   },
 );
 
+it('prepares Bun matchers only with Bun semantics', () => {
+  const { dependencies, compile } = host();
+  compile.mockImplementation((pattern, options) => {
+    if (options.kind !== 'directory' || options.extendedPatterns !== false)
+      throw new Error('Unexpected standard glob compilation');
+    return {
+      matches: (directory) => pattern === 'packages/*' && directory === 'packages/api',
+      canDescend: (directory) => pattern === 'packages/*' && directory === 'packages',
+    };
+  });
+  expect(() => lint({ ...request, pm: 'bun' }, dependencies)).not.toThrow();
+  expect(compile).toHaveBeenCalledWith(
+    'packages/*',
+    expect.objectContaining({ extendedPatterns: false }),
+  );
+});
+
 it('uses the request filesystem consistently for root and member reads', () => {
   const { dependencies } = host();
   const original = dependencies.fileSystem;
