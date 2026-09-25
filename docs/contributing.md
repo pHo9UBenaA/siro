@@ -33,7 +33,9 @@ contains non-empty instructions. They cannot coexist. A missing binding means
 that a rule does not apply to that package manager. A binding without `file`
 uses the repository context directly, such as a lockfile existence check.
 
-The evaluation cache belongs to one repository and one run. User severity
+Each root or member repository context owns a lazy config parser for one lint call.
+Successful reads of the same kind and relative path are reused for workspace
+selection and rule evaluation; a later call or another context starts fresh. User severity
 settings override result, binding, and rule defaults, in that order. Preserve
 these boundaries because they prevent inconsistent results, not to satisfy a
 prescribed number of layers or files.
@@ -42,11 +44,14 @@ prescribed number of layers or files.
 
 1. Identify the policy and its limits from official documentation or source.
    Keep version notes on the binding and cite their basis in [policy sources](policy-sources.md).
-2. Add a rule in `src/domain/rules/` and register it in `src/domain/builtin-rules.ts`.
+2. Add a rule in `src/core/rules/` and register it in `src/core/rules/builtin-rules.ts`.
    Use `requireConfigKey` for a single setting; use a direct binding for precedence,
    multiple settings, or manual remediation. See [configuration.md](configuration.md).
-3. Test the unsafe state, accepted states, relevant bypasses, and the proposed
-   remedy. Exercise the CLI when the change affects parsing, selection, or output.
+3. Decide whether the rule applies to workspace members. The built-in publication
+   ID list in `src/core/lint.ts` is the single source for member selection; custom
+   rules remain root-only. Test the unsafe state, accepted states, relevant
+   bypasses, and the proposed remedy. Exercise the CLI when parsing, selection,
+   or output changes.
 4. Run `pnpm gen:docs` and `pnpm verify`.
 
 Adding a package manager also requires detection signals and applicable bindings.

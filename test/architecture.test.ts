@@ -6,8 +6,6 @@ import ts from 'typescript';
 type Area =
   | 'contracts'
   | 'core'
-  | 'legacy-domain'
-  | 'legacy-application'
   | 'adapters'
   | 'composition'
   | 'config-entry'
@@ -19,46 +17,17 @@ interface SourceFile {
   readonly content: string;
 }
 
-// The two legacy areas exist only while the remaining modules move into core.
-// In particular, adapters can no longer depend on either legacy implementation area.
 const allowedTargets: Readonly<Record<Area, ReadonlySet<Area>>> = {
   contracts: new Set(),
-  core: new Set(['contracts', 'legacy-domain', 'legacy-application']),
-  'legacy-domain': new Set(['contracts', 'core']),
-  'legacy-application': new Set(['contracts', 'core', 'legacy-domain']),
+  core: new Set(['contracts']),
   adapters: new Set(['contracts', 'metadata']),
-  composition: new Set([
-    'contracts',
-    'core',
-    'legacy-domain',
-    'legacy-application',
-    'adapters',
-    'metadata',
-  ]),
-  'config-entry': new Set(['contracts', 'core', 'legacy-domain', 'adapters', 'metadata']),
-  cli: new Set([
-    'contracts',
-    'core',
-    'legacy-domain',
-    'legacy-application',
-    'adapters',
-    'composition',
-    'config-entry',
-    'metadata',
-  ]),
-  public: new Set([
-    'contracts',
-    'core',
-    'legacy-domain',
-    'legacy-application',
-    'adapters',
-    'composition',
-    'config-entry',
-    'metadata',
-  ]),
+  composition: new Set(['contracts', 'core', 'adapters', 'metadata']),
+  'config-entry': new Set(['contracts', 'core', 'adapters', 'metadata']),
+  cli: new Set(['contracts', 'core', 'adapters', 'composition', 'config-entry', 'metadata']),
+  public: new Set(['contracts', 'core', 'adapters', 'composition', 'config-entry', 'metadata']),
   metadata: new Set(),
 };
-const coreAreas = new Set<Area>(['contracts', 'core', 'legacy-domain', 'legacy-application']);
+const coreAreas = new Set<Area>(['contracts', 'core']);
 const noDynamicSelection = new Set<Area>([...coreAreas, 'adapters', 'metadata']);
 const sourceRoot = path.resolve(import.meta.dirname, '../src');
 const projectRoot = path.resolve(sourceRoot, '..');
@@ -74,10 +43,8 @@ const compilerOptions = ts.convertCompilerOptionsFromJson(
 const areaOf = (file: string): Area | undefined => {
   if (file.startsWith('core/contracts/')) return 'contracts';
   if (file.startsWith('core/')) return 'core';
-  if (file.startsWith('domain/')) return 'legacy-domain';
-  if (file.startsWith('application/')) return 'legacy-application';
   if (file.startsWith('adapters/')) return 'adapters';
-  if (file.startsWith('composition/') || file === 'runtime.ts') return 'composition';
+  if (file === 'runtime.ts') return 'composition';
   if (file === 'load-config.ts') return 'config-entry';
   if (file.startsWith('cli/') || file === 'cli.ts') return 'cli';
   if (file === 'index.ts') return 'public';

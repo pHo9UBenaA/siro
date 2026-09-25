@@ -35,6 +35,21 @@ const spawnBin = (args: readonly string[]) => {
   return spawnSync(DIST_BIN, args, { encoding: 'utf8' });
 };
 
+it('propagates a missing explicit Deno member manifest with exit 2', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-deno-member-'));
+  try {
+    mkdirSync(path.join(dir, 'child'));
+    writeFileSync(path.join(dir, 'deno.json'), '{"workspace":["child"]}');
+    writeFileSync(path.join(dir, 'child/README.md'), 'Existing directory without a manifest');
+    const result = spawnBin(['lint', dir, '--pm', 'deno', '--workspaces', '--json']);
+    expect(result.status).toBe(EXIT_USAGE);
+    expect(result.stderr).toContain('child/Declared Deno member has no deno.json or package.json.');
+    expect(result.stdout).toBe('');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 it('reports an un-compilable workspace pattern with exit 2', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'siro-workspace-pattern-'));
   try {

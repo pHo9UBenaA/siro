@@ -1,4 +1,4 @@
-import { createConfigParser } from '../../src/domain/services/parse-config-file.ts';
+import { createConfigParser } from '../../src/core/parse-config-file.ts';
 import { codecFor } from '../../src/adapters/codecs/store.ts';
 import type { RepoContext, RuleContext } from '../../src/core/contracts/repo-context.ts';
 import { asAbsPath } from '../../src/adapters/node-paths.ts';

@@ -1,0 +1,91 @@
+import { CONFIG_FILES } from './config-files.ts';
+import type { Finding, LintResult } from './contracts/lint-result.ts';
+import type { PM, Severity } from './contracts/pms.ts';
+import type { ProjectType } from './contracts/project-type.ts';
+import { type Rule, isCheckStatusShape } from './contracts/rule.ts';
+import type { CodecFor } from './contracts/config-codec.ts';
+import type { RepoContext, RuleContext } from './contracts/repo-context.ts';
+import { decideSeverity } from './decide-severity.ts';
+import { createConfigParser, type ConfigParser } from './parse-config-file.ts';
+import { resolveDenoProjectType, resolvePackageJsonProjectType } from './resolve-project-type.ts';
+import { renderVersionNoteMessage } from './render-version-note.ts';
+import { guardRemediationAvailability } from './rules/remediation-availability.ts';
+import { ConfigError } from './contracts/errors.ts';
+
+export interface RunLintOptions {
+  readonly ctx: RepoContext;
+  readonly pms: readonly PM[];
+  readonly pmVersions?: Readonly<Partial<Record<PM, string>>>;
+  readonly ruleSet: readonly Rule[];
+  readonly severityOverrides?: ReadonlyMap<string, Severity>;
+  readonly codecFor: CodecFor;
+  /** Optional evaluation-scoped parser supplied when workspace discovery already read this context. */
+  readonly parseConfig?: ConfigParser;
+}
+
+const resolveBindingProjectType = (
+  ctx: RepoContext,
+  pm: PM,
+  parseConfig: ConfigParser,
+): ProjectType => {
+  if (ctx.projectType !== undefined) {
+    return ctx.projectType;
+  }
+  if (pm === 'deno') {
+    return resolveDenoProjectType(ctx, parseConfig(CONFIG_FILES.denoJson));
+  }
+  return resolvePackageJsonProjectType(ctx);
+};
+
+/** Evaluate every applicable rule binding and collect violations. */
+export const runLint = (opts: RunLintOptions): LintResult => {
+  const { ctx, pms, ruleSet, severityOverrides, codecFor } = opts;
+  const findings: Finding[] = [];
+  const summary: Record<Severity, number> = { error: 0, info: 0, warn: 0 };
+  const parseConfig = opts.parseConfig ?? createConfigParser(codecFor, ctx);
+
+  for (const rule of ruleSet) {
+    for (const pm of pms) {
+      const binding = rule.bindings[pm];
+      if (
+        !binding ||
+        (rule.projectTypes &&
+          !rule.projectTypes.includes(resolveBindingProjectType(ctx, pm, parseConfig)))
+      ) {
+        continue;
+      }
+
+      const ruleContext: RuleContext = {
+        ...ctx,
+        readConfig: parseConfig,
+        pmVersion: opts.pmVersions?.[pm],
+      };
+      const response: unknown = binding.check(ruleContext, parseConfig(binding.file));
+      if (!isCheckStatusShape(response)) {
+        throw new ConfigError(`Rule '${rule.id}' returned an invalid check result.`);
+      }
+      const statuses = response.state === 'violations' ? response.violations : [response];
+      for (const status of statuses) {
+        if (status.state !== 'violation') {
+          continue;
+        }
+
+        const finding: Finding = {
+          ruleId: rule.id,
+          pm,
+          severity: decideSeverity(status, binding, rule, severityOverrides?.get(rule.id)),
+          message: renderVersionNoteMessage(status.message, binding.versionNote),
+          file: status.file ?? binding.file?.path,
+          docs: binding.docs ?? rule.docs,
+          actual: status.actual,
+          expected: status.expected,
+          remediation: guardRemediationAvailability(pm, ruleContext.pmVersion, status.remediation),
+        };
+        findings.push(finding);
+        summary[finding.severity] += 1;
+      }
+    }
+  }
+
+  return { findings, summary };
+};
