@@ -1,8 +1,8 @@
-import { ConfigError, UsageError } from '../shared/errors.ts';
-import { type AbsPath, type RelPath } from '../shared/paths.ts';
+import { ConfigError, UsageError } from '../core/contracts/errors.ts';
+import { type AbsPath, type RelPath } from '../core/contracts/paths.ts';
 import { nodePaths } from './node-paths.ts';
 import { readFileSync, readdirSync, statSync, lstatSync } from 'node:fs';
-import type { FileSystem } from '../domain/ports/file-system.ts';
+import type { FileSystem } from '../core/contracts/file-system.ts';
 import { isNodeError } from './node-errors.ts';
 import path from 'node:path';
 

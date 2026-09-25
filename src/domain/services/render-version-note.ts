@@ -1,4 +1,4 @@
-import type { VersionNote } from '../entities/rule.ts';
+import type { VersionNote } from '../../core/contracts/rule.ts';
 
 const buildVersionNoteParts = (versionNote: VersionNote): readonly string[] => {
   const parts: string[] = [];

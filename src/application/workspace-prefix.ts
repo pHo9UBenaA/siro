@@ -1,4 +1,4 @@
-import type { WorkspaceGlob } from './ports/workspace-glob.ts';
+import type { WorkspaceGlob } from '../core/contracts/workspace-glob.ts';
 import { hasBasicWorkspaceWildcard } from './workspace-pattern.ts';
 
 /** Anchor Deno's native literal prefix before applying its glob suffix. */

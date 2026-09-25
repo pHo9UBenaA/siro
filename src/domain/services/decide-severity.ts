@@ -1,5 +1,5 @@
-import type { CheckStatus, Rule, RuleBinding } from '../entities/rule.ts';
-import type { Severity } from '../entities/pms.ts';
+import type { CheckStatus, Rule, RuleBinding } from '../../core/contracts/rule.ts';
+import type { Severity } from '../../core/contracts/pms.ts';
 
 type Violation = Extract<CheckStatus, { state: 'violation' }>;
 

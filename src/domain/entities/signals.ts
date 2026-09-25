@@ -1,5 +1,5 @@
 import { CONFIG_FILES } from './config-files.ts';
-import type { PM } from './pms.ts';
+import type { PM } from '../../core/contracts/pms.ts';
 
 /**
  * Filenames that identify a package manager. `lockfiles[0]` is the

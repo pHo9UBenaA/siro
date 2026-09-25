@@ -1,5 +1,5 @@
-import type { ConfigFileRef } from './config-file-ref.ts';
-import { asRelPath } from '../../shared/paths.ts';
+import type { ConfigFileRef } from '../../core/contracts/config-file-ref.ts';
+import { asRelPath } from '../../core/contracts/paths.ts';
 
 /** Known configuration locations and their parsers. */
 export const CONFIG_FILES = {

@@ -3,7 +3,7 @@ import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifec
 import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';
 import { pinExactVersions } from '../../../src/domain/rules/pin-exact-versions.ts';
 import { provenance } from '../../../src/domain/rules/provenance.ts';
-import { parsePackageJson } from '../../../src/domain/schemas/package-json.ts';
+import { parsePackageJson } from '../../../src/core/contracts/package-json.ts';
 import { makePublishableCtx as ctx, makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 import { minimumReleaseAge } from '../../helpers/rules.ts';

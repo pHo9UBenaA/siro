@@ -1,8 +1,8 @@
 import { renderVersionNoteMessage } from '../src/domain/services/render-version-note.ts';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import type { Rule } from '../src/domain/entities/rule.ts';
-import { PMS } from '../src/domain/entities/pms.ts';
+import type { Rule } from '../src/core/contracts/rule.ts';
+import { PMS } from '../src/core/contracts/pms.ts';
 import { rules as defaultRules } from '../src/composition/rules.ts';
 import { settingAvailability } from '../src/domain/setting-availability.ts';
 

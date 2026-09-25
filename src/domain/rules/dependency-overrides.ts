@@ -1,7 +1,7 @@
-import { type RuleBinding, type CheckStatus, defineRule } from '../entities/rule.ts';
-import type { ConfigFileRef } from '../entities/config-file-ref.ts';
+import { type RuleBinding, type CheckStatus, defineRule } from '../../core/contracts/rule.ts';
+import type { ConfigFileRef } from '../../core/contracts/config-file-ref.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
-import { type ParsedConfig, getByPath } from '../entities/config-value.ts';
+import { type ParsedConfig, getByPath } from '../../core/contracts/config-value.ts';
 
 const { aubeWorkspace, pnpmWorkspace } = CONFIG_FILES;
 

@@ -1,9 +1,9 @@
 import { lintCommand } from '../../src/application/commands/lint.ts';
 import { lint } from '../../src/application/lint.ts';
-import type { LintDependencies } from '../../src/application/ports/lint-dependencies.ts';
+import type { LintDependencies } from '../../src/core/contracts/lint-dependencies.ts';
 import { compileAdditionalWorkspaceGlob } from '../../src/application/workspace-dialects.ts';
-import type { Reporter } from '../../src/domain/ports/reporter.ts';
-import type { AbsPath } from '../../src/shared/paths.ts';
+import type { Reporter } from '../../src/core/contracts/reporter.ts';
+import type { AbsPath } from '../../src/core/contracts/paths.ts';
 import { captureIO } from '../helpers/io.ts';
 
 // A bounded in-memory host, with no production adapter or runtime composition.

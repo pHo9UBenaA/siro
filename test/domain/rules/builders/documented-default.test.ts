@@ -1,10 +1,10 @@
 import { applyConfig } from '../../../../src/domain/services/apply-config.ts';
-import { asRelPath } from '../../../../src/shared/paths.ts';
+import { asRelPath } from '../../../../src/core/contracts/paths.ts';
 import assert from 'node:assert';
-import type { CodecFor, ConfigCodec } from '../../../../src/domain/ports/config-codec.ts';
-import type { Rule, VersionNote } from '../../../../src/domain/entities/rule.ts';
-import type { ConfigFileRef } from '../../../../src/domain/entities/config-file-ref.ts';
-import type { ConfigValue } from '../../../../src/domain/entities/config-value.ts';
+import type { CodecFor, ConfigCodec } from '../../../../src/core/contracts/config-codec.ts';
+import type { Rule, VersionNote } from '../../../../src/core/contracts/rule.ts';
+import type { ConfigFileRef } from '../../../../src/core/contracts/config-file-ref.ts';
+import type { ConfigValue } from '../../../../src/core/contracts/config-value.ts';
 import { makeCtx } from '../../../helpers/ctx.ts';
 import { requireConfigKey } from '../../../../src/domain/rules/builders/require-config-key.ts';
 import { runLint } from '../../../../src/application/run-lint.ts';

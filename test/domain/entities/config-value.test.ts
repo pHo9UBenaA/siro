@@ -1,5 +1,5 @@
 import { expectTypeOf } from 'vitest';
-import { getByPath, toParsedConfig } from '../../../src/domain/entities/config-value.ts';
+import { getByPath, toParsedConfig } from '../../../src/core/contracts/config-value.ts';
 
 describe(toParsedConfig, () => {
   it.each([Object.prototype, null])(

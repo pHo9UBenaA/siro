@@ -1,8 +1,8 @@
-import type { PM, Severity } from './pms.ts';
+import type { PM, Severity } from '../../core/contracts/pms.ts';
 import type { BuiltinRuleId } from '../builtin-rules.ts';
-import type { Reporter } from '../ports/reporter.ts';
-import type { Rule } from './rule.ts';
-import type { ProjectType } from './project-type.ts';
+import type { Reporter } from '../../core/contracts/reporter.ts';
+import type { Rule } from '../../core/contracts/rule.ts';
+import type { ProjectType } from '../../core/contracts/project-type.ts';
 
 /** Per-rule setting. `'off'` disables; a Severity overrides the default level. */
 export type RuleSetting = Severity | 'off';

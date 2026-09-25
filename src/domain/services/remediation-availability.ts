@@ -1,8 +1,8 @@
 import { lt } from 'semver';
-import type { PM } from '../entities/pms.ts';
-import type { Remediation } from '../entities/rule.ts';
-import type { ConfigFileRef } from '../entities/config-file-ref.ts';
-import type { KeyPath } from '../entities/config-value.ts';
+import type { PM } from '../../core/contracts/pms.ts';
+import type { Remediation } from '../../core/contracts/rule.ts';
+import type { ConfigFileRef } from '../../core/contracts/config-file-ref.ts';
+import type { KeyPath } from '../../core/contracts/config-value.ts';
 import { settingAvailability } from '../setting-availability.ts';
 
 type SettingTarget = { readonly file: ConfigFileRef; readonly keyPath: KeyPath };

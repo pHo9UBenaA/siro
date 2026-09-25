@@ -1,6 +1,6 @@
-import type { PM } from './entities/pms.ts';
-import type { ConfigFileRef } from './entities/config-file-ref.ts';
-import type { KeyPath } from './entities/config-value.ts';
+import type { PM } from '../core/contracts/pms.ts';
+import type { ConfigFileRef } from '../core/contracts/config-file-ref.ts';
+import type { KeyPath } from '../core/contracts/config-value.ts';
 import { CONFIG_FILES } from './entities/config-files.ts';
 
 interface SettingAvailability {

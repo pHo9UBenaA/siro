@@ -4,10 +4,15 @@ import {
 } from '../services/remediation-availability.ts';
 import { proposeChanges } from './remediation.ts';
 import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
-import type { RuleBinding, CheckStatus, VersionNote, ViolationStatus } from '../entities/rule.ts';
+import type {
+  RuleBinding,
+  CheckStatus,
+  VersionNote,
+  ViolationStatus,
+} from '../../core/contracts/rule.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
-import { getByPath } from '../entities/config-value.ts';
+import { getByPath } from '../../core/contracts/config-value.ts';
 
 const { npmrc, pnpmWorkspace, yarnrc, aubeWorkspace, bunfig } = CONFIG_FILES;
 

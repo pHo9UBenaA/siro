@@ -3,41 +3,63 @@ import { isBuiltin } from 'node:module';
 import path from 'node:path';
 import ts from 'typescript';
 
-const LAYERS = [
-  'shared',
-  'domain',
-  'application',
-  'application-ports',
-  'adapters',
-  'composition',
-  'cli',
-  'public',
-] as const;
-type Layer = (typeof LAYERS)[number];
+type Area =
+  | 'contracts'
+  | 'core'
+  | 'legacy-domain'
+  | 'legacy-application'
+  | 'adapters'
+  | 'composition'
+  | 'config-entry'
+  | 'cli'
+  | 'public'
+  | 'metadata';
 interface SourceFile {
   readonly path: string;
   readonly content: string;
 }
 
-const allowedTargets: Readonly<Record<Layer, ReadonlySet<Layer>>> = {
-  shared: new Set(),
-  domain: new Set(['shared']),
-  'application-ports': new Set(['shared', 'domain']),
-  application: new Set(['shared', 'domain', 'application-ports']),
-  adapters: new Set(['shared', 'domain', 'application-ports']),
-  composition: new Set(['shared', 'domain', 'application-ports', 'application', 'adapters']),
-  cli: new Set(['shared', 'domain', 'application-ports', 'application', 'adapters', 'composition']),
-  public: new Set([
-    'shared',
-    'domain',
-    'application-ports',
-    'application',
+// The two legacy areas exist only while the remaining modules move into core.
+// In particular, adapters can no longer depend on either legacy implementation area.
+const allowedTargets: Readonly<Record<Area, ReadonlySet<Area>>> = {
+  contracts: new Set(),
+  core: new Set(['contracts', 'legacy-domain', 'legacy-application']),
+  'legacy-domain': new Set(['contracts', 'core']),
+  'legacy-application': new Set(['contracts', 'core', 'legacy-domain']),
+  adapters: new Set(['contracts', 'metadata']),
+  composition: new Set([
+    'contracts',
+    'core',
+    'legacy-domain',
+    'legacy-application',
+    'adapters',
+    'metadata',
+  ]),
+  'config-entry': new Set(['contracts', 'core', 'legacy-domain', 'adapters', 'metadata']),
+  cli: new Set([
+    'contracts',
+    'core',
+    'legacy-domain',
+    'legacy-application',
     'adapters',
     'composition',
+    'config-entry',
+    'metadata',
   ]),
+  public: new Set([
+    'contracts',
+    'core',
+    'legacy-domain',
+    'legacy-application',
+    'adapters',
+    'composition',
+    'config-entry',
+    'metadata',
+  ]),
+  metadata: new Set(),
 };
-const core = new Set<Layer>(['shared', 'domain', 'application-ports', 'application']);
-
+const coreAreas = new Set<Area>(['contracts', 'core', 'legacy-domain', 'legacy-application']);
+const noDynamicSelection = new Set<Area>([...coreAreas, 'adapters', 'metadata']);
 const sourceRoot = path.resolve(import.meta.dirname, '../src');
 const projectRoot = path.resolve(sourceRoot, '..');
 const canonicalFileName = (file: string): string => {
@@ -49,13 +71,17 @@ const compilerOptions = ts.convertCompilerOptionsFromJson(
   config.config.compilerOptions,
   projectRoot,
 ).options;
-const layerOf = (file: string): Layer | undefined => {
-  if (/^application\/(?:.*\/)?ports\//u.test(file)) return 'application-ports';
-  if (/^index\.(?:ts|js)$/u.test(file)) return 'public';
-  if (/^version\.(?:ts|js)$/u.test(file)) return 'shared';
-  if (file === 'cli.ts' || file === 'cli.js' || file.startsWith('cli/')) return 'cli';
-  const [first] = file.split('/');
-  return LAYERS.find((layer) => layer === first);
+const areaOf = (file: string): Area | undefined => {
+  if (file.startsWith('core/contracts/')) return 'contracts';
+  if (file.startsWith('core/')) return 'core';
+  if (file.startsWith('domain/')) return 'legacy-domain';
+  if (file.startsWith('application/')) return 'legacy-application';
+  if (file.startsWith('adapters/')) return 'adapters';
+  if (file.startsWith('composition/') || file === 'runtime.ts') return 'composition';
+  if (file === 'load-config.ts') return 'config-entry';
+  if (file.startsWith('cli/') || file === 'cli.ts') return 'cli';
+  if (file === 'index.ts') return 'public';
+  if (file === 'version.ts') return 'metadata';
 };
 
 const findViolations = (files: readonly SourceFile[]): string[] => {
@@ -68,22 +94,27 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
     readFile: (file) => contents.get(canonicalFileName(file)),
   };
   for (const file of files) {
-    const sourceLayer = layerOf(file.path);
+    const sourceArea = areaOf(file.path);
     const fail = (reason: string) => violations.push(`${file.path}: ${reason}`);
-    if (!sourceLayer) {
+    if (!sourceArea) {
       fail('unclassified source file');
       continue;
     }
-    const inCore = core.has(sourceLayer);
+    const inCore = coreAreas.has(sourceArea);
     const inspectImport = (specifier: string) => {
       const packageMetadata = path.resolve(sourceRoot, path.dirname(file.path), specifier);
-      if (packageMetadata === path.join(projectRoot, 'package.json')) return;
+      if (packageMetadata === path.join(projectRoot, 'package.json')) {
+        if (sourceArea !== 'metadata') fail(`forbidden package metadata dependency ${specifier}`);
+        return;
+      }
+      if (sourceArea === 'metadata') {
+        fail(`metadata may only read package.json: ${specifier}`);
+        return;
+      }
       if (isBuiltin(specifier)) {
         if (inCore) fail(`forbidden host dependency ${specifier}`);
         return;
       }
-      // Use the same resolution as the compiler: .js specifiers may resolve to
-      // .ts files; aliases and index modules must not hide a reverse edge.
       const resolved = ts.resolveModuleName(
         specifier,
         path.join(sourceRoot, file.path),
@@ -93,14 +124,14 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
       if (!resolved) {
         if (specifier.startsWith('.') || path.isAbsolute(specifier))
           fail(`unresolved source dependency ${specifier}`);
-        // Package availability belongs to typecheck, build and installed-package tests.
+        // Typecheck, build, and package tests establish external availability.
         return;
       }
       const target = path.relative(sourceRoot, resolved.resolvedFileName).split(path.sep).join('/');
-      const targetLayer = layerOf(target);
-      if (!targetLayer) fail(`unclassified dependency ${specifier}`);
-      else if (targetLayer !== sourceLayer && !allowedTargets[sourceLayer].has(targetLayer)) {
-        fail(`forbidden ${targetLayer} dependency ${specifier}`);
+      const targetArea = areaOf(target);
+      if (!targetArea) fail(`unclassified dependency ${specifier}`);
+      else if (targetArea !== sourceArea && !allowedTargets[sourceArea].has(targetArea)) {
+        fail(`forbidden ${targetArea} dependency ${specifier}`);
       }
     };
     const source = ts.createSourceFile(file.path, file.content, ts.ScriptTarget.Latest, true);
@@ -128,7 +159,8 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
           (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument))
         )
           inspectImport(argument.text);
-        else if (inCore) fail('dynamic module selection in core');
+        else if (noDynamicSelection.has(sourceArea))
+          fail('dynamic module selection in core or driven adapter');
       }
       if (
         ts.isImportEqualsDeclaration(node) &&
@@ -152,167 +184,106 @@ const readSources = (root: string, relative = ''): SourceFile[] =>
     return [{ path: entryPath, content: readFileSync(path.join(root, entryPath), 'utf8') }];
   });
 
-it('keeps source imports directed inward, including type references', () => {
+it('keeps resolved source imports directed through the contracts', () => {
   expect(findViolations(readSources(sourceRoot))).toEqual([]);
 });
 
-it.each([
-  ['domain/rule.ts', "import fs from 'node:fs';"],
-  ['shared/path.ts', "import path from 'path';"],
-  ['application/load.ts', 'const value = import(name);'],
-  ['unclassified.ts', 'export const value = 1;'],
-])('rejects forbidden dependencies in %s: %s', (file, content) => {
-  expect(findViolations([{ path: file, content }]).length).toBeGreaterThan(0);
-});
-
-it('allows ordinary computation choices, ports, and outer composition', () => {
+it('rejects host dependencies and unclassified files', () => {
   expect(
-    findViolations([
-      { path: 'domain/value.ts', content: "import { lt } from 'semver';" },
-      { path: 'domain/format.ts', content: "import parser from 'some-computation-library';" },
-      { path: 'domain/current.ts', content: 'const now = Date.now();' },
-      { path: 'domain/epoch-date.ts', content: 'const value = new Date(now - age * 1000);' },
-      {
-        path: 'domain/utc-date.ts',
-        content: 'const value = new Date(`${date}T00:00:00Z`);',
-      },
-      { path: 'domain/ports/repo-context.ts', content: 'export interface RepoContext {}' },
-      {
-        path: 'application/ports/repository-paths.ts',
-        content: 'export interface RepositoryPaths {}',
-      },
-      {
-        path: 'application/lint.ts',
-        content: "import type { RepoContext } from '../domain/ports/repo-context.ts';",
-      },
-      {
-        path: 'adapters/fs.ts',
-        content:
-          "import type { RepositoryPaths } from '../application/ports/repository-paths.ts'; import fs from 'node:fs';",
-      },
-      {
-        path: 'composition/lint.ts',
-        content:
-          "import { lint } from '../application/lint.ts'; import { fs } from '../adapters/fs.ts';",
-      },
-    ]),
-  ).toEqual([]);
+    findViolations([{ path: 'core/contracts/value.ts', content: "import fs from 'node:fs';" }]),
+  ).toHaveLength(1);
+  expect(
+    findViolations([{ path: 'core/run.ts', content: 'const value = import(name);' }]),
+  ).toHaveLength(1);
+  expect(
+    findViolations([{ path: 'adapters/config.ts', content: 'const value = import(name);' }]),
+  ).toHaveLength(1);
+  expect(findViolations([{ path: 'unknown.ts', content: 'export const value = 1;' }])).toHaveLength(
+    1,
+  );
 });
 
-it('permits same-layer type relationships and ports grouped with their feature', () => {
+it('permits contract runtime validators, ordinary computation, metadata and outer wiring', () => {
   expect(
     findViolations([
       {
-        path: 'domain/a.ts',
-        content: "import type { B } from './b.ts'; export interface A { b?: B }",
+        path: 'core/contracts/value.ts',
+        content: "import { lt } from 'semver'; export const value = lt('1','2');",
       },
-      {
-        path: 'domain/b.ts',
-        content: "import type { A } from './a.ts'; export interface B { a?: A }",
-      },
-      { path: 'application/workspace/ports/glob.ts', content: 'export interface Glob {}' },
+      { path: 'core/contracts/glob.ts', content: 'export interface Glob {}' },
       {
         path: 'adapters/glob.ts',
-        content: "import type { Glob } from '../application/workspace/ports/glob.ts';",
+        content: "import type { Glob } from '../core/contracts/glob.ts'; import fs from 'node:fs';",
       },
+      { path: 'core/current.ts', content: 'export const now = Date.now();' },
+      { path: 'version.ts', content: "import pkg from '../package.json' with { type: 'json' };" },
+      { path: 'adapters/json.ts', content: "import { version } from '../version.ts';" },
+      {
+        path: 'runtime.ts',
+        content: "import { run } from './core/run.ts'; import { version } from './version.ts';",
+      },
+      { path: 'core/run.ts', content: 'export const run = () => 1;' },
     ]),
   ).toEqual([]);
+});
+
+it('rejects adapters to use cases, contracts to use cases, and metadata to code even through types', () => {
+  expect(
+    findViolations([
+      { path: 'core/contracts/port.ts', content: "export type Value = import('../run.ts').Value;" },
+      { path: 'core/contracts/barrel.ts', content: "export type { Value } from '../run.ts';" },
+      { path: 'adapters/glob.ts', content: "import type { Value } from '../core/run.ts';" },
+      { path: 'core/run.ts', content: 'export type Value = string;' },
+      { path: 'version.ts', content: "export { Value } from './core/run.ts';" },
+    ]),
+  ).toEqual([
+    'core/contracts/port.ts: forbidden core dependency ../run.ts',
+    'core/contracts/barrel.ts: forbidden core dependency ../run.ts',
+    'adapters/glob.ts: forbidden core dependency ../core/run.ts',
+    'version.ts: metadata may only read package.json: ./core/run.ts',
+  ]);
+});
+
+it('only allows package.json metadata imports in version.ts', () => {
+  expect(
+    findViolations([
+      {
+        path: 'core/contracts/port.ts',
+        content: "import pkg from '../../../package.json' with { type: 'json' };",
+      },
+      {
+        path: 'adapters/json.ts',
+        content: "import pkg from '../../package.json' with { type: 'json' };",
+      },
+      { path: 'version.ts', content: "import pkg from '../package.json' with { type: 'json' };" },
+    ]),
+  ).toEqual([
+    'core/contracts/port.ts: forbidden package metadata dependency ../../../package.json',
+    'adapters/json.ts: forbidden package metadata dependency ../../package.json',
+  ]);
 });
 
 it('resolves JavaScript extensions to TypeScript before checking direction', () => {
   expect(
     findViolations([
-      { path: 'application/use.ts', content: "import type { Value } from '../adapters/value.js';" },
+      { path: 'core/use.ts', content: "import type { Value } from '../adapters/value.js';" },
       { path: 'adapters/value.ts', content: 'export interface Value {}' },
     ]),
-  ).toEqual(['application/use.ts: forbidden adapters dependency ../adapters/value.js']);
+  ).toEqual(['core/use.ts: forbidden adapters dependency ../adapters/value.js']);
 });
 
-it('rejects adapters coupled to application implementations and ports coupled to use cases', () => {
+it('rejects unresolved local imports and checks static dynamic and CommonJS references', () => {
+  expect(
+    findViolations([{ path: 'core/run.ts', content: "export * from './missing.ts';" }]),
+  ).toEqual(['core/run.ts: unresolved source dependency ./missing.ts']);
   expect(
     findViolations([
-      {
-        path: 'adapters/fs.ts',
-        content: "import type { LintOptions } from '../application/lint.ts';",
-      },
-      {
-        path: 'application/ports/fs.ts',
-        content: "export type { LintOptions } from '../lint.ts';",
-      },
-      {
-        path: 'application/workspace/ports/glob.ts',
-        content: "import type { LintOptions } from '../../lint.ts';",
-      },
-      { path: 'application/lint.ts', content: 'export interface LintOptions {}' },
+      { path: 'core/run.ts', content: 'const b = import(`../adapters/b.ts`);' },
+      { path: 'adapters/b.ts', content: "import c = require('../runtime.ts');" },
+      { path: 'runtime.ts', content: 'export const value = 1;' },
     ]),
   ).toEqual([
-    'adapters/fs.ts: forbidden application dependency ../application/lint.ts',
-    'application/ports/fs.ts: forbidden application dependency ../lint.ts',
-    'application/workspace/ports/glob.ts: forbidden application dependency ../../lint.ts',
+    'core/run.ts: forbidden adapters dependency ../adapters/b.ts',
+    'adapters/b.ts: forbidden composition dependency ../runtime.ts',
   ]);
-});
-
-it('rejects unresolved local imports instead of silently omitting their edges', () => {
-  expect(
-    findViolations([{ path: 'domain/a.ts', content: "export * from './missing.ts';" }]),
-  ).toEqual(['domain/a.ts: unresolved source dependency ./missing.ts']);
-});
-
-it('checks direction through static dynamic imports and CommonJS references', () => {
-  expect(
-    findViolations([
-      { path: 'domain/a.ts', content: 'const b = import(`../adapters/b.ts`);' },
-      { path: 'adapters/b.ts', content: "import c = require('../composition/c.ts');" },
-      { path: 'composition/c.ts', content: 'export const value = 1;' },
-    ]),
-  ).toEqual([
-    'domain/a.ts: forbidden adapters dependency ../adapters/b.ts',
-    'adapters/b.ts: forbidden composition dependency ../composition/c.ts',
-  ]);
-});
-
-it.each([
-  [
-    'application/use.ts',
-    'adapters/fs.ts',
-    "import { value } from '../adapters/fs.ts';",
-    'adapters',
-  ],
-  [
-    'application/use.ts',
-    'composition/root.ts',
-    "import type { Value } from '../composition/root.ts';",
-    'composition',
-  ],
-  ['application/use.ts', 'index.ts', "export { value } from '../index.ts';", 'public'],
-  [
-    'domain/rule.ts',
-    'application/value.ts',
-    "export { value } from '../application/value.ts';",
-    'application',
-  ],
-  ['shared/value.ts', 'domain/value.ts', "const value = import('../domain/value.ts');", 'domain'],
-  [
-    'adapters/fs.ts',
-    'composition/root.ts',
-    "export { value } from '../composition/root.ts';",
-    'composition',
-  ],
-  [
-    'application/use.ts',
-    'unclassified.ts',
-    "import { value } from '../unclassified.ts';",
-    undefined,
-  ],
-] as const)('checks resolved layer boundaries from %s to %s', (source, target, content, layer) => {
-  const errors = findViolations([
-    { path: source, content },
-    { path: target, content: 'export const value = 1; export type Value = number;' },
-  ]);
-  expect(errors).toContain(
-    layer
-      ? source + ': forbidden ' + layer + ' dependency ' + content.match(/['"]([^'"]+)['"]/)?.[1]
-      : source + ': unclassified dependency ../unclassified.ts',
-  );
-  expect(errors.some((error) => error.includes('unresolved source dependency'))).toBe(false);
 });

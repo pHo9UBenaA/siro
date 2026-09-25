@@ -1,6 +1,6 @@
 import * as vb from 'valibot';
-import { ConfigError } from '../../shared/errors.ts';
-import { isPlainRecord } from '../../shared/records.ts';
+import { ConfigError } from './errors.ts';
+import { isPlainRecord } from './records.ts';
 
 // Validate only fields consumed by siro; retain other manifest data unchanged.
 const PackageJsonSchema = vb.looseObject({

@@ -1,8 +1,8 @@
 import { runLint } from '../../src/application/run-lint.ts';
-import type { Rule, RuleBinding, VersionNote } from '../../src/domain/entities/rule.ts';
-import type { CodecFor, ConfigCodec } from '../../src/domain/ports/config-codec.ts';
+import type { Rule, RuleBinding, VersionNote } from '../../src/core/contracts/rule.ts';
+import type { CodecFor, ConfigCodec } from '../../src/core/contracts/config-codec.ts';
 import { applyConfig } from '../../src/domain/services/apply-config.ts';
-import { asRelPath } from '../../src/shared/paths.ts';
+import { asRelPath } from '../../src/core/contracts/paths.ts';
 import { makeCtx } from '../helpers/ctx.ts';
 
 // runLint calls parseConfigFile before invoking each binding's `check`. Tests

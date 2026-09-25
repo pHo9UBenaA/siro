@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
+import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { strictReleaseAge } from '../../../src/domain/rules/strict-release-age.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';

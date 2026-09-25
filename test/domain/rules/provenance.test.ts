@@ -1,6 +1,6 @@
-import type { RuleContext } from '../../../src/domain/ports/repo-context.ts';
+import type { RuleContext } from '../../../src/core/contracts/repo-context.ts';
 import { provenance } from '../../../src/domain/rules/provenance.ts';
-import type { PackageJson } from '../../../src/domain/schemas/package-json.ts';
+import type { PackageJson } from '../../../src/core/contracts/package-json.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
 const ctxWith = (packageJson?: PackageJson): RuleContext => makeCtx({ packageJson });

@@ -1,7 +1,7 @@
 import { isStringList } from './config-predicates.ts';
-import { type RuleBinding, defineRule } from '../entities/rule.ts';
+import { type RuleBinding, defineRule } from '../../core/contracts/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
-import { getByPath } from '../entities/config-value.ts';
+import { getByPath } from '../../core/contracts/config-value.ts';
 import { resolveDenoProjectType } from '../services/project-type.ts';
 import { isPublishable } from './publishable.ts';
 

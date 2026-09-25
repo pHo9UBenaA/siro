@@ -1,6 +1,6 @@
 import { CODEC_KINDS, type CodecKind } from './config-value.ts';
-import { isRelPath, type RelPath } from '../../shared/paths.ts';
-import { isPlainRecord } from '../../shared/records.ts';
+import { isRelPath, type RelPath } from './paths.ts';
+import { isPlainRecord } from './records.ts';
 
 /** A repository-relative configuration location, independent of any rule. */
 export interface ConfigFileRef {

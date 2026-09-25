@@ -1,8 +1,8 @@
-import type { ConfigFileRef } from '../../../src/domain/entities/config-file-ref.ts';
-import type { CodecFor, ConfigCodec } from '../../../src/domain/ports/config-codec.ts';
+import type { ConfigFileRef } from '../../../src/core/contracts/config-file-ref.ts';
+import type { CodecFor, ConfigCodec } from '../../../src/core/contracts/config-codec.ts';
 import { createConfigParser } from '../../../src/domain/services/parse-config-file.ts';
-import { ConfigError } from '../../../src/shared/errors.ts';
-import { asRelPath } from '../../../src/shared/paths.ts';
+import { ConfigError } from '../../../src/core/contracts/errors.ts';
+import { asRelPath } from '../../../src/core/contracts/paths.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
 const makeCodec = (parse: ConfigCodec['parse']): ConfigCodec => ({

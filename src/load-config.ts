@@ -1,12 +1,12 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { type AbsPath } from '../shared/paths.ts';
-import { asAbsPath } from './node-paths.ts';
-import type { SiroConfig } from '../domain/entities/siro-config.ts';
-import { ConfigError } from '../shared/errors.ts';
-import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from './node-version.ts';
-import { nodeFileSystem } from './node-file-system.ts';
-import { parseConfig } from '../domain/services/parse-siro-config.ts';
+import { type AbsPath } from './core/contracts/paths.ts';
+import { asAbsPath } from './adapters/node-paths.ts';
+import type { SiroConfig } from './domain/entities/siro-config.ts';
+import { ConfigError } from './core/contracts/errors.ts';
+import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from './adapters/node-version.ts';
+import { nodeFileSystem } from './adapters/node-file-system.ts';
+import { parseConfig } from './domain/services/parse-siro-config.ts';
 
 const CONFIG_NAMES = ['siro.config.ts', 'siro.config.mjs', 'siro.config.js'] as const;
 const describeError = (error: unknown): string =>

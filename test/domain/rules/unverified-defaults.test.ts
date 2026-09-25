@@ -1,6 +1,6 @@
 import assert from 'node:assert';
-import type { Rule } from '../../../src/domain/entities/rule.ts';
-import type { PM } from '../../../src/domain/entities/pms.ts';
+import type { Rule } from '../../../src/core/contracts/rule.ts';
+import type { PM } from '../../../src/core/contracts/pms.ts';
 import { blockExoticSubdeps } from '../../../src/domain/rules/block-exotic-subdeps.ts';
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';
 import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';

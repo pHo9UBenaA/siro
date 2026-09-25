@@ -1,7 +1,7 @@
 import assert from 'node:assert';
-import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
+import type { RepoContext } from '../../../src/core/contracts/repo-context.ts';
 import { resolvePMs } from '../../../src/domain/services/resolve-pms.ts';
-import { UsageError } from '../../../src/shared/errors.ts';
+import { UsageError } from '../../../src/core/contracts/errors.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
 const ctx = (files: readonly string[] = []): RepoContext => makeCtx({ files });

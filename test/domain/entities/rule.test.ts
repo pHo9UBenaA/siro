@@ -1,4 +1,4 @@
-import { isRuleShape } from '../../../src/domain/entities/rule.ts';
+import { isRuleShape } from '../../../src/core/contracts/rule.ts';
 
 class Container {
   public readonly marker = true;

@@ -1,10 +1,10 @@
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
-import type { Finding, LintResult } from '../domain/entities/lint-result.ts';
-import type { PM, Severity } from '../domain/entities/pms.ts';
-import type { ProjectType } from '../domain/entities/project-type.ts';
-import { type Rule, isCheckStatusShape } from '../domain/entities/rule.ts';
-import type { CodecFor } from '../domain/ports/config-codec.ts';
-import type { RepoContext, RuleContext } from '../domain/ports/repo-context.ts';
+import type { Finding, LintResult } from '../core/contracts/lint-result.ts';
+import type { PM, Severity } from '../core/contracts/pms.ts';
+import type { ProjectType } from '../core/contracts/project-type.ts';
+import { type Rule, isCheckStatusShape } from '../core/contracts/rule.ts';
+import type { CodecFor } from '../core/contracts/config-codec.ts';
+import type { RepoContext, RuleContext } from '../core/contracts/repo-context.ts';
 import { decideSeverity } from '../domain/services/decide-severity.ts';
 import { createConfigParser, type ConfigParser } from '../domain/services/parse-config-file.ts';
 import {
@@ -13,7 +13,7 @@ import {
 } from '../domain/services/project-type.ts';
 import { renderVersionNoteMessage } from '../domain/services/render-version-note.ts';
 import { guardRemediationAvailability } from '../domain/services/remediation-availability.ts';
-import { ConfigError } from '../shared/errors.ts';
+import { ConfigError } from '../core/contracts/errors.ts';
 
 export interface RunLintOptions {
   readonly ctx: RepoContext;

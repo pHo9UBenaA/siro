@@ -1,4 +1,4 @@
-import type { AbsPath, RelPath } from '../../shared/paths.ts';
+import type { AbsPath, RelPath } from './paths.ts';
 
 /** Native roots and repository-relative POSIX patterns have distinct semantics. */
 export interface RepositoryPaths {

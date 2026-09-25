@@ -1,4 +1,4 @@
-import { type Reporter } from '../../domain/ports/reporter.ts';
+import { type Reporter } from '../../core/contracts/reporter.ts';
 import { githubReporter } from './github.ts';
 import { jsonReporter } from './json.ts';
 import { prettyReporter } from './pretty.ts';

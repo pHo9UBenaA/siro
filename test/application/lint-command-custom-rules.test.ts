@@ -1,10 +1,10 @@
 import { asAbsPath, CONFIG_FILES, type FileSystem, type LintOptions } from '../../src/index.ts';
 import { lint, lintCommand } from '../../src/composition/lint.ts';
-import type { LintResult } from '../../src/domain/entities/lint-result.ts';
-import type { CheckStatus, Rule } from '../../src/domain/entities/rule.ts';
+import type { LintResult } from '../../src/core/contracts/lint-result.ts';
+import type { CheckStatus, Rule } from '../../src/core/contracts/rule.ts';
 import type { SiroConfig } from '../../src/domain/entities/siro-config.ts';
-import { ConfigError, UsageError } from '../../src/shared/errors.ts';
-import { asRelPath } from '../../src/shared/paths.ts';
+import { ConfigError, UsageError } from '../../src/core/contracts/errors.ts';
+import { asRelPath } from '../../src/core/contracts/paths.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
 import { captureIO } from '../helpers/io.ts';
 

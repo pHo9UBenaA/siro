@@ -1,5 +1,5 @@
-import type { WorkspaceGlobs } from './ports/workspace-glob.ts';
-import { ConfigError } from '../shared/errors.ts';
+import type { WorkspaceGlobs } from '../core/contracts/workspace-glob.ts';
+import { ConfigError } from '../core/contracts/errors.ts';
 import { hasBasicWorkspaceWildcard } from './workspace-pattern.ts';
 
 const containsUnsupportedAubeGlobSyntax = (pattern: string): boolean => /[[\]{}()]/u.test(pattern);

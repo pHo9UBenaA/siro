@@ -1,5 +1,5 @@
-import type { Rule } from '../../entities/rule.ts';
-import { getByPath } from '../../entities/config-value.ts';
+import type { Rule } from '../../../core/contracts/rule.ts';
+import { getByPath } from '../../../core/contracts/config-value.ts';
 import { overrideBindings } from './require-config-key.ts';
 
 export const withAubeParanoid = <Id extends string>(rule: Rule<Id>): Rule<Id> => {

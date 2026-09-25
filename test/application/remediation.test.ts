@@ -1,7 +1,7 @@
 import { codecFor } from '../../src/adapters/codecs/store.ts';
 import { runLint } from '../../src/application/run-lint.ts';
-import type { Rule } from '../../src/domain/entities/rule.ts';
-import { asRelPath } from '../../src/shared/paths.ts';
+import type { Rule } from '../../src/core/contracts/rule.ts';
+import { asRelPath } from '../../src/core/contracts/paths.ts';
 import { makeCtx } from '../helpers/ctx.ts';
 
 it('carries the remediation chosen by the check without a second callback', () => {
@@ -9,7 +9,7 @@ it('carries the remediation chosen by the check without a second callback', () =
     kind: 'manual',
     steps: ['Remove the bypass before enabling approval.'],
   } as const;
-  const check = vi.fn<() => import('../../src/domain/entities/rule.ts').CheckStatus>(() => ({
+  const check = vi.fn<() => import('../../src/core/contracts/rule.ts').CheckStatus>(() => ({
     state: 'violation',
     message: 'Approval is bypassed',
     remediation,

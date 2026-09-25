@@ -1,5 +1,5 @@
-import type { RepoContext } from '../../../src/domain/ports/repo-context.ts';
-import type { PackageJson } from '../../../src/domain/schemas/package-json.ts';
+import type { RepoContext } from '../../../src/core/contracts/repo-context.ts';
+import type { PackageJson } from '../../../src/core/contracts/package-json.ts';
 import { detectPMs } from '../../../src/domain/services/detect-pms.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 

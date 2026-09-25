@@ -1,8 +1,8 @@
-import type { CodecFor } from '../ports/config-codec.ts';
-import type { ConfigFileRef } from '../entities/config-file-ref.ts';
-import type { ParsedConfig } from '../entities/config-value.ts';
-import type { RepoContext } from '../ports/repo-context.ts';
-import { wrapCodecError } from '../../shared/errors.ts';
+import type { CodecFor } from '../../core/contracts/config-codec.ts';
+import type { ConfigFileRef } from '../../core/contracts/config-file-ref.ts';
+import type { ParsedConfig } from '../../core/contracts/config-value.ts';
+import type { RepoContext } from '../../core/contracts/repo-context.ts';
+import { wrapCodecError } from '../../core/contracts/errors.ts';
 
 /** A command-scoped parser that memoizes each `(kind, path)` read. */
 export type ConfigParser = (file?: ConfigFileRef) => ParsedConfig;

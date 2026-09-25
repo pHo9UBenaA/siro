@@ -1,4 +1,4 @@
-import type { DateTime } from '../ports/date-time.ts';
+import type { DateTime } from '../../core/contracts/date-time.ts';
 
 // Deno accepts weeks alone, integral days/hours/minutes, and fractional seconds.
 // See denoland/deno v2.9.4, libs/config/util.rs. Months and years are unsupported.

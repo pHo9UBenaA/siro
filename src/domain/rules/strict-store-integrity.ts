@@ -1,7 +1,7 @@
 import { proposeChanges } from './remediation.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
-import { defineRule } from '../entities/rule.ts';
-import { getByPath } from '../entities/config-value.ts';
+import { defineRule } from '../../core/contracts/rule.ts';
+import { getByPath } from '../../core/contracts/config-value.ts';
 
 const { aubeWorkspace } = CONFIG_FILES;
 

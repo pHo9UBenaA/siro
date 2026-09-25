@@ -1,11 +1,11 @@
 import { CONFIG_FILES } from '../entities/config-files.ts';
-import { getByPath } from '../entities/config-value.ts';
-import { type RuleBinding, type VersionNote, defineRule } from '../entities/rule.ts';
+import { getByPath } from '../../core/contracts/config-value.ts';
+import { type RuleBinding, type VersionNote, defineRule } from '../../core/contracts/rule.ts';
 import { type PMSignals, PM_SIGNALS } from '../entities/signals.ts';
-import type { PM } from '../entities/pms.ts';
-import type { RepoContext } from '../ports/repo-context.ts';
-import { asRelPath, isRelPath } from '../../shared/paths.ts';
-import { isPlainRecord } from '../../shared/records.ts';
+import type { PM } from '../../core/contracts/pms.ts';
+import type { RepoContext } from '../../core/contracts/repo-context.ts';
+import { asRelPath, isRelPath } from '../../core/contracts/paths.ts';
+import { isPlainRecord } from '../../core/contracts/records.ts';
 
 const LOCKFILE_DOCS: Partial<Record<PM, string>> = {
   aube: 'https://github.com/aubepkg/aube/blob/main/docs/package-manager/lockfiles.md',

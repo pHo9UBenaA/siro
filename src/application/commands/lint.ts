@@ -1,9 +1,9 @@
-import { type Severity, isSeverity } from '../../domain/entities/pms.ts';
-import { type Reporter, isReporterShape } from '../../domain/ports/reporter.ts';
+import { type Severity, isSeverity } from '../../core/contracts/pms.ts';
+import { type Reporter, isReporterShape } from '../../core/contracts/reporter.ts';
 import { exitCodeForLint, filterBySeverity } from './filter.ts';
-import type { IO } from '../../domain/ports/io.ts';
-import { UsageError } from '../../shared/errors.ts';
-import type { LintDependencies } from '../ports/lint-dependencies.ts';
+import type { IO } from '../../core/contracts/io.ts';
+import { UsageError } from '../../core/contracts/errors.ts';
+import type { LintDependencies } from '../../core/contracts/lint-dependencies.ts';
 import { prepareLint, runPreparedLint, type LintOptions } from '../lint.ts';
 
 export interface LintCommandOptions extends LintOptions {

@@ -1,10 +1,10 @@
-import { type AbsPath, type RelPath, asRelPath } from '../shared/paths.ts';
-import { type PackageJson, parsePackageJson } from '../domain/schemas/package-json.ts';
+import { type AbsPath, type RelPath, asRelPath } from '../core/contracts/paths.ts';
+import { type PackageJson, parsePackageJson } from '../core/contracts/package-json.ts';
 import { nodeFileSystem, resolveIn, assertDirectory } from './node-file-system.ts';
-import { ConfigError } from '../shared/errors.ts';
-import type { FileSystem } from '../domain/ports/file-system.ts';
-import type { RepoContext } from '../domain/ports/repo-context.ts';
-import type { ProjectType } from '../domain/entities/project-type.ts';
+import { ConfigError } from '../core/contracts/errors.ts';
+import type { FileSystem } from '../core/contracts/file-system.ts';
+import type { RepoContext } from '../core/contracts/repo-context.ts';
+import type { ProjectType } from '../core/contracts/project-type.ts';
 
 const tryParseJson = (text: string): unknown => {
   try {

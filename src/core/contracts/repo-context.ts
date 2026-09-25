@@ -1,8 +1,8 @@
-import type { ConfigFileRef } from '../entities/config-file-ref.ts';
-import type { ParsedConfig } from '../entities/config-value.ts';
-import type { AbsPath, RelPath } from '../../shared/paths.ts';
-import type { PackageJson } from '../schemas/package-json.ts';
-import type { ProjectType } from '../entities/project-type.ts';
+import type { ConfigFileRef } from './config-file-ref.ts';
+import type { ParsedConfig } from './config-value.ts';
+import type { AbsPath, RelPath } from './paths.ts';
+import type { PackageJson } from './package-json.ts';
+import type { ProjectType } from './project-type.ts';
 
 /** Read-only view of a repository, passed to every rule's `check`. */
 export interface RepoContext {

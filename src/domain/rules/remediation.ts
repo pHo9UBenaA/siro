@@ -1,6 +1,6 @@
-import type { ParsedConfig } from '../entities/config-value.ts';
-import type { Remediation, SetKeyOperation } from '../entities/rule.ts';
-import { isPlainRecord } from '../../shared/records.ts';
+import type { ParsedConfig } from '../../core/contracts/config-value.ts';
+import type { Remediation, SetKeyOperation } from '../../core/contracts/rule.ts';
+import { isPlainRecord } from '../../core/contracts/records.ts';
 
 /** Scalar writes must not discard an existing container or replace a non-object parent. */
 export const proposeChanges = (

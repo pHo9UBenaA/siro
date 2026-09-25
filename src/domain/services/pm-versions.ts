@@ -1,5 +1,5 @@
 import { parse } from 'semver';
-import { isPM, type PM } from '../entities/pms.ts';
+import { isPM, type PM } from '../../core/contracts/pms.ts';
 
 /** Release history establishes stable versions, not ranges or prerelease builds. */
 export const isStableVersion = (value: unknown): value is string => {

@@ -1,10 +1,10 @@
-import type { DateTime } from '../ports/date-time.ts';
+import type { DateTime } from '../../core/contracts/date-time.ts';
 import { guardRemediationAvailability } from '../services/remediation-availability.ts';
 import { isActiveDenoReleaseAge } from '../services/deno-release-age.ts';
-import { getByPath } from '../entities/config-value.ts';
+import { getByPath } from '../../core/contracts/config-value.ts';
 import { proposeChanges } from './remediation.ts';
-import type { RuleBinding } from '../entities/rule.ts';
-import { isPlainRecord } from '../../shared/records.ts';
+import type { RuleBinding } from '../../core/contracts/rule.ts';
+import { isPlainRecord } from '../../core/contracts/records.ts';
 import { isStringList } from './config-predicates.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';

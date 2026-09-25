@@ -1,6 +1,6 @@
 import { renderComparison, renderRulesDoc } from '../../scripts/docs.ts';
-import type { Rule } from '../../src/domain/entities/rule.ts';
-import { asRelPath } from '../../src/shared/paths.ts';
+import type { Rule } from '../../src/core/contracts/rule.ts';
+import { asRelPath } from '../../src/core/contracts/paths.ts';
 
 const rule: Rule = {
   id: 'fixture-policy',

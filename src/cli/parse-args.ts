@@ -1,11 +1,11 @@
 import { parseArgs } from 'node:util';
 import path from 'node:path';
-import { type AbsPath } from '../shared/paths.ts';
+import { type AbsPath } from '../core/contracts/paths.ts';
 import { asAbsPath } from '../adapters/node-paths.ts';
-import { UsageError } from '../shared/errors.ts';
+import { UsageError } from '../core/contracts/errors.ts';
 import { type CommandName, isCommandName } from './commands.ts';
-import type { PM, Severity } from '../domain/entities/pms.ts';
-import type { ProjectType } from '../domain/entities/project-type.ts';
+import type { PM, Severity } from '../core/contracts/pms.ts';
+import type { ProjectType } from '../core/contracts/project-type.ts';
 import { DEFAULT_REPORTER_NAME, JSON_REPORTER_NAME } from '../adapters/reporters/registry.ts';
 import { parsePmFlag, parseProjectTypeFlag, parseSeverityFlag } from './parsers.ts';
 

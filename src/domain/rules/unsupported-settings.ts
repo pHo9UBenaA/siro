@@ -1,7 +1,7 @@
 import { lt } from 'semver';
-import type { PM } from '../entities/pms.ts';
-import { getByPath } from '../entities/config-value.ts';
-import { defineRule, type RuleBinding, type ViolationStatus } from '../entities/rule.ts';
+import type { PM } from '../../core/contracts/pms.ts';
+import { getByPath } from '../../core/contracts/config-value.ts';
+import { defineRule, type RuleBinding, type ViolationStatus } from '../../core/contracts/rule.ts';
 import { settingAvailability } from '../setting-availability.ts';
 
 const bindingFor = (pm: PM): RuleBinding => {

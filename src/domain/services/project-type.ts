@@ -1,6 +1,6 @@
-import type { ProjectType } from '../entities/project-type.ts';
-import { type ParsedConfig, getByPath } from '../entities/config-value.ts';
-import type { RepoContext } from '../ports/repo-context.ts';
+import type { ProjectType } from '../../core/contracts/project-type.ts';
+import { type ParsedConfig, getByPath } from '../../core/contracts/config-value.ts';
+import type { RepoContext } from '../../core/contracts/repo-context.ts';
 
 const isPublishableName = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;

@@ -1,6 +1,6 @@
 import type { IO } from './io.ts';
-import type { LintResult } from '../entities/lint-result.ts';
-import { isPlainRecord } from '../../shared/records.ts';
+import type { LintResult } from './lint-result.ts';
+import { isPlainRecord } from './records.ts';
 
 export interface Reporter<Name extends string = string> {
   readonly name: Name;

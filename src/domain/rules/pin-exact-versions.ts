@@ -1,8 +1,8 @@
 import { proposeChanges } from './remediation.ts';
 import valid from 'semver/functions/valid.js';
-import { isPlainRecord } from '../../shared/records.ts';
-import type { RuleBinding, CheckStatus } from '../entities/rule.ts';
-import { type ParsedConfig, getByPath } from '../entities/config-value.ts';
+import { isPlainRecord } from '../../core/contracts/records.ts';
+import type { RuleBinding, CheckStatus } from '../../core/contracts/rule.ts';
+import { type ParsedConfig, getByPath } from '../../core/contracts/config-value.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 

@@ -1,7 +1,7 @@
 import { CONFIG_FILES } from '../../src/domain/entities/config-files.ts';
-import { getByPath } from '../../src/domain/entities/config-value.ts';
-import type { Rule } from '../../src/domain/entities/rule.ts';
-import type { RuleContext } from '../../src/domain/ports/repo-context.ts';
+import { getByPath } from '../../src/core/contracts/config-value.ts';
+import type { Rule } from '../../src/core/contracts/rule.ts';
+import type { RuleContext } from '../../src/core/contracts/repo-context.ts';
 import { runLint } from '../../src/application/run-lint.ts';
 import { codecFor } from '../../src/adapters/codecs/store.ts';
 import { disableLifecycleScripts } from '../../src/domain/rules/disable-lifecycle-scripts.ts';

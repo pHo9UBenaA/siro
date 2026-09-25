@@ -1,4 +1,4 @@
-import type { WorkspaceGlobOptions } from './ports/workspace-glob.ts';
+import type { WorkspaceGlobOptions } from '../core/contracts/workspace-glob.ts';
 
 export const workspaceGlobOptions = (
   caseInsensitive: boolean,

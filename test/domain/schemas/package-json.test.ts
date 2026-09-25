@@ -1,5 +1,5 @@
-import { parsePackageJson } from '../../../src/domain/schemas/package-json.ts';
-import { ConfigError } from '../../../src/shared/errors.ts';
+import { parsePackageJson } from '../../../src/core/contracts/package-json.ts';
+import { ConfigError } from '../../../src/core/contracts/errors.ts';
 
 it.each(['public', 'restricted', 'private'])(
   'preserves %s access and other manifest fields without defaults',

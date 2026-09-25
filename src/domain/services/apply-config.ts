@@ -1,6 +1,6 @@
-import { ConfigError } from '../../shared/errors.ts';
-import type { Rule } from '../entities/rule.ts';
-import type { Severity } from '../entities/pms.ts';
+import { ConfigError } from '../../core/contracts/errors.ts';
+import type { Rule } from '../../core/contracts/rule.ts';
+import type { Severity } from '../../core/contracts/pms.ts';
 import type { SiroConfig } from '../entities/siro-config.ts';
 
 export interface AppliedConfig {

@@ -1,4 +1,4 @@
-import { type RuleBinding, defineRule } from '../entities/rule.ts';
+import { type RuleBinding, defineRule } from '../../core/contracts/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
 import { isPublishable } from './publishable.ts';
 

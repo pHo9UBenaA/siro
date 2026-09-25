@@ -1,12 +1,12 @@
-import type { LintDependencies } from './ports/lint-dependencies.ts';
-import type { WorkspaceGlob, WorkspaceGlobs } from './ports/workspace-glob.ts';
+import type { LintDependencies } from '../core/contracts/lint-dependencies.ts';
+import type { WorkspaceGlob, WorkspaceGlobs } from '../core/contracts/workspace-glob.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
-import type { PM } from '../domain/entities/pms.ts';
-import type { RepoContext } from '../domain/ports/repo-context.ts';
+import type { PM } from '../core/contracts/pms.ts';
+import type { RepoContext } from '../core/contracts/repo-context.ts';
 import type { ConfigParser } from '../domain/services/parse-config-file.ts';
-import { ConfigError } from '../shared/errors.ts';
-import { isRelPath } from '../shared/paths.ts';
-import { isPlainRecord } from '../shared/records.ts';
+import { ConfigError } from '../core/contracts/errors.ts';
+import { isRelPath } from '../core/contracts/paths.ts';
+import { isPlainRecord } from '../core/contracts/records.ts';
 
 /** npm cancels an earlier exclusion when a later positive pattern matches it. */
 const splitNpmPattern = (raw: string) => {

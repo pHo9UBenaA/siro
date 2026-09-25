@@ -1,6 +1,6 @@
-import { type PM, PMS } from '../entities/pms.ts';
-import type { RepoContext } from '../ports/repo-context.ts';
-import { UsageError } from '../../shared/errors.ts';
+import { type PM, PMS } from '../../core/contracts/pms.ts';
+import type { RepoContext } from '../../core/contracts/repo-context.ts';
+import { UsageError } from '../../core/contracts/errors.ts';
 import { detectPMs } from './detect-pms.ts';
 
 export interface ResolvePMsOptions {

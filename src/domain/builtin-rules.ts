@@ -1,5 +1,5 @@
-import type { DateTime } from './ports/date-time.ts';
-import type { Rule } from './entities/rule.ts';
+import type { DateTime } from '../core/contracts/date-time.ts';
+import type { Rule } from '../core/contracts/rule.ts';
 import { advisoryCheck } from './rules/advisory-check.ts';
 import { approvedGitRepos } from './rules/approved-git-repos.ts';
 import { auditSuppression } from './rules/audit-suppression.ts';

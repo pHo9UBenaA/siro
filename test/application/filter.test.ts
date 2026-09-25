@@ -1,4 +1,4 @@
-import type { LintResult } from '../../src/domain/entities/lint-result.ts';
+import type { LintResult } from '../../src/core/contracts/lint-result.ts';
 import { exitCodeForLint, filterBySeverity } from '../../src/application/commands/filter.ts';
 
 const result: LintResult = {

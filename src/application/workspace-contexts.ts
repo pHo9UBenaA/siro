@@ -1,12 +1,12 @@
-import type { LintDependencies } from './ports/lint-dependencies.ts';
+import type { LintDependencies } from '../core/contracts/lint-dependencies.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
 import { createConfigParser, type ConfigParser } from '../domain/services/parse-config-file.ts';
-import { asRelPath } from '../shared/paths.ts';
-import { ConfigError } from '../shared/errors.ts';
-import type { RepoContext } from '../domain/ports/repo-context.ts';
-import type { FileSystem } from '../domain/ports/file-system.ts';
-import type { PM } from '../domain/entities/pms.ts';
-import type { ProjectType } from '../domain/entities/project-type.ts';
+import { asRelPath } from '../core/contracts/paths.ts';
+import { ConfigError } from '../core/contracts/errors.ts';
+import type { RepoContext } from '../core/contracts/repo-context.ts';
+import type { FileSystem } from '../core/contracts/file-system.ts';
+import type { PM } from '../core/contracts/pms.ts';
+import type { ProjectType } from '../core/contracts/project-type.ts';
 import { workspaceDefinitions } from './workspace-definitions.ts';
 import { workspaceDirectories } from './workspaces.ts';
 

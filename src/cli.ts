@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { assertDirectory } from './adapters/node-file-system.ts';
-import { loadConfig } from './adapters/config-loader.ts';
-import { SiroError } from './shared/errors.ts';
+import { loadConfig } from './load-config.ts';
+import { SiroError } from './core/contracts/errors.ts';
 import { ensureNodeVersion } from './cli/parsers.ts';
-import type { IO } from './domain/ports/io.ts';
+import type { IO } from './core/contracts/io.ts';
 import { isNodeError } from './adapters/node-errors.ts';
 import { lintCommand } from './composition/lint.ts';
 import { nodeIO } from './adapters/node-io.ts';

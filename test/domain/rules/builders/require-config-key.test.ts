@@ -1,9 +1,9 @@
 import assert from 'node:assert';
-import type { ConfigFileRef } from '../../../../src/domain/entities/config-file-ref.ts';
+import type { ConfigFileRef } from '../../../../src/core/contracts/config-file-ref.ts';
 import { CONFIG_FILES } from '../../../../src/domain/entities/config-files.ts';
-import type { Rule, VersionNote } from '../../../../src/domain/entities/rule.ts';
+import type { Rule, VersionNote } from '../../../../src/core/contracts/rule.ts';
 import { requireConfigKey } from '../../../../src/domain/rules/builders/require-config-key.ts';
-import { asRelPath } from '../../../../src/shared/paths.ts';
+import { asRelPath } from '../../../../src/core/contracts/paths.ts';
 import { makeCtx } from '../../../helpers/ctx.ts';
 
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };

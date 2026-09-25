@@ -1,8 +1,8 @@
 import { manualSteps } from '../../helpers/remediation.ts';
 
 import assert from 'node:assert';
-import type { PM } from '../../../src/domain/entities/pms.ts';
-import type { RuleContext } from '../../../src/domain/ports/repo-context.ts';
+import type { PM } from '../../../src/core/contracts/pms.ts';
+import type { RuleContext } from '../../../src/core/contracts/repo-context.ts';
 import { commitLockfile } from '../../../src/domain/rules/commit-lockfile.ts';
 import { makeCtx, makePublishableCtx } from '../../helpers/ctx.ts';
 

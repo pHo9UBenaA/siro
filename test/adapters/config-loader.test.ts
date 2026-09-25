@@ -1,9 +1,9 @@
 import assert from 'node:assert';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { loadConfig } from '../../src/adapters/config-loader.ts';
+import { loadConfig } from '../../src/load-config.ts';
 import { asAbsPath } from '../../src/adapters/node-paths.ts';
-import { ConfigError } from '../../src/shared/errors.ts';
-import { type AbsPath } from '../../src/shared/paths.ts';
+import { ConfigError } from '../../src/core/contracts/errors.ts';
+import { type AbsPath } from '../../src/core/contracts/paths.ts';
 
 import { tmpdir } from 'node:os';
 import path from 'node:path';

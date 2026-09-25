@@ -1,6 +1,10 @@
-import { type RuleBinding, type CheckStatus, defineRule } from '../entities/rule.ts';
+import { type RuleBinding, type CheckStatus, defineRule } from '../../core/contracts/rule.ts';
 import { CONFIG_FILES } from '../entities/config-files.ts';
-import { type ConfigReadValue, type ParsedConfig, getByPath } from '../entities/config-value.ts';
+import {
+  type ConfigReadValue,
+  type ParsedConfig,
+  getByPath,
+} from '../../core/contracts/config-value.ts';
 
 const { yarnrc } = CONFIG_FILES;
 

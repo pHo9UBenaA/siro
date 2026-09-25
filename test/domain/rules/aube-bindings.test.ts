@@ -1,7 +1,7 @@
 import assert from 'node:assert';
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
 import { runLint } from '../../../src/application/run-lint.ts';
-import type { ParsedConfig } from '../../../src/domain/entities/config-value.ts';
+import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { advisoryCheck } from '../../../src/domain/rules/advisory-check.ts';
 import { disableLifecycleScripts } from '../../../src/domain/rules/disable-lifecycle-scripts.ts';
 import { frozenLockfile } from '../../../src/domain/rules/frozen-lockfile.ts';

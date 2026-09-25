@@ -1,15 +1,15 @@
 import { guardRemediationAvailability } from '../../services/remediation-availability.ts';
 import { proposeChanges } from '../remediation.ts';
-import type { RuleBinding, CheckStatus, Rule, VersionNote } from '../../entities/rule.ts';
-import type { ConfigFileRef } from '../../entities/config-file-ref.ts';
+import type { RuleBinding, CheckStatus, Rule, VersionNote } from '../../../core/contracts/rule.ts';
+import type { ConfigFileRef } from '../../../core/contracts/config-file-ref.ts';
 import {
   type ConfigValue,
   type KeyPath,
   type ParsedConfig,
   getByPath,
-} from '../../entities/config-value.ts';
-import { type PM, PMS, type Severity } from '../../entities/pms.ts';
-import type { RepoContext } from '../../ports/repo-context.ts';
+} from '../../../core/contracts/config-value.ts';
+import { type PM, PMS, type Severity } from '../../../core/contracts/pms.ts';
+import type { RepoContext } from '../../../core/contracts/repo-context.ts';
 
 interface RequireConfigKeySpec {
   readonly file: ConfigFileRef;

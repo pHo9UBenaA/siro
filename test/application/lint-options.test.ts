@@ -1,5 +1,5 @@
 import { lintCommand } from '../../src/composition/lint.ts';
-import { ConfigError, UsageError } from '../../src/shared/errors.ts';
+import { ConfigError, UsageError } from '../../src/core/contracts/errors.ts';
 import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
 import { captureIO } from '../helpers/io.ts';

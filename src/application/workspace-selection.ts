@@ -1,14 +1,14 @@
-import type { LintDependencies } from './ports/lint-dependencies.ts';
-import type { WorkspaceGlob } from './ports/workspace-glob.ts';
+import type { LintDependencies } from '../core/contracts/lint-dependencies.ts';
+import type { WorkspaceGlob } from '../core/contracts/workspace-glob.ts';
 import type { WorkspaceDefinition } from './workspace-definitions.ts';
 import { anchorWorkspacePrefix } from './workspace-prefix.ts';
 import { workspaceGlobOptions } from './workspace-glob-policy.ts';
 import { compileAdditionalWorkspaceGlob } from './workspace-dialects.ts';
 import { hasBasicWorkspaceWildcard, stripTrailingWorkspaceSlashes } from './workspace-pattern.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
-import type { PM } from '../domain/entities/pms.ts';
+import type { PM } from '../core/contracts/pms.ts';
 import type { ConfigParser } from '../domain/services/parse-config-file.ts';
-import { ConfigError } from '../shared/errors.ts';
+import { ConfigError } from '../core/contracts/errors.ts';
 
 interface WorkspaceSelection {
   /** Prune this directory and its descendants without reading its manifest. */

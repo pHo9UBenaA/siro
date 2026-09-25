@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { CheckStatus } from '../../src/domain/entities/rule.ts';
+import type { CheckStatus } from '../../src/core/contracts/rule.ts';
 
 export const automaticOperations = (status: CheckStatus) => {
   assert(

@@ -1,6 +1,6 @@
-import type { WorkspaceGlobs, WorkspaceGlobOptions } from '../application/ports/workspace-glob.ts';
+import type { WorkspaceGlobs, WorkspaceGlobOptions } from '../core/contracts/workspace-glob.ts';
 import { braceExpand, GLOBSTAR, Minimatch, type MinimatchOptions } from 'minimatch';
-import { ConfigError } from '../shared/errors.ts';
+import { ConfigError } from '../core/contracts/errors.ts';
 
 const MAX_WORKSPACE_GLOB_ALTERNATIVES = 8_192;
 const BRACE_EXPANSION_PROBE_LIMIT = MAX_WORKSPACE_GLOB_ALTERNATIVES + 1;

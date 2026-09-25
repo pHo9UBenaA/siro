@@ -1,10 +1,10 @@
 import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { runLint } from '../../src/application/run-lint.ts';
-import type { ParsedConfig } from '../../src/domain/entities/config-value.ts';
-import type { CheckStatus, Rule } from '../../src/domain/entities/rule.ts';
-import type { CodecFor, ConfigCodec } from '../../src/domain/ports/config-codec.ts';
-import type { RepoContext } from '../../src/domain/ports/repo-context.ts';
-import { asRelPath } from '../../src/shared/paths.ts';
+import type { ParsedConfig } from '../../src/core/contracts/config-value.ts';
+import type { CheckStatus, Rule } from '../../src/core/contracts/rule.ts';
+import type { CodecFor, ConfigCodec } from '../../src/core/contracts/config-codec.ts';
+import type { RepoContext } from '../../src/core/contracts/repo-context.ts';
+import { asRelPath } from '../../src/core/contracts/paths.ts';
 
 const noopCtx: RepoContext = {
   exists: () => false,

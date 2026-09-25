@@ -1,4 +1,4 @@
-import { ConfigError, wrapCodecError } from '../../src/shared/errors.ts';
+import { ConfigError, wrapCodecError } from '../../src/core/contracts/errors.ts';
 
 /** Throws a non-Error value to exercise code paths handling bare throws. */
 const throwValue = (value: unknown): never => {

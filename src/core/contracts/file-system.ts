@@ -1,4 +1,4 @@
-import type { AbsPath } from '../../shared/paths.ts';
+import type { AbsPath } from './paths.ts';
 
 /** IO boundary: swap in memfs (or any other backend) for tests. */
 export interface FileSystem {

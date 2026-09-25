@@ -1,12 +1,12 @@
-import type { LintDependencies } from './ports/lint-dependencies.ts';
+import type { LintDependencies } from '../core/contracts/lint-dependencies.ts';
 import type { WorkspaceDefinition } from './workspace-definitions.ts';
 import { createWorkspaceSelection } from './workspace-selection.ts';
-import type { PM } from '../domain/entities/pms.ts';
-import type { FileSystem } from '../domain/ports/file-system.ts';
-import type { RepoContext } from '../domain/ports/repo-context.ts';
+import type { PM } from '../core/contracts/pms.ts';
+import type { FileSystem } from '../core/contracts/file-system.ts';
+import type { RepoContext } from '../core/contracts/repo-context.ts';
 import type { ConfigParser } from '../domain/services/parse-config-file.ts';
-import { ConfigError, UsageError } from '../shared/errors.ts';
-import { asRelPath, isRelPath, type RelPath } from '../shared/paths.ts';
+import { ConfigError, UsageError } from '../core/contracts/errors.ts';
+import { asRelPath, isRelPath, type RelPath } from '../core/contracts/paths.ts';
 
 interface WorkspaceMatch {
   readonly directory: RelPath;

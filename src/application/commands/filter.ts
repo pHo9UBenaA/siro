@@ -1,5 +1,5 @@
-import type { Finding, LintResult } from '../../domain/entities/lint-result.ts';
-import { SEVERITY_RANK, type Severity } from '../../domain/entities/pms.ts';
+import type { Finding, LintResult } from '../../core/contracts/lint-result.ts';
+import { SEVERITY_RANK, type Severity } from '../../core/contracts/pms.ts';
 
 const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;

@@ -1,7 +1,7 @@
 import assert from 'node:assert';
-import type { RuleContext } from '../../../src/domain/ports/repo-context.ts';
+import type { RuleContext } from '../../../src/core/contracts/repo-context.ts';
 import { filesField } from '../../../src/domain/rules/files-field.ts';
-import type { PackageJson } from '../../../src/domain/schemas/package-json.ts';
+import type { PackageJson } from '../../../src/core/contracts/package-json.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { manualSteps } from '../../helpers/remediation.ts';
 

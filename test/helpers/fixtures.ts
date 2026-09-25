@@ -1,4 +1,4 @@
-import type { FileSystem } from '../../src/domain/ports/file-system.ts';
+import type { FileSystem } from '../../src/core/contracts/file-system.ts';
 import { createMemFileSystem } from './memfs.ts';
 
 export const npmGoodFs = (): FileSystem =>

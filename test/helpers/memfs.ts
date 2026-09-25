@@ -1,7 +1,7 @@
 import { Volume, createFsFromVolume } from 'memfs';
-import type { FileSystem } from '../../src/domain/ports/file-system.ts';
+import type { FileSystem } from '../../src/core/contracts/file-system.ts';
 import { isNodeError } from '../../src/adapters/node-errors.ts';
-import { ConfigError } from '../../src/shared/errors.ts';
+import { ConfigError } from '../../src/core/contracts/errors.ts';
 
 export const createMemFileSystem = (
   initial: Readonly<Record<string, string>>,

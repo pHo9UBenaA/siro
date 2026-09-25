@@ -6,10 +6,10 @@ import {
   type ParsedConfig,
 } from './config-value.ts';
 import { PMS, type PM, type Severity, isPM, isSeverity } from './pms.ts';
-import { type RelPath, isRelPath } from '../../shared/paths.ts';
-import type { RuleContext } from '../ports/repo-context.ts';
+import { type RelPath, isRelPath } from './paths.ts';
+import type { RuleContext } from './repo-context.ts';
 import { type ProjectType, isProjectType } from './project-type.ts';
-import { isPlainRecord } from '../../shared/records.ts';
+import { isPlainRecord } from './records.ts';
 
 export interface SetKeyOperation {
   readonly op: 'setKey';

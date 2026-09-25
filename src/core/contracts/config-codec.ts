@@ -1,4 +1,4 @@
-import type { CodecKind, ParsedConfig } from '../entities/config-value.ts';
+import type { CodecKind, ParsedConfig } from './config-value.ts';
 
 /** Reads a single config-file format into siro's structural view. */
 export interface ConfigCodec {

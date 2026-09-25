@@ -1,7 +1,7 @@
-import { type PM, PMS, parsePackageManagerField } from '../entities/pms.ts';
+import { type PM, PMS, parsePackageManagerField } from '../../core/contracts/pms.ts';
 import { PM_SIGNALS } from '../entities/signals.ts';
-import type { RepoContext } from '../ports/repo-context.ts';
-import { asRelPath } from '../../shared/paths.ts';
+import type { RepoContext } from '../../core/contracts/repo-context.ts';
+import { asRelPath } from '../../core/contracts/paths.ts';
 
 // Reused lockfiles do not identify their consuming manager. Owned signals must be unique.
 const registerSignals = (signals: readonly string[], pm: PM, owner: Map<string, PM>): void => {

@@ -1,7 +1,7 @@
 import assert from 'node:assert';
 import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { createRepoContext } from '../../src/adapters/repo-context.ts';
-import { asRelPath } from '../../src/shared/paths.ts';
+import { asRelPath } from '../../src/core/contracts/paths.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
 describe('createRepoContext — packageJson parsing', () => {

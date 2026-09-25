@@ -1,4 +1,4 @@
-import { isPlainRecord } from '../../shared/records.ts';
+import { isPlainRecord } from './records.ts';
 
 export const CODEC_KINDS = ['json', 'npmrc', 'toml', 'yaml'] as const;
 export type CodecKind = (typeof CODEC_KINDS)[number];
