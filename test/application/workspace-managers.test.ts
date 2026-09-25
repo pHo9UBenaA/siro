@@ -286,6 +286,34 @@ it('resolves every component of a literal Deno member', () => {
   ).toBe(true);
 });
 
+const aliasedMissingManifestCases: readonly {
+  source: string;
+  files: Record<string, string>;
+  error: string;
+}[] = [
+  {
+    source: 'deno.json',
+    files: { 'deno.json': '{"workspace":["PACKAGES/A"]}', 'packages/a/README.md': 'present' },
+    error: 'Declared Deno member has no deno.json or package.json.',
+  },
+  {
+    source: 'package.json',
+    files: {
+      'package.json': '{"workspaces":["PACKAGES/A"]}',
+      'packages/a/README.md': 'present',
+    },
+    error: 'Declared npm workspace member has no package.json.',
+  },
+];
+it.each(aliasedMissingManifestCases)(
+  'reports a missing manifest in an aliased $source literal member',
+  ({ files, error }) => {
+    expect(() => evaluate('deno', files, (_parent, name) => name.toLowerCase())).toThrow(
+      `packages/a/${error}`,
+    );
+  },
+);
+
 it.each(['packages/*', 'packages/*/z'])(
   'rejects overlapping Deno base %s with conflicting exclusion applicability',
   (pattern) => {

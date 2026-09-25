@@ -9,6 +9,7 @@ import {
   type FileSystem,
   type LintOptions,
   type PM,
+  CONFIG_FILES,
 } from '../../src/index.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
@@ -126,6 +127,103 @@ it('checks a member against the manifest source used to build its context', () =
         finding.file === 'packages/member/package.json',
     ),
   ).toBe(false);
+});
+
+it('uses one Deno config value for workspace selection and root rules within each lint call', () => {
+  const source = createMemFileSystem({
+    'deno.json': '{"workspace":["vendor/*"],"vendor":true}',
+    'vendor/a/deno.json': '{"name":"@example/a","exports":"./mod.ts"}',
+  });
+  let rootReads = 0;
+  const fs: FileSystem = {
+    ...source,
+    readText(file) {
+      if (posix(file) !== '/repo/deno.json') return source.readText(file);
+      rootReads += 1;
+      return rootReads === 1
+        ? '{"workspace":["vendor/*"],"vendor":true}'
+        : '{"workspace":["vendor/*"],"vendor":false}';
+    },
+    readDirectories(directory) {
+      return (
+        new Map([
+          ['/repo', ['vendor']],
+          ['/repo/vendor', ['a']],
+        ]).get(posix(directory)) ?? []
+      );
+    },
+  };
+  const options: LintOptions = {
+    cwd: asAbsPath('/repo'),
+    pm: 'deno',
+    workspaces: true,
+    fs,
+    config: {
+      customRules: [
+        {
+          id: 'config-read-probe',
+          title: 'Read root Deno config',
+          description: 'Observe the value selected for this evaluation',
+          severity: 'error',
+          bindings: {
+            deno: {
+              check(ctx) {
+                return ctx.readConfig(CONFIG_FILES.denoJson).vendor === true
+                  ? { state: 'ok' }
+                  : { state: 'violation', message: 'Saw a later config value.' };
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+  const first = lint(options);
+  expect(rootReads).toBe(1);
+  expect(first.findings.some(({ file }) => file?.startsWith('vendor/a/'))).toBe(false);
+  expect(first.findings.some(({ ruleId }) => ruleId === 'config-read-probe')).toBe(false);
+
+  const second = lint(options);
+  expect(rootReads).toBe(2);
+  expect(second.findings.some(({ file }) => file === 'vendor/a/deno.json')).toBe(true);
+  expect(second.findings.some(({ ruleId }) => ruleId === 'config-read-probe')).toBe(true);
+});
+
+it('shares a member parser between Deno nested validation and publication rules', () => {
+  const source = createMemFileSystem({
+    'deno.json': '{"workspace":["packages/a"]}',
+    'packages/a/deno.json': '{"name":"@example/a","exports":"./mod.ts"}',
+  });
+  let memberReads = 0;
+  const result = lint({
+    cwd: asAbsPath('/repo'),
+    pm: 'deno',
+    workspaces: true,
+    fs: {
+      ...source,
+      readText(file) {
+        if (posix(file) !== '/repo/packages/a/deno.json') return source.readText(file);
+        memberReads += 1;
+        return memberReads === 1
+          ? '{"name":"@example/a","exports":"./mod.ts"}'
+          : '{"name":"@example/a","publish":false}';
+      },
+      readDirectories(directory) {
+        return (
+          new Map([
+            ['/repo', ['packages']],
+            ['/repo/packages', ['a']],
+          ]).get(posix(directory)) ?? []
+        );
+      },
+    },
+  });
+  expect(memberReads).toBe(1);
+  expect(
+    result.findings.some(
+      ({ ruleId, file }) => ruleId === 'files-field' && file === 'packages/a/deno.json',
+    ),
+  ).toBe(true);
 });
 
 it('requires injected directory discovery instead of falling back to host IO', () => {

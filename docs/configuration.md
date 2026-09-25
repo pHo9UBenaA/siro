@@ -174,6 +174,13 @@ are outside this inspection. The availability check on `publishConfig.provenance
 establishes only its introduction version, not whether publication emits attestations.
 Root custom rules run once; child `siro.config.*` files are never loaded or executed.
 
+Within one lint call, each root or member repository context reuses the first
+successfully parsed value of a configuration file (including an absent file) by
+kind and relative path. Workspace declarations, Deno vendor selection, and rules
+in that context see the same parsed value. Child contexts and later lint calls
+have separate caches. This does not make the entire filesystem an atomic snapshot:
+file-existence checks remain live, and an initial read or parse failure propagates.
+
 Injected `FileSystem` implementations can supply `readDirectories(path)`, returning
 ordinary child directory names without symlinks and propagating access errors. It is
 required only when member discovery needs directory enumeration. A missing implementation

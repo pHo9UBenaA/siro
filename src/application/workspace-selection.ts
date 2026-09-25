@@ -7,8 +7,7 @@ import { compileAdditionalWorkspaceGlob } from './workspace-dialects.ts';
 import { hasBasicWorkspaceWildcard, stripTrailingWorkspaceSlashes } from './workspace-pattern.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
 import type { PM } from '../domain/entities/pms.ts';
-import type { RepoContext } from '../domain/ports/repo-context.ts';
-import { createConfigParser } from '../domain/services/parse-config-file.ts';
+import type { ConfigParser } from '../domain/services/parse-config-file.ts';
 import { ConfigError } from '../shared/errors.ts';
 
 interface WorkspaceSelection {
@@ -16,6 +15,8 @@ interface WorkspaceSelection {
   skipDirectory: (directory: string, name: string) => boolean;
   includes: (directory: string) => boolean;
   canDescend: (directory: string) => boolean;
+  /** Native Deno literals must be checked against resolved directory names. */
+  isExplicitMember: (directory: string) => boolean;
 }
 
 type ResolveChild = (parent: string, name: string) => string | undefined;
@@ -107,6 +108,7 @@ const denoSelection = (
     },
     canDescend: (directory) =>
       (inVendor(directory) ? literal : included).some((pattern) => pattern.canDescend(directory)),
+    isExplicitMember: (directory) => literal.some((pattern) => pattern.matches(directory)),
   };
 };
 
@@ -157,22 +159,21 @@ const bunSelection = (
       );
     },
     canDescend: (directory) => traversal.some((pattern) => pattern.canDescend(directory)),
+    isExplicitMember: () => false,
   };
 };
 
 /** Compile PM syntax and ordering once; traversal only calls the resulting policy. */
 export const createWorkspaceSelection = (
-  ctx: RepoContext,
   definition: WorkspaceDefinition,
   pm: PM,
-  dependencies: Pick<LintDependencies, 'codecFor' | 'globs' | 'paths' | 'caseInsensitiveGlobs'>,
+  dependencies: Pick<LintDependencies, 'globs' | 'paths' | 'caseInsensitiveGlobs'>,
+  parseConfig: ConfigParser,
   resolveChild: ResolveChild,
 ): WorkspaceSelection | undefined => {
   const { paths, globs, caseInsensitiveGlobs } = dependencies;
   const { patterns } = definition;
-  const skipVendor =
-    pm === 'deno' &&
-    createConfigParser(dependencies.codecFor, ctx)(CONFIG_FILES.denoJson).vendor === true;
+  const skipVendor = pm === 'deno' && parseConfig(CONFIG_FILES.denoJson).vendor === true;
   const positive = patterns
     .filter((pattern) => !pattern.startsWith('!'))
     .map((pattern) => stripTrailingWorkspaceSlashes(paths.normalizePattern(pattern)));
@@ -226,6 +227,7 @@ export const createWorkspaceSelection = (
       !excluded.some(({ glob }) => glob.matches(directory) || glob.matches(`${directory}/`)) &&
       included.some((pattern) => pattern.matches(directory)),
     canDescend: (directory) => included.some((pattern) => pattern.canDescend(directory)),
+    isExplicitMember: () => false,
   };
   return hasMembers ? selection : undefined;
 };

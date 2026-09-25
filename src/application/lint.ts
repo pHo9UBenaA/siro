@@ -9,6 +9,7 @@ import type { SiroConfig } from '../domain/entities/siro-config.ts';
 import type { LintResult } from '../domain/entities/lint-result.ts';
 import { UsageError, ConfigError } from '../shared/errors.ts';
 import { applyConfig } from '../domain/services/apply-config.ts';
+import { createConfigParser } from '../domain/services/parse-config-file.ts';
 import { resolvePMs } from '../domain/services/resolve-pms.ts';
 import { parseConfig } from '../domain/services/parse-siro-config.ts';
 import { runLint } from './run-lint.ts';
@@ -53,6 +54,7 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
   const config = options.config === undefined ? undefined : parseConfig(options.config);
   const fs = options.fs === undefined ? dependencies.fileSystem : options.fs;
   const ctx = createRepoContext(options.cwd, fs, options.projectType ?? config?.projectType);
+  const parseConfigFile = createConfigParser(codecFor, ctx);
   const pms = resolvePMs(ctx, { allowed: config?.pms, pmOverride: options.pm });
   if (
     pms.includes('deno') &&
@@ -72,6 +74,7 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
   const members = options.workspaces
     ? collectWorkspaceMembers(
         ctx,
+        parseConfigFile,
         fs,
         pms,
         options.projectType ?? config?.projectType,
@@ -80,6 +83,7 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
     : [];
   return {
     ctx,
+    parseConfig: parseConfigFile,
     pms,
     pmVersions,
     members,
@@ -105,7 +109,13 @@ export const runPreparedLint = (prepared: ReturnType<typeof prepareLint>): LintR
   const summary = { ...result.summary };
   const memberRules = prepared.ruleSet.filter((rule) => memberPublicationRuleIds.has(rule.id));
   for (const member of prepared.members) {
-    const child = runLint({ ...prepared, ctx: member.ctx, pms: [member.pm], ruleSet: memberRules });
+    const child = runLint({
+      ...prepared,
+      ctx: member.ctx,
+      parseConfig: member.parseConfig,
+      pms: [member.pm],
+      ruleSet: memberRules,
+    });
     for (const finding of child.findings) {
       findings.push({
         ...finding,

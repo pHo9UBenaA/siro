@@ -22,6 +22,8 @@ export interface RunLintOptions {
   readonly ruleSet: readonly Rule[];
   readonly severityOverrides?: ReadonlyMap<string, Severity>;
   readonly codecFor: CodecFor;
+  /** Optional evaluation-scoped parser supplied when workspace discovery already read this context. */
+  readonly parseConfig?: ConfigParser;
 }
 
 const resolveBindingProjectType = (
@@ -43,7 +45,7 @@ export const runLint = (opts: RunLintOptions): LintResult => {
   const { ctx, pms, ruleSet, severityOverrides, codecFor } = opts;
   const findings: Finding[] = [];
   const summary: Record<Severity, number> = { error: 0, info: 0, warn: 0 };
-  const parseConfig = createConfigParser(codecFor, ctx);
+  const parseConfig = opts.parseConfig ?? createConfigParser(codecFor, ctx);
 
   for (const rule of ruleSet) {
     for (const pm of pms) {

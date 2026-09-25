@@ -4,8 +4,14 @@ import { createWorkspaceSelection } from './workspace-selection.ts';
 import type { PM } from '../domain/entities/pms.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import type { RepoContext } from '../domain/ports/repo-context.ts';
+import type { ConfigParser } from '../domain/services/parse-config-file.ts';
 import { ConfigError, UsageError } from '../shared/errors.ts';
 import { asRelPath, isRelPath, type RelPath } from '../shared/paths.ts';
+
+interface WorkspaceMatch {
+  readonly directory: RelPath;
+  readonly explicitMember: boolean;
+}
 
 /** Traverse ordinary directories through the supplied filesystem, never the host filesystem. */
 export const workspaceDirectories = (
@@ -13,8 +19,9 @@ export const workspaceDirectories = (
   fs: FileSystem,
   definition: WorkspaceDefinition,
   pm: PM,
-  dependencies: Pick<LintDependencies, 'paths' | 'codecFor' | 'globs' | 'caseInsensitiveGlobs'>,
-): readonly RelPath[] => {
+  dependencies: Pick<LintDependencies, 'paths' | 'globs' | 'caseInsensitiveGlobs'>,
+  parseConfig: ConfigParser,
+): readonly WorkspaceMatch[] => {
   const { paths } = dependencies;
   const directoryCache = new Map<string, readonly string[]>();
   const readDirectories = (directory: string): readonly string[] => {
@@ -51,13 +58,19 @@ export const workspaceDirectories = (
     }
     return resolved === '.git' || resolved === 'node_modules' ? undefined : resolved;
   };
-  const selection = createWorkspaceSelection(ctx, definition, pm, dependencies, resolveChild);
+  const selection = createWorkspaceSelection(
+    definition,
+    pm,
+    dependencies,
+    parseConfig,
+    resolveChild,
+  );
   if (!selection) return [];
   if (!fs.readDirectories)
     throw new UsageError(
       'Workspace discovery requires FileSystem.readDirectories; no host filesystem fallback is used.',
     );
-  const result: RelPath[] = [];
+  const result: WorkspaceMatch[] = [];
   const pending = ['.'];
   while (pending.length > 0) {
     const current = pending.pop();
@@ -66,10 +79,13 @@ export const workspaceDirectories = (
       if (name === '.git' || name === 'node_modules') continue;
       const directory = asRelPath(current === '.' ? name : `${current}/${name}`);
       if (selection.skipDirectory(directory, name)) continue;
-      if (selection.includes(directory)) result.push(directory);
+      if (selection.includes(directory))
+        result.push({ directory, explicitMember: selection.isExplicitMember(directory) });
       // Fixed-depth declarations do not require opening member subdirectories.
       if (selection.canDescend(directory)) pending.push(directory);
     }
   }
-  return result.sort();
+  return result.sort((left, right) =>
+    left.directory < right.directory ? -1 : left.directory > right.directory ? 1 : 0,
+  );
 };

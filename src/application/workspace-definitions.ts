@@ -3,7 +3,7 @@ import type { WorkspaceGlob, WorkspaceGlobs } from './ports/workspace-glob.ts';
 import { CONFIG_FILES } from '../domain/entities/config-files.ts';
 import type { PM } from '../domain/entities/pms.ts';
 import type { RepoContext } from '../domain/ports/repo-context.ts';
-import { createConfigParser } from '../domain/services/parse-config-file.ts';
+import type { ConfigParser } from '../domain/services/parse-config-file.ts';
 import { ConfigError } from '../shared/errors.ts';
 import { isRelPath } from '../shared/paths.ts';
 import { isPlainRecord } from '../shared/records.ts';
@@ -46,10 +46,10 @@ export interface WorkspaceDefinition {
 export const workspaceDefinitions = (
   ctx: RepoContext,
   pm: PM,
-  dependencies: Pick<LintDependencies, 'codecFor' | 'paths' | 'globs'>,
+  dependencies: Pick<LintDependencies, 'paths' | 'globs'>,
+  parse: ConfigParser,
 ): readonly WorkspaceDefinition[] => {
-  const { codecFor, paths, globs } = dependencies;
-  const parse = createConfigParser(codecFor, ctx);
+  const { paths, globs } = dependencies;
   const validate = (value: unknown, source: string, fromDenoJson = false): WorkspaceDefinition => {
     if (value === undefined) return { patterns: [], fromDenoJson };
     if (!Array.isArray(value) || !Array.from(value).every((item) => typeof item === 'string')) {
