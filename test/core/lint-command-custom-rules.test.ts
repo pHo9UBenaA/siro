@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { asAbsPath, CONFIG_FILES, type FileSystem, type LintOptions } from '../../src/index.ts';
 import { lint, lintCommand } from '../../src/runtime.ts';
 import type { LintResult } from '../../src/core/contracts/lint-result.ts';
@@ -24,10 +25,11 @@ it.each(['package.json', './package.json'])(
   'gives manifest metadata and rule config the same package.json source via %s',
   (rulePath) => {
     let reads = 0;
+    const manifest = path.join('/repo', 'package.json');
     const fs: FileSystem = {
       exists: () => false,
       readText: (file) => {
-        if (file !== '/repo/package.json') return undefined;
+        if (file !== manifest) return undefined;
         reads++;
         return JSON.stringify({ private: reads > 1 });
       },

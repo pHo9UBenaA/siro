@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import path from 'node:path';
 import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { createRepoContext } from '../../src/adapters/repo-context.ts';
 import { asRelPath } from '../../src/core/contracts/paths.ts';
@@ -80,10 +81,11 @@ describe('createRepoContext — readText and exists', () => {
     (root) => {
       let manifestReads = 0;
       let otherReads = 0;
+      const manifest = path.join(root, 'package.json');
       const fs = {
         exists: () => false,
         readText: (file: string) => {
-          if (file === `${root}/package.json`) {
+          if (file === manifest) {
             manifestReads++;
             return JSON.stringify({ private: manifestReads > 1 });
           }
