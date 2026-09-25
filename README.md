@@ -46,11 +46,26 @@ npx @pho9ubenaa/siro lint --severity warn  # also fail on warnings
 
 For regular use, install it as a dev dependency with
 `npm install --save-dev --save-exact @pho9ubenaa/siro` and run `siro lint` in your CI script.
-`--workspaces` also checks declared members' publication metadata; installation policy remains
-root-only. See [getting started](docs/getting-started.md) for other CLI options and
-[configuration](docs/configuration.md#exit-codes) for exit-code details.
 
-See the [rule reference](docs/rules.md) and [PM comparison](docs/comparison.md) for coverage, [configuration and workspace behavior](docs/configuration.md) for scope and limits, and [JSON output](docs/json-output.md) for the remediation contract.
+<details>
+<summary>CLI options and further reading</summary>
+
+`check` is an alias for `lint`. Run `siro lint --help` for the complete CLI syntax.
+
+| Option                                    | Use                                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Inspect one manager instead of auto-detection.                                             |
+| `--pm-version <x.y.z>`                    | Supply an exact stable target version (requires `--pm`); it does not run an installed PM.  |
+| `--project-type <application\|package>`   | Choose whether publication safeguards apply; omitted means infer from publish metadata.    |
+| `--workspaces`                            | Also check declared members' publication metadata; installation checks remain at the root. |
+| `--severity <error\|warn\|info>`          | Set both the display and CI failure threshold; default failure threshold is `error`.       |
+| `--reporter <pretty\|json\|github>`       | Choose terminal, JSON, or GitHub Actions output; `--json` is a JSON shortcut.              |
+
+- [Getting started](docs/getting-started.md) walks through findings and CI; [configuration](docs/configuration.md) covers PM selection, workspace scope, executable config, and exit codes.
+- The [rule reference](docs/rules.md) and [PM comparison](docs/comparison.md) show what is checked for each manager.
+- [JSON output](docs/json-output.md) documents the machine-readable remediation contract.
+
+</details>
 
 Contributing? See the [contributor guide](docs/contributing.md). Report vulnerabilities through [SECURITY.md](SECURITY.md).
 
