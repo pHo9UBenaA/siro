@@ -54,14 +54,11 @@ For regular use, install it as a dev dependency with
 | `--severity <error\|warn\|info>`          | Set both the display and CI failure threshold; default failure threshold is `error`.       |
 | `--reporter <pretty\|json\|github>`       | Choose terminal, JSON, or GitHub Actions output; `--json` is a JSON shortcut.              |
 
-<details>
-<summary>Further reading</summary>
+For a walkthrough and deeper reference, use these guides:
 
 - [Getting started](docs/getting-started.md) walks through findings and CI; [configuration](docs/configuration.md) covers PM selection, workspace scope, executable config, and exit codes.
 - The [rule reference](docs/rules.md) and [PM comparison](docs/comparison.md) show what is checked for each manager.
 - [JSON output](docs/json-output.md) documents the machine-readable remediation contract.
-
-</details>
 
 ## License
 
