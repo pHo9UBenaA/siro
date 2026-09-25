@@ -7,7 +7,8 @@ import type { RepoContext } from '../domain/ports/repo-context.ts';
 import type { FileSystem } from '../domain/ports/file-system.ts';
 import type { PM } from '../domain/entities/pms.ts';
 import type { ProjectType } from '../domain/entities/project-type.ts';
-import { workspaceDirectories, workspaceDefinitions } from './workspaces.ts';
+import { workspaceDefinitions } from './workspace-definitions.ts';
+import { workspaceDirectories } from './workspaces.ts';
 import { hasBasicWorkspaceWildcard, stripTrailingWorkspaceSlashes } from './workspace-pattern.ts';
 
 /** Expand each manager's declarations into isolated publication contexts. */

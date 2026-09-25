@@ -89,6 +89,10 @@ expresses case, punctuation, hidden-directory and extended-pattern behavior.
 Minimatch options, optimization and literal-bracket escaping stay in its adapter.
 The explicit case policy preserves the host's existing glob behavior. Native
 literal-directory resolution is a separate filesystem operation.
+`application/workspace-definitions.ts` reads and validates declarations;
+`application/workspace-selection.ts` compiles PM-specific inclusion, exclusion,
+and descent decisions; `application/workspaces.ts` traverses directories only
+through the supplied filesystem. These are internal boundaries, not public APIs.
 
 The domain owns release-age policy. `DateTime.now()` supplies current epoch
 milliseconds at evaluation time. `DateTime.parse()` supplies native parsing, including the host timezone for
