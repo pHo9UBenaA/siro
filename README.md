@@ -4,115 +4,25 @@
 [![npm](https://img.shields.io/npm/v/@pho9ubenaa/siro)](https://www.npmjs.com/package/@pho9ubenaa/siro)
 [![license](https://img.shields.io/github/license/pHo9UBenaA/siro)](https://github.com/pHo9UBenaA/siro/blob/main/LICENSE)
 
-> Security best-practices linter for the npm ecosystem — npm, pnpm, yarn, bun, deno, [aube](https://github.com/aubepkg/aube).
+A security best-practices linter for npm, pnpm, Yarn, Bun, Deno, and [Aube](https://github.com/aubepkg/aube). It checks supported repository configuration for dependency-installation and publication risks. It does **not** detect vulnerable packages or prove an installation is safe; use a vulnerability scanner alongside it. The checks are inspired by [npm security best practices](https://github.com/bodadotsh/npm-security-best-practices), but siro is not affiliated with that guide.
 
-[Getting started](docs/getting-started.md) ·
-[Rules](docs/rules.md) ·
-[Comparison](docs/comparison.md) ·
-[Configuration](docs/configuration.md)
-
-`siro` is **inspired by** the community-maintained [npm security best practices](https://github.com/bodadotsh/npm-security-best-practices)
-and turns those recommendations into something you can run: it **lints** repos for supply-chain risks,
-graded `error` / `warn` / `info`, and emits machine-readable remediation so an editor or agent skill
-can apply the fixes. The rule selection and severities reflect siro's own opinions; it is not
-affiliated with the upstream doc.
+## Try it
 
 ```sh
-npx @pho9ubenaa/siro lint                 # report best-practice violations in the current repo
-npx @pho9ubenaa/siro lint --reporter json # machine-readable remediation (see docs/json-output.md)
+npx @pho9ubenaa/siro lint
 ```
 
-## A concrete example
+The CLI may download code through `npx` and imports a repository's `siro.config.*` as executable code. Review configurations before running it on an unfamiliar project. See the [threat model](docs/threat-model.md).
 
-For maintainers and CI owners, siro makes package-manager policy gaps visible during review. For example, change an unsafe npm script setting:
+Findings have `error`, `warn`, or `info` severity. Errors fail CI by default. siro proposes fixes but **does not edit files**. For machine-readable findings:
 
-```diff
-# .npmrc
--ignore-scripts=false
-+ignore-scripts=true
+```sh
+npx @pho9ubenaa/siro lint --reporter json
 ```
 
-Run `siro lint --pm npm --project-type application` before and after the edit. The `disable-lifecycle-scripts` error clears when this setting is enabled; other findings remain until addressed. Review required build scripts before changing their execution policy.
+[Getting started](docs/getting-started.md) covers installation, CI, and CLI options. See the [rule reference](docs/rules.md) and [PM comparison](docs/comparison.md) for coverage, [configuration and workspace behavior](docs/configuration.md) for scope and limits, and [JSON output](docs/json-output.md) for the remediation contract.
 
-The CLI reads `siro.config.*` as executable code. Review repository configuration before running it, particularly in CI. See the [threat model](docs/threat-model.md) and [security reporting policy](SECURITY.md).
-
-## Features
-
-- **Rules across six managers.** 28 rules covering lifecycle scripts, version pinning, lockfiles
-  (`commit`/`frozen`), release age, publish provenance, `files`/`publishConfig`, SSL enforcement,
-  checksum verification, exotic subdependency blocking, audit suppression review, store integrity,
-  Bun's security scanner API, and Yarn 4's hardened-mode — each mapped to the right setting per
-  package manager (`.npmrc`, `pnpm-workspace.yaml`, `.yarnrc.yml`, `bunfig.toml`, `deno.json`,
-  `aube-workspace.yaml`, `package.json`).
-- **PM-aware severities.** When a manager's documented default satisfies a rule across every
-  supported version and target environment, the finding is demoted to `info`. Installed versions
-  and CI conditions are not checked, so defaults that depend on either retain the rule's severity.
-- **Machine-readable remediation.** A finding can carry automatic key operations or manual
-  instructions. Review proposed changes and rerun the linter after editing.
-  See [docs/json-output.md](docs/json-output.md).
-- **Target PM versions.** Flag settings introduced after the declared or explicit stable PM
-  version. See [checked settings and sources](docs/rules.md#checked-introduction-versions)
-  for the npm, pnpm, Yarn, Bun, and Deno coverage.
-- **Workspace members.** `--workspaces` adds publication-metadata checks for declared npm,
-  pnpm, Yarn, Bun, Deno, and Aube members, including public packages under a private root.
-  See [workspace inspection](docs/configuration.md#workspace-members) for scope and exclusions.
-- **Lint with severities.** `error` fails CI by default; `--severity warn` tightens the gate.
-- **Reporters.** `pretty` (default), `json` for CI, `github` for PR annotations; register your own.
-- **Configurable.** Drop a `siro.config.ts` to disable rules, override severities, restrict PMs,
-  or plug in custom rules and reporters.
-
-See the [rule reference](docs/rules.md) for what each check does and why, and the
-[comparison matrix](docs/comparison.md) for per-manager support at a glance.
-
-## Versioning policy
-
-siro evaluates the recorded policy snapshot in [docs/policy-sources.md](docs/policy-sources.md).
-It detects package-manager names and reads exact stable targets from `packageManager`,
-`config.pmVersions`, or `--pm-version`. It does not inspect installed binaries. The
-`unsupported-settings` rule checks recorded introduction versions; unlisted settings and
-unknown targets are not evaluated for availability. A version-dependent safe-default annotation prevents an unverified
-severity downgrade; it does not prove that the current version satisfies the rule. See
-[configuration](docs/configuration.md) for defaults, applicability, and limits.
-
-## Usage
-
-```
-siro <lint|check> [path] [options]
-
-  --pm <npm|pnpm|yarn|bun|deno|aube>   Target a specific package manager (auto-detected; required if detection finds nothing)
-  --pm-version <x.y.z>                Exact stable target version (requires --pm)
-  --workspaces                       Also inspect workspace members' publication metadata
-  --project-type <application|package> Select application or published-package policy (default auto)
-  --reporter <pretty|json|github>      Output format (default pretty)
-  --severity <error|warn|info>         Show and fail on findings at or above this level
-  --json                               Shortcut for --reporter json
-  --version, --help
-```
-
-`check` is an alias of `lint` (same flags, same exit codes) — provided so `siro check` reads naturally in CI scripts.
-
-Exit codes: `0` no findings at/above threshold · `1` findings at/above threshold · `2` usage or configuration error · `70` uncaught exception (a siro bug or a throwing reporter/custom rule).
-
-## How is this different from `npm audit` / `osv-scanner`?
-
-Different layer of the supply-chain pipeline; you want both.
-
-| Tool                                                                                   | What it checks                                                                                                                               | Where the data comes from                                                                                                            |
-| -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm audit` · [osv-scanner](https://github.com/google/osv-scanner) · Snyk · Dependabot | **Known CVEs** in your installed dependency tree                                                                                             | GHSA / OSV.dev / vendor feeds                                                                                                        |
-| `siro`                                                                                 | **Your install pipeline's configuration** — postinstall scripts, version ranges, lockfile policy, publish provenance, files allow-list, etc. | Static analysis of `.npmrc`, `pnpm-workspace.yaml`, `.yarnrc.yml`, `bunfig.toml`, `deno.json`, `aube-workspace.yaml`, `package.json` |
-
-`npm audit` reports known vulnerabilities. `siro` reports supported configuration gaps that can increase exposure to malicious dependencies. Neither a clean result nor a cooldown window guarantees safety. Run both in CI.
-
-## Contributing
-
-Adding a rule or a package manager is a localized change — see
-[docs/contributing.md](docs/contributing.md).
-
-If siro is useful to you, a [GitHub Star](https://github.com/pHo9UBenaA/siro) would be appreciated.
-Stars help me decide how much time to devote to future features and maintenance.
-Please share feedback from real-world use and feature requests in
-[GitHub Issues](https://github.com/pHo9UBenaA/siro/issues).
+Contributing? See the [contributor guide](docs/contributing.md). Report vulnerabilities through [SECURITY.md](SECURITY.md).
 
 ## License
 

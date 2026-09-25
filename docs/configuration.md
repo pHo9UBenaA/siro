@@ -75,7 +75,7 @@ unknown targets, later removals, backports, and version-specific value syntax ar
 outside this check. A passing result does not establish that every setting works.
 The target is the user's declaration, not proof of what CI actually runs.
 
-The new rule defaults to `error`, so previously passing projects with unsupported
+`unsupported-settings` defaults to `error`, so projects with unsupported
 settings can exit 1. It supports the usual `rules` severity override or `'off'`.
 Existing security rules and their remediation remain in effect; a target version
 does not lower severity for missing settings or prove environment-dependent defaults.
@@ -241,8 +241,8 @@ const exitCode = await lintCommand({ cwd, config, reporter: 'json' }, nodeIO);
 ```
 
 Custom rules and reporters belong in `config.customRules` and `config.reporters`.
-The former top-level extension options were removed in v0.4.0. `LintOptions`
-describes evaluation; `LintCommandOptions` adds `reporter` and `severity`.
+`LintOptions` describes evaluation; `LintCommandOptions` adds `reporter` and
+`severity`. See the [changelog](../CHANGELOG.md) for historical API changes.
 Path constructors validate their input: roots must be absolute; repository paths
 must be relative and contain no parent traversal. Filesystem symlinks still follow
 normal Node behavior. Native filesystem targets must be existing directories;
@@ -286,8 +286,7 @@ that binding's manager, or `undefined`; `readConfig(file)` reads additional inpu
 through the same validated parsers and per-run cache. A violation may return
 `file` to identify a different repository-relative input. Otherwise the binding
 file is used. A binding may omit `file` when it only needs the repository context.
-`fix`, `fixKind`, `AutoRuleBinding`, `AdvisoryRuleBinding`, and `fileGlob` were removed
-in v0.4.0. See [json-output.md](json-output.md) for schema 2.
+See [json-output.md](json-output.md) for schema 2 and its migration notes.
 
 `requireConfigKey` describes one setting and its proposed scalar replacement.
 Use a direct binding for multiple settings or precedence-dependent remediation.
