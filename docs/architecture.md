@@ -35,7 +35,7 @@ outward call does not create an outward source dependency.
 | ---------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | `shared/`                    | Errors, records, branded path types and relative-path validation                              | Shared                                                                |
 | `domain/`                    | Rules, PM bindings, configuration validation, severity, version availability and domain ports | Domain, shared                                                        |
-| `application/ports/`         | Host-neutral contracts for application operations                                             | Application ports, domain, shared                                     |
+| `application/**/ports/`      | Host-neutral contracts for application operations                                             | Application ports, domain, shared                                     |
 | `application/` (other files) | Input validation, PM/workspace selection, evaluation and reporting use cases                  | Application, application ports, domain, shared                        |
 | `adapters/`                  | Node filesystem/paths, configuration import, codecs, glob engine and output formats           | Adapters, application ports, domain, shared                           |
 | `composition/`               | Connect standard adapters and time-dependent rules                                            | Composition, adapters, application, application ports, domain, shared |
@@ -46,23 +46,24 @@ imports domain configuration validation, shared with the library use case. The
 path adapter imports only its small `RepositoryPaths` contract, not the aggregate
 lint dependency contract.
 
-**All statically resolved internal source dependencies must form a directed
-acyclic graph, including type imports and re-exports within the same layer.**
-This is an explicit siro maintenance constraint in addition to the hexagonal
-boundary. `ConfigFileRef` lives in an independent domain value module: both rules
-and repository ports depend on it, rather than depending on each other. Built-in
-rule ID completion is derived from the rule registry as a type-only dependency;
-this keeps one source of truth without introducing a cycle.
+The architecture gate checks **source dependency direction between areas**,
+including type imports and re-exports. It does not require one file per concept,
+a particular file size, or an acyclic graph within a layer. A cycle is not proof
+of a good design either: review runtime cycles and the responsibilities they join
+when they occur. `ConfigFileRef` currently lives in an independent domain value
+module; built-in rule ID completion follows the registry as a type dependency.
+Those arrangements are implementation choices, not templates for future modules.
 
 `version.ts` exposes static package metadata. It is not a runtime dependency
-provider. The core permits `semver` and `valibot` for computation and validation;
-format, filesystem and glob libraries remain in adapters. The architecture test
-uses TypeScript module resolution, including `.js` references to `.ts` sources,
-before checking direction and cycles. It rejects unresolved local references,
-checks imports/re-exports (including types and static dynamic imports), known host
-globals, and dynamic module selection in the core. Executable user configuration
-is intentionally loaded dynamically by the outer config adapter. The test does
-not inspect third-party library internals or sandbox user code.
+provider. The architecture test resolves TypeScript modules, including `.js`
+references to `.ts` sources, before checking direction. It rejects unresolved
+local references, checks imports/re-exports (including types and static dynamic
+imports), rejects Node built-in imports in the core, and rejects dynamic module
+selection there because its target cannot be checked statically. It does not
+whitelist external computation libraries or police expressions such as `Date`:
+typecheck, build, installed-package tests and behavioral review own those risks.
+The test does not inspect third-party internals or sandbox user code. Executable
+user configuration is intentionally loaded dynamically by the outer config adapter.
 
 ## Execution and ports
 
@@ -115,9 +116,9 @@ in composition, never in core defaults or a shared module that imports adapters.
 - Core tests supply ports and verify decisions, precedence, failures and isolation.
 - Adapter tests exercise parsing, filesystem semantics and output contracts.
 - Composition/API/CLI tests exercise real wiring, trust boundaries and exit codes.
-- `pnpm verify` includes the graph/direction gate and behavioral tests. Gate
-  examples cover type cycles, transitive cycles, shared acyclic dependencies,
-  module resolution, and adapter-to-use-case violations.
+- `pnpm verify` includes the direction gate and behavioral tests. Gate
+  examples cover type imports, module resolution, ports under feature folders,
+  and adapter-to-use-case violations. The gate is not a module-design verdict.
 - `pnpm test:package` checks installed exports, types and the executable. Source
   imports alone do not establish package compatibility.
 
@@ -128,9 +129,10 @@ internal application ports or expand the public API solely for harness convenien
 
 ## Completion evidence for an architecture change
 
-A structural change is complete when the resolved source graph has no cycles or
-forbidden edges; ports describe siro operations without concrete engine switches;
-core behavior can run with supplied test ports; and adapter, CLI and installed
-package checks preserve the observable contract. Keep the public design guide,
-private maintainer material and private package consumers aligned with that state.
-Do not substitute a green graph check for behavioral and integration evidence.
+A structural change is complete when the resolved source graph has no forbidden
+cross-area edges; any cycles and port boundaries have been assessed for actual
+responsibility and runtime risks; core behavior can run with supplied test ports;
+and adapter, CLI and installed-package checks preserve the observable contract.
+Keep the public design guide, private maintainer material and private package
+consumers aligned with that state. Do not substitute a green direction check for
+behavioral and integration evidence.
