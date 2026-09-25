@@ -1,7 +1,8 @@
 /**
  * Single source of truth for package managers and severities.
- * Types, runtime sets, and ordering are all derived from these tuples — add a
- * package manager here and the rest of the codebase follows.
+ * Types, runtime sets, and ordering derive from these tuples. Adding a manager
+ * still requires detection signals, deliberate workspace semantics, and applicable
+ * rule bindings; the tuple alone does not implement support.
  */
 
 export const PMS = ['npm', 'pnpm', 'yarn', 'bun', 'deno', 'aube'] as const;

@@ -47,15 +47,21 @@ prescribed number of layers or files.
 2. Add a rule in `src/core/rules/` and register it in `src/core/rules/builtin-rules.ts`.
    Use `requireConfigKey` for a single setting; use a direct binding for precedence,
    multiple settings, or manual remediation. See [configuration.md](configuration.md).
-3. Decide whether the rule applies to workspace members. The built-in publication
-   ID list in `src/core/lint.ts` is the single source for member selection; custom
-   rules remain root-only. Test the unsafe state, accepted states, relevant
-   bypasses, and the proposed remedy. Exercise the CLI when parsing, selection,
-   or output changes.
+3. Make an explicit root/member decision in the exhaustive built-in scope table in
+   `src/core/rules/builtin-rules.ts`. Only built-in publication checks run on members;
+   custom rules remain root-only. If a member check needs a new file, verify the
+   restricted child FS in `src/core/workspaces/members.ts`. Test root and member
+   behavior, unsafe and accepted states, bypasses, and the proposed remedy. Exercise
+   the CLI when parsing, selection, or output changes.
 4. Run `pnpm gen:docs` and `pnpm verify`.
 
-Adding a package manager also requires detection signals and applicable bindings.
-Add a codec only when its format differs from the supported formats.
+Adding a package manager also requires detection signals, applicable rule bindings,
+version-availability evidence where relevant, and an explicit workspace declaration
+and matching strategy. The exhaustive branches in `core/workspaces/declarations.ts`
+and `selection.ts` must not silently adopt another manager's semantics. Verify
+selection order, exclusions, root/member scope, injected FS and CLI behavior; an
+absent binding means N/A rather than implied support. Add a codec only when its
+format differs from the supported formats.
 
 ## Verification boundaries
 

@@ -1,5 +1,10 @@
 import { asAbsPath, lint, type FileSystem, type PM } from '../../../src/index.ts';
 import { createMemFileSystem } from '../../helpers/memfs.ts';
+import { makeCtx } from '../../helpers/ctx.ts';
+import { nodePaths } from '../../../src/adapters/node-paths.ts';
+import { minimatchGlobs } from '../../../src/adapters/workspace-globs.ts';
+import { workspaceDefinitions } from '../../../src/core/workspaces/declarations.ts';
+import { createWorkspaceSelection } from '../../../src/core/workspaces/selection.ts';
 
 const evaluate = (
   pm: PM,
@@ -24,6 +29,28 @@ const evaluate = (
       },
     },
   });
+it('does not infer workspace semantics for an unclassified package manager', () => {
+  const future = 'future' as PM;
+  const dependencies = { paths: nodePaths, globs: minimatchGlobs, caseInsensitiveGlobs: false };
+  expect(() =>
+    workspaceDefinitions(
+      makeCtx({ packageJson: { workspaces: ['packages/*'] } }),
+      future,
+      dependencies,
+      () => ({}),
+    ),
+  ).toThrow('Unsupported workspace package manager: future');
+  expect(() =>
+    createWorkspaceSelection(
+      { patterns: ['packages/*'], fromDenoJson: false },
+      future,
+      dependencies,
+      () => ({}),
+      () => undefined,
+    ),
+  ).toThrow('Unsupported workspace package manager: future');
+});
+
 const childFiles = (pm: PM, files: Record<string, string>) =>
   evaluate(pm, files)
     .findings.filter((finding) => finding.ruleId === 'files-field' && finding.file?.includes('/'))

@@ -53,7 +53,8 @@ export type CheckStatus =
       readonly violations: readonly [ViolationStatus, ...ViolationStatus[]];
     };
 
-/** Display-only package-manager version metadata. */
+/** Version text is displayed, not parsed as a target-version policy. The presence
+ * of defaultSafeSince also keeps an omitted documented default at full severity. */
 export interface VersionNote {
   readonly configAvailableSince?: string;
   readonly defaultSafeSince?: string;

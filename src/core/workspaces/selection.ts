@@ -173,7 +173,24 @@ export const createWorkspaceSelection = (
 ): WorkspaceSelection | undefined => {
   const { paths, globs, caseInsensitiveGlobs } = dependencies;
   const { patterns } = definition;
-  const skipVendor = pm === 'deno' && parseConfig(CONFIG_FILES.denoJson).vendor === true;
+  // Exhaustive choice: adding a PM must not silently inherit shell workspace semantics.
+  const strategy = (() => {
+    switch (pm) {
+      case 'bun':
+      case 'deno':
+      case 'aube':
+      case 'npm':
+        return pm;
+      case 'pnpm':
+      case 'yarn':
+        return 'shell';
+      default: {
+        const unsupported: never = pm;
+        throw new TypeError(`Unsupported workspace package manager: ${unsupported}`);
+      }
+    }
+  })();
+  const skipVendor = strategy === 'deno' && parseConfig(CONFIG_FILES.denoJson).vendor === true;
   const positive = patterns
     .filter((pattern) => !pattern.startsWith('!'))
     .map((pattern) => stripTrailingWorkspaceSlashes(paths.normalizePattern(pattern)));
@@ -183,23 +200,34 @@ export const createWorkspaceSelection = (
   const hasMembers = positive.some((pattern) => pattern !== '.');
   // Bun has its own ordered glob pass. Compiling the standard matcher first
   // creates a second, unused view of each declaration with different options.
-  if (pm === 'bun') {
+  if (strategy === 'bun') {
     const selection = bunSelection(patterns, dependencies);
     return hasMembers ? selection : undefined;
   }
 
   const options = workspaceGlobOptions(caseInsensitiveGlobs);
   const compile: Compile = (pattern, excluded = false) => {
-    if (pm !== 'deno' && pm !== 'aube')
-      return globs.compile(pattern, pm === 'npm' ? { ...options, hashComments: true } : options);
-    const glob = compileAdditionalWorkspaceGlob(pattern, pm, excluded, caseInsensitiveGlobs, globs);
-    return pm === 'deno' && !excluded ? anchorWorkspacePrefix(pattern, glob, resolveChild) : glob;
+    if (strategy !== 'deno' && strategy !== 'aube')
+      return globs.compile(
+        pattern,
+        strategy === 'npm' ? { ...options, hashComments: true } : options,
+      );
+    const glob = compileAdditionalWorkspaceGlob(
+      pattern,
+      strategy,
+      excluded,
+      caseInsensitiveGlobs,
+      globs,
+    );
+    return strategy === 'deno' && !excluded
+      ? anchorWorkspacePrefix(pattern, glob, resolveChild)
+      : glob;
   };
   const included = positive.map((pattern) => compile(pattern));
   const excluded = negative.map((pattern) => {
     const glob = compile(pattern, true);
     const subtree =
-      pm === 'deno' || pm === 'aube'
+      strategy === 'deno' || strategy === 'aube'
         ? undefined
         : pattern === '**'
           ? { matches: () => true }
@@ -208,7 +236,7 @@ export const createWorkspaceSelection = (
             : undefined;
     return { glob, subtree };
   });
-  if (pm === 'deno') {
+  if (strategy === 'deno') {
     const selection = denoSelection(
       patterns,
       positive,

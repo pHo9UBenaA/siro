@@ -93,27 +93,34 @@ export const workspaceDefinitions = (
     }
     return validate(value, 'package.json#workspaces');
   };
-  if (pm === 'pnpm') {
-    return [
-      validate(
-        ctx.exists(CONFIG_FILES.pnpmWorkspace.path)
-          ? parse(CONFIG_FILES.pnpmWorkspace).packages
-          : undefined,
-        'pnpm-workspace.yaml#packages',
-      ),
-    ];
+  switch (pm) {
+    case 'pnpm':
+      return [
+        validate(
+          ctx.exists(CONFIG_FILES.pnpmWorkspace.path)
+            ? parse(CONFIG_FILES.pnpmWorkspace).packages
+            : undefined,
+          'pnpm-workspace.yaml#packages',
+        ),
+      ];
+    case 'aube': {
+      const file = [CONFIG_FILES.aubeWorkspace, CONFIG_FILES.pnpmWorkspace].find((candidate) =>
+        ctx.exists(candidate.path),
+      );
+      return [file ? validate(parse(file).packages, `${file.path}#packages`) : packageDefinition()];
+    }
+    case 'deno':
+      return [
+        validate(parse(CONFIG_FILES.denoJson).workspace, 'deno.json#workspace', true),
+        packageDefinition(),
+      ];
+    case 'npm':
+    case 'yarn':
+    case 'bun':
+      return [packageDefinition()];
+    default: {
+      const unsupported: never = pm;
+      throw new TypeError(`Unsupported workspace package manager: ${unsupported}`);
+    }
   }
-  if (pm === 'aube') {
-    const file = [CONFIG_FILES.aubeWorkspace, CONFIG_FILES.pnpmWorkspace].find((candidate) =>
-      ctx.exists(candidate.path),
-    );
-    return [file ? validate(parse(file).packages, `${file.path}#packages`) : packageDefinition()];
-  }
-  if (pm === 'deno') {
-    return [
-      validate(parse(CONFIG_FILES.denoJson).workspace, 'deno.json#workspace', true),
-      packageDefinition(),
-    ];
-  }
-  return [packageDefinition()];
 };

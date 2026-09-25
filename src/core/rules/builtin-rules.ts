@@ -62,3 +62,42 @@ export const createBuiltinRules = (time: DateTime) =>
   ] as const satisfies readonly Rule[];
 
 export type BuiltinRuleId = ReturnType<typeof createBuiltinRules>[number]['id'];
+
+// Every built-in requires an explicit member decision. This internal policy is
+// deliberately separate from the public Rule contract: custom rules stay at root.
+const builtinScope = {
+  'advisory-check': 'root',
+  'approved-git-repos': 'root',
+  'audit-suppression': 'root',
+  'block-auto-install': 'root',
+  'block-exotic-subdeps': 'root',
+  'bun-security-scanner': 'root',
+  'checksum-verification': 'root',
+  'commit-lockfile': 'root',
+  'dependency-overrides': 'root',
+  'disable-lifecycle-scripts': 'root',
+  'enforce-strict-ssl': 'root',
+  'files-field': 'member',
+  'frozen-lockfile': 'root',
+  'frozen-store': 'root',
+  'hardened-mode': 'root',
+  'minimum-release-age': 'root',
+  'named-registries': 'root',
+  'paranoid-mode': 'root',
+  'patched-dependencies': 'root',
+  'pin-exact-versions': 'root',
+  provenance: 'root',
+  'publish-access': 'member',
+  'store-server': 'root',
+  'strict-allow-scripts': 'root',
+  'strict-release-age': 'root',
+  'strict-store-integrity': 'root',
+  'trust-policy': 'root',
+  'unsupported-settings': 'member',
+} as const satisfies Record<BuiltinRuleId, 'root' | 'member'>;
+
+export const memberPublicationRuleIds: ReadonlySet<string> = new Set(
+  Object.entries(builtinScope)
+    .filter(([, scope]) => scope === 'member')
+    .map(([id]) => id),
+);

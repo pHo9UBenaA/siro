@@ -92,7 +92,7 @@ semantics. No PM-specific walker or repository-wide directory cache is introduce
 Security intents remain grouped by rule, not by PM. `DateTime.now()` reads epoch
 milliseconds at evaluation time; `DateTime.parse()` retains native parsing,
 including the host timezone for offsetless npm cutoffs. The built-in publication
-IDs selected in `core/lint.ts` run on members; custom rules and installation
+IDs selected in `core/rules/builtin-rules.ts` run on members; custom rules and installation
 policy remain root-only. Member remediation is only proposed, never applied.
 
 ## Changes and verification
