@@ -194,9 +194,6 @@ export const createWorkspaceSelection = (
   const positive = patterns
     .filter((pattern) => !pattern.startsWith('!'))
     .map((pattern) => stripTrailingWorkspaceSlashes(paths.normalizePattern(pattern)));
-  const negative = patterns
-    .filter((pattern) => pattern.startsWith('!'))
-    .map((pattern) => stripTrailingWorkspaceSlashes(paths.normalizePattern(pattern.slice(1))));
   const hasMembers = positive.some((pattern) => pattern !== '.');
   // Bun has its own ordered glob pass. Compiling the standard matcher first
   // creates a second, unused view of each declaration with different options.
@@ -224,18 +221,6 @@ export const createWorkspaceSelection = (
       : glob;
   };
   const included = positive.map((pattern) => compile(pattern));
-  const excluded = negative.map((pattern) => {
-    const glob = compile(pattern, true);
-    const subtree =
-      strategy === 'deno' || strategy === 'aube'
-        ? undefined
-        : pattern === '**'
-          ? { matches: () => true }
-          : pattern.endsWith('/**')
-            ? compile(pattern.slice(0, -3), true)
-            : undefined;
-    return { glob, subtree };
-  });
   if (strategy === 'deno') {
     const selection = denoSelection(
       patterns,
@@ -249,6 +234,22 @@ export const createWorkspaceSelection = (
     );
     return hasMembers ? selection : undefined;
   }
+  // Deno compiles exclusions in declaration order; only the remaining strategies use this set.
+  const negative = patterns
+    .filter((pattern) => pattern.startsWith('!'))
+    .map((pattern) => stripTrailingWorkspaceSlashes(paths.normalizePattern(pattern.slice(1))));
+  const excluded = negative.map((pattern) => {
+    const glob = compile(pattern, true);
+    const subtree =
+      strategy === 'aube'
+        ? undefined
+        : pattern === '**'
+          ? { matches: () => true }
+          : pattern.endsWith('/**')
+            ? compile(pattern.slice(0, -3), true)
+            : undefined;
+    return { glob, subtree };
+  });
   const selection: WorkspaceSelection = {
     skipDirectory: (directory) => excluded.some(({ subtree }) => subtree?.matches(directory)),
     includes: (directory) =>

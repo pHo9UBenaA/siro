@@ -24,7 +24,7 @@ export const collectWorkspaceMembers = (
 ) => {
   const { codecFor, createRepoContext, paths } = dependencies;
   return pms.flatMap((pm) => {
-    const seen = new Set<string>();
+    const contexts = new Map<string, { ctx: RepoContext; parseConfig: ConfigParser }>();
     return workspaceDefinitions(ctx, pm, dependencies, rootParse).flatMap((definition) =>
       workspaceDirectories(ctx, fs, definition, pm, dependencies, rootParse).flatMap(
         ({ directory, explicitMember }) => {
@@ -47,8 +47,11 @@ export const collectWorkspaceMembers = (
             if (pm === 'deno' && !fs.exists(denoManifest) && fs.exists(denoJsonc)) {
               throw new ConfigError('deno.jsonc is not supported; use strict deno.json.');
             }
-            const memberCtx = createRepoContext(root, memberFs, projectType);
-            const memberParse = createConfigParser(codecFor, memberCtx);
+            // Reuse accepted members within this PM, but still validate each declaration's
+            // manifest requirements: a native Deno member may lack npm's package.json.
+            const cached = contexts.get(directory);
+            const memberCtx = cached?.ctx ?? createRepoContext(root, memberFs, projectType);
+            const memberParse = cached?.parseConfig ?? createConfigParser(codecFor, memberCtx);
             if (!definition.fromDenoJson && !memberCtx.packageJson) return [];
             if (!memberCtx.packageJson && !memberCtx.exists(asRelPath('deno.json'))) {
               if (definition.fromDenoJson && explicitMember) {
@@ -62,8 +65,8 @@ export const collectWorkspaceMembers = (
                 throw new ConfigError('Nested workspace declarations are not supported by Deno.');
               }
             }
-            if (seen.has(directory)) return [];
-            seen.add(directory);
+            if (cached) return [];
+            contexts.set(directory, { ctx: memberCtx, parseConfig: memberParse });
             return [{ directory, pm, ctx: memberCtx, parseConfig: memberParse }];
           } catch (error) {
             if (error instanceof ConfigError)

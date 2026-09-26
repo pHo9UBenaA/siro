@@ -226,6 +226,82 @@ it('shares a member parser between Deno nested validation and publication rules'
   ).toBe(true);
 });
 
+it('reuses overlapping Deno member reads within a call and reads afresh on the next call', () => {
+  const source = createMemFileSystem({
+    'package.json': '{"private":true,"workspaces":["child"]}',
+    'deno.json': '{"workspace":["child"]}',
+    'child/package.json': '{"private":true}',
+    'child/deno.json': '{"name":"@example/child","exports":"./mod.ts"}',
+  });
+  const reads = new Map<string, number>();
+  let published = true;
+  const options: LintOptions = {
+    cwd: asAbsPath('/repo'),
+    pm: 'deno',
+    workspaces: true,
+    fs: {
+      ...source,
+      readDirectories: (directory) => (posix(directory) === '/repo' ? ['child'] : []),
+      readText(file) {
+        const name = posix(file);
+        if (name.startsWith('/repo/child/')) {
+          const count = (reads.get(name) ?? 0) + 1;
+          reads.set(name, count);
+          if (count > 1) throw new Error(`Repeated member read: ${name}`);
+        }
+        if (name === '/repo/child/deno.json' && !published)
+          return '{"name":"@example/child","publish":false}';
+        return source.readText(file);
+      },
+    },
+  };
+  const first = lint(options);
+  expect(first.findings.filter(({ file }) => file === 'child/deno.json')).toEqual([
+    expect.objectContaining({ ruleId: 'files-field' }),
+  ]);
+  expect(Object.fromEntries(reads)).toEqual({
+    '/repo/child/package.json': 1,
+    '/repo/child/deno.json': 1,
+  });
+
+  reads.clear();
+  published = false;
+  const second = lint(options);
+  expect(second.findings.some(({ file }) => file?.startsWith('child/'))).toBe(false);
+  expect(Object.fromEntries(reads)).toEqual({
+    '/repo/child/package.json': 1,
+    '/repo/child/deno.json': 1,
+  });
+});
+
+it.each(['package.json', 'deno.json'])(
+  'propagates the initial %s read failure for an overlapping Deno member',
+  (manifest) => {
+    const source = createMemFileSystem({
+      'package.json': '{"workspaces":["child"]}',
+      'deno.json': '{"workspace":["child"]}',
+      'child/package.json': '{}',
+      'child/deno.json': '{}',
+    });
+    const failure = Object.assign(new Error('Cannot read member manifest'), { code: 'EACCES' });
+    expect(() =>
+      lint({
+        cwd: asAbsPath('/repo'),
+        pm: 'deno',
+        workspaces: true,
+        fs: {
+          ...source,
+          readDirectories: (directory) => (posix(directory) === '/repo' ? ['child'] : []),
+          readText(file) {
+            if (posix(file) === `/repo/child/${manifest}`) throw failure;
+            return source.readText(file);
+          },
+        },
+      }),
+    ).toThrow(failure);
+  },
+);
+
 it('requires injected directory discovery instead of falling back to host IO', () => {
   expect(() =>
     repo({

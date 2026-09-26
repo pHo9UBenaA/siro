@@ -47,7 +47,7 @@ prescribed number of layers or files.
 2. Add a rule in `src/core/rules/` and register it in `src/core/rules/builtin-rules.ts`.
    Use `requireConfigKey` for a single setting; use a direct binding for precedence,
    multiple settings, or manual remediation. See [configuration.md](configuration.md).
-3. Make an explicit root/member decision in the exhaustive built-in scope table in
+3. Choose `root-only` or `root-and-member` in the exhaustive built-in scope table in
    `src/core/rules/builtin-rules.ts`. Only built-in publication checks run on members;
    custom rules remain root-only. If a member check needs a new file, verify the
    restricted child FS in `src/core/workspaces/members.ts`. Test root and member

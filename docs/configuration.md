@@ -177,9 +177,12 @@ Root custom rules run once; child `siro.config.*` files are never loaded or exec
 Within one lint call, each root or member repository context reuses the first
 successfully parsed value of a configuration file (including an absent file) by
 kind and relative path. Workspace declarations, Deno vendor selection, and rules
-in that context see the same parsed value. Child contexts and later lint calls
-have separate caches. This does not make the entire filesystem an atomic snapshot:
-file-existence checks remain live, and an initial read or parse failure propagates.
+in that context see the same parsed value. Overlapping declarations for the same
+accepted member within one PM reuse its context and parser, while still checking
+each declaration source's manifest requirements. Different members, managers, and
+later lint calls have separate member caches. This does not make the entire filesystem
+an atomic snapshot: file-existence checks remain live, and an initial read or parse
+failure propagates.
 
 Injected `FileSystem` implementations can supply `readDirectories(path)`, returning
 ordinary child directory names without symlinks and propagating access errors. It is

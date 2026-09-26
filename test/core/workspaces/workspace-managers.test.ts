@@ -165,6 +165,24 @@ it('combines Deno and package.json declarations without duplicating members', ()
     }),
   ).toEqual(['a/deno.json', 'b/c/deno.json']);
 });
+it('still requires package.json for an npm literal already selected by a Deno declaration', () => {
+  expect(() =>
+    evaluate('deno', {
+      'deno.json': '{"workspace":["child"]}',
+      'package.json': '{"workspaces":["child"]}',
+      'child/deno.json': '{"name":"@example/child"}',
+    }),
+  ).toThrow('child/Declared npm workspace member has no package.json.');
+});
+it('keeps a Deno member when an overlapping npm glob skips it for lacking package.json', () => {
+  expect(
+    childFiles('deno', {
+      'deno.json': '{"workspace":["child"]}',
+      'package.json': '{"workspaces":["*"]}',
+      'child/deno.json': '{"name":"@example/child"}',
+    }),
+  ).toEqual(['child/deno.json']);
+});
 it('fails explicitly for selected Deno JSONC or nested workspaces', () => {
   expect(() =>
     evaluate('deno', { 'deno.json': '{"workspace":["a"]}', 'a/deno.jsonc': '{}' }),
@@ -223,11 +241,20 @@ it('skips npm glob candidates without package.json before opening Deno JSONC', (
     evaluate('deno', { 'package.json': '{"workspaces":["p/a"]}', 'p/a/deno.json': '{}' }),
   ).toThrow(/no package.json/u);
 });
-it('validates excluded patterns even without a positive member glob', () => {
-  expect(() => evaluate('aube', { 'aube-workspace.yaml': 'packages: ["!a[broken"]' })).toThrow(
-    /not yet supported/u,
-  );
-});
+it.each([
+  ['aube', 'aube-workspace.yaml', 'packages: ["!a[broken"]', /not yet supported/u],
+  [
+    'deno',
+    'deno.json',
+    '{"workspace":["!a**"]}',
+    /\*\* must occupy an entire workspace path component/u,
+  ],
+] as const)(
+  'validates %s exclusions even without a positive member glob',
+  (pm, file, text, error) => {
+    expect(() => evaluate(pm, { [file]: text })).toThrow(error);
+  },
+);
 it('Deno vendor mode excludes globbed copies but keeps explicit members', () => {
   const files = {
     'deno.json': '{"vendor":true,"workspace":["**", "!."]}',
