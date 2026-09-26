@@ -22,6 +22,10 @@ function check(condition: boolean): void {
 
 const posix = (value: string) => value.replaceAll('\\', '/');
 
+// A widened built-in registry would remove literal rule-ID completion from this type.
+const builtInRuleId: Extract<keyof NonNullable<SiroConfig['rules']>, 'files-field'> = 'files-field';
+check(builtInRuleId === 'files-field');
+
 const config: SiroConfig = defineConfig({
   pmVersions: { npm: '11.9.0' },
   customRules: [

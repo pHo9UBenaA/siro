@@ -1,7 +1,7 @@
-import { PMS, SEVERITIES } from '../domain/entities/pms.ts';
+import { PMS, SEVERITIES } from '../core/contracts/pms.ts';
 import { BUILTIN_REPORTER_NAMES } from '../adapters/reporters/registry.ts';
 import type { CommandName } from './commands.ts';
-import { PROJECT_TYPES } from '../domain/entities/project-type.ts';
+import { PROJECT_TYPES } from '../core/contracts/project-type.ts';
 
 const PMS_LIST = PMS.join('|');
 const REPORTERS_LIST = BUILTIN_REPORTER_NAMES.join('|');

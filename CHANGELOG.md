@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.2]
+
+### Fixes and observable behavior
+
+- Preserve explicit Deno workspace membership when a positive literal resolves through a native directory alias. For both `deno.json#workspace` and `package.json#workspaces`, an existing explicitly named directory without its required manifest now fails with a configuration error (CLI exit 2) instead of being silently skipped. Negative patterns remain lexical.
+- Reuse the first successfully parsed configuration value (including a missing file) per kind and relative path within each root or member repository context in one lint call. Workspace declarations, Deno vendor/nested checks, and rules in that context see the same value. Later calls and other contexts read afresh; initial read/parse failures still propagate. On a changing filesystem, later-only values and read errors are no longer observed for that cached key. This is not an atomic filesystem snapshot.
+- Share each context's `package.json` raw text between manifest validation and rule parsing, avoiding inconsistent two-read results.
+- Reuse accepted member contexts across overlapping declarations within one PM. Deno's native and npm declarations no longer reread the same member manifests; each source's manifest requirements are still validated. Initial read failures propagate, and later lint calls read afresh.
+
+### Architecture and maintenance
+
+- Organize policy, rules, workspace decisions, and adapter-facing contracts in one `core`; keep driven Node/codec/glob/reporter adapters outside, standard wiring in `runtime.ts`, and executable config loading in the driving `load-config.ts`. Retain the package entry and make the contracts' source dependency direction enforceable, including type imports and re-exports.
+- Require an explicit declaration and matching policy when a new package manager is added; require a root-only or root-and-member decision for every built-in rule. Existing six-manager behavior and the three member publication checks retain their scope and ordering.
+- Avoid compiling an unused common exclusion set before Deno's ordered workspace selection.
+- Focus the README on first use and consolidate CLI details in getting-started and behavior in the existing reference documentation.
+
+### Compatibility and limits
+
+- Public exports and installed types, synchronous `lint`, asynchronous `lintCommand`, CLI flags and exit codes, JSON schema 2, supported Node range, and the executable-config trust boundary remain unchanged apart from the explicit behavior differences above. Library lint calls do not auto-import repository config; CLI and explicit `loadConfig` can execute it.
+- Member checks remain opt-in and limited to publication metadata. They do not resolve effective installation settings, verify actual PM versions, or replace vulnerability scanning. Live PM and cross-platform compatibility are not established by the virtual-filesystem tests alone.
+
 ## [0.5.1]
 
 ### Refactoring

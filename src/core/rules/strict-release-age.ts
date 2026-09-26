@@ -1,0 +1,26 @@
+import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
+import { CONFIG_FILES } from '../config-files.ts';
+import { requireConfigKey } from './builders/require-config-key.ts';
+
+const { aubeWorkspace } = CONFIG_FILES;
+
+const builtRule = requireConfigKey({
+  bindings: {
+    aube: {
+      docs: 'https://aube.jdx.dev/settings/',
+      file: aubeWorkspace,
+      keyPath: ['minimumReleaseAgeStrict'],
+      message:
+        'Set `minimumReleaseAgeStrict: true` in aube-workspace.yaml to make the release age gate a hard block.',
+      value: true,
+    },
+  },
+  description:
+    'Fail when no satisfying version meets the release age, instead of falling back to the lowest satisfying version.',
+  docs: 'https://aube.jdx.dev/security.html',
+  id: 'strict-release-age',
+  severity: 'info',
+  title: 'Enforce strict release age gate',
+});
+
+export const strictReleaseAge = withAubeParanoid(builtRule);

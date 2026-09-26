@@ -1,132 +1,113 @@
 # Architecture
 
-siro uses ports and adapters. Its application evaluates repository policy without
-selecting a filesystem, parser, reporter, clock, or host platform. The public Node
-API supplies the standard implementations, so callers still use `lint(options)`
-and `lintCommand(options, io)` without assembling internal dependencies.
-
-## Dependency direction
-
-The hexagon contains application use cases, domain policy and their ports. The CLI
-is a driving adapter; filesystem, codecs, glob matching and reporters are driven
-adapters. Composition is outside the hexagon and supplies concrete implementations.
-These are source dependencies, not the chronological order of execution:
+siro is a single hexagon, not a hierarchy of DDD entities and services. `src/core/`
+contains the product's decisions and use cases. It does not import Node, the glob
+engine, the reporter implementations, or the standard runtime wiring. The public
+package entry remains `src/index.ts`; consumers do not assemble internal ports.
 
 ```text
-                         inside the hexagon
-CLI / public facade ---> application use cases ---> domain policy
-                                |                       |
-                                v                       v
-                         application ports        domain ports
-                                ^                       ^
-                                |                       |
-                         concrete adapters (outside)
+CLI / explicit loadConfig / public API  ──▶  core use cases
+                                              │
+                                              ▼
+                                        core/contracts
+                                              ▲
+                                              │
+                                     driven adapters
 
-composition (outside) ---> use cases + concrete adapters
-shared <--- core and outer modules
+runtime.ts ──▶ core + driven adapters (standard wiring and evaluation-time clock)
 ```
 
-Ports belong to the core responsibility that needs them. Use-case functions are
-input ports; an extra interface/class is not required around each function. During
-execution the core calls supplied output ports, which dispatch to adapters. That
-outward call does not create an outward source dependency.
+## Responsibilities and dependency direction
 
-| Area                         | Responsibility                                                                                | Allowed internal dependencies                                         |
-| ---------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `shared/`                    | Errors, records, branded path types and relative-path validation                              | Shared                                                                |
-| `domain/`                    | Rules, PM bindings, configuration validation, severity, version availability and domain ports | Domain, shared                                                        |
-| `application/ports/`         | Host-neutral contracts for application operations                                             | Application ports, domain, shared                                     |
-| `application/` (other files) | Input validation, PM/workspace selection, evaluation and reporting use cases                  | Application, application ports, domain, shared                        |
-| `adapters/`                  | Node filesystem/paths, configuration import, codecs, glob engine and output formats           | Adapters, application ports, domain, shared                           |
-| `composition/`               | Connect standard adapters and time-dependent rules                                            | Composition, adapters, application, application ports, domain, shared |
-| `cli/`, `cli.ts`, `index.ts` | CLI driving adapter and public package facade                                                 | Inward dependencies; never imported by the core                       |
+| Area                                           | Responsibility                                                                            | Source dependencies                                                                         |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `core/contracts/`                              | Adapter-facing ports, public values, schemas, and pure validators                         | Other contracts and host-independent computation libraries                                  |
+| `core/` outside `contracts/`                   | Input selection, rule evaluation, PM policy, workspace discovery, and reporting decisions | Core and contracts, never outer implementations                                             |
+| `core/rules/`                                  | Security intents with PM-specific bindings and setting availability                       | Core and contracts                                                                          |
+| `core/workspaces/`                             | PM declaration policy, selection, traversal, member-context preparation                   | Core and contracts; traversal invokes supplied FS/glob ports                                |
+| `adapters/`                                    | Driven Node filesystem/paths, repository context, config codecs, glob engine, reporters   | Other adapters, contracts, and static version metadata; never core use-case implementations |
+| `runtime.ts`                                   | Standard dependencies, built-in rule clock, and public `lint`/`lintCommand` wiring        | Core and adapters                                                                           |
+| `load-config.ts`, `cli/`, `cli.ts`, `index.ts` | Executable-config import, CLI driving adapter, public facade                              | Inward dependencies and outer host helpers                                                  |
+| `version.ts`                                   | Static package metadata                                                                   | `package.json` only                                                                         |
 
-Driven adapters must not import application implementations. The config loader
-imports domain configuration validation, shared with the library use case. The
-path adapter imports only its small `RepositoryPaths` contract, not the aggregate
-lint dependency contract.
+`core/contracts/` is a _closed_ adapter-facing boundary. It contains both output
+ports (`FileSystem`, `WorkspaceGlobs`, `ConfigCodec`, `Reporter`, `IO`) and the
+values their implementations need (`PackageJson`, `ParsedConfig`, `LintResult`,
+paths, PMs, errors, and `Rule`). For example, the repository adapter uses the
+pure `parsePackageJson` validator and codecs use `toParsedConfig`. Placing those
+alongside ports avoids an adapter-to-use-case import or a filename allowlist.
+Contracts cannot import other core implementations, including via type imports
+or re-exports. `SiroConfig` is not in this closed group: its built-in rule ID
+completion depends (type-only) on the actual rule registry. The outer driving
+`load-config.ts` may call the shared core validator; driven adapters may not call
+a lint use case. Public `Rule`, `SiroConfig`, and reporter types are still
+exported only through the package entry point.
 
-**All statically resolved internal source dependencies must form a directed
-acyclic graph, including type imports and re-exports within the same layer.**
-This is an explicit siro maintenance constraint in addition to the hexagonal
-boundary. `ConfigFileRef` lives in an independent domain value module: both rules
-and repository ports depend on it, rather than depending on each other. Built-in
-rule ID completion is derived from the rule registry as a type-only dependency;
-this keeps one source of truth without introducing a cycle.
+The architecture test resolves TypeScript imports, including type imports,
+re-exports, static dynamic imports and `.js` references to `.ts` sources. It
+checks dependencies among these areas, metadata access and unresolved local
+imports. It forbids host built-ins and dynamic module selection in core, and
+adapter-to-core-implementation references. It does not impose a particular file
+count, ban same-area cycles, inspect third-party internals, or prove PM behavior.
+Runtime calls from core through a supplied output port do not reverse the source
+dependency direction.
 
-`version.ts` exposes static package metadata. It is not a runtime dependency
-provider. The core permits `semver` and `valibot` for computation and validation;
-format, filesystem and glob libraries remain in adapters. The architecture test
-uses TypeScript module resolution, including `.js` references to `.ts` sources,
-before checking direction and cycles. It rejects unresolved local references,
-checks imports/re-exports (including types and static dynamic imports), known host
-globals, and dynamic module selection in the core. Executable user configuration
-is intentionally loaded dynamically by the outer config adapter. The test does
-not inspect third-party library internals or sandbox user code.
+## Execution and state
 
-## Execution and ports
+1. CLI input parsing is a driving operation. The CLI automatically finds and
+   imports `siro.config.*` through `load-config.ts`. The exported `loadConfig`
+   also imports executable configuration **when explicitly called**. Library
+   `lint` and `lintCommand` accept config as a value and never discover or
+   execute target-repository config files themselves.
+2. `runtime.ts` supplies the standard FS, paths, codecs, glob engine, reporter
+   registry and clock callbacks. `core/lint.ts` validates input, resolves PMs,
+   versions and rules, and prepares root/member contexts. It accepts a caller's
+   `FileSystem` in place of the standard one without a host fallback.
+3. `core/run-lint.ts` evaluates each applicable rule binding and builds findings.
+   A parser is lazy and belongs to **one repository context in one lint call**.
+   Workspace declarations, Deno vendor selection, nested checks and rule reads
+   of the same `(kind, relative path)` share its first successfully parsed value
+   (including an absent file). Root and each member have distinct parsers; a new
+   lint call builds fresh contexts. The first read/parse failure propagates and
+   is not cached. This is not a filesystem-wide atomic snapshot: existence
+   checks remain live, and independent paths need not describe one instant.
+   Each context also reads its `package.json` raw text once for both manifest
+   validation and rule parsing.
+4. `core/lint-command.ts` prepares input, validates the selected reporter,
+   evaluates, computes an exit status from the full result, filters display
+   findings, and awaits reporter output through `IO`. Reporter rejection
+   propagates. `cli.ts` classifies expected failures and owns process exit.
 
-1. The CLI parses arguments and explicitly loads `siro.config.*`. Library `lint`
-   receives configuration as a value and never imports target configuration code.
-2. `composition/lint.ts` supplies `LintDependencies`. `composition/rules.ts` binds
-   the clock to the built-in rule factory. `application/lint.ts` validates options,
-   resolves PMs and versions, and prepares root/member contexts through these ports.
-3. `runLint` uses `RepoContext` and `CodecFor` to evaluate bindings. Parsed settings
-   are cached within each evaluation. Findings and their order remain independent
-   of reporter selection.
-4. The command use case selects from the supplied reporter registry, computes the
-   exit status from all findings, and awaits output through `Reporter` and `IO`.
-   Reporter rejection propagates; the CLI classifies errors and owns process exit.
+Workspace declaration sources remain PM-specific. `core/workspaces/declarations.ts`
+validates them; `selection.ts` compiles inclusion, exclusion and descent policy;
+`walk.ts` lists ordinary directories using the supplied FS; `members.ts` builds
+restricted child publication contexts. Selection passes both the actual directory
+and whether a positive native Deno literal selected it. Member construction does
+not reinterpret the declaration spelling to rediscover that fact. Positive Deno
+prefixes may use the injected resolver; negative paths remain lexical. Bun's
+ordered glob pass, npm's exclusion cancellation, Deno's two declaration sources,
+Aube's limited matcher, directory sorting and failure order retain their distinct
+semantics. No PM-specific walker or repository-wide directory cache is introduced.
 
-`FileSystem` distinguishes absence from failure: only ENOENT is absent; other
-errors and non-file entries propagate. Workspace discovery requires directory
-operations on the supplied filesystem and never falls back to the host filesystem.
-`RepositoryPaths` separates native absolute paths from POSIX workspace patterns.
-`WorkspaceGlobs` supplies bounded expansion, membership and traversal predicates;
-the application owns PM syntax policy, inclusion order and member scope.
-The glob port distinguishes declaration comparison from directory matching and
-expresses case, punctuation, hidden-directory and extended-pattern behavior.
-Minimatch options, optimization and literal-bracket escaping stay in its adapter.
-The explicit case policy preserves the host's existing glob behavior. Native
-literal-directory resolution is a separate filesystem operation.
+Security intents remain grouped by rule, not by PM. `DateTime.now()` reads epoch
+milliseconds at evaluation time; `DateTime.parse()` retains native parsing,
+including the host timezone for offsetless npm cutoffs. The built-in publication
+IDs selected in `core/rules/builtin-rules.ts` run on members; custom rules and installation
+policy remain root-only. Member remediation is only proposed, never applied.
 
-The domain owns release-age policy. `DateTime.now()` supplies current epoch
-milliseconds at evaluation time. `DateTime.parse()` supplies native parsing, including the host timezone for
-offsetless npm cutoffs; explicit UTC arithmetic stays in the domain. This preserves
-the existing JavaScript semantics. Tests can supply a fixed clock without patching globals.
-No new clock or glob injection surface is added to the public API.
+## Changes and verification
 
-PM-specific policy is part of siro's purpose: adding a PM binding does not imply
-moving that policy to an adapter. Similarly, workspace root installation policy
-and child publication policy remain separate. Remediation is a proposal; this
-architecture does not add file-writing capabilities.
+Keep contracts small and describe absence and failures where they are produced.
+Do not add internal ports to the public package solely for private consumers. To
+change workspace semantics, test declaration selection, real adapter behavior,
+public API and CLI failure propagation separately. In particular, a Deno literal
+resolved via a native alias must retain its explicit-member status when checking
+for a missing manifest; this is different from a negative path's lexical match.
 
-## Changing and verifying boundaries
-
-Put a port with the core responsibility that needs it. Keep contracts small and
-state absence, failures and ownership. Use functions and explicit dependencies;
-a DI container or a class per use case is unnecessary. Standard wiring belongs
-in composition, never in core defaults or a shared module that imports adapters.
-
-- Core tests supply ports and verify decisions, precedence, failures and isolation.
-- Adapter tests exercise parsing, filesystem semantics and output contracts.
-- Composition/API/CLI tests exercise real wiring, trust boundaries and exit codes.
-- `pnpm verify` includes the graph/direction gate and behavioral tests. Gate
-  examples cover type cycles, transitive cycles, shared acyclic dependencies,
-  module resolution, and adapter-to-use-case violations.
-- `pnpm test:package` checks installed exports, types and the executable. Source
-  imports alone do not establish package compatibility.
-
-Keep the public exports, synchronous `lint`, asynchronous `lintCommand`, JSON
-schema, error categories and PM semantics stable during structural refactors.
-Private consumers must use the built package entry point; they must not import
-internal application ports or expand the public API solely for harness convenience.
-
-## Completion evidence for an architecture change
-
-A structural change is complete when the resolved source graph has no cycles or
-forbidden edges; ports describe siro operations without concrete engine switches;
-core behavior can run with supplied test ports; and adapter, CLI and installed
-package checks preserve the observable contract. Keep the public design guide,
-private maintainer material and private package consumers aligned with that state.
-Do not substitute a green graph check for behavioral and integration evidence.
+`pnpm verify` includes typecheck, lint/format, dead-code checking, generated rule
+docs and behavioral tests. `pnpm test:package` tests the packed, installed API,
+strict exported types and the executable's exit codes. The direction gate is not
+an architectural verdict by itself: verify API/CLI output, rule ordering, error
+propagation and PM behavior as well. Keep the public facade, JSON schema,
+synchronous `lint`, asynchronous `lintCommand`, public `loadConfig` semantics and
+child publication scope stable during internal relocation.

@@ -1,6 +1,6 @@
-import { asRelPath } from '../../../src/shared/paths.ts';
-import type { IO } from '../../../src/domain/ports/io.ts';
-import type { LintResult } from '../../../src/domain/entities/lint-result.ts';
+import { asRelPath } from '../../../src/core/contracts/paths.ts';
+import type { IO } from '../../../src/core/contracts/io.ts';
+import type { LintResult } from '../../../src/core/contracts/lint-result.ts';
 import { jsonReporter } from '../../../src/adapters/reporters/json.ts';
 import { version } from '../../../src/version.ts';
 

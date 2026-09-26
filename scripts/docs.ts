@@ -1,10 +1,10 @@
-import { renderVersionNoteMessage } from '../src/domain/services/render-version-note.ts';
+import { renderVersionNoteMessage } from '../src/core/render-version-note.ts';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import type { Rule } from '../src/domain/entities/rule.ts';
-import { PMS } from '../src/domain/entities/pms.ts';
-import { rules as defaultRules } from '../src/composition/rules.ts';
-import { settingAvailability } from '../src/domain/setting-availability.ts';
+import type { Rule } from '../src/core/contracts/rule.ts';
+import { PMS } from '../src/core/contracts/pms.ts';
+import { rules as defaultRules } from '../src/runtime.ts';
+import { settingAvailability } from '../src/core/rules/setting-availability.ts';
 
 const COMPARISON_INTRO = `<!-- AUTO-GENERATED from the rule registry. Run \`pnpm gen:docs\` to update. -->
 # Package manager comparison

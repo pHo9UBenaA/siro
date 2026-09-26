@@ -1,6 +1,6 @@
-import type { IO } from '../../domain/ports/io.ts';
-import type { LintResult } from '../../domain/entities/lint-result.ts';
-import type { Reporter } from '../../domain/ports/reporter.ts';
+import type { IO } from '../../core/contracts/io.ts';
+import type { LintResult } from '../../core/contracts/lint-result.ts';
+import type { Reporter } from '../../core/contracts/reporter.ts';
 import { version } from '../../version.ts';
 
 /**

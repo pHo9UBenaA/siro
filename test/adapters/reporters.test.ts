@@ -5,7 +5,7 @@ import {
   jsonReporter,
   prettyReporter,
 } from '../../src/adapters/reporters/registry.ts';
-import type { LintResult } from '../../src/domain/entities/lint-result.ts';
+import type { LintResult } from '../../src/core/contracts/lint-result.ts';
 import { parseGithubAnnotation } from '../helpers/github-annotation.ts';
 import { captureIO } from '../helpers/io.ts';
 

@@ -1,6 +1,6 @@
 import { minimatchGlobs } from '../../src/adapters/workspace-globs.ts';
-import type { WorkspaceGlobOptions } from '../../src/application/ports/workspace-glob.ts';
-import { ConfigError } from '../../src/shared/errors.ts';
+import type { WorkspaceGlobOptions } from '../../src/core/contracts/workspace-glob.ts';
+import { ConfigError } from '../../src/core/contracts/errors.ts';
 
 const shell = {
   kind: 'directory',

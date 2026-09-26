@@ -1,5 +1,5 @@
-import type { CodecFor, ConfigCodec } from '../../domain/ports/config-codec.ts';
-import type { CodecKind } from '../../domain/entities/config-value.ts';
+import type { CodecFor, ConfigCodec } from '../../core/contracts/config-codec.ts';
+import type { CodecKind } from '../../core/contracts/config-value.ts';
 import { iniCodec } from './ini.ts';
 import { jsonCodec } from './json.ts';
 import { tomlCodec } from './toml.ts';

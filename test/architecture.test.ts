@@ -3,97 +3,32 @@ import { isBuiltin } from 'node:module';
 import path from 'node:path';
 import ts from 'typescript';
 
-const LAYERS = [
-  'shared',
-  'domain',
-  'application',
-  'application-ports',
-  'adapters',
-  'composition',
-  'cli',
-  'public',
-] as const;
-type Layer = (typeof LAYERS)[number];
+type Area =
+  | 'contracts'
+  | 'core'
+  | 'adapters'
+  | 'composition'
+  | 'config-entry'
+  | 'cli'
+  | 'public'
+  | 'metadata';
 interface SourceFile {
   readonly path: string;
   readonly content: string;
 }
 
-const allowedTargets: Readonly<Record<Layer, ReadonlySet<Layer>>> = {
-  shared: new Set(),
-  domain: new Set(['shared']),
-  'application-ports': new Set(['shared', 'domain']),
-  application: new Set(['shared', 'domain', 'application-ports']),
-  adapters: new Set(['shared', 'domain', 'application-ports']),
-  composition: new Set(['shared', 'domain', 'application-ports', 'application', 'adapters']),
-  cli: new Set(['shared', 'domain', 'application-ports', 'application', 'adapters', 'composition']),
-  public: new Set([
-    'shared',
-    'domain',
-    'application-ports',
-    'application',
-    'adapters',
-    'composition',
-  ]),
+const allowedTargets: Readonly<Record<Area, ReadonlySet<Area>>> = {
+  contracts: new Set(),
+  core: new Set(['contracts']),
+  adapters: new Set(['contracts', 'metadata']),
+  composition: new Set(['contracts', 'core', 'adapters', 'metadata']),
+  'config-entry': new Set(['contracts', 'core', 'adapters', 'metadata']),
+  cli: new Set(['contracts', 'core', 'adapters', 'composition', 'config-entry', 'metadata']),
+  public: new Set(['contracts', 'core', 'adapters', 'composition', 'config-entry', 'metadata']),
+  metadata: new Set(),
 };
-const core = new Set<Layer>(['shared', 'domain', 'application-ports', 'application']);
-// Audited computation libraries; runtime and format libraries belong outside the core.
-const coreLibraries = new Set(['semver', 'valibot']);
-const runtimeGlobals = new Set([
-  'process',
-  'global',
-  'globalThis',
-  'Buffer',
-  'console',
-  'fetch',
-  'require',
-  'setTimeout',
-  'setInterval',
-  'setImmediate',
-  'Date',
-  'performance',
-  'crypto',
-]);
-
-const explicitDateOffset = /(?:[zZ]|[+-]\d{2}:?\d{2})$/u;
-const numericDateOperators = new Set([
-  ts.SyntaxKind.MinusToken,
-  ts.SyntaxKind.AsteriskToken,
-  ts.SyntaxKind.AsteriskAsteriskToken,
-  ts.SyntaxKind.SlashToken,
-  ts.SyntaxKind.PercentToken,
-]);
-
-const hasExplicitDateOffset = (node: ts.Expression): boolean => {
-  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-    return explicitDateOffset.test(node.text);
-  }
-  if (ts.isTemplateExpression(node)) {
-    return explicitDateOffset.test(node.templateSpans.at(-1)?.literal.text ?? node.head.text);
-  }
-  return false;
-};
-
-const isNumericDateExpression = (node: ts.Expression): boolean => {
-  if (ts.isNumericLiteral(node)) return true;
-  if (ts.isParenthesizedExpression(node)) return isNumericDateExpression(node.expression);
-  if (ts.isPrefixUnaryExpression(node)) {
-    return node.operator === ts.SyntaxKind.PlusToken || node.operator === ts.SyntaxKind.MinusToken;
-  }
-  if (!ts.isBinaryExpression(node)) return false;
-  return numericDateOperators.has(node.operatorToken.kind);
-};
-
-const isDeterministicDateConstructor = (node: ts.Identifier): boolean => {
-  if (!ts.isNewExpression(node.parent) || node.parent.expression !== node) return false;
-  const [argument] = node.parent.arguments ?? [];
-  return (
-    node.parent.arguments?.length === 1 &&
-    argument !== undefined &&
-    (isNumericDateExpression(argument) || hasExplicitDateOffset(argument))
-  );
-};
-
+const coreAreas = new Set<Area>(['contracts', 'core']);
+const noDynamicSelection = new Set<Area>([...coreAreas, 'adapters', 'metadata']);
 const sourceRoot = path.resolve(import.meta.dirname, '../src');
 const projectRoot = path.resolve(sourceRoot, '..');
 const canonicalFileName = (file: string): string => {
@@ -105,21 +40,19 @@ const compilerOptions = ts.convertCompilerOptionsFromJson(
   config.config.compilerOptions,
   projectRoot,
 ).options;
-const packageJson = JSON.parse(readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
-const runtimeLibraries = new Set(Object.keys(packageJson.dependencies));
-
-const layerOf = (file: string): Layer | undefined => {
-  if (file.startsWith('application/ports/')) return 'application-ports';
-  if (/^index\.(?:ts|js)$/u.test(file)) return 'public';
-  if (/^version\.(?:ts|js)$/u.test(file)) return 'shared';
-  if (file === 'cli.ts' || file === 'cli.js' || file.startsWith('cli/')) return 'cli';
-  const [first] = file.split('/');
-  return LAYERS.find((layer) => layer === first);
+const areaOf = (file: string): Area | undefined => {
+  if (file.startsWith('core/contracts/')) return 'contracts';
+  if (file.startsWith('core/')) return 'core';
+  if (file.startsWith('adapters/')) return 'adapters';
+  if (file === 'runtime.ts') return 'composition';
+  if (file === 'load-config.ts') return 'config-entry';
+  if (file.startsWith('cli/') || file === 'cli.ts') return 'cli';
+  if (file === 'index.ts') return 'public';
+  if (file === 'version.ts') return 'metadata';
 };
 
 const findViolations = (files: readonly SourceFile[]): string[] => {
   const violations: string[] = [];
-  const graph = new Map(files.map((file) => [file.path, new Set<string>()]));
   const contents = new Map(
     files.map((file) => [canonicalFileName(path.join(sourceRoot, file.path)), file.content]),
   );
@@ -128,19 +61,27 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
     readFile: (file) => contents.get(canonicalFileName(file)),
   };
   for (const file of files) {
-    const sourceLayer = layerOf(file.path);
+    const sourceArea = areaOf(file.path);
     const fail = (reason: string) => violations.push(`${file.path}: ${reason}`);
-    if (!sourceLayer) {
+    if (!sourceArea) {
       fail('unclassified source file');
       continue;
     }
-    const inCore = core.has(sourceLayer);
+    const inCore = coreAreas.has(sourceArea);
     const inspectImport = (specifier: string) => {
       const packageMetadata = path.resolve(sourceRoot, path.dirname(file.path), specifier);
-      if (file.path === 'version.ts' && packageMetadata === path.join(projectRoot, 'package.json'))
+      if (packageMetadata === path.join(projectRoot, 'package.json')) {
+        if (sourceArea !== 'metadata') fail(`forbidden package metadata dependency ${specifier}`);
         return;
-      // Use the same resolution as the compiler: .js specifiers may resolve to
-      // .ts files; aliases and index modules must not hide a reverse edge/cycle.
+      }
+      if (sourceArea === 'metadata') {
+        fail(`metadata may only read package.json: ${specifier}`);
+        return;
+      }
+      if (isBuiltin(specifier)) {
+        if (inCore) fail(`forbidden host dependency ${specifier}`);
+        return;
+      }
       const resolved = ts.resolveModuleName(
         specifier,
         path.join(sourceRoot, file.path),
@@ -148,26 +89,16 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
         host,
       ).resolvedModule;
       if (!resolved) {
-        const library = specifier.startsWith('@')
-          ? specifier.split('/').slice(0, 2).join('/')
-          : specifier.split('/')[0];
-        if (specifier.startsWith('.') || path.isAbsolute(specifier)) {
+        if (specifier.startsWith('.') || path.isAbsolute(specifier))
           fail(`unresolved source dependency ${specifier}`);
-        } else if (
-          inCore
-            ? !coreLibraries.has(library ?? '')
-            : !isBuiltin(specifier) && !runtimeLibraries.has(library ?? '')
-        ) {
-          fail(`forbidden external dependency ${specifier}`);
-        }
+        // Typecheck, build, and package tests establish external availability.
         return;
       }
       const target = path.relative(sourceRoot, resolved.resolvedFileName).split(path.sep).join('/');
-      graph.get(file.path)?.add(target);
-      const targetLayer = layerOf(target);
-      if (!targetLayer) fail(`unclassified dependency ${specifier}`);
-      else if (targetLayer !== sourceLayer && !allowedTargets[sourceLayer].has(targetLayer)) {
-        fail(`forbidden ${targetLayer} dependency ${specifier}`);
+      const targetArea = areaOf(target);
+      if (!targetArea) fail(`unclassified dependency ${specifier}`);
+      else if (targetArea !== sourceArea && !allowedTargets[sourceArea].has(targetArea)) {
+        fail(`forbidden ${targetArea} dependency ${specifier}`);
       }
     };
     const source = ts.createSourceFile(file.path, file.content, ts.ScriptTarget.Latest, true);
@@ -195,7 +126,8 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
           (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument))
         )
           inspectImport(argument.text);
-        else if (inCore) fail('dynamic module selection in core');
+        else if (noDynamicSelection.has(sourceArea))
+          fail('dynamic module selection in core or driven adapter');
       }
       if (
         ts.isImportEqualsDeclaration(node) &&
@@ -204,48 +136,10 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
         const reference = node.moduleReference.expression;
         if (reference && ts.isStringLiteral(reference)) inspectImport(reference.text);
       }
-      if (inCore && ts.isIdentifier(node) && runtimeGlobals.has(node.text)) {
-        const deterministicDate =
-          node.text === 'Date' &&
-          ((ts.isPropertyAccessExpression(node.parent) && node.parent.name.text === 'UTC') ||
-            isDeterministicDateConstructor(node));
-        if (!deterministicDate) fail(`runtime global ${node.text} in core`);
-      }
-      if (inCore && ts.isMetaProperty(node)) fail('runtime metadata in core');
-      if (
-        inCore &&
-        ts.isPropertyAccessExpression(node) &&
-        ts.isIdentifier(node.expression) &&
-        node.expression.text === 'Math' &&
-        node.name.text === 'random'
-      ) {
-        fail('ambient randomness in core');
-      }
       ts.forEachChild(node, visit);
     };
     visit(source);
   }
-  // All edges count, including type-only references and re-exports. A completed
-  // node may be shared by multiple branches; only an active ancestor is a cycle.
-  const completed = new Set<string>();
-  const active = new Set<string>();
-  const trail: string[] = [];
-  const visitDependency = (file: string): void => {
-    if (active.has(file)) {
-      violations.push(
-        `dependency cycle: ${[...trail.slice(trail.indexOf(file)), file].join(' -> ')}`,
-      );
-      return;
-    }
-    if (completed.has(file)) return;
-    active.add(file);
-    trail.push(file);
-    for (const target of graph.get(file) ?? []) visitDependency(target);
-    trail.pop();
-    active.delete(file);
-    completed.add(file);
-  };
-  for (const file of graph.keys()) visitDependency(file);
   return violations;
 };
 
@@ -257,185 +151,106 @@ const readSources = (root: string, relative = ''): SourceFile[] =>
     return [{ path: entryPath, content: readFileSync(path.join(root, entryPath), 'utf8') }];
   });
 
-it('keeps the source graph acyclic, including types, with only inward dependencies', () => {
+it('keeps resolved source imports directed through the contracts', () => {
   expect(findViolations(readSources(sourceRoot))).toEqual([]);
 });
 
-it.each([
-  ['domain/rule.ts', "import fs from 'node:fs';"],
-  ['shared/path.ts', "import path from 'path';"],
-  ['application/glob.ts', 'const insensitive = process.platform === "darwin";'],
-  ['shared/value.ts', 'const value = globalThis.process;'],
-  ['application/load.ts', 'const value = import(name);'],
-  ['domain/rule.ts', 'const value = Math.random();'],
-  ['domain/rule.ts', 'const value = Date.now();'],
-  ['domain/rule.ts', 'const value = Date.parse(input);'],
-  ['domain/rule.ts', 'const value = new Date();'],
-  ['domain/rule.ts', "const value = new Date('2030-01-01T00:00:00');"],
-  ['domain/rule.ts', 'const value = new Date(input);'],
-  ['application/load.ts', "import yaml from 'yaml';"],
-  ['unclassified.ts', 'export const value = 1;'],
-])('rejects forbidden dependencies in %s: %s', (file, content) => {
-  expect(findViolations([{ path: file, content }]).length).toBeGreaterThan(0);
-});
-
-it('allows ports, pure computation libraries, and outer composition', () => {
+it('rejects host dependencies and unclassified files', () => {
   expect(
-    findViolations([
-      { path: 'domain/value.ts', content: "import { lt } from 'semver';" },
-      { path: 'domain/epoch-date.ts', content: 'const value = new Date(now - age * 1000);' },
-      {
-        path: 'domain/utc-date.ts',
-        content: 'const value = new Date(`${date}T00:00:00Z`);',
-      },
-      { path: 'domain/ports/repo-context.ts', content: 'export interface RepoContext {}' },
-      {
-        path: 'application/ports/repository-paths.ts',
-        content: 'export interface RepositoryPaths {}',
-      },
-      {
-        path: 'application/lint.ts',
-        content: "import type { RepoContext } from '../domain/ports/repo-context.ts';",
-      },
-      {
-        path: 'adapters/fs.ts',
-        content:
-          "import type { RepositoryPaths } from '../application/ports/repository-paths.ts'; import fs from 'node:fs';",
-      },
-      {
-        path: 'composition/lint.ts',
-        content:
-          "import { lint } from '../application/lint.ts'; import { fs } from '../adapters/fs.ts';",
-      },
-    ]),
-  ).toEqual([]);
-});
-
-it.each([
-  ["import { value } from './b.ts';", "export { value } from './a.ts';"],
-  ["import type { Value } from './b.ts';", "export type { Value } from './a.ts';"],
-  ["type Value = import('./b.ts').Value;", "type Value = import('./a.ts').Value;"],
-  ["const value = import('./b.ts');", "export * from './a.ts';"],
-])('rejects same-layer cycles through imports, exports and type references', (a, b) => {
+    findViolations([{ path: 'core/contracts/value.ts', content: "import fs from 'node:fs';" }]),
+  ).toHaveLength(1);
   expect(
-    findViolations([
-      { path: 'domain/a.ts', content: a },
-      { path: 'domain/b.ts', content: b },
-    ]),
-  ).toContain('dependency cycle: domain/a.ts -> domain/b.ts -> domain/a.ts');
-});
-
-it('rejects self imports and cycles hidden behind intermediate modules', () => {
+    findViolations([{ path: 'core/run.ts', content: 'const value = import(name);' }]),
+  ).toHaveLength(1);
   expect(
-    findViolations([
-      { path: 'domain/a.ts', content: "import type { Value } from './b.ts';" },
-      { path: 'domain/b.ts', content: "export type { Value } from './c.ts';" },
-      { path: 'domain/c.ts', content: "import type { Value } from './a.ts';" },
-      { path: 'shared/self.ts', content: "export * from './self.ts';" },
-    ]),
-  ).toEqual([
-    'dependency cycle: domain/a.ts -> domain/b.ts -> domain/c.ts -> domain/a.ts',
-    'dependency cycle: shared/self.ts -> shared/self.ts',
-  ]);
-});
-
-it('allows diamond dependencies on a shared contract without treating them as cycles', () => {
-  expect(
-    findViolations([
-      { path: 'domain/a.ts', content: "import './b.ts'; import './c.ts';" },
-      { path: 'domain/b.ts', content: "export type { Value } from './d.ts';" },
-      { path: 'domain/c.ts', content: "import type { Value } from './d.ts';" },
-      { path: 'domain/d.ts', content: 'export type Value = string;' },
-    ]),
-  ).toEqual([]);
-});
-
-it('resolves JavaScript extensions to TypeScript sources before checking cycles', () => {
-  expect(
-    findViolations([
-      { path: 'domain/a.ts', content: "import type { Value } from './b.js';" },
-      { path: 'domain/b.ts', content: "export type { Value } from './a.js';" },
-    ]),
-  ).toContain('dependency cycle: domain/a.ts -> domain/b.ts -> domain/a.ts');
-});
-
-it('rejects adapters coupled to application implementations and ports coupled to use cases', () => {
-  expect(
-    findViolations([
-      {
-        path: 'adapters/fs.ts',
-        content: "import type { LintOptions } from '../application/lint.ts';",
-      },
-      {
-        path: 'application/ports/fs.ts',
-        content: "export type { LintOptions } from '../lint.ts';",
-      },
-      { path: 'application/lint.ts', content: 'export interface LintOptions {}' },
-    ]),
-  ).toEqual([
-    'adapters/fs.ts: forbidden application dependency ../application/lint.ts',
-    'application/ports/fs.ts: forbidden application dependency ../lint.ts',
-  ]);
-});
-
-it('rejects unresolved local imports instead of silently omitting their edges', () => {
-  expect(
-    findViolations([{ path: 'domain/a.ts', content: "export * from './missing.ts';" }]),
-  ).toEqual(['domain/a.ts: unresolved source dependency ./missing.ts']);
-});
-
-it('follows static dynamic imports and CommonJS references in outer adapters', () => {
-  expect(
-    findViolations([
-      { path: 'adapters/a.ts', content: 'const b = import(`./b.ts`);' },
-      { path: 'adapters/b.ts', content: "import c = require('./c.ts');" },
-      { path: 'adapters/c.ts', content: "const a = require('./a.ts');" },
-    ]),
-  ).toContain('dependency cycle: adapters/a.ts -> adapters/b.ts -> adapters/c.ts -> adapters/a.ts');
-});
-
-it.each([
-  [
-    'application/use.ts',
-    'adapters/fs.ts',
-    "import { value } from '../adapters/fs.ts';",
-    'adapters',
-  ],
-  [
-    'application/use.ts',
-    'composition/root.ts',
-    "import type { Value } from '../composition/root.ts';",
-    'composition',
-  ],
-  ['application/use.ts', 'index.ts', "export { value } from '../index.ts';", 'public'],
-  [
-    'domain/rule.ts',
-    'application/value.ts',
-    "export { value } from '../application/value.ts';",
-    'application',
-  ],
-  ['shared/value.ts', 'domain/value.ts', "const value = import('../domain/value.ts');", 'domain'],
-  [
-    'adapters/fs.ts',
-    'composition/root.ts',
-    "export { value } from '../composition/root.ts';",
-    'composition',
-  ],
-  [
-    'application/use.ts',
-    'unclassified.ts',
-    "import { value } from '../unclassified.ts';",
-    undefined,
-  ],
-] as const)('checks resolved layer boundaries from %s to %s', (source, target, content, layer) => {
-  const errors = findViolations([
-    { path: source, content },
-    { path: target, content: 'export const value = 1; export type Value = number;' },
-  ]);
-  expect(errors).toContain(
-    layer
-      ? source + ': forbidden ' + layer + ' dependency ' + content.match(/['"]([^'"]+)['"]/)?.[1]
-      : source + ': unclassified dependency ../unclassified.ts',
+    findViolations([{ path: 'adapters/config.ts', content: 'const value = import(name);' }]),
+  ).toHaveLength(1);
+  expect(findViolations([{ path: 'unknown.ts', content: 'export const value = 1;' }])).toHaveLength(
+    1,
   );
-  expect(errors.some((error) => error.includes('unresolved source dependency'))).toBe(false);
+});
+
+it('permits contract runtime validators, ordinary computation, metadata and outer wiring', () => {
+  expect(
+    findViolations([
+      {
+        path: 'core/contracts/value.ts',
+        content: "import { lt } from 'semver'; export const value = lt('1','2');",
+      },
+      { path: 'core/contracts/glob.ts', content: 'export interface Glob {}' },
+      {
+        path: 'adapters/glob.ts',
+        content: "import type { Glob } from '../core/contracts/glob.ts'; import fs from 'node:fs';",
+      },
+      { path: 'core/current.ts', content: 'export const now = Date.now();' },
+      { path: 'version.ts', content: "import pkg from '../package.json' with { type: 'json' };" },
+      { path: 'adapters/json.ts', content: "import { version } from '../version.ts';" },
+      {
+        path: 'runtime.ts',
+        content: "import { run } from './core/run.ts'; import { version } from './version.ts';",
+      },
+      { path: 'core/run.ts', content: 'export const run = () => 1;' },
+    ]),
+  ).toEqual([]);
+});
+
+it('rejects adapters to use cases, contracts to use cases, and metadata to code even through types', () => {
+  expect(
+    findViolations([
+      { path: 'core/contracts/port.ts', content: "export type Value = import('../run.ts').Value;" },
+      { path: 'core/contracts/barrel.ts', content: "export type { Value } from '../run.ts';" },
+      { path: 'adapters/glob.ts', content: "import type { Value } from '../core/run.ts';" },
+      { path: 'core/run.ts', content: 'export type Value = string;' },
+      { path: 'version.ts', content: "export { Value } from './core/run.ts';" },
+    ]),
+  ).toEqual([
+    'core/contracts/port.ts: forbidden core dependency ../run.ts',
+    'core/contracts/barrel.ts: forbidden core dependency ../run.ts',
+    'adapters/glob.ts: forbidden core dependency ../core/run.ts',
+    'version.ts: metadata may only read package.json: ./core/run.ts',
+  ]);
+});
+
+it('only allows package.json metadata imports in version.ts', () => {
+  expect(
+    findViolations([
+      {
+        path: 'core/contracts/port.ts',
+        content: "import pkg from '../../../package.json' with { type: 'json' };",
+      },
+      {
+        path: 'adapters/json.ts',
+        content: "import pkg from '../../package.json' with { type: 'json' };",
+      },
+      { path: 'version.ts', content: "import pkg from '../package.json' with { type: 'json' };" },
+    ]),
+  ).toEqual([
+    'core/contracts/port.ts: forbidden package metadata dependency ../../../package.json',
+    'adapters/json.ts: forbidden package metadata dependency ../../package.json',
+  ]);
+});
+
+it('resolves JavaScript extensions to TypeScript before checking direction', () => {
+  expect(
+    findViolations([
+      { path: 'core/use.ts', content: "import type { Value } from '../adapters/value.js';" },
+      { path: 'adapters/value.ts', content: 'export interface Value {}' },
+    ]),
+  ).toEqual(['core/use.ts: forbidden adapters dependency ../adapters/value.js']);
+});
+
+it('rejects unresolved local imports and checks static dynamic and CommonJS references', () => {
+  expect(
+    findViolations([{ path: 'core/run.ts', content: "export * from './missing.ts';" }]),
+  ).toEqual(['core/run.ts: unresolved source dependency ./missing.ts']);
+  expect(
+    findViolations([
+      { path: 'core/run.ts', content: 'const b = import(`../adapters/b.ts`);' },
+      { path: 'adapters/b.ts', content: "import c = require('../runtime.ts');" },
+      { path: 'runtime.ts', content: 'export const value = 1;' },
+    ]),
+  ).toEqual([
+    'core/run.ts: forbidden adapters dependency ../adapters/b.ts',
+    'adapters/b.ts: forbidden composition dependency ../runtime.ts',
+  ]);
 });

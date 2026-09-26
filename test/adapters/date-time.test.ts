@@ -4,7 +4,7 @@ it.each([
   ['UTC', 'violation'],
   ['Asia/Tokyo', 'ok'],
 ])('preserves native offsetless date semantics in %s', (timezone, expected) => {
-  const rulesUrl = new URL('../../src/composition/rules.ts', import.meta.url).href;
+  const rulesUrl = new URL('../../src/runtime.ts', import.meta.url).href;
   const probe = `
     import { rules } from ${JSON.stringify(rulesUrl)};
     Date.now = () => Date.parse('2030-01-01T00:00:00Z');

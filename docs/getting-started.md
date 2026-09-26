@@ -1,13 +1,18 @@
 # Getting started
 
-## Run without installing
+## Run without adding a dependency
 
 ```sh
 npx @pho9ubenaa/siro lint
 ```
 
-`siro` auto-detects your package manager from the `packageManager` field, lockfiles, and config
-files, then reports any best-practice violations.
+`npx` may download and execute the tool. The CLI also imports any repository
+`siro.config.*` as executable code; review untrusted configurations first.
+See the [threat model](threat-model.md).
+
+`siro` detects package managers from the `packageManager` field, lockfiles, and config
+files, then reports supported configuration gaps. It does not scan for known vulnerabilities.
+If detection finds no manager, pass `--pm` explicitly.
 
 ## Fix the findings
 
@@ -19,8 +24,10 @@ npx @pho9ubenaa/siro lint --reporter json
 ```
 
 Review and apply the proposed operations or manual steps with your editor — or hand the JSON to an agent
-skill that edits the files and re-runs `siro lint` until it exits `0`. The
-output shape is a versioned contract; see [json-output.md](json-output.md).
+skill that edits the files and re-runs `siro lint` until it exits `0`. For example,
+if an npm repo sets `ignore-scripts=false` in `.npmrc`, consider whether its builds
+require lifecycle scripts before setting it to `true`. Other findings may remain.
+The output shape is a versioned contract; see [json-output.md](json-output.md).
 
 ## Add it to CI
 
@@ -31,20 +38,21 @@ npx @pho9ubenaa/siro lint --reporter json            # machine-readable output (
 npx @pho9ubenaa/siro lint --reporter github          # GitHub Actions annotations on PRs
 ```
 
-## Target a specific package manager
+## Common options
 
-```sh
-npx @pho9ubenaa/siro lint --pm pnpm
-```
+`check` is an alias for `lint`. Run `siro lint --help` for the complete CLI syntax.
 
-## Select application or package policy
+| Option                                    | Use                                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Inspect one manager instead of auto-detection.                                             |
+| `--pm-version <x.y.z>`                    | Supply an exact stable target version (requires `--pm`). It does not run an installed PM.  |
+| `--project-type <application\|package>`   | Choose whether publication safeguards apply; omitted means infer from publish metadata.    |
+| `--workspaces`                            | Also check declared members' publication metadata; installation checks remain at the root. |
+| `--severity <error\|warn\|info>`          | Set both the display and CI failure threshold; default failure threshold is `error`.       |
+| `--reporter <pretty\|json\|github>`       | Choose terminal, JSON, or GitHub Actions output; `--json` is a JSON shortcut.              |
 
-```sh
-npx @pho9ubenaa/siro lint --project-type application # skip published-artifact rules
-npx @pho9ubenaa/siro lint --project-type package     # require published-artifact safeguards
-```
-
-Omit the flag to infer the policy from the repository's publish metadata.
+See [configuration and behavior](configuration.md) for PM selection, target-version
+precedence, workspace patterns, executable config, library use, and the [exit codes](configuration.md#exit-codes).
 
 ## Install as a dev dependency (optional)
 
@@ -52,7 +60,8 @@ Omit the flag to infer the policy from the repository's publish metadata.
 npm install --save-dev --save-exact @pho9ubenaa/siro
 ```
 
-Then wire `siro lint` into your `pre-push` hook or CI workflow.
+Then wire `siro lint` into your `pre-push` hook or CI workflow. For a trusted
+repository, explicitly pass `--pm` when auto-detection cannot identify its manager.
 
 Next: the [rule reference](rules.md) explains each check, the
 [comparison matrix](comparison.md) shows per-manager support, and
