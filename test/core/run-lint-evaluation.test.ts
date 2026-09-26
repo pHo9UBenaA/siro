@@ -1,5 +1,6 @@
 import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { runLint } from '../../src/core/run-lint.ts';
+import { createRepositoryEvaluation } from '../../src/core/parse-config-file.ts';
 import type { ParsedConfig } from '../../src/core/contracts/config-value.ts';
 import type { CheckStatus, Rule } from '../../src/core/contracts/rule.ts';
 import type { CodecFor, ConfigCodec } from '../../src/core/contracts/config-codec.ts';
@@ -37,7 +38,7 @@ const lint = (
   ctx: RepoContext,
   ruleSet: readonly Rule[],
   pms: readonly ('npm' | 'pnpm' | 'yarn' | 'deno')[],
-) => runLint({ codecFor: noopCodecFor, ctx, pms, ruleSet });
+) => runLint({ repository: createRepositoryEvaluation(ctx, noopCodecFor), pms, ruleSet });
 
 describe('runLint binding evaluation', () => {
   it('reports every violating rule and PM binding in stable order', () => {
@@ -142,8 +143,7 @@ describe('runLint repository checks', () => {
     };
 
     const result = runLint({
-      codecFor: () => ({ parse }),
-      ctx: noopCtx,
+      repository: createRepositoryEvaluation(noopCtx, () => ({ parse })),
       pms: ['npm'],
       ruleSet: [rule],
     });
@@ -157,15 +157,17 @@ describe('runLint repository checks', () => {
 it('reports Aube install-command guidance without reading workspace configuration', async () => {
   const { frozenLockfile } = await import('../../src/core/rules/frozen-lockfile.ts');
   const result = runLint({
-    ctx: {
-      ...noopCtx,
-      readText() {
-        throw new Error('Workspace configuration is not needed');
+    repository: createRepositoryEvaluation(
+      {
+        ...noopCtx,
+        readText() {
+          throw new Error('Workspace configuration is not needed');
+        },
       },
-    },
+      noopCodecFor,
+    ),
     pms: ['aube'],
     ruleSet: [frozenLockfile],
-    codecFor: noopCodecFor,
   });
   expect(result.findings).toMatchObject([
     { ruleId: 'frozen-lockfile', remediation: { kind: 'manual' } },
@@ -253,8 +255,7 @@ it('guards each grouped remediation and applies an override to every entry', () 
     ],
   });
   const result = runLint({
-    ctx: noopCtx,
-    codecFor: noopCodecFor,
+    repository: createRepositoryEvaluation(noopCtx, noopCodecFor),
     pms: ['npm'],
     pmVersions: { npm: '11.9.0' },
     ruleSet: [rule],

@@ -1,5 +1,6 @@
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
 import { runLint } from '../../../src/core/run-lint.ts';
+import { createRepositoryEvaluation } from '../../../src/core/parse-config-file.ts';
 import { pinExactVersions } from '../../../src/core/rules/pin-exact-versions.ts';
 import { exitCodeForLint } from '../../../src/core/filter.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
@@ -47,10 +48,12 @@ describe('pin-exact-versions (deno subpaths)', () => {
     (specifier) => {
       expect.hasAssertions();
       const result = runLint({
-        codecFor,
-        ctx: makeCtx({
-          readText: () => JSON.stringify({ imports: { dependency: specifier } }),
-        }),
+        repository: createRepositoryEvaluation(
+          makeCtx({
+            readText: () => JSON.stringify({ imports: { dependency: specifier } }),
+          }),
+          codecFor,
+        ),
         pms: ['deno'],
         ruleSet: [pinExactVersions],
       });
@@ -66,10 +69,12 @@ describe('pin-exact-versions (deno subpaths)', () => {
   ])('accepts the exact version in %s', (specifier) => {
     expect.hasAssertions();
     const result = runLint({
-      codecFor,
-      ctx: makeCtx({
-        readText: () => JSON.stringify({ imports: { dependency: specifier } }),
-      }),
+      repository: createRepositoryEvaluation(
+        makeCtx({
+          readText: () => JSON.stringify({ imports: { dependency: specifier } }),
+        }),
+        codecFor,
+      ),
       pms: ['deno'],
       ruleSet: [pinExactVersions],
     });
@@ -85,10 +90,12 @@ describe('pin-exact-versions (deno subpaths)', () => {
   ])('flags the unpinned registry import %s', (specifier) => {
     expect.hasAssertions();
     const result = runLint({
-      codecFor,
-      ctx: makeCtx({
-        readText: () => JSON.stringify({ imports: { dependency: specifier } }),
-      }),
+      repository: createRepositoryEvaluation(
+        makeCtx({
+          readText: () => JSON.stringify({ imports: { dependency: specifier } }),
+        }),
+        codecFor,
+      ),
       pms: ['deno'],
       ruleSet: [pinExactVersions],
     });
@@ -103,10 +110,12 @@ describe('exact save prefixes', () => {
 
   it('reads Aube save-prefix from .npmrc', () => {
     const result = runLint({
-      codecFor,
-      ctx: makeCtx({
-        readText: (path) => (path.endsWith('.npmrc') ? 'save-prefix=\n' : undefined),
-      }),
+      repository: createRepositoryEvaluation(
+        makeCtx({
+          readText: (path) => (path.endsWith('.npmrc') ? 'save-prefix=\n' : undefined),
+        }),
+        codecFor,
+      ),
       pms: ['aube'],
       ruleSet: [pinExactVersions],
     });

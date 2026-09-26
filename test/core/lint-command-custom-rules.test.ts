@@ -1,11 +1,21 @@
 import path from 'node:path';
-import { asAbsPath, CONFIG_FILES, type FileSystem, type LintOptions } from '../../src/index.ts';
-import { lint, lintCommand } from '../../src/runtime.ts';
-import type { LintResult } from '../../src/core/contracts/lint-result.ts';
-import type { CheckStatus, Rule } from '../../src/core/contracts/rule.ts';
-import type { SiroConfig } from '../../src/core/siro-config.ts';
-import { ConfigError, UsageError } from '../../src/core/contracts/errors.ts';
-import { asRelPath } from '../../src/core/contracts/paths.ts';
+import {
+  asAbsPath,
+  asRelPath,
+  CONFIG_FILES,
+  ConfigError,
+  UsageError,
+  lint,
+  lintCommand,
+  type FileSystem,
+  type LintOptions,
+  type LintResult,
+  type CheckStatus,
+  type Rule,
+  type Reporter,
+  type SiroConfig,
+} from '../../src/index.ts';
+import { createMemFileSystem } from '../helpers/memfs.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
 import { captureIO } from '../helpers/io.ts';
 
@@ -144,6 +154,100 @@ it.each(['unknown', { name: 'broken' }])(
     ).rejects.toThrow(UsageError);
   },
 );
+
+it('validates member manifests before selecting a reporter', async () => {
+  const { io, out, err } = captureIO();
+  await expect(
+    lintCommand(
+      {
+        cwd: asAbsPath('/repo'),
+        pm: 'npm',
+        workspaces: true,
+        reporter: 'unknown',
+        fs: {
+          ...createMemFileSystem({
+            'package.json': '{"private":true,"workspaces":["child"]}',
+            'child/package.json': '{',
+          }),
+          readDirectories: (directory) =>
+            directory.replaceAll('\\', '/') === '/repo' ? ['child'] : [],
+        },
+      },
+      io,
+    ),
+  ).rejects.toThrow('child/package.json: invalid JSON');
+  expect(out()).toBe('');
+  expect(err()).toBe('');
+});
+
+it('rejects an unknown reporter before running any rule', async () => {
+  const check = vi.fn<() => CheckStatus>(() => {
+    throw new Error('Rule must not run');
+  });
+  await expect(
+    lintCommand(
+      { ...options, reporter: 'unknown', config: { customRules: [rule('unreached', check)] } },
+      captureIO().io,
+    ),
+  ).rejects.toThrow('Unknown reporter: unknown');
+  expect(check).not.toHaveBeenCalled();
+});
+
+it('propagates a rule failure without reporting a partial result', async () => {
+  const failure = new Error('Rule failed');
+  const format = vi.fn<Reporter['format']>();
+  const commandOptions = {
+    ...options,
+    config: {
+      customRules: [
+        rule('first'),
+        rule('broken', () => {
+          throw failure;
+        }),
+      ],
+    },
+    reporter: { name: 'unreached', format },
+  };
+  await expect(lintCommand(commandOptions, captureIO().io)).rejects.toBe(failure);
+  expect(format).not.toHaveBeenCalled();
+});
+
+it('propagates reporter rejection even after partial output', async () => {
+  const failure = new Error('Output failed');
+  const { io, out } = captureIO();
+  await expect(
+    lintCommand(
+      {
+        ...options,
+        reporter: {
+          name: 'partial',
+          async format(_result, targetIO) {
+            targetIO.stdout('partial');
+            await Promise.resolve();
+            throw failure;
+          },
+        },
+      },
+      io,
+    ),
+  ).rejects.toBe(failure);
+  expect(out()).toContain('partial');
+});
+
+it('propagates a reporter IO failure without reclassifying it', async () => {
+  const failure = new Error('Broken output stream');
+  await expect(
+    lintCommand(
+      { ...options, reporter: 'json' },
+      {
+        stdout() {
+          throw failure;
+        },
+        stderr() {},
+      },
+    ),
+  ).rejects.toBe(failure);
+});
 
 it('waits for asynchronous reporting before returning the lint exit code', async () => {
   const { io, out } = captureIO();

@@ -3,7 +3,8 @@ import { lint } from '../../src/core/lint.ts';
 import type { LintDependencies } from '../../src/core/contracts/lint-dependencies.ts';
 import { compileAdditionalWorkspaceGlob } from '../../src/core/workspaces/dialects.ts';
 import type { Reporter } from '../../src/core/contracts/reporter.ts';
-import type { AbsPath } from '../../src/core/contracts/paths.ts';
+import { asRelPath, type AbsPath } from '../../src/core/contracts/paths.ts';
+import type { Remediation, ViolationStatus } from '../../src/core/contracts/rule.ts';
 import { captureIO } from '../helpers/io.ts';
 
 // A bounded in-memory host, with no production adapter or runtime composition.
@@ -76,6 +77,58 @@ it('evaluates a workspace entirely through supplied ports and preserves member p
     ],
     summary: { error: 1, warn: 0, info: 0 },
   });
+});
+
+it.each<Remediation | undefined>([
+  undefined,
+  { kind: 'manual', steps: ['Review publication files.'] },
+  {
+    kind: 'automatic',
+    operations: [
+      {
+        op: 'setKey',
+        file: { kind: 'json', path: asRelPath('package.json') },
+        keyPath: ['publishConfig', 'access'],
+        value: 'public',
+      },
+    ],
+  },
+])('prefixes member findings without mutating root results or remediation: %j', (remediation) => {
+  const { dependencies } = host();
+  const status: ViolationStatus = {
+    state: 'violation',
+    message: 'Review publication.',
+    remediation,
+  };
+  const original = structuredClone(status);
+  const result = lint(request, {
+    ...dependencies,
+    rules: [
+      {
+        id: 'files-field',
+        title: 'Publication',
+        description: 'Shared status probe',
+        severity: 'warn',
+        bindings: { npm: { check: () => status } },
+      },
+    ],
+  });
+  expect(result.findings).toEqual([
+    expect.objectContaining({ message: status.message, file: undefined, remediation }),
+    expect.objectContaining({
+      message: `packages/api: ${status.message}`,
+      file: 'packages/api/package.json',
+      remediation:
+        remediation?.kind === 'manual'
+          ? {
+              kind: 'manual',
+              steps: ['Work in packages/api for this finding.', ...remediation.steps],
+            }
+          : remediation,
+    }),
+  ]);
+  expect(result.summary).toEqual({ error: 0, warn: 2, info: 0 });
+  expect(status).toEqual(original);
 });
 
 it.each([false, true])(

@@ -1,5 +1,6 @@
 import { codecFor } from '../../src/adapters/codecs/store.ts';
 import { runLint } from '../../src/core/run-lint.ts';
+import { createRepositoryEvaluation } from '../../src/core/parse-config-file.ts';
 import type { Rule } from '../../src/core/contracts/rule.ts';
 import { asRelPath } from '../../src/core/contracts/paths.ts';
 import { makeCtx } from '../helpers/ctx.ts';
@@ -21,7 +22,11 @@ it('carries the remediation chosen by the check without a second callback', () =
     severity: 'error',
     bindings: { npm: { file: { kind: 'npmrc', path: asRelPath('.npmrc') }, check } },
   };
-  const result = runLint({ ctx: makeCtx(), codecFor, pms: ['npm'], ruleSet: [rule] });
+  const result = runLint({
+    repository: createRepositoryEvaluation(makeCtx(), codecFor),
+    pms: ['npm'],
+    ruleSet: [rule],
+  });
   expect(result.findings[0]).toMatchObject({ remediation });
   expect(result.findings[0]).not.toHaveProperty('fixable');
   expect(result.findings[0]).not.toHaveProperty('fix');
@@ -62,9 +67,13 @@ it.each([
       },
     },
   };
-  expect(() => runLint({ ctx: makeCtx(), codecFor, pms: ['npm'], ruleSet: [rule] })).toThrow(
-    "Rule 'invalid-remedy' returned an invalid check result.",
-  );
+  expect(() =>
+    runLint({
+      repository: createRepositoryEvaluation(makeCtx(), codecFor),
+      pms: ['npm'],
+      ruleSet: [rule],
+    }),
+  ).toThrow("Rule 'invalid-remedy' returned an invalid check result.");
 });
 
 it.each(['nested/../../outside'])('rejects external write targets: %s', (path) => {
@@ -87,7 +96,11 @@ it.each(['nested/../../outside'])('rejects external write targets: %s', (path) =
       },
     },
   };
-  expect(() => runLint({ ctx: makeCtx(), codecFor, pms: ['npm'], ruleSet: [rule] })).toThrow(
-    /invalid check result/u,
-  );
+  expect(() =>
+    runLint({
+      repository: createRepositoryEvaluation(makeCtx(), codecFor),
+      pms: ['npm'],
+      ruleSet: [rule],
+    }),
+  ).toThrow(/invalid check result/u);
 });

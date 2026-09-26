@@ -62,9 +62,17 @@ dependency direction.
 2. `runtime.ts` supplies the standard FS, paths, codecs, glob engine, reporter
    registry and clock callbacks. `core/lint.ts` validates input, resolves PMs,
    versions and rules, and prepares root/member contexts. It accepts a caller's
-   `FileSystem` in place of the standard one without a host fallback.
+   `FileSystem` in place of the standard one without a host fallback. Its explicit
+   `PreparedLint` result separates reporting extensions from `LintEvaluation`:
+   only repository inputs, selected PMs, versions, rules and severity overrides
+   reach evaluation. Preparation performs reads and validation; it is not a pure
+   plan or an atomic repository snapshot.
 3. `core/run-lint.ts` evaluates each applicable rule binding and builds findings.
-   A parser is lazy and belongs to **one repository context in one lint call**.
+   It requires a `RepositoryEvaluation` pairing the repository context with its
+   parser, rather than accepting codecs and optionally constructing a parser.
+   Root/member preparation owns these pairs; `createRepositoryEvaluation` pairs
+   an existing context with a fresh lazy parser without reading more files.
+   A parser belongs to **one repository context in one lint call**.
    Workspace declarations, Deno vendor selection, nested checks and rule reads
    of the same `(kind, relative path)` share its first successfully parsed value
    (including an absent file). Root and each member have distinct parsers; a new
@@ -73,21 +81,39 @@ dependency direction.
    checks remain live, and independent paths need not describe one instant.
    Each context also reads its `package.json` raw text once for both manifest
    validation and rule parsing.
-4. `core/lint-command.ts` prepares input, validates the selected reporter,
-   evaluates, computes an exit status from the full result, filters display
-   findings, and awaits reporter output through `IO`. Reporter rejection
-   propagates. `cli.ts` classifies expected failures and owns process exit.
+4. `core/lint-command.ts` prepares input (including member validation), validates
+   the selected reporter, evaluates, computes an exit status from the full result,
+   filters display findings, and awaits reporter output through `IO`. Preparation
+   failures precede reporter selection failures; an invalid reporter prevents rule
+   execution. Reporter rejection propagates even after partial output. `cli.ts`
+   classifies expected failures and owns process exit. Neither evaluation nor
+   reporting failures are converted into a partial successful result.
 
 Workspace declaration sources remain PM-specific. `core/workspaces/declarations.ts`
 validates them; `selection.ts` compiles inclusion, exclusion and descent policy;
 `walk.ts` lists ordinary directories using the supplied FS; `members.ts` builds
 restricted child publication contexts. Selection passes both the actual directory
-and whether a positive native Deno literal selected it. Member construction does
+and whether a positive Deno literal selected it. Member construction does
 not reinterpret the declaration spelling to rediscover that fact. Positive Deno
 prefixes may use the injected resolver; negative paths remain lexical. Bun's
 ordered glob pass, npm's exclusion cancellation, Deno's two declaration sources,
 Aube's limited matcher, directory sorting and failure order retain their distinct
 semantics. No PM-specific walker or repository-wide directory cache is introduced.
+
+Member preparation follows explicit PM, declaration and candidate loops. All
+sources for a PM are validated before walking; each declaration's directory
+traversal and sorting complete before reading candidate manifests. Within a PM,
+accepted members reuse their context/parser pair across declarations, but each
+source's manifest requirements and Deno nested-workspace checks still precede
+deduplication. Only configuration errors from child preparation receive a member
+path prefix; raw filesystem errors propagate unchanged. New lint calls and other
+PMs do not share the member cache.
+
+Root and member evaluation calls list their inputs explicitly. Member findings
+are then copied into repository-relative output, including manual instructions,
+without changing root findings or the remediation returned by a rule. These
+internal preparation contracts live beside their use cases, not in the
+adapter-facing `core/contracts/` boundary or the public package exports.
 
 Security intents remain grouped by rule, not by PM. `DateTime.now()` reads epoch
 milliseconds at evaluation time; `DateTime.parse()` retains native parsing,

@@ -1,5 +1,6 @@
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
 import { runLint } from '../../../src/core/run-lint.ts';
+import { createRepositoryEvaluation } from '../../../src/core/parse-config-file.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 import { minimumReleaseAge } from '../../helpers/rules.ts';
@@ -39,10 +40,12 @@ describe('minimum-release-age (npm)', () => {
   it.each(['.5', '3'])('accepts the positive release age %s from .npmrc', (value) => {
     expect.hasAssertions();
     const result = runLint({
-      codecFor,
-      ctx: makeCtx({
-        readText: () => `min-release-age=${value}\n`,
-      }),
+      repository: createRepositoryEvaluation(
+        makeCtx({
+          readText: () => `min-release-age=${value}\n`,
+        }),
+        codecFor,
+      ),
       pms: ['npm'],
       ruleSet: [minimumReleaseAge],
     });
@@ -54,10 +57,12 @@ describe('minimum-release-age (npm)', () => {
     (value) => {
       expect.hasAssertions();
       const result = runLint({
-        codecFor,
-        ctx: makeCtx({
-          readText: () => `min-release-age=${value}\n`,
-        }),
+        repository: createRepositoryEvaluation(
+          makeCtx({
+            readText: () => `min-release-age=${value}\n`,
+          }),
+          codecFor,
+        ),
         pms: ['npm'],
         ruleSet: [minimumReleaseAge],
       });
@@ -136,10 +141,12 @@ describe('minimum-release-age (deno)', () => {
 
   it("honors Deno's project .npmrc release-age fallback", () => {
     const result = runLint({
-      codecFor,
-      ctx: makeCtx({
-        readText: (file) => (file === '.npmrc' ? 'min-release-age=3\n' : undefined),
-      }),
+      repository: createRepositoryEvaluation(
+        makeCtx({
+          readText: (file) => (file === '.npmrc' ? 'min-release-age=3\n' : undefined),
+        }),
+        codecFor,
+      ),
       pms: ['deno'],
       ruleSet: [minimumReleaseAge],
     });
@@ -159,10 +166,12 @@ describe('minimum-release-age (deno)', () => {
 
   it("flags Deno's explicit .npmrc release-age opt-out", () => {
     const result = runLint({
-      codecFor,
-      ctx: makeCtx({
-        readText: (file) => (file === '.npmrc' ? 'min-release-age=0\n' : undefined),
-      }),
+      repository: createRepositoryEvaluation(
+        makeCtx({
+          readText: (file) => (file === '.npmrc' ? 'min-release-age=0\n' : undefined),
+        }),
+        codecFor,
+      ),
       pms: ['deno'],
       ruleSet: [minimumReleaseAge],
     });

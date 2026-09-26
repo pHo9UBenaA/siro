@@ -180,22 +180,29 @@ it('checks declared, configured, and CLI PM targets through the executable', () 
 });
 
 describe('CLI binary — error handling', () => {
-  test.each(['async '])('exits 70 when a %sconfig reporter throws', (modifier) => {
-    expect.hasAssertions();
-    const dir = mkdtempSync(path.join(tmpdir(), 'siro-boom-'));
-    try {
-      writeFileSync(
-        path.join(dir, 'package.json'),
-        JSON.stringify({ name: 'demo', packageManager: 'pnpm@10.0.0' }),
-      );
-      writeFileSync(
-        path.join(dir, 'siro.config.ts'),
-        `export default { reporters: [{ name: 'boom', ${modifier}format() { throw new Error('boom from reporter'); } }] };\n`,
-      );
-      const result = spawnBin(['lint', '--reporter', 'boom', dir]);
-      expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(EXIT_CRASH);
-    } finally {
-      rmSync(dir, { force: true, recursive: true });
-    }
-  });
+  test.each(['', 'async '])(
+    'exits 70 after partial output when a %sconfig reporter throws',
+    (modifier) => {
+      expect.hasAssertions();
+      const dir = mkdtempSync(path.join(tmpdir(), 'siro-boom-'));
+      try {
+        writeFileSync(
+          path.join(dir, 'package.json'),
+          JSON.stringify({ name: 'demo', packageManager: 'pnpm@10.0.0' }),
+        );
+        writeFileSync(
+          path.join(dir, 'siro.config.ts'),
+          `export default { reporters: [{ name: 'boom', ${modifier}format(_result, io) { io.stdout('partial output'); throw new Error('boom from reporter'); } }] };\n`,
+        );
+        const result = spawnBin(['lint', '--reporter', 'boom', dir]);
+        expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(
+          EXIT_CRASH,
+        );
+        expect(result.stdout).toContain('partial output');
+        expect(result.stderr).toContain('boom from reporter');
+      } finally {
+        rmSync(dir, { force: true, recursive: true });
+      }
+    },
+  );
 });

@@ -8,6 +8,7 @@ import type { ConfigValue } from '../../../../src/core/contracts/config-value.ts
 import { makeCtx } from '../../../helpers/ctx.ts';
 import { requireConfigKey } from '../../../../src/core/rules/builders/require-config-key.ts';
 import { runLint } from '../../../../src/core/run-lint.ts';
+import { createRepositoryEvaluation } from '../../../../src/core/parse-config-file.ts';
 
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
 
@@ -63,8 +64,7 @@ describe('documentedDefault — basic behaviour', () => {
     // finding (we want users to pin explicitly) but dropped to info.
     const rule = buildRule({ documentedDefault: true });
     const { findings, summary } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
+      repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
       pms: ['npm'],
       ruleSet: [rule],
     });
@@ -81,8 +81,7 @@ describe('documentedDefault — basic behaviour', () => {
     // threat and the user has not asked for explicit pinning either.
     const rule = buildRule({ defaultSatisfiedSeverity: 'off', documentedDefault: true });
     const { findings, summary } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
+      repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
       pms: ['npm'],
       ruleSet: [rule],
     });
@@ -96,8 +95,7 @@ describe('documentedDefault — basic behaviour', () => {
     // so the binding falls through to the normal violation path.
     const rule = buildRule({ documentedDefault: false, ruleSeverity: 'error' });
     const { findings, summary } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
+      repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
       pms: ['npm'],
       ruleSet: [rule],
     });
@@ -116,8 +114,7 @@ describe('documentedDefault — basic behaviour', () => {
       versionNote: { defaultSafeSince: 'npm 12.0.0' },
     });
     const { findings, summary } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
+      repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
       pms: ['npm'],
       ruleSet: [rule],
     });
@@ -162,8 +159,7 @@ describe('documentedDefault — override', () => {
     const rule = buildRule({ documentedDefault: true, ruleSeverity: 'error' });
     const adjusted = applyConfig([rule], { rules: { 'd2-synthetic': 'warn' } });
     const { findings, summary } = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
+      repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
       pms: ['npm'],
       ruleSet: adjusted.rules,
       severityOverrides: adjusted.severityOverrides,

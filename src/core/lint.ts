@@ -1,15 +1,18 @@
 import type { LintDependencies } from './contracts/lint-dependencies.ts';
 import { memberPublicationRuleIds } from './rules/builtin-rules.ts';
-import { collectWorkspaceMembers } from './workspaces/members.ts';
-import { type AbsPath, asRelPath } from './contracts/paths.ts';
+import { collectWorkspaceMembers, type WorkspaceMember } from './workspaces/members.ts';
+import { type AbsPath, type RelPath, asRelPath } from './contracts/paths.ts';
+import type { RepositoryPaths } from './contracts/repository-paths.ts';
 import type { FileSystem } from './contracts/file-system.ts';
-import { type PM, isPM } from './contracts/pms.ts';
+import { type PM, type Severity, isPM } from './contracts/pms.ts';
+import type { Rule } from './contracts/rule.ts';
+import type { Reporter } from './contracts/reporter.ts';
 import { type ProjectType, isProjectType } from './contracts/project-type.ts';
 import type { SiroConfig } from './siro-config.ts';
-import type { LintResult } from './contracts/lint-result.ts';
+import type { Finding, LintResult } from './contracts/lint-result.ts';
 import { UsageError, ConfigError } from './contracts/errors.ts';
 import { applyConfig } from './apply-config.ts';
-import { createConfigParser } from './parse-config-file.ts';
+import { createRepositoryEvaluation, type RepositoryEvaluation } from './parse-config-file.ts';
 import { resolvePMs } from './resolve-pms.ts';
 import { parseConfig } from './parse-siro-config.ts';
 import { runLint } from './run-lint.ts';
@@ -28,9 +31,24 @@ export interface LintOptions {
   readonly config?: SiroConfig;
 }
 
-/** Evaluate a repository without reporting or executing configuration files. */
-export const prepareLint = (options: LintOptions, dependencies: LintDependencies) => {
-  const { paths, codecFor, createRepoContext } = dependencies;
+interface LintEvaluation {
+  readonly root: RepositoryEvaluation;
+  readonly members: readonly WorkspaceMember[];
+  readonly pms: readonly PM[];
+  readonly pmVersions: Readonly<Partial<Record<PM, string>>>;
+  readonly ruleSet: readonly Rule[];
+  readonly severityOverrides: ReadonlyMap<string, Severity>;
+}
+
+interface PreparedLint {
+  readonly evaluation: LintEvaluation;
+  readonly reporters: readonly Reporter[];
+}
+
+const validateLintOptions = (
+  options: LintOptions,
+  paths: Pick<RepositoryPaths, 'isAbsolute'>,
+): void => {
   if (!options || !paths.isAbsolute(options.cwd)) {
     throw new UsageError('cwd must be an absolute filesystem path.');
   }
@@ -51,10 +69,16 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
   if (options.workspaces !== undefined && typeof options.workspaces !== 'boolean') {
     throw new UsageError('workspaces must be a boolean.');
   }
+};
+
+/** Prepare repository evaluation without reporting or executing configuration files. */
+export const prepareLint = (options: LintOptions, dependencies: LintDependencies): PreparedLint => {
+  const { paths, codecFor, createRepoContext } = dependencies;
+  validateLintOptions(options, paths);
   const config = options.config === undefined ? undefined : parseConfig(options.config);
   const fs = options.fs === undefined ? dependencies.fileSystem : options.fs;
   const ctx = createRepoContext(options.cwd, fs, options.projectType ?? config?.projectType);
-  const parseConfigFile = createConfigParser(codecFor, ctx);
+  const root = createRepositoryEvaluation(ctx, codecFor);
   const pms = resolvePMs(ctx, { allowed: config?.pms, pmOverride: options.pm });
   if (
     pms.includes('deno') &&
@@ -73,57 +97,53 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
   };
   const members = options.workspaces
     ? collectWorkspaceMembers(
-        ctx,
-        parseConfigFile,
-        fs,
-        pms,
-        options.projectType ?? config?.projectType,
+        { root, fs, pms, projectType: options.projectType ?? config?.projectType },
         dependencies,
       )
     : [];
   return {
-    ctx,
-    parseConfig: parseConfigFile,
-    pms,
-    pmVersions,
-    members,
-    ruleSet: configured.rules,
-    severityOverrides: configured.severityOverrides,
-    codecFor,
+    evaluation: {
+      root,
+      pms,
+      pmVersions,
+      members,
+      ruleSet: configured.rules,
+      severityOverrides: configured.severityOverrides,
+    },
     reporters: config?.reporters ?? [],
   };
 };
 
+const toWorkspaceFinding = (directory: RelPath, finding: Finding): Finding => ({
+  ...finding,
+  file: `${directory}/${finding.file ?? 'package.json'}`,
+  message: `${directory}: ${finding.message}`,
+  remediation:
+    finding.remediation?.kind === 'manual'
+      ? {
+          kind: 'manual',
+          steps: [`Work in ${directory} for this finding.`, ...finding.remediation.steps],
+        }
+      : finding.remediation,
+});
+
 /** Reuse the existing manifest checks; installation policy remains rooted at cwd. */
-export const runPreparedLint = (prepared: ReturnType<typeof prepareLint>): LintResult => {
-  const result = runLint(prepared);
+export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
+  const { root, pms, pmVersions, ruleSet, severityOverrides, members } = evaluation;
+  const result = runLint({ repository: root, pms, pmVersions, ruleSet, severityOverrides });
   const findings = [...result.findings];
   const summary = { ...result.summary };
-  const memberRules = prepared.ruleSet.filter((rule) => memberPublicationRuleIds.has(rule.id));
-  for (const member of prepared.members) {
+  const memberRules = ruleSet.filter((rule) => memberPublicationRuleIds.has(rule.id));
+  for (const member of members) {
     const child = runLint({
-      ...prepared,
-      ctx: member.ctx,
-      parseConfig: member.parseConfig,
+      repository: member.repository,
       pms: [member.pm],
+      pmVersions,
       ruleSet: memberRules,
+      severityOverrides,
     });
     for (const finding of child.findings) {
-      findings.push({
-        ...finding,
-        file: `${member.directory}/${finding.file ?? 'package.json'}`,
-        message: `${member.directory}: ${finding.message}`,
-        remediation:
-          finding.remediation?.kind === 'manual'
-            ? {
-                kind: 'manual',
-                steps: [
-                  `Work in ${member.directory} for this finding.`,
-                  ...finding.remediation.steps,
-                ],
-              }
-            : finding.remediation,
-      });
+      findings.push(toWorkspaceFinding(member.directory, finding));
     }
     for (const level of ['error', 'warn', 'info'] as const) summary[level] += child.summary[level];
   }
@@ -131,4 +151,4 @@ export const runPreparedLint = (prepared: ReturnType<typeof prepareLint>): LintR
 };
 
 export const lint = (options: LintOptions, dependencies: LintDependencies): LintResult =>
-  runPreparedLint(prepareLint(options, dependencies));
+  runPreparedLint(prepareLint(options, dependencies).evaluation);

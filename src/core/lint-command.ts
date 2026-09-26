@@ -34,7 +34,7 @@ export const lintCommand = async (
       `${typeof selection === 'string' ? 'Unknown' : 'Invalid'} reporter: ${String(selection)} (available: ${[...registry.keys()].join(', ')})`,
     );
   }
-  const result = runPreparedLint(prepared);
+  const result = runPreparedLint(prepared.evaluation);
   const exitCode = exitCodeForLint(result, options.severity ?? 'error');
   await reporter.format(filterBySeverity(result, options.severity ?? 'info'), io);
   return exitCode;

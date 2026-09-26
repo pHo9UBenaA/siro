@@ -7,6 +7,12 @@ import { wrapCodecError } from './contracts/errors.ts';
 /** A repository-context parser that memoizes successful `(kind, path)` reads. */
 export type ConfigParser = (file?: ConfigFileRef) => ParsedConfig;
 
+/** Keep a repository view and its evaluation-scoped parser together. */
+export interface RepositoryEvaluation {
+  readonly ctx: RepoContext;
+  readonly parseConfig: ConfigParser;
+}
+
 const EMPTY_FILE: ParsedConfig = Object.freeze({});
 
 /** Create a lazy parser for one repository context; callers own its lifetime. */
@@ -34,3 +40,9 @@ export const createConfigParser = (codecFor: CodecFor, ctx: RepoContext): Config
     return parsed;
   };
 };
+
+/** Pair the context with a fresh lazy parser; construction performs no reads. */
+export const createRepositoryEvaluation = (
+  ctx: RepoContext,
+  codecFor: CodecFor,
+): RepositoryEvaluation => ({ ctx, parseConfig: createConfigParser(codecFor, ctx) });

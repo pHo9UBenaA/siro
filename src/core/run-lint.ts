@@ -3,24 +3,20 @@ import type { Finding, LintResult } from './contracts/lint-result.ts';
 import type { PM, Severity } from './contracts/pms.ts';
 import type { ProjectType } from './contracts/project-type.ts';
 import { type Rule, isCheckStatusShape } from './contracts/rule.ts';
-import type { CodecFor } from './contracts/config-codec.ts';
 import type { RepoContext, RuleContext } from './contracts/repo-context.ts';
 import { decideSeverity } from './decide-severity.ts';
-import { createConfigParser, type ConfigParser } from './parse-config-file.ts';
+import type { ConfigParser, RepositoryEvaluation } from './parse-config-file.ts';
 import { resolveDenoProjectType, resolvePackageJsonProjectType } from './resolve-project-type.ts';
 import { renderVersionNoteMessage } from './render-version-note.ts';
 import { guardRemediationAvailability } from './rules/remediation-availability.ts';
 import { ConfigError } from './contracts/errors.ts';
 
 export interface RunLintOptions {
-  readonly ctx: RepoContext;
+  readonly repository: RepositoryEvaluation;
   readonly pms: readonly PM[];
   readonly pmVersions?: Readonly<Partial<Record<PM, string>>>;
   readonly ruleSet: readonly Rule[];
   readonly severityOverrides?: ReadonlyMap<string, Severity>;
-  readonly codecFor: CodecFor;
-  /** Optional evaluation-scoped parser supplied when workspace discovery already read this context. */
-  readonly parseConfig?: ConfigParser;
 }
 
 const resolveBindingProjectType = (
@@ -39,10 +35,10 @@ const resolveBindingProjectType = (
 
 /** Evaluate every applicable rule binding and collect violations. */
 export const runLint = (opts: RunLintOptions): LintResult => {
-  const { ctx, pms, ruleSet, severityOverrides, codecFor } = opts;
+  const { repository, pms, ruleSet, severityOverrides } = opts;
+  const { ctx, parseConfig } = repository;
   const findings: Finding[] = [];
   const summary: Record<Severity, number> = { error: 0, info: 0, warn: 0 };
-  const parseConfig = opts.parseConfig ?? createConfigParser(codecFor, ctx);
 
   for (const rule of ruleSet) {
     for (const pm of pms) {

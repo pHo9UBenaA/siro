@@ -1,4 +1,5 @@
 import { runLint } from '../../src/core/run-lint.ts';
+import { createRepositoryEvaluation } from '../../src/core/parse-config-file.ts';
 import type { Rule, RuleBinding, VersionNote } from '../../src/core/contracts/rule.ts';
 import type { CodecFor, ConfigCodec } from '../../src/core/contracts/config-codec.ts';
 import { applyConfig } from '../../src/core/apply-config.ts';
@@ -55,8 +56,7 @@ it('resolves each severity independently and leaves rule declarations unchanged'
   }));
   const adjusted = applyConfig(rules, { rules: { 'user-binding': 'info', 'user-status': 'warn' } });
   const result = runLint({
-    codecFor: stubCodecFor,
-    ctx: makeCtx(),
+    repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
     pms: ['npm'],
     ruleSet: adjusted.rules,
     severityOverrides: adjusted.severityOverrides,
@@ -89,8 +89,7 @@ it.each([
   'renders version metadata through emitted findings: %j',
   (versionNote, message) => {
     const result = runLint({
-      codecFor: stubCodecFor,
-      ctx: makeCtx(),
+      repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
       pms: ['npm'],
       ruleSet: [makeRule({ ruleSeverity: 'error', versionNote })],
     });

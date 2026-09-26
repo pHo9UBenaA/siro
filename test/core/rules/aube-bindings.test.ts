@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
 import { runLint } from '../../../src/core/run-lint.ts';
+import { createRepositoryEvaluation } from '../../../src/core/parse-config-file.ts';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { advisoryCheck } from '../../../src/core/rules/advisory-check.ts';
 import { disableLifecycleScripts } from '../../../src/core/rules/disable-lifecycle-scripts.ts';
@@ -93,8 +94,7 @@ it('uses the documented advisory and trust defaults without downgrading explicit
     ['advisoryCheck: off\ntrustPolicy: off', 'warn'],
   ] as const) {
     const result = runLint({
-      ctx: ctx({ readText: () => source }),
-      codecFor,
+      repository: createRepositoryEvaluation(ctx({ readText: () => source }), codecFor),
       pms: ['aube'],
       ruleSet: [advisoryCheck, trustPolicy],
     });

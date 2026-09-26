@@ -72,15 +72,47 @@ await lintCommand(
   { stdout() {}, stderr() {} },
 );
 check(reported);
+const outputFailure = new Error('Installed reporter failure');
+let partialOutput = '';
+let caughtOutputFailure: unknown;
+try {
+  await lintCommand(
+    {
+      cwd: asAbsPath('/virtual'),
+      pm: 'npm',
+      fs: { exists: () => false, readText: () => undefined },
+      reporter: {
+        name: 'partial-consumer',
+        async format(_result, io) {
+          io.stdout('partial');
+          await Promise.resolve();
+          throw outputFailure;
+        },
+      },
+    },
+    {
+      stdout(text) {
+        partialOutput += text;
+      },
+      stderr() {},
+    },
+  );
+} catch (error) {
+  caughtOutputFailure = error;
+}
+check(caughtOutputFailure === outputFailure && partialOutput === 'partial');
 let npmResult: LintResult | undefined;
 for (const pm of PMS) {
-  const result: LintResult = lint({
+  const result = lint({
     cwd: asAbsPath('/virtual'),
     pm,
     fs: { exists: () => false, readText: () => undefined },
     config,
   });
   check(Array.isArray(result.findings));
+  // @ts-expect-error The public lint API is synchronous, not Promise-returning.
+  const asynchronousResult: Promise<LintResult> = result;
+  void asynchronousResult;
   if (pm === 'npm') {
     npmResult = result;
     const finding = result.findings.find((item) => item.ruleId === 'consumer-probe');

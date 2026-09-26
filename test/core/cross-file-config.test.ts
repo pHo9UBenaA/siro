@@ -3,6 +3,7 @@ import { getByPath } from '../../src/core/contracts/config-value.ts';
 import type { Rule } from '../../src/core/contracts/rule.ts';
 import type { RuleContext } from '../../src/core/contracts/repo-context.ts';
 import { runLint } from '../../src/core/run-lint.ts';
+import { createRepositoryEvaluation } from '../../src/core/parse-config-file.ts';
 import { codecFor } from '../../src/adapters/codecs/store.ts';
 import { disableLifecycleScripts } from '../../src/core/rules/disable-lifecycle-scripts.ts';
 import { makeCtx } from '../helpers/ctx.ts';
@@ -12,10 +13,12 @@ it.each([
   { workspace: 'jailBuilds: true\n', npmrc: 'strictDepBuilds=true\n', violations: 0 },
 ])('reads Aube strictDepBuilds from .npmrc: %j', ({ workspace, npmrc, violations }) => {
   const result = runLint({
-    ctx: makeCtx({ readText: (file) => (file === '.npmrc' ? npmrc : workspace) }),
+    repository: createRepositoryEvaluation(
+      makeCtx({ readText: (file) => (file === '.npmrc' ? npmrc : workspace) }),
+      codecFor,
+    ),
     pms: ['aube'],
     ruleSet: [disableLifecycleScripts],
-    codecFor,
   });
   expect(result.findings).toHaveLength(violations);
   expect(result.findings.map(({ file }) => file)).toEqual(Array(violations).fill('.npmrc'));
@@ -31,9 +34,7 @@ it('shares additional file parsing across rules and refreshes it on the next run
     },
   });
   const options = {
-    ctx,
     pms: ['npm'] as const,
-    codecFor,
     ruleSet: ['first', 'second'].map((id) => ({
       id,
       title: id,
@@ -50,10 +51,14 @@ it('shares additional file parsing across rules and refreshes it on the next run
       },
     })),
   };
-  expect(runLint(options).findings).toEqual([]);
+  expect(
+    runLint({ ...options, repository: createRepositoryEvaluation(ctx, codecFor) }).findings,
+  ).toEqual([]);
   expect(reads).toBe(1);
   content = 'approved=false';
-  expect(runLint(options).findings).toHaveLength(2);
+  expect(
+    runLint({ ...options, repository: createRepositoryEvaluation(ctx, codecFor) }).findings,
+  ).toHaveLength(2);
   expect(reads).toBe(2);
 });
 
@@ -73,6 +78,10 @@ it('propagates a parse failure from an additional configuration file', () => {
     },
   };
   expect(() =>
-    runLint({ ctx: makeCtx({ readText: () => '[' }), pms: ['npm'], ruleSet: [rule], codecFor }),
+    runLint({
+      repository: createRepositoryEvaluation(makeCtx({ readText: () => '[' }), codecFor),
+      pms: ['npm'],
+      ruleSet: [rule],
+    }),
   ).toThrow(/deno.json/u);
 });
