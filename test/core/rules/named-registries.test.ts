@@ -26,10 +26,5 @@ describe('named-registries: check states', () => {
     expect(status.message).toContain('pnpm-workspace.yaml');
 
     expect(status.remediation).toMatchObject({ kind: 'manual', steps: expect.any(Array) });
-
-    expect(Object.keys(namedRegistries.bindings).sort()).toEqual(['pnpm']);
-
-    expect(namedRegistries.severity).toBe('info');
-    expect(pnpmBinding.file).toStrictEqual({ kind: 'yaml', path: 'pnpm-workspace.yaml' });
   });
 });

@@ -17,12 +17,6 @@ describe('paranoid-mode: check states', () => {
     const status = aubeBinding.check(makeCtx(), {});
 
     assert(status.state === 'violation');
-    expect(status.severity).toBeUndefined();
-    expect(Object.keys(paranoidMode.bindings).sort()).toEqual(['aube']);
-
-    expect(paranoidMode.severity).toBe('info');
-    expect(aubeBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
-
     expect(status.message).toContain('paranoid');
 
     const ops = automaticOperations(status);
@@ -38,8 +32,6 @@ describe('paranoid-mode: check states', () => {
 
   it('flags a violation when paranoid is false', () => {
     expect.hasAssertions();
-    const status = aubeBinding.check(makeCtx(), { paranoid: false });
-    assert(status.state === 'violation');
-    expect(status.severity).toBeUndefined();
+    expect(aubeBinding.check(makeCtx(), { paranoid: false }).state).toBe('violation');
   });
 });

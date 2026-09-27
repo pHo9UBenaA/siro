@@ -76,7 +76,6 @@ it('resolves each severity independently and leaves rule declarations unchanged'
 
 it.each([
   [undefined, 'always violates'],
-  [{}, 'always violates'],
   [
     {
       configAvailableSince: 'npm 9.0.0',

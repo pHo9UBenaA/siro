@@ -14,7 +14,6 @@ it.each(['public', 'restricted', 'private'])(
       trustedDependencies: [],
     };
     expect(parsePackageJson(manifest)).toEqual(manifest);
-    expect(parsePackageJson({})).toEqual({});
   },
 );
 

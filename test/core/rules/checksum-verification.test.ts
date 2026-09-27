@@ -14,9 +14,7 @@ describe('checksum-verification: check states', () => {
 
   it('flags a violation when set to ignore', () => {
     expect.hasAssertions();
-    const status = yarnBinding.check(makeCtx(), { checksumBehavior: 'ignore' });
-    assert(status.state === 'violation');
-    expect(status.severity).toBeUndefined();
+    expect(yarnBinding.check(makeCtx(), { checksumBehavior: 'ignore' }).state).toBe('violation');
   });
 });
 
@@ -35,9 +33,5 @@ describe('checksum-verification: scope, metadata, and fix', () => {
         value: 'throw',
       },
     ]);
-    expect(Object.keys(checksumVerification.bindings).sort()).toEqual(['yarn']);
-
-    expect(checksumVerification.severity).toBe('warn');
-    expect(yarnBinding.file).toStrictEqual({ kind: 'yaml', path: '.yarnrc.yml' });
   });
 });

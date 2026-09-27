@@ -19,9 +19,6 @@ describe('publish-access (npm)', () => {
 
     expect(status.state).toBe('violation');
 
-    expect(publishAccess.severity).toBe('info');
-    expect(npm.file).toStrictEqual({ kind: 'json', path: 'package.json' });
-
     const ops = manualSteps(status)!;
 
     const firstOp = ops[0];

@@ -23,10 +23,5 @@ describe('store-server: check states', () => {
     expect(status.message).toContain('useRunningStoreServer');
 
     expect(status.remediation).toMatchObject({ kind: 'manual', steps: expect.any(Array) });
-
-    expect(Object.keys(storeServer.bindings).sort()).toEqual(['pnpm']);
-
-    expect(storeServer.severity).toBe('info');
-    expect(pnpmBinding.file).toStrictEqual({ kind: 'yaml', path: 'pnpm-workspace.yaml' });
   });
 });

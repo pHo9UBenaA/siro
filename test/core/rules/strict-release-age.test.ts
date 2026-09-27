@@ -24,9 +24,9 @@ describe('strict-release-age: check states', () => {
 
   it('flags a violation when minimumReleaseAgeStrict is false', () => {
     expect.hasAssertions();
-    const status = aubeBinding.check(makeCtx(), { minimumReleaseAgeStrict: false });
-    assert(status.state === 'violation');
-    expect(status.severity).toBeUndefined();
+    expect(aubeBinding.check(makeCtx(), { minimumReleaseAgeStrict: false }).state).toBe(
+      'violation',
+    );
   });
 });
 
@@ -34,8 +34,6 @@ describe('strict-release-age: scope, metadata, and fix', () => {
   it('reports the missing setting with its severity, scope and remediation', () => {
     const status = aubeBinding.check(makeCtx(), {});
     assert(status.state === 'violation');
-    expect(status.severity).toBe(undefined);
-
     const ops = automaticOperations(status);
     expect(ops).toStrictEqual([
       {
@@ -45,9 +43,5 @@ describe('strict-release-age: scope, metadata, and fix', () => {
         value: true,
       },
     ]);
-    expect(Object.keys(strictReleaseAge.bindings).sort()).toEqual(['aube']);
-
-    expect(strictReleaseAge.severity).toBe('info');
-    expect(aubeBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
   });
 });

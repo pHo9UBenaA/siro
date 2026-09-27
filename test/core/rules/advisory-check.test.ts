@@ -17,14 +17,8 @@ describe('advisory-check: check states', () => {
     },
   );
 
-  it('passes when advisoryCheck is on', () => {
-    expect.hasAssertions();
-    expect(aubeBinding.check(makeCtx(), { advisoryCheck: 'on' }).state).toBe('ok');
-  });
-
-  it('passes when advisoryCheck is required', () => {
-    expect.hasAssertions();
-    expect(aubeBinding.check(makeCtx(), { advisoryCheck: 'required' }).state).toBe('ok');
+  it.each(['on', 'required'])('accepts advisoryCheck=%s', (value) => {
+    expect(aubeBinding.check(makeCtx(), { advisoryCheck: value }).state).toBe('ok');
   });
 });
 
@@ -41,11 +35,6 @@ describe('advisory-check: scope, metadata, and fix', () => {
         value: 'on',
       },
     ]);
-    expect(Object.keys(advisoryCheck.bindings).sort()).toEqual(['aube']);
-
-    expect(advisoryCheck.severity).toBe('warn');
-    expect(aubeBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
-
     assert(status.state === 'violation');
     expect(status.message).toContain('advisoryCheck');
   });

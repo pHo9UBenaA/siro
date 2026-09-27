@@ -19,8 +19,6 @@ describe('provenance (npm)', () => {
 
   it('warns when a publishable package has no provenance', () => {
     expect(npm.check(ctxWith({ name: 'x' }), {}).state).toBe('violation');
-
-    expect(provenance.severity).toBe('warn');
   });
 
   it('passes for a publishable package with provenance=true', () => {

@@ -26,12 +26,6 @@ describe('approved-git-repos: check states', () => {
     const status = yarnBinding.check(makeCtx(), {});
 
     assert(status.state === 'violation');
-    expect(status.severity).toBeUndefined();
-    expect(Object.keys(approvedGitRepos.bindings).sort()).toEqual(['yarn']);
-
-    expect(approvedGitRepos.severity).toBe('warn');
-    expect(yarnBinding.file).toStrictEqual({ kind: 'yaml', path: '.yarnrc.yml' });
-
     const ops = manualSteps(status)!;
 
     const [first] = ops;

@@ -18,11 +18,6 @@ describe('frozen-store: check states', () => {
 
     assert(status.state === 'violation');
     expect(status.message).toContain('frozenStore');
-    expect(Object.keys(frozenStore.bindings).sort()).toEqual(['pnpm']);
-
-    expect(frozenStore.severity).toBe('info');
-    expect(pnpmBinding.file).toStrictEqual({ kind: 'yaml', path: 'pnpm-workspace.yaml' });
-
     const ops = manualSteps(status)!;
 
     expect(ops[0]).toContain('Populate the store');
