@@ -29,6 +29,22 @@ listed as a published release. Its PM-specific member machinery is superseded.
 
 ### Fixes
 
+- Validate consumed Deno publication metadata before applicability and check exact
+  registry pins in both inline imports and scopes. Reject unrepresentable npmrc age
+  cutoffs rather than treating any positive integer as protection.
+- Respect known pre-12 npm targets when checking npm-shrinkwrap.json; explain removed
+  or unknown-version lockfiles instead of incorrectly reporting that no file exists.
+- Supply scan cwd as the third reporter argument. Direct calls must pass `{ cwd }`
+  and await completion; GitHub annotations now reference the correct absolute file.
+  API/JSON paths and schema 3 retain their existing meaning.
+- Escape untrusted display controls and workflow markers without changing API paths
+  or parsed JSON values. Observe actual stream writes and preserve exit 70 on output
+  failure. IO may complete asynchronously; synchronous return values remain ignored.
+- Reject Promise/thenable config exports and check results without an unhandled
+  rejection overriding the configuration-error exit. Keep lint synchronous.
+- Share binding response validation/finding generation, require exhaustive manifest
+  dispatch, exercise real discovery benchmarks, and launch pnpm without Windows shim
+  ambiguity in verification/audit scripts.
 - Deno empty/age-null/exclude-only objects no longer falsely satisfy release age.
   Valid omitted ages use active local npmrc fallback, retaining zero opt-out and
   explicit-age precedence. Leaf remedies preserve valid exclusions.

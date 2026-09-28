@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
+  closeSync,
+  openSync,
   cpSync,
   mkdtempSync,
   mkdirSync,
@@ -13,6 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pnpmCommand } from './pnpm-command.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
@@ -26,12 +29,11 @@ let tarball = cliArgs.length === 1 ? resolve(cliArgs[0]) : undefined;
 const consumer = mkdtempSync(join(tmpdir(), 'siro-consumer-'));
 
 function run(command, args, cwd = consumer, status = 0) {
+  if (command === 'pnpm') {
+    ({ command, args } = pnpmCommand(args));
+  }
   if (process.platform === 'win32') {
-    if (command === 'pnpm') {
-      assert.ok(process.env.npm_execpath, 'Run package verification through pnpm');
-      args = [process.env.npm_execpath, ...args];
-      command = process.execPath;
-    } else if (command.endsWith('siro.cmd')) {
+    if (command.endsWith('siro.cmd')) {
       // Exercise the installed Windows shim. All CLI arguments below are fixed
       // test inputs; use a relative executable to avoid quoting the temp path.
       assert.ok(args.every((arg) => /^[\w./-]+$/u.test(arg)));
@@ -125,6 +127,22 @@ try {
   assert.equal(report.schemaVersion, 3);
   assert.equal(report.inspection.installationRoots[0].directory, '.');
   assert.equal(report.siroVersion, manifest.version);
+  // Exercise the installed executable against an actual unwritable output fd.
+  const outputFile = join(consumer, 'readonly-output');
+  writeFileSync(outputFile, '');
+  const readOnly = openSync(outputFile, 'r');
+  try {
+    const failedOutput = spawnSync(
+      process.execPath,
+      [join(consumer, 'node_modules', manifest.name, installed.bin.siro), 'lint', 'good', '--json'],
+      { cwd: consumer, encoding: 'utf8', stdio: ['ignore', readOnly, 'pipe'], timeout: 10_000 },
+    );
+    assert.ifError(failedOutput.error);
+    assert.equal(failedOutput.status, 70, failedOutput.stderr);
+    assert.match(failedOutput.stderr, /Output failed/);
+  } finally {
+    closeSync(readOnly);
+  }
   const versionReport = JSON.parse(
     run(cli, ['lint', 'good', '--pm', 'npm', '--pm-version', '11.9.0', '--json'], consumer, 1),
   );

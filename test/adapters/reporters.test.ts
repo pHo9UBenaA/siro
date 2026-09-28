@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { asAbsPath } from '../../src/index.ts';
 import {
   BUILTIN_REPORTER_NAMES,
   createRegistry,
@@ -9,8 +11,7 @@ import type { LintResult } from '../../src/core/contracts/lint-result.ts';
 import { parseGithubAnnotation } from '../helpers/github-annotation.ts';
 import { captureIO } from '../helpers/io.ts';
 
-const ESC_OPEN = '[';
-
+const context = { cwd: asAbsPath(path.resolve('/reporter-fixture')) };
 const inspection = { manifests: [], installationRoots: [] };
 const result: LintResult = {
   inspection,
@@ -18,173 +19,61 @@ const result: LintResult = {
     {
       directory: '.',
       file: '.npmrc',
-
       message: 'set ignore-scripts',
       pm: 'npm',
       ruleId: 'disable-lifecycle-scripts',
       severity: 'error',
+      docs: 'https://example.com/guide',
     },
   ],
   summary: { error: 1, info: 0, warn: 0 },
 };
+afterEach(() => vi.unstubAllEnvs());
 
-describe('reporters registry', () => {
-  it('ships pretty / json / github as builtins', () => {
-    expect.hasAssertions();
-    expect(BUILTIN_REPORTER_NAMES).toStrictEqual(['pretty', 'json', 'github']);
-    const registry = createRegistry();
-    expect(registry.get('pretty')).toBe(prettyReporter);
-    expect(registry.get('json')).toBe(jsonReporter);
-    expect(registry.get('github')).toBe(githubReporter);
-  });
-
-  it('createRegistry merges builtins with extras (later wins on collision)', () => {
-    expect.hasAssertions();
-    // Two extras: one with a fresh name (`noop`) to assert extras land in
-    // the registry alongside builtins, and one with a colliding name
-    // (`pretty`) to pin the documented "later wins" override semantic. A
-    // regression that reversed the Map insertion order (builtins after
-    // extras, builtins winning) would leave the previous test green
-    // because the no-collision extra also survives under either order.
-    const noop = {
-      format: (): void => {
-        /* no-op */
-      },
-      name: 'noop',
-    };
-    const overridePretty = {
-      format: (): void => {
-        /* no-op */
-      },
-      name: 'pretty',
-    };
-    const registry = createRegistry([noop, overridePretty]);
-    expect(registry.get('noop')).toBe(noop);
-    expect(registry.get('pretty')).toBe(overridePretty);
-    expect([...registry.keys()]).toStrictEqual(
-      expect.arrayContaining(['pretty', 'json', 'github', 'noop']),
-    );
-  });
+it('registers built-ins and allows later custom replacements', () => {
+  expect(BUILTIN_REPORTER_NAMES).toEqual(['pretty', 'json', 'github']);
+  expect(createRegistry().get('pretty')).toBe(prettyReporter);
+  expect(createRegistry().get('json')).toBe(jsonReporter);
+  expect(createRegistry().get('github')).toBe(githubReporter);
+  const noop = { name: 'noop', format() {} };
+  const override = { name: 'pretty', format() {} };
+  const registry = createRegistry([noop, override]);
+  expect(registry.get('noop')).toBe(noop);
+  expect(registry.get('pretty')).toBe(override);
+  expect([...registry.keys()]).toEqual(['pretty', 'json', 'github', 'noop']);
 });
 
-describe('githubReporter — special characters', () => {
-  it('keeps special characters in messages and paths from being reinterpreted by GitHub', () => {
-    expect.hasAssertions();
-    const tricky: LintResult = {
-      inspection,
-      findings: [
-        {
-          directory: '.',
-          file: 'path/with,comma.txt',
-
-          message: 'set foo=bar, baz: 100%\nnext line',
-          pm: 'npm',
-          ruleId: 'disable-lifecycle-scripts',
-          severity: 'error',
-        },
-      ],
-      summary: { error: 1, info: 0, warn: 0 },
-    };
-    const { io, out } = captureIO();
-    githubReporter.format(tricky, io);
-    const line = out().trimEnd();
-    expect(line).toContain('file=path/with%2Ccomma.txt');
-    expect(line).not.toMatch(/file=path\/with,comma\.txt/u);
-    expect(line).toContain('100%25');
-    expect(line).toContain('%0Anext line');
-    expect(line).not.toMatch(/\n/u);
-  });
-});
-
-describe('prettyReporter — success output', () => {
-  it('emits a non-empty success indicator when there are no findings', () => {
-    expect.hasAssertions();
-    const { io, out } = captureIO();
-    prettyReporter.format(
-      { inspection, findings: [], summary: { error: 0, info: 0, warn: 0 } },
-      io,
-    );
-    expect(out().trim()).not.toBe('');
-    expect(out()).toMatch(/no .+(?<kind>issues|findings|problems)/iu);
-  });
-});
-
-describe('prettyReporter — colour handling', () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it('emits ANSI colour codes when FORCE_COLOR is set', () => {
-    expect.hasAssertions();
-    vi.stubEnv('FORCE_COLOR', '1');
-    vi.stubEnv('NO_COLOR', undefined);
-    const { io, out } = captureIO();
-    prettyReporter.format(result, io);
-    expect(out()).toContain(ESC_OPEN);
-  });
-
-  it('treats NO_COLOR="" as absent per no-color.org (only non-empty disables)', () => {
-    expect.hasAssertions();
-    // Per https://no-color.org/, NO_COLOR must only suppress colour when
-    // "present and not an empty string". An earlier `'NO_COLOR' in env`
-    // check misread the spec and treated `NO_COLOR=''` as a kill switch,
-    // silencing colour for any CI that exports the var unconditionally.
-    vi.stubEnv('FORCE_COLOR', '1');
-    vi.stubEnv('NO_COLOR', '');
-    const { io, out } = captureIO();
-    prettyReporter.format(result, io);
-    expect(out()).toContain(ESC_OPEN);
-  });
-
-  it('honours NO_COLOR even when FORCE_COLOR is set (no-color.org wins)', () => {
-    expect.hasAssertions();
-    vi.stubEnv('FORCE_COLOR', '1');
-    vi.stubEnv('NO_COLOR', '1');
-    const { io, out } = captureIO();
-    prettyReporter.format(result, io);
-    expect(out()).not.toContain(ESC_OPEN);
-    expect(out()).toContain('disable-lifecycle-scripts');
-  });
-});
-
-describe('prettyReporter — layout', () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
-  it('renders a finding with rule id, pm tag, message, docs link, and summary line', () => {
-    expect.hasAssertions();
-    const withDocs: LintResult = {
-      inspection,
-      findings: [
-        {
-          directory: '.',
-          docs: 'https://example.com/docs/ignore-scripts',
-          file: '.npmrc',
-
-          message: 'set ignore-scripts',
-          pm: 'npm',
-          ruleId: 'disable-lifecycle-scripts',
-          severity: 'error',
-        },
-      ],
-      summary: { error: 1, info: 0, warn: 0 },
-    };
-    vi.stubEnv('NO_COLOR', '1');
-    const { io, out } = captureIO();
-    prettyReporter.format(withDocs, io);
-    const output = out();
-    expect(output).toContain('disable-lifecycle-scripts');
-    expect(output).toContain('[npm]');
-    expect(output).toContain('set ignore-scripts');
-    expect(output).toContain('→ https://example.com/docs/ignore-scripts');
-    expect(output).toMatch(/Summary:\s+1 error,\s+0 warn,\s+0 info/u);
-  });
-});
-
-it('emits ordered annotations with severity, file and optional docs', () => {
+it('escapes GitHub properties/data and resolves file paths against the supplied scan root', async () => {
+  const file = 'path/with,colon:%file.txt';
   const { io, out } = captureIO();
-  githubReporter.format(
+  await githubReporter.format(
+    {
+      ...result,
+      findings: [
+        {
+          ...result.findings[0]!,
+          file,
+          message: 'set foo=bar, baz: 100%\nnext line',
+          docs: undefined,
+        },
+      ],
+    },
+    io,
+    context,
+  );
+  expect(out()).toContain('100%25');
+  expect(out()).toContain('%0Anext line');
+  expect(out()).not.toContain('\n');
+  expect(parseGithubAnnotation(out())).toEqual({
+    command: 'error',
+    props: { file: path.resolve(context.cwd, file), title: 'disable-lifecycle-scripts' },
+    body: '[npm] .: set foo=bar, baz: 100%\nnext line',
+  });
+});
+
+it('emits ordered annotations, with no synthetic file for a file-less check', async () => {
+  const { io, out } = captureIO();
+  await githubReporter.format(
     {
       inspection,
       findings: [
@@ -205,19 +94,71 @@ it('emits ordered annotations with severity, file and optional docs', () => {
           file: 'pnpm-workspace.yaml',
           docs: 'https://example.com/guide',
         },
-        { directory: '.', pm: 'yarn', ruleId: 'third', severity: 'info', message: 'third message' },
+        { directory: '.', ruleId: 'third', severity: 'info', message: 'third message' },
       ],
       summary: { error: 1, warn: 1, info: 1 },
     },
     io,
+    context,
   );
-  expect(out().trim().split('\n').map(parseGithubAnnotation)).toEqual([
-    { command: 'error', props: { file: '.npmrc', title: 'first' }, body: '[npm] .: first message' },
+  expect(out().split('\n').map(parseGithubAnnotation)).toEqual([
+    {
+      command: 'error',
+      props: { file: path.resolve(context.cwd, '.npmrc'), title: 'first' },
+      body: '[npm] .: first message',
+    },
     {
       command: 'warning',
-      props: { file: 'pnpm-workspace.yaml', title: 'second' },
+      props: { file: path.resolve(context.cwd, 'pnpm-workspace.yaml'), title: 'second' },
       body: '[pnpm] .: second message (https://example.com/guide)',
     },
-    { command: 'notice', props: { title: 'third' }, body: '[yarn] .: third message' },
+    { command: 'notice', props: { title: 'third' }, body: '[package] .: third message' },
   ]);
+});
+
+it('prints scope and success for an empty report', async () => {
+  const { io, out } = captureIO();
+  await prettyReporter.format(
+    { inspection, findings: [], summary: { error: 0, warn: 0, info: 0 } },
+    io,
+    context,
+  );
+  expect(out()).toContain('installation roots: none');
+  expect(out()).toContain('No security best-practice issues');
+});
+
+it.each([
+  [undefined, '1', true],
+  ['', '1', true],
+  ['1', '1', false],
+  [undefined, '0', false],
+] as const)('honors NO_COLOR=%s and FORCE_COLOR=%s', async (noColor, forceColor, colored) => {
+  vi.stubEnv('NO_COLOR', noColor);
+  vi.stubEnv('FORCE_COLOR', forceColor);
+  const { io, out } = captureIO();
+  await prettyReporter.format(result, io, context);
+  expect(out().includes('\u001b[')).toBe(colored);
+  expect(out()).toContain('[npm]');
+  expect(out()).toContain('disable-lifecycle-scripts');
+  expect(out()).toContain('set ignore-scripts');
+  expect(out()).toContain('https://example.com/guide');
+  expect(out()).toContain('Summary: 1 error, 0 warn, 0 info');
+});
+
+it('awaits each built-in sink and propagates its rejection', async () => {
+  for (const reporter of [prettyReporter, jsonReporter, githubReporter]) {
+    const failure = new Error('write failed');
+    await expect(
+      reporter.format(
+        result,
+        {
+          async stdout() {
+            throw failure;
+          },
+          stderr() {},
+        },
+        context,
+      ),
+    ).rejects.toBe(failure);
+  }
 });

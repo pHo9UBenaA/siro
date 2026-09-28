@@ -26,6 +26,19 @@ Exit code `0` means no findings at or above the chosen threshold under the selec
 
 For untrusted repositories or pull requests, run in an isolated environment without credentials and with restricted network/filesystem access. Do not run repository-supplied configuration in a privileged `pull_request_target` job. The library `lint` API accepts explicit configuration and does not import repository code; the CLI always discovers executable configuration.
 
+## Output safety
+
+Repository filenames and values remain untrusted data in reports. Pretty output and
+CLI diagnostics visibly escape control/bidi characters and workflow-command markers.
+JSON Unicode escapes preserve parsed values while preventing legacy `##[` command
+interpretation in CI logs. GitHub annotations escape properties/data and use an
+explicit scan-root context. Native names in API results are not rewritten; downstream
+consumers still need context-appropriate encoding.
+
+Node output writes are awaited; a broken pipe or other output failure is an incomplete
+report and exits 70, not the exit 1 used for findings. Trusted extensions can still write
+directly to process streams or start background work; these measures are not sandboxing.
+
 ## Release controls
 
 Repository workflows pin external Actions to full commit SHAs, use read-only repository permissions by default, and avoid persisting checkout credentials. Dependabot proposes Action updates for review after a seven-day cooldown, matching pnpm's `minimumReleaseAge: 10080`. The cooldown applies to version updates, not security updates. The public publication workflow uses an OIDC-capable job; the registry's trusted-publisher configuration and repository protections remain external administration requirements.

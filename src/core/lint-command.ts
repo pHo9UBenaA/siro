@@ -36,6 +36,42 @@ export const lintCommand = async (
   }
   const result = runPreparedLint(prepared.evaluation);
   const exitCode = exitCodeForLint(result, options.severity ?? 'error');
-  await reporter.format(filterBySeverity(result, options.severity ?? 'info'), io);
+  // Observe every returned write promise immediately, including writes made by
+  // legacy synchronous reporters that do not await their sink. Preserve the
+  // original failure and await completion even after a reporter throws.
+  const writes: Promise<void>[] = [];
+  let outputFailed = false;
+  let outputFailure: unknown;
+  const recordFailure = (error: unknown) => {
+    if (!outputFailed) {
+      outputFailed = true;
+      outputFailure = error;
+    }
+  };
+  const track =
+    (write: IO['stdout']): IO['stdout'] =>
+    (line) => {
+      try {
+        const written = write(line);
+        writes.push(Promise.resolve(written).then(() => {}, recordFailure));
+        return written;
+      } catch (error) {
+        recordFailure(error);
+        throw error;
+      }
+    };
+  try {
+    await reporter.format(
+      filterBySeverity(result, options.severity ?? 'info'),
+      {
+        stdout: track((line) => io.stdout(line)),
+        stderr: track((line) => io.stderr(line)),
+      },
+      { cwd: options.cwd },
+    );
+  } finally {
+    await Promise.all(writes);
+  }
+  if (outputFailed) throw outputFailure;
   return exitCode;
 };

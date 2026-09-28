@@ -3,7 +3,8 @@ import { getByPath } from '../contracts/config-value.ts';
 import { type RuleBinding, type VersionNote, defineRule } from '../contracts/rule.ts';
 import { type PMSignals, PM_SIGNALS } from '../signals.ts';
 import type { PM } from '../contracts/pms.ts';
-import type { RepoContext } from '../contracts/repo-context.ts';
+import type { RuleContext } from '../contracts/repo-context.ts';
+import { lt } from 'semver';
 import { asRelPath, isRelPath } from '../contracts/paths.ts';
 import { isPlainRecord } from '../contracts/records.ts';
 
@@ -23,12 +24,9 @@ const LOCKFILE_VERSION_NOTES: Partial<Record<PM, VersionNote>> = {
 const lockfileBinding = (pm: PM): RuleBinding => {
   const { lockfiles, reusesLockfiles }: PMSignals = PM_SIGNALS[pm];
   const [primary] = lockfiles;
-  // npm-shrinkwrap.json still identifies npm, but npm 12 no longer reads it.
-  const accepted = [...lockfiles, ...(reusesLockfiles ?? [])].filter(
-    (lockfile) => pm !== 'npm' || lockfile === primary,
-  );
+  const accepted = [...lockfiles, ...(reusesLockfiles ?? [])];
   return {
-    check(ctx: RepoContext) {
+    check(ctx: RuleContext) {
       if (
         pm === 'aube' &&
         ctx.exists(asRelPath('bun.lockb')) &&
@@ -43,7 +41,26 @@ const lockfileBinding = (pm: PM): RuleBinding => {
           },
         };
       }
-      if (accepted.some((lf) => ctx.exists(asRelPath(lf)))) {
+      if (pm === 'npm') {
+        if (ctx.exists(asRelPath(primary))) return { state: 'ok' };
+        if (ctx.exists(asRelPath('npm-shrinkwrap.json'))) {
+          // npm 12 removed shrinkwrap; a declared older target must not inherit
+          // that removal. This is local file policy, not installed-PM detection.
+          if (ctx.pmVersion && lt(ctx.pmVersion, '12.0.0')) return { state: 'ok' };
+          return {
+            state: 'violation',
+            message: ctx.pmVersion
+              ? `npm ${ctx.pmVersion} no longer reads npm-shrinkwrap.json. Use package-lock.json.`
+              : 'Found npm-shrinkwrap.json, but the npm target version is unknown; npm 12 no longer reads it.',
+            remediation: {
+              kind: 'manual',
+              steps: [
+                'Verify and declare the npm version used by this project. For npm 12 or newer, migrate to package-lock.json and review the resulting dependency resolutions.',
+              ],
+            },
+          };
+        }
+      } else if (accepted.some((lf) => ctx.exists(asRelPath(lf)))) {
         return { state: 'ok' };
       }
       return {

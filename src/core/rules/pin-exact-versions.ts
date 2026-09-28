@@ -1,4 +1,5 @@
 import { proposeChanges } from './remediation.ts';
+import { ConfigError } from '../contracts/errors.ts';
 import valid from 'semver/functions/valid.js';
 import { isPlainRecord } from '../contracts/records.ts';
 import type { RuleBinding, CheckStatus } from '../contracts/rule.ts';
@@ -17,12 +18,15 @@ const isUnpinnedRegistryImport = (specifier: string): boolean => {
   return normalized === undefined || valid(normalized) === null;
 };
 
-const collectUnpinnedImports = (imports: Readonly<Record<string, unknown>>): readonly string[] => {
+const collectUnpinnedImports = (imports: unknown, location: string): string[] => {
+  if (!isPlainRecord(imports))
+    throw new ConfigError(`deno.json: ${location} must be an import mapping object.`);
   const offenders: string[] = [];
   for (const [name, value] of Object.entries(imports)) {
-    if (typeof value === 'string' && isUnpinnedRegistryImport(value)) {
-      offenders.push(`${name}=${value}`);
-    }
+    if (value === null) continue; // Import-map blocking entries are not dependency ranges.
+    if (typeof value !== 'string')
+      throw new ConfigError(`deno.json: ${location}.${name} must be a string or null.`);
+    if (isUnpinnedRegistryImport(value)) offenders.push(`${location}.${name}=${value}`);
   }
   return offenders;
 };
@@ -39,7 +43,7 @@ const formatOffenders = (offenders: readonly string[]): CheckStatus => {
     remediation: {
       kind: 'manual',
       steps: [
-        'Run `deno add --save-exact <pkg>` for each unpinned registry import in deno.json, or rewrite the `imports` entries to use exact versions.',
+        'Pin each reported imports/scopes entry in deno.json to an exact version. For top-level imports, `deno add --save-exact <pkg>` can help; edit scoped mappings at their reported locations.',
       ],
     },
     message: `${offenders.length} deno imports are not pinned: ${sample}${more}. Use \`deno add --save-exact\` or pin manually.`,
@@ -49,21 +53,21 @@ const formatOffenders = (offenders: readonly string[]): CheckStatus => {
 
 const OK: CheckStatus = { state: 'ok' };
 
-const extractImportsRecord = (config: ParsedConfig): ParsedConfig | undefined => {
+const unpinnedInlineImports = (config: ParsedConfig): string[] => {
   const imports = getByPath(config, ['imports']);
-  if (!isPlainRecord(imports)) {
-    return void 0;
+  const offenders = imports == null ? [] : collectUnpinnedImports(imports, 'imports');
+  const scopes = getByPath(config, ['scopes']);
+  if (scopes != null) {
+    if (!isPlainRecord(scopes)) throw new ConfigError('deno.json: scopes must be an object.');
+    for (const [scope, mapping] of Object.entries(scopes))
+      offenders.push(...collectUnpinnedImports(mapping, `scopes[${JSON.stringify(scope)}]`));
   }
-  return imports;
+  return offenders;
 };
 
 const denoBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
-    const imports = extractImportsRecord(config);
-    if (!imports) {
-      return OK;
-    }
-    const offenders = collectUnpinnedImports(imports);
+    const offenders = unpinnedInlineImports(config);
     if (offenders.length === 0) {
       return OK;
     }
@@ -143,7 +147,7 @@ const baseRule = requireConfigKey({
     },
   },
   description:
-    'Semver ranges (^, ~) auto-adopt new releases, including compromised ones. Save exact versions by default.',
+    'Semver ranges (^, ~) auto-adopt new releases, including compromised ones. Save exact versions by default; for Deno, inspect registry mappings in both inline imports and scopes (not external import maps).',
   docs: 'https://github.com/bodadotsh/npm-security-best-practices#1-pin-dependency-versions',
   id: 'pin-exact-versions',
   severity: 'error',

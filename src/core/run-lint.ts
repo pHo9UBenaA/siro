@@ -2,14 +2,11 @@ import { CONFIG_FILES } from './config-files.ts';
 import type { Finding, LintResult } from './contracts/lint-result.ts';
 import type { PM, Severity } from './contracts/pms.ts';
 import type { ProjectType } from './contracts/project-type.ts';
-import { type Rule, isCheckStatusShape } from './contracts/rule.ts';
-import type { RepoContext, RuleContext } from './contracts/repo-context.ts';
-import { decideSeverity } from './decide-severity.ts';
+import type { Rule } from './contracts/rule.ts';
+import type { RepoContext } from './contracts/repo-context.ts';
 import type { ConfigParser, RepositoryEvaluation } from './parse-config-file.ts';
 import { resolveDenoProjectType, resolvePackageJsonProjectType } from './resolve-project-type.ts';
-import { renderVersionNoteMessage } from './render-version-note.ts';
-import { guardRemediationAvailability } from './rules/remediation-availability.ts';
-import { ConfigError } from './contracts/errors.ts';
+import { evaluateBinding } from './evaluate-binding.ts';
 
 export interface RunLintOptions {
   readonly repository: RepositoryEvaluation;
@@ -24,65 +21,36 @@ const resolveBindingProjectType = (
   pm: PM,
   parseConfig: ConfigParser,
 ): ProjectType => {
-  if (ctx.projectType !== undefined) {
-    return ctx.projectType;
-  }
-  if (pm === 'deno') {
-    return resolveDenoProjectType(ctx, parseConfig(CONFIG_FILES.denoJson));
-  }
-  return resolvePackageJsonProjectType(ctx);
+  if (ctx.projectType !== undefined) return ctx.projectType;
+  return pm === 'deno'
+    ? resolveDenoProjectType(ctx, parseConfig(CONFIG_FILES.denoJson))
+    : resolvePackageJsonProjectType(ctx);
 };
 
-/** Evaluate every applicable rule binding and collect violations. */
+/** Select applicable PM bindings; response handling is shared with manifest checks. */
 export const runLint = (opts: RunLintOptions): Pick<LintResult, 'findings' | 'summary'> => {
   const { repository, pms, ruleSet, severityOverrides } = opts;
-  const { ctx, parseConfig } = repository;
   const findings: Finding[] = [];
-  const summary: Record<Severity, number> = { error: 0, info: 0, warn: 0 };
-
   for (const rule of ruleSet) {
     for (const pm of pms) {
       const binding = rule.bindings[pm];
       if (
         !binding ||
         (rule.projectTypes &&
-          !rule.projectTypes.includes(resolveBindingProjectType(ctx, pm, parseConfig)))
-      ) {
+          !rule.projectTypes.includes(
+            resolveBindingProjectType(repository.ctx, pm, repository.parseConfig),
+          ))
+      )
         continue;
-      }
-
-      const ruleContext: RuleContext = {
-        ...ctx,
-        readConfig: parseConfig,
-        pmVersion: opts.pmVersions?.[pm],
-      };
-      const response: unknown = binding.check(ruleContext, parseConfig(binding.file));
-      if (!isCheckStatusShape(response)) {
-        throw new ConfigError(`Rule '${rule.id}' returned an invalid check result.`);
-      }
-      const statuses = response.state === 'violations' ? response.violations : [response];
-      for (const status of statuses) {
-        if (status.state !== 'violation') {
-          continue;
-        }
-
-        const finding: Finding = {
-          ruleId: rule.id,
-          directory: '.',
+      findings.push(
+        ...evaluateBinding(repository, rule, binding, severityOverrides, {
           pm,
-          severity: decideSeverity(status, binding, rule, severityOverrides?.get(rule.id)),
-          message: renderVersionNoteMessage(status.message, binding.versionNote),
-          file: status.file ?? binding.file?.path,
-          docs: binding.docs ?? rule.docs,
-          actual: status.actual,
-          expected: status.expected,
-          remediation: guardRemediationAvailability(pm, ruleContext.pmVersion, status.remediation),
-        };
-        findings.push(finding);
-        summary[finding.severity] += 1;
-      }
+          version: opts.pmVersions?.[pm],
+        }),
+      );
     }
   }
-
+  const summary = { error: 0, info: 0, warn: 0 };
+  for (const finding of findings) summary[finding.severity] += 1;
   return { findings, summary };
 };

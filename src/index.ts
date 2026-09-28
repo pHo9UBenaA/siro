@@ -37,7 +37,7 @@ export { defineConfig, type RuleSetting, type SiroConfig } from './core/siro-con
 export type { FileSystem } from './core/contracts/file-system.ts';
 export type { IO } from './core/contracts/io.ts';
 export type { RepoContext, RuleContext } from './core/contracts/repo-context.ts';
-export type { Reporter } from './core/contracts/reporter.ts';
+export type { Reporter, ReportContext } from './core/contracts/reporter.ts';
 export {
   overrideBindings,
   type RequireConfigKeyOptions,

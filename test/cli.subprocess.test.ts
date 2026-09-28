@@ -128,7 +128,9 @@ it('reports recursively discovered package paths and failures without executing 
       }),
     );
     const annotations = spawnBin(['lint', dir, '--reporter', 'github']);
-    expect(annotations.stdout).toContain('file=child/package.json');
+    expect(annotations.stdout).toContain(
+      `file=${path.join(dir, 'child/package.json').replaceAll(':', '%3A')}`,
+    );
     writeFileSync(path.join(dir, 'child/package.json'), '{');
     const broken = spawnBin(['lint', dir, '--json']);
     expect(broken.status).toBe(EXIT_USAGE);

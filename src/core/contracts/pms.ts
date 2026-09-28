@@ -1,8 +1,8 @@
 /**
  * Single source of truth for package managers and severities.
  * Types, runtime sets, and ordering derive from these tuples. Adding a manager
- * still requires detection signals, deliberate workspace semantics, and applicable
- * rule bindings; the tuple alone does not implement support.
+ * still requires local detection signals, applicable rule bindings and verified
+ * policy/availability evidence; the tuple alone does not implement support.
  */
 
 export const PMS = ['npm', 'pnpm', 'yarn', 'bun', 'deno', 'aube'] as const;

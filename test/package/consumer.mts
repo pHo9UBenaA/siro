@@ -4,6 +4,7 @@ import {
   defineConfig,
   defineRule,
   jsonReporter,
+  githubReporter,
   lint,
   lintCommand,
   PMS,
@@ -150,16 +151,72 @@ check(
   ),
 );
 let output = '';
-jsonReporter.format(result, {
-  stdout(text) {
-    output += text;
+await jsonReporter.format(
+  result,
+  {
+    stdout(text) {
+      output += text;
+    },
+    stderr() {},
   },
-  stderr() {},
-});
+  { cwd: asAbsPath('/virtual') },
+);
 const report = JSON.parse(output);
 check(report.schemaVersion === 3 && report.siroVersion === version);
 check(JSON.stringify(report.inspection) === JSON.stringify(result.inspection));
 check(JSON.stringify(report.findings) === JSON.stringify(result.findings));
+const marker = '##[error]literal\u202e';
+let encoded = '';
+await jsonReporter.format(
+  {
+    ...result,
+    findings: [
+      {
+        ruleId: 'probe',
+        directory: '.',
+        message: marker,
+        severity: 'info',
+      },
+    ],
+  },
+  {
+    stdout: (text) => {
+      encoded += text;
+    },
+    stderr() {},
+  },
+  { cwd: asAbsPath('/virtual') },
+);
+check(!encoded.includes('##[') && !encoded.includes('\u202e'));
+check(JSON.parse(encoded).findings[0].message === marker);
+let annotations = '';
+await githubReporter.format(
+  result,
+  {
+    stdout: (text) => {
+      annotations += text;
+    },
+    stderr() {},
+  },
+  { cwd: asAbsPath('/virtual') },
+);
+check(posix(annotations).includes('/virtual/child/package.json'));
+const writeFailure = new Error('delayed write');
+let outputFailure: unknown;
+try {
+  await lintCommand(
+    { cwd: asAbsPath('/virtual'), fs: emptyFs, installationRoots: [], reporter: 'json' },
+    {
+      async stdout() {
+        throw writeFailure;
+      },
+      stderr() {},
+    },
+  );
+} catch (error) {
+  outputFailure = error;
+}
+check(outputFailure === writeFailure);
 check(
   lint({ cwd: asAbsPath('/virtual'), fs, installationRoots: [] }).inspection.installationRoots
     .length === 0,

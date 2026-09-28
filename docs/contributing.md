@@ -48,7 +48,9 @@ prescribed number of layers or files.
    Use `requireConfigKey` for a single setting; use a direct binding for precedence,
    multiple settings, or manual remediation. See [configuration.md](configuration.md).
 3. Choose manifest, installation, or split availability scope in the exhaustive
-   table in `src/core/rules/builtin-rules.ts`. Custom rules stay at cwd. Do not
+   table in `src/core/rules/builtin-rules.ts`. Manifest-scoped additions must also
+   provide a selector in the exhaustive `manifest-checks.ts` dispatch table. Shared
+   response collection belongs in `evaluate-binding.ts`. Custom rules stay at cwd. Do not
    invent a PM for a generic check or read installation config for manifest-only
    packages. Test local target versions, unknown targets, privacy, immutable remedy
    paths and failure propagation through the public API and real CLI.
@@ -70,7 +72,14 @@ before a release; repository imports can hide missing dependencies or exports.
 
 `pnpm bench` excludes process startup and disk I/O. Compare unchanged source
 snapshots with identical Node and dependencies, alternating repeated runs. Measure
-the built CLI separately before claiming a startup improvement.
+the built CLI separately before claiming a startup improvement. Fixtures include real
+50-package trees, manifest-only scans, three explicit installation roots and excluded
+malformed subtrees; scope tests verify the actual inputs measured. The large YAML
+fixture measures parsing, not expansion of its ignored workspace declarations.
+
+Test IO with real stream/pipe failures as well as injected sinks. Reporter calls take
+`{ cwd }` context and must be awaited. For script subprocesses use a literal Node argv
+for pnpm's invoking JS entry; do not execute Windows .cmd shims via shell concatenation.
 
 Package contents should contain only distributed code and public package documents.
 

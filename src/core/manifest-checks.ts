@@ -1,56 +1,45 @@
 import type { Finding, PolicyTarget } from './contracts/lint-result.ts';
-import { ConfigError } from './contracts/errors.ts';
 import type { Severity } from './contracts/pms.ts';
-import { isCheckStatusShape, type Rule, type RuleBinding } from './contracts/rule.ts';
+import type { Rule, RuleBinding } from './contracts/rule.ts';
 import type { RepositoryEvaluation } from './parse-config-file.ts';
 import { resolveDenoProjectType, resolvePackageJsonProjectType } from './resolve-project-type.ts';
 import { CONFIG_FILES } from './config-files.ts';
 import { packageJsonFilesBinding, denoPublishBinding } from './rules/files-field.ts';
 import { publishAccessBinding } from './rules/publish-access.ts';
 import { createUnsupportedSettings } from './rules/unsupported-settings.ts';
-import { decideSeverity } from './decide-severity.ts';
+import type { ManifestRuleId } from './rules/builtin-rules.ts';
+import { evaluateBinding } from './evaluate-binding.ts';
 import { runLint } from './run-lint.ts';
 
-export const manifestProjectType = (repository: RepositoryEvaluation, file: string) =>
+type ManifestFile = 'package.json' | 'deno.json';
+export const manifestProjectType = (repository: RepositoryEvaluation, file: ManifestFile) =>
   file === 'deno.json'
     ? resolveDenoProjectType(repository.ctx, repository.parseConfig(CONFIG_FILES.denoJson))
     : resolvePackageJsonProjectType(repository.ctx);
 
-const genericCheck = (
-  repository: RepositoryEvaluation,
-  rule: Rule,
-  binding: RuleBinding,
-  overrides: ReadonlyMap<string, Severity>,
-): Finding[] => {
-  const response: unknown = binding.check(
-    { ...repository.ctx, readConfig: repository.parseConfig },
-    repository.parseConfig(binding.file),
-  );
-  if (!isCheckStatusShape(response))
-    throw new ConfigError(`Rule '${rule.id}' returned an invalid check result.`);
-  const statuses = response.state === 'violations' ? response.violations : [response];
-  return statuses.flatMap((status): Finding[] =>
-    status.state !== 'violation'
-      ? []
-      : [
-          {
-            ruleId: rule.id,
-            directory: '.',
-            severity: decideSeverity(status, binding, rule, overrides.get(rule.id)),
-            message: status.message,
-            file: status.file ?? binding.file?.path,
-            docs: binding.docs ?? rule.docs,
-            actual: status.actual,
-            expected: status.expected,
-            remediation: status.remediation,
-          },
-        ],
-  );
+// The scope registry cannot add a manifest rule without supplying its dispatch here.
+const selectBinding: Record<
+  ManifestRuleId,
+  (
+    file: ManifestFile,
+    repository: RepositoryEvaluation,
+    targets: readonly PolicyTarget[],
+  ) => RuleBinding | 'pm' | undefined
+> = {
+  'files-field': (file) => (file === 'deno.json' ? denoPublishBinding : packageJsonFilesBinding),
+  'publish-access': (file, repository, targets) => {
+    if (file !== 'package.json') return undefined;
+    // Only npm accepts the nonportable private alias. Unknown targets use the
+    // generic portable-value check, never an invented npm target.
+    return repository.ctx.packageJson?.publishConfig?.access === 'private' && targets.length > 0
+      ? 'pm'
+      : publishAccessBinding;
+  },
 };
 
 export const checkManifest = (
   repository: RepositoryEvaluation,
-  file: 'package.json' | 'deno.json',
+  file: ManifestFile,
   targets: readonly PolicyTarget[],
   rules: readonly Rule[],
   overrides: ReadonlyMap<string, Severity>,
@@ -60,6 +49,7 @@ export const checkManifest = (
   const pms = targets.map((target) => target.pm);
   const pmVersions = Object.fromEntries(targets.map((target) => [target.pm, target.version]));
   for (const rule of rules) {
+    if (rule.projectTypes && !rule.projectTypes.includes(projectType)) continue;
     if (rule.id === 'unsupported-settings') {
       findings.push(
         ...runLint({
@@ -72,29 +62,15 @@ export const checkManifest = (
           severityOverrides: overrides,
         }).findings,
       );
-    } else if (projectType === 'package' && rule.id === 'files-field') {
-      findings.push(
-        ...genericCheck(
-          repository,
-          rule,
-          file === 'deno.json' ? denoPublishBinding : packageJsonFilesBinding,
-          overrides,
-        ),
-      );
-    } else if (
-      projectType === 'package' &&
-      file === 'package.json' &&
-      rule.id === 'publish-access'
-    ) {
-      // Only npm accepts the nonportable 'private' alias. Unknown targets get a
-      // portable-value advisory, not an invented npm binding.
-      if (repository.ctx.packageJson?.publishConfig?.access === 'private' && targets.length > 0) {
+    } else if (Object.hasOwn(selectBinding, rule.id)) {
+      const binding = selectBinding[rule.id as ManifestRuleId](file, repository, targets);
+      if (binding === 'pm') {
         findings.push(
           ...runLint({ repository, pms, pmVersions, ruleSet: [rule], severityOverrides: overrides })
             .findings,
         );
-      } else {
-        findings.push(...genericCheck(repository, rule, publishAccessBinding, overrides));
+      } else if (binding) {
+        findings.push(...evaluateBinding(repository, rule, binding, overrides));
       }
     }
   }

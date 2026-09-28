@@ -2,6 +2,7 @@ import type { IO } from '../../core/contracts/io.ts';
 import type { LintResult } from '../../core/contracts/lint-result.ts';
 import type { Reporter } from '../../core/contracts/reporter.ts';
 import { version } from '../../version.ts';
+import { safeJsonText } from '../safe-text.ts';
 
 /**
  * Versioned machine-readable output — the public contract consumed by
@@ -11,18 +12,20 @@ import { version } from '../../version.ts';
 const SCHEMA_VERSION = 3;
 
 export const jsonReporter: Reporter<'json'> = {
-  format(result: LintResult, io: IO): void {
-    io.stdout(
-      JSON.stringify(
-        {
-          schemaVersion: SCHEMA_VERSION,
-          siroVersion: version,
-          findings: result.findings,
-          summary: result.summary,
-          inspection: result.inspection,
-        },
-        void 0,
-        2,
+  async format(result: LintResult, io: IO): Promise<void> {
+    await io.stdout(
+      safeJsonText(
+        JSON.stringify(
+          {
+            schemaVersion: SCHEMA_VERSION,
+            siroVersion: version,
+            findings: result.findings,
+            summary: result.summary,
+            inspection: result.inspection,
+          },
+          void 0,
+          2,
+        ),
       ),
     );
   },

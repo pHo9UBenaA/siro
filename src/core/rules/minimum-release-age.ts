@@ -50,8 +50,10 @@ const denoAgeUsesFallback = (value: unknown): boolean => {
   return value.age == null;
 };
 
-const isPositiveDenoNpmrcDays = (value: unknown): boolean =>
-  typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+const isPositiveDenoNpmrcDays = (value: unknown, now: number, parse: DateTime['parse']): boolean =>
+  typeof value === 'number' &&
+  Number.isSafeInteger(value) &&
+  isActiveDenoReleaseAge(value * MINUTES_PER_DAY, now, parse);
 
 const baseRule = requireConfigKey({
   bindings: {
@@ -185,10 +187,11 @@ const createDenoBinding = (time: DateTime): RuleBinding => ({
   },
   check(ctx, config) {
     const actual = getByPath(config, ['minimumDependencyAge']);
+    const now = time.now();
     if (denoAgeUsesFallback(actual)) {
       const npmrcConfig = ctx.readConfig(npmrc);
       const npmrcAge = getByPath(npmrcConfig, ['min-release-age']);
-      if (isPositiveDenoNpmrcDays(npmrcAge)) return { state: 'ok' };
+      if (isPositiveDenoNpmrcDays(npmrcAge, now, time.parse)) return { state: 'ok' };
       // Deno treats zero as an explicit opt-out. Do not let an omitted object
       // age fall through to the version-dependent default in that case.
       if (npmrcAge === 0) {
@@ -209,7 +212,7 @@ const createDenoBinding = (time: DateTime): RuleBinding => ({
         };
       }
     }
-    if (isNonDisabledDenoReleaseAge(actual, time.now(), time.parse)) return { state: 'ok' };
+    if (isNonDisabledDenoReleaseAge(actual, now, time.parse)) return { state: 'ok' };
     const objectAge = isPlainRecord(actual);
     const invalidObject =
       objectAge &&

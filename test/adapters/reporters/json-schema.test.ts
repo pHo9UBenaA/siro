@@ -3,14 +3,15 @@ import type { IO } from '../../../src/core/contracts/io.ts';
 import type { LintResult } from '../../../src/core/contracts/lint-result.ts';
 import { jsonReporter } from '../../../src/adapters/reporters/json.ts';
 import { version } from '../../../src/version.ts';
+import { asAbsPath } from '../../../src/index.ts';
 
-const render = (result: LintResult): unknown => {
+const render = async (result: LintResult): Promise<unknown> => {
   const lines: string[] = [];
   const io: IO = {
     stderr: (): undefined => void 0,
     stdout: (line) => lines.push(line),
   };
-  jsonReporter.format(result, io);
+  await jsonReporter.format(result, io, { cwd: asAbsPath(process.cwd()) });
   return JSON.parse(lines.join('\n'));
 };
 
@@ -46,9 +47,9 @@ const result: LintResult = {
 };
 
 describe('json reporter contract', () => {
-  it('renders one parseable document with versions, summary, and remediation', () => {
+  it('renders one parseable document with versions, summary, and remediation', async () => {
     expect.hasAssertions();
-    expect(render(result)).toMatchObject({
+    expect(await render(result)).toMatchObject({
       schemaVersion: 3,
       inspection: { manifests: [], installationRoots: [] },
       siroVersion: version,

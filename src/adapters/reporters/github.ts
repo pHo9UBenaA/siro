@@ -1,6 +1,7 @@
 import type { IO } from '../../core/contracts/io.ts';
+import path from 'node:path';
 import type { LintResult } from '../../core/contracts/lint-result.ts';
-import type { Reporter } from '../../core/contracts/reporter.ts';
+import type { Reporter, ReportContext } from '../../core/contracts/reporter.ts';
 import type { Severity } from '../../core/contracts/pms.ts';
 
 const COMMAND: Record<Severity, string> = {
@@ -19,19 +20,19 @@ const escapeProp = (raw: string): string =>
 
 /** Emit GitHub Actions workflow commands (annotations on PRs). */
 export const githubReporter: Reporter<'github'> = {
-  format(result: LintResult, io: IO): void {
+  async format(result: LintResult, io: IO, context: ReportContext): Promise<void> {
     for (const finding of result.findings) {
       // Findings identify files, not source spans.
       let file = '';
       if (finding.file) {
-        file = `file=${escapeProp(finding.file)},`;
+        file = `file=${escapeProp(path.resolve(context.cwd, finding.file))},`;
       }
       // Documentation belongs in the body; the protocol has no URL property.
       let body = `[${finding.pm ?? 'package'}] ${finding.directory}: ${finding.message}`;
       if (finding.docs) {
         body += ` (${finding.docs})`;
       }
-      io.stdout(
+      await io.stdout(
         `::${COMMAND[finding.severity]} ${file}title=${escapeProp(finding.ruleId)}::${escapeData(body)}`,
       );
     }

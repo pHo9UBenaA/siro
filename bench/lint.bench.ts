@@ -11,7 +11,10 @@ const discardOutput = { stderr() {}, stdout() {} };
 for (const fixture of fixtures) {
   const fs = createMemFileSystem(fixture.files, '/');
   bench.add(fixture.name, () =>
-    lintCommand({ cwd: asAbsPath('/repo'), fs, reporter: 'pretty' }, discardOutput),
+    lintCommand(
+      { cwd: asAbsPath('/repo'), fs, reporter: 'pretty', ...fixture.options },
+      discardOutput,
+    ),
   );
 }
 

@@ -43,7 +43,8 @@ is not a proof of security or a requirement to preserve file/folder counts.
    `RepositoryPaths.child` validates native child names without conflating them
    with portable user paths. Directory symlinks are excluded by the FS port.
 3. One `RepositoryEvaluation` per selected directory pairs context and parser.
-   Discovery validates manifests; installation roots are validated against exact
+   Discovery validates manifests, including consumed Deno publication metadata before
+   applicability; installation roots are validated against exact
    selected directory spelling. Contexts share first successful text reads
    (including absence); parsers share successful `(kind, relative path)` values.
    Manifest validation and codecs share raw bytes. Installation and publication
@@ -58,7 +59,10 @@ is not a proof of security or a requirement to preserve file/folder counts.
    manifest, or split availability. `manifest-checks.ts` evaluates PM-neutral
    publication checks once without inventing a PM; PM-sensitive alias/availability
    checks use actual local targets. `run-lint.ts` evaluates installation/custom PM
-   bindings. Availability's manifest and configuration entries have separate owners,
+   bindings. Both use `evaluate-binding.ts` for synchronous-response validation,
+   violation expansion, severity and finding construction. Manifest dispatch is typed
+   against every manifest-scoped built-in, preventing silent registration omissions.
+   Availability's manifest and configuration entries have separate owners,
    not string-based finding deduplication. Custom rules run only at cwd.
 6. `rebase-finding.ts` copies context-local findings and all automatic operation
    paths into cwd-relative output **after** availability guards. File-less rules
@@ -66,7 +70,9 @@ is not a proof of security or a requirement to preserve file/folder counts.
    scope are stably ordered, without promising DFS/BFS or a read-event sequence.
 7. `lint-command.ts` prepares input, validates reporter selection before executing
    rules, evaluates, computes exit from the full result, filters display findings
-   and awaits reporting. Filtering preserves inspection. Failures never become
+   and awaits reporting and tracked IO writes. Reporters receive the explicit scan cwd;
+   GitHub resolves annotation paths in its adapter, not in API findings. Human text and
+   JSON are encoded at their own presentation boundaries. Filtering preserves inspection. Failures never become
    successful partial reports; reporter failure propagates even after output.
    The CLI classifies expected failures as exit 2 and unexpected failures as 70.
 

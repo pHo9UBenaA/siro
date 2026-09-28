@@ -234,7 +234,7 @@ Upstream: <https://pnpm.io/settings#patcheddependencies>
 
 ## `pin-exact-versions` — error
 
-Semver ranges (^, ~) auto-adopt new releases, including compromised ones. Save exact versions by default.
+Semver ranges (^, ~) auto-adopt new releases, including compromised ones. Save exact versions by default; for Deno, inspect registry mappings in both inline imports and scopes (not external import maps).
 Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#1-pin-dependency-versions>
 

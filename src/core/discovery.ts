@@ -5,6 +5,7 @@ import { asRelPath } from './contracts/paths.ts';
 import type { ProjectType } from './contracts/project-type.ts';
 import { ConfigError } from './contracts/errors.ts';
 import { CONFIG_FILES } from './config-files.ts';
+import { validateDenoMetadata } from './contracts/deno-json.ts';
 import { createRepositoryEvaluation, type RepositoryEvaluation } from './parse-config-file.ts';
 
 export interface DiscoveredDirectory {
@@ -41,7 +42,7 @@ export const discover = (
       const { ctx, parseConfig } = repository;
       if (ctx.packageJson !== undefined) manifests.push('package.json');
       if (ctx.readText(CONFIG_FILES.denoJson.path) !== undefined) {
-        parseConfig(CONFIG_FILES.denoJson);
+        validateDenoMetadata(parseConfig(CONFIG_FILES.denoJson));
         manifests.push('deno.json');
       } else if (ctx.exists(asRelPath('deno.jsonc'))) {
         throw new ConfigError('deno.jsonc is not supported; use strict deno.json.');

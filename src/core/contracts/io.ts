@@ -1,5 +1,5 @@
-/** Output sink for commands; injectable so tests can drive a string buffer. */
+/** Output sink. Synchronous return values are ignored; returned promises are awaited. */
 export interface IO {
-  stdout: (line: string) => void;
-  stderr: (line: string) => void;
+  stdout: (line: string) => unknown;
+  stderr: (line: string) => unknown;
 }

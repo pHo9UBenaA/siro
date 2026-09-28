@@ -96,6 +96,10 @@ and `deno.jsonc` exist, strict `deno.json` takes precedence. Intentionally broke
 fixtures require explicit exclusion. JSON/YAML configuration roots must be
 objects; empty YAML supplies no settings, while empty JSON is invalid. Consumed
 package.json fields, including `publishConfig.provenance`, are type-validated.
+Deno publication metadata (`name`, the `publish` container and `publish.include`)
+is validated before applicability, even with rules off, an explicit project type,
+or no installation roots. Nullable name/include and boolean publish (true or false)
+remain valid Deno forms. Unknown fields are retained; this is not whole-schema validation.
 Lockfile rules check presence, not git tracking or lockfile contents.
 
 Injected `FileSystem.readDirectories` is **required**. Return a dense array of
@@ -169,7 +173,14 @@ For npm provenance, own `package.json#publishConfig.provenance` overrides local
 file; unrelated publishConfig keys are preserved. This precedence is not assumed
 for other PMs. Deno's valid object with absent/null age uses local `.npmrc` fallback;
 without a positive active fallback it retains configured severity. Explicit inactive
-or invalid age is not rescued by fallback, and zero fallback is an opt-out.
+or invalid age is not rescued by fallback, and zero fallback is an opt-out. A fallback
+must also produce a representable active cutoff; an arbitrarily large positive integer
+is not protection. Deno pinning checks both inline `imports` and `scopes`; it does not
+resolve scope reachability or load external import maps.
+
+For npm, a known pre-12 target may use npm-shrinkwrap.json. npm 12+ requires
+package-lock.json; shrinkwrap-only with an unknown target asks for an explicit target
+or migration, rather than claiming that no file exists.
 
 ## Executable CLI configuration
 
@@ -181,7 +192,10 @@ added. Entry modules reload between calls; imported dependencies remain subject
 to Node's cache. This is neither a sandbox nor general hot reload.
 
 Unknown config keys, unknown/duplicate rule IDs and malformed extensions are
-errors. Maps must be plain or null-prototype objects, not inherited/class maps.
+errors. Config exports and check results must be synchronous values, not Promises or
+thenables. Submitted async values are rejected with a configuration error and their
+rejections are observed; siro does not manage unrelated background tasks started by
+trusted executable code. Maps must be plain or null-prototype objects, not inherited/class maps.
 Custom rules run only at cwd, once per selected binding. All targets share root
 rule overrides and reporters.
 
@@ -242,6 +256,24 @@ reporters run. Pretty shows generic findings as `[package]` plus scope informati
 JSON emits one document; GitHub emits escaped violation annotations, not fake scope
 violations. Registered reporters can replace built-ins by name. Async rejection,
 sync throws and partial-output failures propagate.
+
+Reporters receive `format(result, io, { cwd })`. Built-ins must be awaited, including
+when called directly. Two-argument custom implementations may ignore the extra context.
+The GitHub reporter resolves file references against this scan cwd and emits native
+absolute paths for the runner to associate with its workspace. It never guesses the
+scan root from the process cwd; JSON/API paths remain cwd-relative.
+
+`IO.stdout` / `stderr` may return a promise. Synchronous return values (such as an
+array push count) are ignored; await asynchronous writes. `lintCommand` additionally
+tracks writes made through its supplied IO, including those of synchronous custom
+reporters. The IO object can be wrapped: do not rely on object identity or schedule
+writes after the reporter has returned. Node write completion and errors are observed;
+output failure rejects the API and exits the CLI with 70, not the findings exit 1.
+
+Pretty output and CLI diagnostics visibly escape input control/bidi characters and
+workflow-command markers. JSON uses equivalent Unicode escapes where needed to avoid
+legacy workflow commands in logs; parsed values do not change. This is presentation
+safety, not a reason to reject or rewrite native filenames during inspection.
 
 `check` aliases `lint`. Value options must be nonempty. Only `--exclude` and
 `--installation-root` repeat; other value flags occur once. Boolean `--json`,

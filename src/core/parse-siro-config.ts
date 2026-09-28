@@ -12,6 +12,7 @@ import type { RuleSetting, SiroConfig } from './siro-config.ts';
 import { isPlainRecord } from './contracts/records.ts';
 import { ConfigError } from './contracts/errors.ts';
 import { isStableVersion } from './pm-versions.ts';
+import { assertSynchronous } from './contracts/synchronous.ts';
 
 const RuleSettingSchema = vb.union([vb.picklist(SEVERITIES), vb.literal('off')]);
 
@@ -97,6 +98,7 @@ const formatIssues = (
     .join('; ');
 
 export const parseConfig = (candidate: unknown, name = 'siro.config'): SiroConfig => {
+  assertSynchronous(candidate, name);
   if (!isPlainRecord(candidate)) {
     throw new ConfigError(
       `${name} must export a config object (got ${Array.isArray(candidate) ? 'an array' : typeof candidate}).`,

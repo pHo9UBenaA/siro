@@ -95,5 +95,9 @@ const builtinScope = {
   'unsupported-settings': 'split',
 } as const satisfies Record<BuiltinRuleId, 'installation' | 'manifest' | 'split'>;
 
+export type ManifestRuleId = {
+  [Id in keyof typeof builtinScope]: (typeof builtinScope)[Id] extends 'manifest' ? Id : never;
+}[keyof typeof builtinScope];
+
 export const scopeOf = (id: string): 'installation' | 'manifest' | 'split' | 'custom' =>
   Object.hasOwn(builtinScope, id) ? builtinScope[id as BuiltinRuleId] : 'custom';

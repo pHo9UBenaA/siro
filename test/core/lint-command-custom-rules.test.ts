@@ -242,9 +242,8 @@ it('waits for asynchronous reporting before returning the lint exit code', async
             name: 'async',
             async format(result, targetIO) {
               expect(result.findings).toContainEqual(expect.objectContaining({ ruleId: 'custom' }));
-              expect(targetIO).toBe(io);
               await ready;
-              targetIO.stdout('reported');
+              await targetIO.stdout('reported');
             },
           },
         ],

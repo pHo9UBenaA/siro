@@ -2,7 +2,12 @@
 
 `--reporter json` emits exactly one document. Check `schemaVersion` before
 processing it. Messages are not stable identifiers. A registered custom `json`
-reporter may replace this contract.
+reporter may replace this contract. Await direct reporter calls and supply their scan
+context: `await jsonReporter.format(result, io, { cwd })`.
+
+Parse JSON rather than comparing serialized bytes. Command-like sequences such as
+`##[` and display-control characters can use Unicode escapes; decoded values and
+schemaVersion 3 remain unchanged. No workflow-command wrapper lines surround JSON.
 
 | Root field      | Meaning                                                                                |
 | --------------- | -------------------------------------------------------------------------------------- |
@@ -53,6 +58,10 @@ checks. Optional fields also include `file`, `docs`, scalar `expected`, observed
 acquire a synthetic package.json. Multiple findings may share a rule ID.
 
 ## Paths and remediation
+
+These API/JSON paths differ from GitHub annotation properties: the GitHub reporter
+uses its explicit scan cwd to emit absolute file references. The runner can then
+associate them with the correct workspace file even when scanning a subdirectory.
 
 All output `file` and `operations[].file.path` values are cwd-relative, not relative
 to `directory`. Consumers must **not prefix directory again**. Native component

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
 import * as vb from 'valibot';
+import { pnpmCommand } from './pnpm-command.ts';
+import { safeText } from '../src/adapters/safe-text.ts';
 
 const count = vb.pipe(vb.number(), vb.safeInteger(), vb.minValue(0));
 // pnpm 10 uses advisories, not npm's vulnerabilities[].via representation.
@@ -91,20 +93,27 @@ const audit = (label, command, args, parse, optional = false) => {
     const report = parse(JSON.parse(result.stdout));
     if (report.total > 0) {
       console.log(`found ${report.total} vulnerability(s).`);
-      for (const line of report.lines) console.log(`  - ${line}`);
+      for (const line of report.lines) console.log(`  - ${safeText(line)}`);
       return 1;
     }
     if (result.status !== 0) throw new Error('command exited 1 without recognized findings.');
     console.log(`No vulnerabilities found by ${label}.`);
     return 0;
   } catch (error) {
-    console.error(`${label}: audit failed: ${error.message}`);
-    if (result.stderr?.trim()) console.error(result.stderr.trim());
+    console.error(`${label}: audit failed: ${safeText(error.message)}`);
+    if (result.stderr?.trim()) console.error(safeText(result.stderr.trim()));
     return 2;
   }
 };
 
-const pnpmStatus = audit('pnpm audit', 'pnpm', ['audit', '--json'], parsePnpm);
+let pnpmStatus;
+try {
+  const pnpm = pnpmCommand(['audit', '--json']);
+  pnpmStatus = audit('pnpm audit', pnpm.command, pnpm.args, parsePnpm);
+} catch (error) {
+  console.error(`pnpm audit: ${safeText(error.message)}`);
+  pnpmStatus = 2;
+}
 console.log('');
 const osvStatus = audit(
   'osv-scanner',
