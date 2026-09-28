@@ -59,9 +59,8 @@ acquire a synthetic package.json. Multiple findings may share a rule ID.
 
 ## Paths and remediation
 
-These API/JSON paths differ from GitHub annotation properties: the GitHub reporter
-uses its explicit scan cwd to emit absolute file references. The runner can then
-associate them with the correct workspace file even when scanning a subdirectory.
+Unlike API/JSON paths, GitHub annotation file references are absolute, resolved
+against the scan cwd.
 
 All output `file` and `operations[].file.path` values are cwd-relative, not relative
 to `directory`. Consumers must **not prefix directory again**. Native component
@@ -85,8 +84,7 @@ cross-OS filename conversion or a filesystem containment sandbox.
 
 Operations are a nonempty ordered list. File kinds are `npmrc`, `yaml`, `toml`,
 `json`; key paths are nonempty; values are strings, finite numbers or booleans.
-All operation paths in a multi-file remedy are rebased immutably once, after local
-availability guards. Unrelated keys and rule-owned output objects are preserved.
+Every operation in a multi-file remedy uses a cwd-relative file path.
 
 ```json
 {

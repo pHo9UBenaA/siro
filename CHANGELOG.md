@@ -2,9 +2,6 @@
 
 ## [0.6.0] — 2026-09-29
 
-This incorporates the unpublished 0.5.2 architecture and cache work; 0.5.2 is not
-listed as a published release. Its PM-specific member machinery is superseded.
-
 ### Breaking changes and inspection scope
 
 - Discover package.json and strict deno.json recursively by default, independently
@@ -45,9 +42,6 @@ listed as a published release. Its PM-specific member machinery is superseded.
   failure. IO may complete asynchronously; synchronous return values remain ignored.
 - Reject Promise/thenable config exports and check results without an unhandled
   rejection overriding the configuration-error exit. Keep lint synchronous.
-- Share binding response validation/finding generation, require exhaustive manifest
-  dispatch, exercise real discovery benchmarks, and launch pnpm without Windows shim
-  ambiguity in verification/audit scripts.
 - Deno empty/age-null/exclude-only objects no longer falsely satisfy release age.
   Valid omitted ages use active local npmrc fallback, retaining zero opt-out and
   explicit-age precedence. Leaf remedies preserve valid exclusions.
@@ -56,27 +50,17 @@ listed as a published release. Its PM-specific member machinery is superseded.
   both locations' old-target availability guards.
 - Preserve legal POSIX backslash and colon directory names without confusing them
   with separators or portable user input. Reject malformed/traversing adapter names.
-- Rebase all automatic operation paths immutably to cwd, not just finding/manual
-  paths; preserve file-less findings and apply availability guards before rebasing.
-- Separate the fixed Windows installed-shim probe from literal-argv package/CLI
-  execution; exercise paths containing spaces and shell metacharacters.
+- Make every remediation operation path relative to scan cwd, including multi-file
+  remedies. Findings without a responsible file remain file-less.
+- Fix Windows package verification for paths with spaces and shell metacharacters.
 - Make one-shot and locally installed usage explicit, restore rule configuration
   examples, and update moved documentation anchors in findings and the rule reference.
 
-### Architecture, behavior and limits
+### Inspection limits
 
-- Keep one core with closed contracts and driven adapters; preserve synchronous
-  lint, awaited lintCommand, CLI exits 0/1/2/70 and executable-config trust boundaries.
-- Share each directory's successful reads/parses across discovery and evaluation,
-  including absence and raw manifest bytes. New calls read afresh; initial failures
-  propagate. This is not an atomic filesystem snapshot.
-- Remove PM workspace expansion, ordered matching and native alias resolution.
-  Use one exclusion matcher and explicit built-in evaluation scopes; tests assert
-  observable scope/failures rather than traversal/read order.
-- Installation checks inspect local settings, not inherited effective policy.
-  Manifest-only children have no effective provenance checks. Child executable
-  configs are not loaded; manifest-file symlinks retain normal file reads.
-- Document [scope and migration](docs/configuration.md) and [schema 3](docs/json-output.md).
+Installation checks use local settings, not inherited effective policy. Manifest-only
+children have no provenance-policy checks, and child executable configs are not loaded.
+See [scope and migration](docs/configuration.md) and [schema 3](docs/json-output.md).
 
 ## [0.5.1]
 

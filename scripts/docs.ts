@@ -88,9 +88,10 @@ const RULES_INTRO = `<!-- AUTO-GENERATED from the rule registry. Run \`pnpm gen:
 Each rule encodes one security intent. Generic publication checks do not need a PM;
 installation checks and setting availability use local PM targets. See the
 [comparison matrix](comparison.md) for which PMs each rule applies to.
-Bindings may read additional files through the rule context. Result-specific severity
-and user overrides can change the default shown below. Version notes are display-only, separate from explicit default-safety policy;
-siro does not inspect the installed package-manager version. See [policy sources](policy-sources.md).
+A check may read files beyond its listed primary input. Your configuration and the
+observed settings can change the severity shown below. Version notes describe PM
+support; siro does not inspect installed binaries. See [policy sources](policy-sources.md)
+for defaults, precedence and version limits.
 
 | Severity | Meaning |
 | --- | --- |

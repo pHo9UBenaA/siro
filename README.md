@@ -75,6 +75,7 @@ For a walkthrough and deeper reference, use these guides:
 - [Getting started](docs/getting-started.md) walks through findings and CI; [configuration](docs/configuration.md) covers local PM/version selection, discovery and explicit installation scope, executable config, exit codes, and migration from the removed `--workspaces` flag.
 - The [rule reference](docs/rules.md) and [PM comparison](docs/comparison.md) show what is checked for each manager.
 - [JSON output](docs/json-output.md) documents the machine-readable remediation contract.
+- [Contributing](docs/contributing.md) covers development setup, the source map, and verification.
 
 ## License
 

@@ -1,87 +1,89 @@
 # Getting started
 
-## Run without adding a dependency
+## 1. Run a check
+
+Use a supported Node version (see [requirements](../README.md#try-it)) and run from
+your repository:
 
 ```sh
 npx @pho9ubenaa/siro lint
 ```
 
-`npx` may download and execute the tool. The CLI also imports any repository
-`siro.config.*` as executable code; review untrusted configurations first.
-See the [threat model](threat-model.md).
+`npx` may download the tool. The CLI also executes the repository's `siro.config.*`,
+if present. Review unfamiliar configs or use an isolated environment; see the
+[threat model](threat-model.md).
 
-`siro` detects package managers from the `packageManager` field, lockfiles, and config
-files, then reports supported configuration gaps. It does not scan for known vulnerabilities.
-If detection finds no manager, pass `--pm` explicitly.
-
-## Choose the scope
-
-The default is recursive package.json / strict deno.json discovery, but local
-installation checks run only at cwd. PM workspace exclusions no longer select
-packages. Exclude deliberate fixtures; explicitly add independent install projects:
+siro detects managers from `packageManager`, lockfiles and manager-specific config.
+If it cannot detect yours, select it explicitly, for example:
 
 ```sh
-npx @pho9ubenaa/siro lint . --exclude test/fixtures --exclude vendor --exclude dist
+npx @pho9ubenaa/siro lint --pm npm
+```
+
+## 2. Choose what to inspect
+
+All selected `package.json` and strict `deno.json` manifests below the current
+directory are checked. By default, installation settings are checked only at the
+current directory, not every discovered package. PM workspace declarations do
+not limit discovery.
+
+To exclude intentional fixtures and generated packages, save `siro.config.mjs`:
+
+```js
+export default {
+  exclude: ['test/fixtures', 'vendor', 'dist'],
+};
+```
+
+For an independent install project, explicitly add its directory:
+
+```sh
 npx @pho9ubenaa/siro lint . --installation-root . --installation-root tools/standalone
 ```
 
-Replace `tools/standalone` with an existing independent installation directory.
-The repeatable flags replace config arrays. Additional roots use their own PM and
-version, not root `--pm` options. Use config `{ installationRoots: [] }` for a
-manifest-only scan, or object entries to specify a PM per additional root. The
-[config examples](configuration.md#rule-settings) include rule overrides and an
-import-free `siro.config.mjs` usable with `npx`. Review
-`inspection` in JSON: discovering packages is not a guarantee that every independent
-project's install policy was checked.
+Replace `tools/standalone` with an existing project. Include `.` to retain the
+current directory's installation checks. Additional roots use their own PM targets;
+root `--pm` does not propagate. Check the JSON `inspection` field when verifying
+scope. See [configuration](configuration.md) for exclusions and manifest-only scans.
 
-## Fix the findings
+## 3. Read findings and adjust your policy
 
-siro is a linter: it reports violations but never writes your config files.
-Built-in findings include machine-readable remediation (`remediation`) in the JSON output. Custom rules may omit it:
+siro reports issues and suggested changes; it does not edit files. By default,
+all findings are shown, but only errors cause exit `1`. Warnings and info do not
+fail the command unless you select a stricter threshold.
 
 ```sh
-npx @pho9ubenaa/siro lint --reporter json
+npx @pho9ubenaa/siro lint --json
+npx @pho9ubenaa/siro lint --severity warn
 ```
 
-Review and apply the proposed operations or manual steps with your editor — or hand the JSON to an agent
-skill that edits the files and re-runs `npx @pho9ubenaa/siro lint` until it exits `0`. For example,
-if an npm repo sets `ignore-scripts=false` in `.npmrc`, consider whether its builds
-require lifecycle scripts before setting it to `true`. Other findings may remain.
-The output shape is a versioned contract; see [json-output.md](json-output.md).
+Review each change before applying it. For example, before setting
+`ignore-scripts=true` in `.npmrc`, check whether your builds need lifecycle scripts.
+Rerun lint after editing. JSON findings contain proposed operations or manual
+steps; see the [output contract](json-output.md).
 
-## Add it to CI
+To change a rule's severity, add a `rules` map to your existing config:
 
-```sh
-npx @pho9ubenaa/siro lint                            # fails (exit 1) on any error-level finding
-npx @pho9ubenaa/siro lint --severity warn            # also fail on warnings
-npx @pho9ubenaa/siro lint --reporter json            # machine-readable output (equivalent to --json)
-npx @pho9ubenaa/siro lint --reporter github          # GitHub Actions annotations on PRs
+```js
+export default {
+  exclude: ['test/fixtures', 'vendor', 'dist'],
+  rules: { 'files-field': 'warn' },
+};
 ```
 
-## Common options
+The [rule reference](rules.md) explains the checks and supported managers.
+[Rule settings](configuration.md#rule-settings) also support disabling a check
+with `'off'`; do this deliberately, not just to obtain a clean result.
 
-`check` is an alias for `lint`. Run `npx @pho9ubenaa/siro lint --help` for the complete CLI syntax.
+## 4. Add a repeatable CI command
 
-| Option                                    | Use                                                                                       |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Select one manager at cwd; additional installation roots retain their own targets.        |
-| `--pm-version <x.y.z>`                    | Supply an exact stable target version (requires `--pm`). It does not run an installed PM. |
-| `--project-type <application\|package>`   | Choose whether publication safeguards apply; omitted means infer from publish metadata.   |
-| `--exclude <pattern>`                     | Prune discovery directories (repeatable).                                                 |
-| `--installation-root <path>`              | Replace installation scope (repeatable; include `.` for cwd).                             |
-| `--severity <error\|warn\|info>`          | Set both the display and CI failure threshold; default failure threshold is `error`.      |
-| `--reporter <pretty\|json\|github>`       | Choose terminal, JSON, or GitHub Actions output; `--json` is a JSON shortcut.             |
-
-See [configuration and behavior](configuration.md) for PM selection, target-version
-precedence, common exclusions, explicit installation scope, executable config, library use, and exit codes. The old `--workspaces` flag is rejected; see [migration](configuration.md#migration-from-05x).
-
-## Install as a dev dependency (optional)
+Install a pinned dev dependency:
 
 ```sh
 npm install --save-dev --save-exact @pho9ubenaa/siro
 ```
 
-Add a script to your existing `package.json` (preserve its other fields):
+Add a script to `package.json`, preserving its other fields:
 
 ```json
 {
@@ -89,11 +91,24 @@ Add a script to your existing `package.json` (preserve its other fields):
 }
 ```
 
-Run `npm run lint:security` from a shell, `pre-push` hook, or CI after dependency
-installation. To pass extra flags, use `npm run lint:security -- --severity warn`.
-Installing a dev dependency does not put its binary on the global shell PATH.
-For a trusted repository, pass `--pm` when detection cannot identify its manager.
+After installing project dependencies in CI, run:
 
-Next: the [rule reference](rules.md) explains each check, the
-[comparison matrix](comparison.md) shows per-manager support, and
-[json-output.md](json-output.md) documents the machine-readable contract.
+```sh
+npm run lint:security
+```
+
+A local dependency is available to package scripts, not every shell or Git hook.
+Use `npm run lint:security` in hooks too. To pass extra options:
+
+```sh
+npm run lint:security -- --severity warn
+npm run lint:security -- --reporter github
+```
+
+The GitHub reporter emits Actions annotations. Exit `2` means invalid input or an
+incomplete scan; `70` means an unexpected failure, including output errors. Neither
+should be treated as a successful check.
+
+For more options, use `npx @pho9ubenaa/siro lint --help` or the
+[CLI summary](../README.md#common-cli-options). Upgrading from 0.5.x? Follow the
+[migration guide](configuration.md#migration-from-05x); `--workspaces` was removed.

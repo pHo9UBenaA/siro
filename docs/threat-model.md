@@ -1,58 +1,62 @@
 # Threat model
 
-## Purpose and assets
+siro checks local dependency-installation and publication configuration. Its output
+helps review supported policy gaps; a clean result is not a security attestation.
 
-siro identifies local package-manager settings that weaken dependency installation or publication policy. The assets at risk are the invoking machine, its credentials, the repository, and downstream consumers of findings and release artifacts.
+## Trusted code and untrusted data
 
-## Trust boundaries
+- PM manifests and configuration are read as data. Built-in checks do not install
+  dependencies, execute package scripts or edit files.
+- `siro.config.ts`, `.mjs`, and `.js` are executable code. The CLI imports cwd's
+  config with the caller's permissions, before validating its exported value.
+  Custom rules and reporters have the same privileges and can alter results.
+- Library `lint` calls do not import repository code. `loadConfig` is an explicit
+  opt-in to execution. Child and additional-root executable configs are not loaded.
+- Installing siro trusts its distributed code and dependencies. `npx` may download
+  code before checking anything. Pin an exact version when repeatability matters.
 
-| Input or component                 | Trust and behavior                                                                                                                                                                                                                                                             |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Package-manager configuration      | Parsed as data. Built-in rules read configuration and emit findings; they do not install dependencies or apply fixes.                                                                                                                                                          |
-| `siro.config.ts`, `.mjs`, or `.js` | Executable code, imported before its exported shape is validated. It can read files, access the network, start processes, or mutate the machine with the caller's permissions. Validation is not sandboxing.                                                                   |
-| Custom rules and reporters         | Executable, trusted extensions with the same process privileges. They can change results and have effects beyond built-in linting.                                                                                                                                             |
-| Filesystem and symlinks            | Files are read through normal filesystem access. The working directory is not a security sandbox, and symlinks are not a containment boundary.                                                                                                                                 |
-| Findings and remediation           | Advisory output. An external editor or agent must review operations, preserve unrelated content, handle conflicts, and rerun lint after editing. Automatic remediation does not authorize an edit.                                                                             |
-| Package-manager defaults           | Only defaults recorded as safe across every supported version and target environment may lower severity. Installed versions, environment variables, user/global configuration, CI commands, and every workspace member are not resolved into an effective installation policy. |
-| Tool installation and updates      | Running siro trusts its distributed code and dependencies. An installer such as `npx` may download code before any linting occurs.                                                                                                                                             |
+For unfamiliar repositories or pull requests, use an isolated environment without
+credentials and with restricted filesystem/network access. Do not execute repository
+config in a privileged `pull_request_target` job. Shape validation is not sandboxing.
 
-## Threats addressed and limits
+## What a scan does not establish
 
-Checks can identify permissive script settings, unpinned dependency ranges, disabled integrity controls, missing release-age policies, and other supported configuration gaps. These controls reduce specific opportunities for compromise; none proves the absence of malicious packages or prevents every supply-chain attack.
+siro does not detect malware, query vulnerability databases, validate every lockfile
+resolution or enforce the commands used to install and publish. It does not resolve
+user/global configuration, environment variables or inherited workspace policy.
+An attacker who can change siro config or CI can disable checks; protect those files
+through your repository's review and branch controls.
 
-siro does not scan package contents, detect malware, verify all lockfile resolutions against the registry, enforce install commands, monitor network traffic, or replace vulnerability scanners. An attacker able to change the siro configuration or CI workflow can disable checks. Protect those files using the repository's own review and branch controls.
+[Discovery](configuration.md#inspection-scope-packages-and-installation-roots) and
+installation-policy inspection differ. Only explicit installation roots receive
+installation checks; unlisted independent projects can remain uninspected. Rules may
+also be disabled or downgraded. Exit `0` means no findings met the chosen threshold,
+not that every input or control is safe.
 
-Exit code `0` means no findings at or above the chosen threshold under the selected policy; informational findings may still exist. A parse error means the run did not complete successfully. Configured rule exclusions and severity overrides affect the result.
+PM versions are declarations, not measurements of installed binaries. Availability
+checks cover only the [listed settings](rules.md#checked-introduction-versions).
+See [policy sources](policy-sources.md) for manager-specific limits.
 
-For untrusted repositories or pull requests, run in an isolated environment without credentials and with restricted network/filesystem access. Do not run repository-supplied configuration in a privileged `pull_request_target` job. The library `lint` API accepts explicit configuration and does not import repository code; the CLI always discovers executable configuration.
+Directory symlinks below cwd are not traversed, but cwd and file symlinks use normal
+filesystem resolution. A scan is neither a containment sandbox nor an atomic
+filesystem snapshot. Lockfile presence does not prove validity or git tracking.
 
-## Output safety
+## Using findings safely
 
-Repository filenames and values remain untrusted data in reports. Pretty output and
-CLI diagnostics visibly escape control/bidi characters and workflow-command markers.
-JSON Unicode escapes preserve parsed values while preventing legacy `##[` command
-interpretation in CI logs. GitHub annotations escape properties/data and use an
-explicit scan-root context. Native names in API results are not rewritten; downstream
-consumers still need context-appropriate encoding.
+Treat filenames, values and messages as untrusted data. Pretty output and CLI
+diagnostics escape display controls; JSON preserves decoded values; GitHub output
+escapes annotation fields. API consumers must use encoding appropriate to their own output and must
+not assume filenames are portable across operating systems.
 
-Node output writes are awaited; a broken pipe or other output failure is an incomplete
-report and exits 70, not the exit 1 used for findings. Trusted extensions can still write
-directly to process streams or start background work; these measures are not sandboxing.
+Remediation is advisory. Review edits, preserve unrelated content, resolve conflicts
+and rerun lint. The word "automatic" describes an operation format, not permission
+to write. siro does not apply those operations.
 
-## Release controls
+Read/parse errors mean inspection is incomplete. Output failures can leave a partial
+report and exit `70`; do not turn them into a successful empty result. Trusted
+extensions can bypass built-in reporting or start other work; output protection does
+not sandbox them. See [JSON output](json-output.md) for consumer requirements.
 
-Repository workflows pin external Actions to full commit SHAs, use read-only repository permissions by default, and avoid persisting checkout credentials. Dependabot proposes Action updates for review after a seven-day cooldown, matching pnpm's `minimumReleaseAge: 10080`. The cooldown applies to version updates, not security updates. The public publication workflow uses an OIDC-capable job; the registry's trusted-publisher configuration and repository protections remain external administration requirements.
+## Reporting vulnerabilities
 
-These controls do not prevent compromise by a trusted maintainer, a malicious reviewed change, or a compromised distribution dependency. Public releases ship readable JavaScript, and consumers can pin an exact siro version and inspect the package before use.
-
-## Reporting
-
-See [SECURITY.md](../SECURITY.md). This document describes the current boundaries; it is not a certification or a claim of complete protection.
-
-Declared or explicit PM versions drive the limited [setting introduction checks](rules.md#checked-introduction-versions). They are not an attestation of the installed binary or effective runtime configuration. Unknown targets and unlisted settings have no availability verdict; later removals, backports, and version-specific value syntax are not checked.
-
-[Recursive discovery](configuration.md#inspection-scope-packages-and-installation-roots) checks every selected manifest independently of PM workspace membership. Installation policy is checked only at explicit installation roots (default cwd); unlisted independent projects may remain uninspected. Manifest-only children do not receive effective provenance checks. No inheritance, commands, environment or global configuration is resolved. The inspection record describes inputs, not passing security controls.
-
-Child and additional-root executable configs are not loaded. Directory symlinks below cwd are not traversed; cwd itself uses normal resolution and manifest-file symlinks retain normal reads. This is not a containment sandbox. Native POSIX backslashes remain filename characters in output. Successful per-context reads are cached, but independent paths and existence probes are not an atomic snapshot.
-
-References: [GitHub Actions secure use](https://docs.github.com/en/actions/reference/security/secure-use), [target-version policy](configuration.md#target-pm-versions), [JSON output](json-output.md).
+See [SECURITY.md](../SECURITY.md) for private reporting and supported release policy.

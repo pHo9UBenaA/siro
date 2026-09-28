@@ -1,43 +1,126 @@
 # Policy and sources
 
-siro discovers selected manifests recursively and checks local installation settings only at explicit installation roots against a recorded policy. It does not calculate the effective configuration of an installed package-manager version. The [generated rule reference](rules.md) is the single list of live bindings, primary inputs, severity defaults, and version notes.
+This page explains non-obvious findings and their upstream basis. For the full
+list of checks, inputs and severities, see the [rule reference](rules.md).
+[Configuration](configuration.md) defines which directories are inspected.
 
-A missing setting may produce an informational reminder only when the recorded upstream default meets the policy across every supported version and target environment. Version- and environment-dependent defaults retain the rule's configured severity because a declared target does not establish that their conditions hold. Command flags, environment variables, user configuration, and alternate configuration files remain outside this static check. Pin the setting when that guarantee is required.
+## Interpreting findings
 
-The `unsupported-settings` rule uses structured introduction history for the [listed setting/file pairs](rules.md#checked-introduction-versions), with sources generated from the same data as the check. It compares exact stable declared or explicit targets without resolving installed versions. `VersionNote`, including the presence or wording of `defaultSafeSince`, is display-only. `requireConfigKey.defaultSafety` is the explicit policy: only unconditional defaults satisfying the requirement may lower severity; omitted safety is conservative. Missing history stays unknown; later removals, backports, and value-syntax changes are not inferred. See [target versions](configuration.md#target-pm-versions).
+Checks evaluate local settings, not the effective configuration of an installed
+PM. A missing setting may receive lower severity only when its documented default
+is safe across supported versions and environments. A declared version alone does
+not establish an environment-dependent default.
 
-The introduction review also checks the file location. pnpm's `strictDepBuilds` arrived in 10.3.0, but [10.3's config loader](https://github.com/pnpm/pnpm/blob/v10.3.0/config/config/src/index.ts) does not merge general workspace settings; [10.6.0](https://github.com/pnpm/pnpm/releases/tag/v10.6.0) adds that support. Bun's scanner arrived in [1.2.21](https://bun.com/blog/bun-v1.2.21#security-scanner-api-for-bun-install), before the 1.3 overview; the [1.2.23 parser](https://github.com/oven-sh/bun/blob/bun-v1.2.23/src/bunfig.zig) already reads `install.security.scanner` but not `install.minimumReleaseAge`. Deno added the project `.npmrc#min-release-age` fallback in [2.8.1](https://github.com/denoland/deno/releases/tag/v2.8.1); `deno.json#minimumDependencyAge` remains higher priority.
+`unsupported-settings` covers only the [listed introduction versions](rules.md#checked-introduction-versions).
+It does not establish compatibility for unlisted settings, removals, backports or
+version-specific values. A tagged source establishes behavior in that version;
+introduction dates require release history. Aube's unversioned sources do not
+establish per-setting introduction versions.
 
-## Source review
+Any valid, active positive release-age window satisfies that check; three days is
+a suggestion, not a guaranteed safe delay. Units differ: npm uses days, pnpm/Aube
+minutes, Bun seconds, and Yarn numeric minutes or duration strings. Individual
+package exclusions are not audited.
 
-The source checks below were revisited on 2026-09-06. A tagged source establishes behavior in that version; it does not by itself establish the first release containing it. Introduction versions are omitted where release history has not established them. A retrieved schema is an inventory, not a behavioral oracle.
+## npm
 
-| Manager | Behavior sources                                                                                                                                                                                                                                                                                                                                               | Release history used for annotations                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| npm     | [npm 12 configuration definitions](https://github.com/npm/cli/blob/v12.0.2/workspaces/config/lib/definitions/definitions.js)                                                                                                                                                                                                                                   | [Provenance](https://github.com/npm/cli/releases/tag/v9.5.0), [release age](https://github.com/npm/cli/releases/tag/v11.10.0), [URL defaults and shrinkwrap removal](https://github.com/npm/cli/releases/tag/v12.0.0)                                                                                                                                                                                                                                                                               |
-| pnpm    | [Build settings](https://pnpm.io/settings/build), [store settings](https://pnpm.io/settings/store), [other settings](https://pnpm.io/settings/other)                                                                                                                                                                                                           | [Strict builds](https://github.com/pnpm/pnpm/releases/tag/v10.3.0), [build bypass](https://github.com/pnpm/pnpm/releases/tag/v10.9.0), [release age](https://github.com/pnpm/pnpm/releases/tag/v10.16.0), [trust policy](https://github.com/pnpm/pnpm/releases/tag/v10.21.0), [exotic dependencies](https://github.com/pnpm/pnpm/releases/tag/v10.26.0), [default changes](https://github.com/pnpm/pnpm/releases/tag/v11.0.0), [read-only store](https://github.com/pnpm/pnpm/releases/tag/v11.7.0) |
-| Yarn    | [Configuration](https://yarnpkg.com/configuration/yarnrc), [duration parser](https://github.com/yarnpkg/berry/blob/%40yarnpkg/cli/4.15.0/packages/yarnpkg-core/sources/miscUtils.ts)                                                                                                                                                                           | [CI immutability](https://github.com/yarnpkg/berry/pull/2530), [hardened mode](https://github.com/yarnpkg/berry/releases/tag/%40yarnpkg%2Fcli%2F4.0.0), [age gate](https://github.com/yarnpkg/berry/releases/tag/%40yarnpkg%2Fcli%2F4.10.0), [scripts and approved repositories](https://github.com/yarnpkg/berry/releases/tag/%40yarnpkg%2Fcli%2F4.14.0), [age default](https://github.com/yarnpkg/berry/releases/tag/%40yarnpkg%2Fcli%2F4.15.0)                                                   |
-| Bun     | [Lifecycle scripts](https://bun.com/docs/pm/lifecycle), [configuration parser](https://github.com/oven-sh/bun/blob/bun-v1.3.0/src/bunfig.zig)                                                                                                                                                                                                                  | [Frozen lockfile](https://github.com/oven-sh/bun/blob/bun-v0.6.10/src/bunfig.zig), [script and exact settings](https://github.com/oven-sh/bun/blob/bun-v1.2.0/src/bunfig.zig)                                                                                                                                                                                                                                                                                                                       |
-| Deno    | [Configuration parser](https://github.com/denoland/deno/blob/v2.9.4/libs/config/deno_json/mod.rs), [npmrc parser](https://github.com/denoland/deno/blob/v2.9.4/libs/npmrc/lib.rs), [duration parser](https://github.com/denoland/deno/blob/v2.9.4/libs/config/util.rs), [schema](https://github.com/denoland/deno/blob/v2.9.4/cli/schemas/config-file.v1.json) | [Lockfile discovery](https://deno.com/blog/v1.28), [inline imports](https://deno.com/blog/v1.30), [project npmrc release age](https://github.com/denoland/deno/releases/tag/v2.8.1), [default release age](https://github.com/denoland/deno/releases/tag/v2.9.0)                                                                                                                                                                                                                                    |
-| Aube    | [Settings and accepted locations](https://github.com/aubepkg/aube/blob/main/crates/aube-settings/settings.toml), [security behavior](https://github.com/aubepkg/aube/blob/main/docs/security.md), [lockfile parsing](https://github.com/aubepkg/aube/blob/main/crates/aube-lockfile/src/io.rs)                                                                 | Current source is unversioned; per-key introduction versions are not inferred.                                                                                                                                                                                                                                                                                                                                                                                                                      |
+- `ignore-scripts` takes precedence over script approval policy.
+- An explicit `before` in `.npmrc` takes precedence over `min-release-age`. A valid
+  past cutoff satisfies the check. Future, disabled or malformed cutoffs require
+  correction; setting a relative age alone does not repair the override. siro
+  reports malformed dates even though npm discards them.
+- Own `package.json#publishConfig.provenance` overrides local `.npmrc#provenance`,
+  including false. The remedy targets the responsible file. CLI flags and environment
+  overrides are outside this check, and this precedence is not assumed for other PMs.
+- `publishConfig.access: "private"` is accepted as npm's alias of `"restricted"`.
+- Known pre-12 targets may use `npm-shrinkwrap.json`; npm 12+ requires
+  `package-lock.json`. Shrinkwrap-only projects with unknown targets are asked to
+  declare their version or migrate. Presence does not establish lockfile validity.
 
-## Interpretation limits
+Sources: [npm 12 configuration](https://github.com/npm/cli/blob/v12.0.2/workspaces/config/lib/definitions/definitions.js),
+[publish options](https://github.com/npm/cli/blob/v12.0.2/lib/commands/publish.js#L313-L323),
+[npm 11 shrinkwrap](https://github.com/npm/cli/blob/v11.16.0/docs/lib/content/configuring-npm/npm-shrinkwrap-json.md),
+[npm 12 changes](https://github.com/npm/cli/releases/tag/v12.0.0).
 
-- **Discovery and installation scope:** PM workspace declarations are not interpreted. One common recursive manifest scan uses siro exclusions. Installation roots are explicit (default cwd), with no complete automatic independent-project detection or effective inheritance resolution. See [scope](configuration.md#inspection-scope-packages-and-installation-roots).
-- **Scripts:** npm's global script disable takes precedence over its approval policy. pnpm `ignoreScripts: true` also satisfies the lifecycle rule; otherwise `dangerouslyAllowAllBuilds` bypasses approval from pnpm 10.9. Before 10.9 the same key is inert but should be removed before an upgrade; `strictDepBuilds` can provide the checked YAML control from pnpm 10.6. Neither check claims to disable arbitrary executable configuration. Bun accepts `install.auto = false` as well as `"disable"`. An empty Bun `trustedDependencies` list replaces the curated default allowlist.
-- **Aube:** `jailBuilds` is read from the workspace file; `strictDepBuilds` is read from `.npmrc`, since workspace YAML does not declare that key. The rule reads both through the same run-scoped parser. The `paranoid` bundle forces several checks, but does not override `verifyStoreIntegrity: false`. `advisoryCheck` and `trustPolicy` have safe current defaults. This is a review of the named files, not a resolution of `.aube-config`, global settings, or every override.
-- **Lockfiles:** existence does not prove that a file is committed, valid, or current. A declared pre-12 npm target accepts npm-shrinkwrap.json; npm 12+ does not. Unknown targets with shrinkwrap only require explicit version confirmation or migration. This bounded removal policy does not turn the introduction table into a complete version compatibility resolver. See [npm 11 shrinkwrap documentation](https://github.com/npm/cli/blob/v11.16.0/docs/lib/content/configuring-npm/npm-shrinkwrap-json.md) and the npm 12 removal above. Deno's configured relative lockfile path is honored, and `lock: false` is flagged. Aube rejects binary `bun.lockb` and does not reuse `deno.lock`; a text `bun.lock` is supported. `preferFrozenLockfile` does not enforce immutability; the Aube finding asks the user to verify install commands.
-- **Release age:** any active positive window meets the check; three days is a suggested value, not a guaranteed safe delay. Units differ: npm days, pnpm/Aube minutes, Bun seconds, Yarn numeric minutes or its duration syntax. In npm, an explicit `before` in the same `.npmrc` takes precedence over `min-release-age`. A valid past cutoff satisfies the rule without a relative age. Future, disabled, or malformed `before` values require manual correction; setting `min-release-age` alone cannot repair an active override. npm discards malformed dates, but siro still reports the invalid field. Relative ages must produce a valid past cutoff. Deno supports integral minutes, selected ISO durations, and past date cutoffs. A valid object with omitted/null `age` needs an active positive local fallback; object shape alone is not an active age. Disabling values and future cutoffs are flagged. Individual package exclusions are not audited.
-- **Deno format and scope:** the linter reads strict JSON from `deno.json`. For release age, an explicit `deno.json#minimumDependencyAge` wins; otherwise a positive integer day value in the project `.npmrc#min-release-age` satisfies the check only if it produces a cutoff within Deno/Chrono's representable range, while zero is reported as disabled. Environment and user-level npmrc inputs remain outside the static repository check. A project using only `deno.jsonc` fails explicitly. Exact pinning inspects both inline imports and every scopes mapping in the same deno.json; scope reachability is not resolved. Malformed consumed mapping shapes fail explicitly, and blocking null mappings are not registry dependencies. Dependency script opt-ins and external import maps are outside these checks. Manifest-only discovery does not inspect child installation or effective provenance policy.
-- **Publishing:** npm accepts `publishConfig.access: "private"` as an alias of `"restricted"`; siro preserves the spelling and accepts the alias for npm. Own npm `publishConfig.provenance` overrides local `.npmrc#provenance`, even when false; the responsible leaf is checked and remedied. This precedence is not extrapolated to other managers. The Bun provenance finding recommends publishing through npm; it does not assert that Bun emits attestations. Manifest fields consumed by siro must have valid types. Other manifest fields are preserved without whole-manifest validation.
+## pnpm
 
-When changing a rule, verify the relevant configuration location, accepted values, defaults, bypasses, and failure behavior in primary sources. Keep the binding, behavior tests, and these interpretation notes consistent, then regenerate the rule reference. Fetch timestamps and passing tests alone do not verify upstream semantics.
+- `ignoreScripts: true` satisfies the lifecycle check. Otherwise,
+  `dangerouslyAllowAllBuilds` bypasses approval from pnpm 10.9. Before that version
+  the bypass setting is ignored; remove it before upgrading.
+- Although `strictDepBuilds` arrived in 10.3, using it in `pnpm-workspace.yaml`
+  requires 10.6. The checked file location matters, not only the setting's name.
+- Version- or CI-dependent defaults do not lower severity merely because a target
+  version is declared. Set the checked controls explicitly to pin local policy.
 
-## Age fallback and provenance precedence sources
+Sources: [build settings](https://pnpm.io/settings/build),
+[dependency resolution](https://pnpm.io/settings/dependency-resolution),
+[store settings](https://pnpm.io/settings/store),
+[10.3 configuration](https://github.com/pnpm/pnpm/blob/v10.3.0/config/config/src/index.ts),
+[10.6 YAML support](https://github.com/pnpm/pnpm/releases/tag/v10.6.0),
+[10.9 build bypass](https://github.com/pnpm/pnpm/releases/tag/v10.9.0).
 
-- [Deno 2.8.1 config conversion](https://github.com/denoland/deno/blob/v2.8.1/libs/config/deno_json/mod.rs) converts explicit null age to None; [resolver fallback](https://github.com/denoland/deno/blob/v2.8.1/libs/resolver/factory.rs) needs a positive project npmrc age for an active cutoff. This version's raw object grammar does not establish that an empty object is valid in all versions.
-- [Deno 2.9.4 configuration](https://github.com/denoland/deno/blob/v2.9.4/libs/config/deno_json/mod.rs) supplies both imports and scopes to its inline import map. Its publication metadata accepts nullable name/include and both boolean publish values; siro validates only the consumed publication fields before classification.
-- [Deno 2.9.4 resolver](https://github.com/denoland/deno/blob/v2.9.4/libs/resolver/factory.rs) has version-dependent defaults. siro retains conservative configured severity rather than treating a declared version as proof of the runtime default.
-- [npm 12.0.2 publish](https://github.com/npm/cli/blob/v12.0.2/lib/commands/publish.js#L313-L323) flattens filtered publishConfig into publish options. siro checks local manifest/npmrc precedence only, not overriding CLI flags or environment variables. Both provenance file locations retain the verified npm 9.5.0 introduction guard.
+## Yarn
 
-PM workspace resolver sources no longer define siro selection. No live PM parity claim is made for common discovery.
+CI lockfile immutability and public-PR hardened mode depend on the execution
+environment. Their defaults are not treated as unconditional protection. Release
+age accepts positive numeric minutes and Yarn duration strings, such as `3d`.
+
+Sources: [Yarn configuration](https://yarnpkg.com/configuration/yarnrc),
+[duration formats](https://github.com/yarnpkg/berry/blob/%40yarnpkg/cli/4.15.0/packages/yarnpkg-core/sources/miscUtils.ts),
+[CI immutability](https://github.com/yarnpkg/berry/pull/2530),
+[hardened mode](https://yarnpkg.com/blog/release/4.0).
+
+## Bun
+
+- An empty `trustedDependencies` list replaces Bun's curated default allowlist.
+- `install.auto = false` and `"disable"` both satisfy the auto-install check.
+- The provenance finding recommends publishing through npm; it does not claim that
+  Bun emits attestations natively.
+- The scanner API became available in 1.2.21, before the 1.3 overview. Release-age
+  configuration requires 1.3.0.
+
+Sources: [lifecycle scripts](https://bun.com/docs/pm/lifecycle),
+[configuration](https://github.com/oven-sh/bun/blob/bun-v1.3.0/src/bunfig.zig),
+[1.2.21 scanner release](https://bun.com/blog/bun-v1.2.21#security-scanner-api-for-bun-install),
+[1.3 release age](https://bun.com/blog/bun-v1.3#minimum-release-age),
+[provenance support](https://github.com/oven-sh/bun/issues/15601).
+
+## Deno
+
+- siro reads strict `deno.json`, not JSONC or external import maps. Exact pinning
+  checks registry mappings in both inline `imports` and `scopes`, without resolving
+  scope reachability. Blocking null mappings are not dependencies. Malformed
+  consumed mappings fail inspection; dependency script opt-ins are not checked.
+- An explicit `minimumDependencyAge` takes precedence over `.npmrc#min-release-age`.
+  A valid object with absent/null `age` needs a positive local fallback; object
+  shape alone is not protection. Zero fallback is an opt-out. Invalid or inactive
+  explicit ages are not rescued by fallback.
+- Deno accepts integral minutes, supported ISO durations and past date cutoffs.
+  npmrc fallback uses integer days. In either form the age must produce a valid,
+  representable past cutoff. Version-dependent defaults remain conservatively
+  reported when no active local value is provided.
+- Configured project-relative lockfile paths are honored; `lock: false` is flagged.
+- Publication metadata permits nullable name/include and boolean publish values.
+  siro validates consumed fields, not the entire Deno schema.
+
+Sources: [Deno 2.9.4 configuration](https://github.com/denoland/deno/blob/v2.9.4/libs/config/deno_json/mod.rs),
+[npmrc values](https://github.com/denoland/deno/blob/v2.9.4/libs/npmrc/lib.rs),
+[duration formats](https://github.com/denoland/deno/blob/v2.9.4/libs/config/util.rs),
+[2.8.1 fallback introduction](https://github.com/denoland/deno/releases/tag/v2.8.1),
+[2.8.1 fallback behavior](https://github.com/denoland/deno/blob/v2.8.1/libs/resolver/factory.rs),
+[2.9.4 defaults](https://github.com/denoland/deno/blob/v2.9.4/libs/resolver/factory.rs).
+
+## Aube
+
+- `jailBuilds` is checked in `aube-workspace.yaml`; `strictDepBuilds` in `.npmrc`.
+- `paranoid` forces several security controls but does not override
+  `verifyStoreIntegrity: false`. `advisoryCheck` and `trustPolicy` have safe current
+  defaults. Other settings files and global overrides are outside this local check.
+- Text `bun.lock` is supported; binary `bun.lockb` without a text replacement is
+  rejected, and `deno.lock` is not reused.
+- `preferFrozenLockfile` does not enforce immutability. The finding asks users to
+  verify that install commands use `aube ci` or `--frozen-lockfile`.
+
+Sources: [settings and accepted locations](https://github.com/aubepkg/aube/blob/main/crates/aube-settings/settings.toml),
+[security behavior](https://github.com/aubepkg/aube/blob/main/docs/security.md),
+[lockfile support](https://github.com/aubepkg/aube/blob/main/crates/aube-lockfile/src/io.rs).
