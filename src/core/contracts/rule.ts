@@ -53,8 +53,7 @@ export type CheckStatus =
       readonly violations: readonly [ViolationStatus, ...ViolationStatus[]];
     };
 
-/** Version text is displayed, not parsed as a target-version policy. The presence
- * of defaultSafeSince also keeps an omitted documented default at full severity. */
+/** Display-only annotations: presence and wording never change policy. */
 export interface VersionNote {
   readonly configAvailableSince?: string;
   readonly defaultSafeSince?: string;

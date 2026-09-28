@@ -27,7 +27,7 @@ export const githubReporter: Reporter<'github'> = {
         file = `file=${escapeProp(finding.file)},`;
       }
       // Documentation belongs in the body; the protocol has no URL property.
-      let body = `[${finding.pm}] ${finding.message}`;
+      let body = `[${finding.pm ?? 'package'}] ${finding.directory}: ${finding.message}`;
       if (finding.docs) {
         body += ` (${finding.docs})`;
       }

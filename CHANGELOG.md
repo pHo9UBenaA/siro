@@ -1,25 +1,59 @@
 # Changelog
 
-## [0.5.2]
+## [0.6.0] — Unreleased
 
-### Fixes and observable behavior
+This incorporates the unpublished 0.5.2 architecture and cache work; 0.5.2 is not
+listed as a published release. Its PM-specific member machinery is superseded.
 
-- Preserve explicit Deno workspace membership when a positive literal resolves through a native directory alias. For both `deno.json#workspace` and `package.json#workspaces`, an existing explicitly named directory without its required manifest now fails with a configuration error (CLI exit 2) instead of being silently skipped. Negative patterns remain lexical.
-- Reuse the first successfully parsed configuration value (including a missing file) per kind and relative path within each root or member repository context in one lint call. Workspace declarations, Deno vendor/nested checks, and rules in that context see the same value. Later calls and other contexts read afresh; initial read/parse failures still propagate. On a changing filesystem, later-only values and read errors are no longer observed for that cached key. This is not an atomic filesystem snapshot.
-- Share each context's `package.json` raw text between manifest validation and rule parsing, avoiding inconsistent two-read results.
-- Reuse accepted member contexts across overlapping declarations within one PM. Deno's native and npm declarations no longer reread the same member manifests; each source's manifest requirements are still validated. Initial read failures propagate, and later lint calls read afresh.
+### Breaking changes and inspection scope
 
-### Architecture and maintenance
+- Discover package.json and strict deno.json recursively by default, independently
+  of PM workspace declarations. Remove `--workspaces` / API `workspaces`, including
+  false; legacy calls receive migration errors. PM exclusions no longer hide
+  fixtures, vendor or dist. Use `exclude: ['test/fixtures', 'vendor', 'dist']`, or
+  `exclude: ['**']` to keep only cwd.
+- Add common exclusions and explicit `installationRoots` (default `['.']`). Arrays
+  replace config values; `[]` disables installation checks, not publication checks.
+  Example: `siro lint . --installation-root . --installation-root tools/standalone`.
+  Additional independent installation projects are not automatically inferred.
+- Resolve PM/version locally: root options stay at cwd, additional roots use their
+  entry/local detection, and other packages use manifest-local evidence. Unknown
+  PMs still receive generic publication checks; unknown availability is not safety.
+- JSON schema 3 adds `inspection`, required finding `directory`, and optional `pm`.
+  Generic publication findings run once per manifest without a synthetic PM.
+- Require injected `FileSystem.readDirectories`; remove `resolveDirectory`. Skip
+  directory symlinks, `.git`, node_modules and explicit exclusions before reads.
+  No implicit vendor/dist/fixture exclusions or native filesystem fallback.
+- `requireConfigKey.defaultSafety` explicitly controls safe-default downgrades;
+  omitted safety is conservative. VersionNote has no policy effect.
 
-- Organize policy, rules, workspace decisions, and adapter-facing contracts in one `core`; keep driven Node/codec/glob/reporter adapters outside, standard wiring in `runtime.ts`, and executable config loading in the driving `load-config.ts`. Retain the package entry and make the contracts' source dependency direction enforceable, including type imports and re-exports.
-- Require an explicit declaration and matching policy when a new package manager is added; require a root-only or root-and-member decision for every built-in rule. Existing six-manager behavior and the three member publication checks retain their scope and ordering.
-- Avoid compiling an unused common exclusion set before Deno's ordered workspace selection.
-- Focus the README on first use and consolidate CLI details in getting-started and behavior in the existing reference documentation.
+### Fixes
 
-### Compatibility and limits
+- Deno empty/age-null/exclude-only objects no longer falsely satisfy release age.
+  Valid omitted ages use active local npmrc fallback, retaining zero opt-out and
+  explicit-age precedence. Leaf remedies preserve valid exclusions.
+- npm own publishConfig.provenance overrides npmrc, including false. Validate its
+  consumed boolean type; align finding/remedy with the responsible file and keep
+  both locations' old-target availability guards.
+- Preserve legal POSIX backslash and colon directory names without confusing them
+  with separators or portable user input. Reject malformed/traversing adapter names.
+- Rebase all automatic operation paths immutably to cwd, not just finding/manual
+  paths; preserve file-less findings and apply availability guards before rebasing.
 
-- Public exports and installed types, synchronous `lint`, asynchronous `lintCommand`, CLI flags and exit codes, JSON schema 2, supported Node range, and the executable-config trust boundary remain unchanged apart from the explicit behavior differences above. Library lint calls do not auto-import repository config; CLI and explicit `loadConfig` can execute it.
-- Member checks remain opt-in and limited to publication metadata. They do not resolve effective installation settings, verify actual PM versions, or replace vulnerability scanning. Live PM and cross-platform compatibility are not established by the virtual-filesystem tests alone.
+### Architecture, behavior and limits
+
+- Keep one core with closed contracts and driven adapters; preserve synchronous
+  lint, awaited lintCommand, CLI exits 0/1/2/70 and executable-config trust boundaries.
+- Share each directory's successful reads/parses across discovery and evaluation,
+  including absence and raw manifest bytes. New calls read afresh; initial failures
+  propagate. This is not an atomic filesystem snapshot.
+- Remove PM workspace expansion, ordered matching and native alias resolution.
+  Use one exclusion matcher and explicit built-in evaluation scopes; tests assert
+  observable scope/failures rather than traversal/read order.
+- Installation checks inspect local settings, not inherited effective policy.
+  Manifest-only children have no effective provenance checks. Child executable
+  configs are not loaded; manifest-file symlinks retain normal file reads.
+- Document [scope and migration](docs/configuration.md) and [schema 3](docs/json-output.md).
 
 ## [0.5.1]
 

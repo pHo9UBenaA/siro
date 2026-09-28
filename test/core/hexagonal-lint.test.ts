@@ -1,42 +1,23 @@
 import { lintCommand } from '../../src/core/lint-command.ts';
 import { lint } from '../../src/core/lint.ts';
+import { rebaseFinding } from '../../src/core/rebase-finding.ts';
+import { createBuiltinRules } from '../../src/core/rules/builtin-rules.ts';
 import type { LintDependencies } from '../../src/core/contracts/lint-dependencies.ts';
-import { compileAdditionalWorkspaceGlob } from '../../src/core/workspaces/dialects.ts';
 import type { Reporter } from '../../src/core/contracts/reporter.ts';
 import { asRelPath, type AbsPath } from '../../src/core/contracts/paths.ts';
-import type { Remediation, ViolationStatus } from '../../src/core/contracts/rule.ts';
+import type { Remediation } from '../../src/core/contracts/rule.ts';
+import type { Finding } from '../../src/core/contracts/lint-result.ts';
 import { captureIO } from '../helpers/io.ts';
 
-// A bounded in-memory host, with no production adapter or runtime composition.
+// No production adapter or runtime composition: all IO goes through these ports.
 const host = () => {
   const files: Record<string, string> = {
-    '/virtual/package.json': '{"private":true,"workspaces":["packages/*"]}',
+    '/virtual/package.json': '{"private":true}',
     '/virtual/packages/api/package.json': '{"name":"api"}',
   };
-  const readText = vi.fn<LintDependencies['fileSystem']['readText']>(
-    (path: AbsPath) => files[path],
-  );
-  const compile = vi.fn<LintDependencies['globs']['compile']>((pattern) => ({
-    matches: (directory) => pattern === 'packages/*' && directory === 'packages/api',
-    canDescend: (directory) => pattern === 'packages/*' && directory === 'packages',
-  }));
+  const readText = vi.fn<LintDependencies['fileSystem']['readText']>((path) => files[path]);
   const dependencies: LintDependencies = {
-    rules: [
-      {
-        id: 'files-field',
-        title: 'Publication boundary',
-        description: 'Test publication rule',
-        severity: 'error',
-        bindings: {
-          npm: {
-            check: (ctx) =>
-              ctx.packageJson?.private === true
-                ? { state: 'ok' }
-                : { state: 'violation', message: 'Review publication files.' },
-          },
-        },
-      },
-    ],
+    rules: createBuiltinRules({ now: () => 0, parse: () => NaN }),
     fileSystem: {
       readText,
       exists: (path) => files[path] !== undefined,
@@ -47,134 +28,109 @@ const host = () => {
       isAbsolute: (value): value is AbsPath =>
         typeof value === 'string' && value.startsWith('/virtual'),
       resolve: (root, relative) => (relative === '.' ? root : `${root}/${relative}`) as AbsPath,
-      normalizePattern: (pattern) => pattern,
+      child: (parent, name) =>
+        asRelPath(parent === '.' ? String(name) : `${parent}/${String(name)}`),
     },
     codecFor: () => ({ parse: JSON.parse }),
-    globs: { expand: (pattern) => [pattern], compile },
-    caseInsensitiveGlobs: false,
-    createRepoContext: (root, fs, projectType) => ({
-      root,
-      projectType,
-      packageJson: JSON.parse(fs.readText(`${root}/package.json` as AbsPath) ?? '{}'),
-      exists: (relative) => fs.exists(`${root}/${relative}` as AbsPath),
-      readText: (relative) => fs.readText(`${root}/${relative}` as AbsPath),
-    }),
+    compileExclusions: (patterns) => (directory) => patterns.includes(directory),
+    createRepoContext: (root, fs, projectType) => {
+      const raw = fs.readText(`${root}/package.json` as AbsPath);
+      return {
+        root,
+        projectType,
+        packageJson: raw === undefined ? undefined : JSON.parse(raw),
+        exists: (relative) => fs.exists(`${root}/${relative}` as AbsPath),
+        readText: (relative) => fs.readText(`${root}/${relative}` as AbsPath),
+      };
+    },
   };
-  return { dependencies, readText, compile };
+  return { dependencies, readText };
 };
-const request = { cwd: '/virtual' as AbsPath, pm: 'npm' as const, workspaces: true };
+const request = { cwd: '/virtual' as AbsPath, installationRoots: [] };
 
-it('evaluates a workspace entirely through supplied ports and preserves member paths', () => {
+it('discovers and evaluates through supplied ports, with generic paths and explicit inspection', () => {
   const { dependencies } = host();
-  expect(lint(request, dependencies)).toEqual({
-    findings: [
-      expect.objectContaining({
-        ruleId: 'files-field',
-        file: 'packages/api/package.json',
-        message: 'packages/api: Review publication files.',
-        severity: 'error',
-      }),
-    ],
-    summary: { error: 1, warn: 0, info: 0 },
-  });
+  const result = lint(request, dependencies);
+  expect(result.findings).toEqual([
+    expect.objectContaining({
+      ruleId: 'files-field',
+      directory: 'packages/api',
+      file: 'packages/api/package.json',
+    }),
+    expect.objectContaining({
+      ruleId: 'publish-access',
+      directory: 'packages/api',
+      file: 'packages/api/package.json',
+    }),
+  ]);
+  expect(result.inspection.installationRoots).toEqual([]);
+  expect(result.findings.every((finding) => finding.pm === undefined)).toBe(true);
 });
 
 it.each<Remediation | undefined>([
   undefined,
-  { kind: 'manual', steps: ['Review publication files.'] },
+  { kind: 'manual', steps: ['Review settings.'] },
   {
     kind: 'automatic',
     operations: [
       {
         op: 'setKey',
         file: { kind: 'json', path: asRelPath('package.json') },
-        keyPath: ['publishConfig', 'access'],
-        value: 'public',
+        keyPath: ['publishConfig', 'provenance'],
+        value: true,
+      },
+      {
+        op: 'setKey',
+        file: { kind: 'npmrc', path: asRelPath('.npmrc') },
+        keyPath: ['provenance'],
+        value: true,
       },
     ],
   },
-])('prefixes member findings without mutating root results or remediation: %j', (remediation) => {
-  const { dependencies } = host();
-  const status: ViolationStatus = {
-    state: 'violation',
-    message: 'Review publication.',
+])('rebases all remedy paths immutably without inventing a finding file: %j', (remediation) => {
+  const finding: Finding = {
+    ruleId: 'test',
+    directory: '.',
+    severity: 'warn',
+    message: 'Review.',
     remediation,
   };
-  const original = structuredClone(status);
-  const result = lint(request, {
-    ...dependencies,
-    rules: [
-      {
-        id: 'files-field',
-        title: 'Publication',
-        description: 'Shared status probe',
-        severity: 'warn',
-        bindings: { npm: { check: () => status } },
-      },
-    ],
-  });
-  expect(result.findings).toEqual([
-    expect.objectContaining({ message: status.message, file: undefined, remediation }),
-    expect.objectContaining({
-      message: `packages/api: ${status.message}`,
-      file: 'packages/api/package.json',
-      remediation:
-        remediation?.kind === 'manual'
-          ? {
-              kind: 'manual',
-              steps: ['Work in packages/api for this finding.', ...remediation.steps],
-            }
-          : remediation,
-    }),
-  ]);
-  expect(result.summary).toEqual({ error: 0, warn: 2, info: 0 });
-  expect(status).toEqual(original);
-});
-
-it.each([false, true])(
-  'passes explicit glob case policy %s independently of the host OS',
-  (caseInsensitiveGlobs) => {
-    const { dependencies, compile } = host();
-    lint(request, { ...dependencies, caseInsensitiveGlobs });
-    expect(compile).toHaveBeenCalledWith(
-      'packages/*',
-      expect.objectContaining({ caseInsensitive: caseInsensitiveGlobs }),
-    );
-  },
-);
-
-it('prepares Bun matchers only with Bun semantics', () => {
-  const { dependencies, compile } = host();
-  compile.mockImplementation((pattern, options) => {
-    if (options.kind !== 'directory' || options.extendedPatterns !== false)
-      throw new Error('Unexpected standard glob compilation');
-    return {
-      matches: (directory) => pattern === 'packages/*' && directory === 'packages/api',
-      canDescend: (directory) => pattern === 'packages/*' && directory === 'packages',
-    };
-  });
-  expect(() => lint({ ...request, pm: 'bun' }, dependencies)).not.toThrow();
-  expect(compile).toHaveBeenCalledWith(
-    'packages/*',
-    expect.objectContaining({ extendedPatterns: false }),
+  const original = structuredClone(finding);
+  const root = rebaseFinding(asRelPath('.'), finding);
+  const child = rebaseFinding(asRelPath('child'), finding);
+  expect(root).toEqual(original);
+  expect(child.file).toBeUndefined();
+  expect(child.directory).toBe('child');
+  expect(child.remediation).toEqual(
+    remediation?.kind === 'automatic'
+      ? {
+          ...remediation,
+          operations: remediation.operations.map((op) => ({
+            ...op,
+            file: { ...op.file, path: `child/${op.file.path}` },
+          })),
+        }
+      : remediation?.kind === 'manual'
+        ? { ...remediation, steps: ['Work in child for this finding.', ...remediation.steps] }
+        : undefined,
   );
+  expect(finding).toEqual(original);
 });
 
-it('uses the request filesystem consistently for root and member reads', () => {
+it('uses the explicitly supplied filesystem throughout discovery', () => {
   const { dependencies } = host();
-  const original = dependencies.fileSystem;
   const fs = {
-    ...original,
-    readText: vi.fn<LintDependencies['fileSystem']['readText']>(original.readText),
+    ...dependencies.fileSystem,
+    readText: vi.fn<LintDependencies['fileSystem']['readText']>(dependencies.fileSystem.readText),
   };
   dependencies.fileSystem.readText = () => {
     throw new Error('Default filesystem used');
   };
-  expect(lint({ ...request, fs }, dependencies).summary.error).toBe(1);
+  lint({ ...request, fs }, dependencies);
   expect(fs.readText).toHaveBeenCalledWith('/virtual/packages/api/package.json');
 });
 
-it('reports through an injected registry and propagates asynchronous output failures', async () => {
+it('reports through an injected registry and awaits output failures', async () => {
   const { dependencies } = host();
   const { io } = captureIO();
   const format = vi.fn<Reporter['format']>();
@@ -182,34 +138,15 @@ it('reports through an injected registry and propagates asynchronous output fail
     defaultName: 'test',
     createRegistry: () => new Map([['test', { name: 'test', format }]]),
   };
-  expect(await lintCommand(request, io, dependencies, registry)).toBe(1);
-  expect(format).toHaveBeenCalledWith(
-    expect.objectContaining({ summary: { error: 1, warn: 0, info: 0 } }),
-    io,
-  );
+  expect(await lintCommand(request, io, dependencies, registry)).toBe(0);
+  expect(format).toHaveBeenCalled();
   const failure = new Error('output failed');
   format.mockRejectedValueOnce(failure);
   await expect(lintCommand(request, io, dependencies, registry)).rejects.toBe(failure);
 });
 
-it('does not fall back to the default filesystem for an explicitly invalid null adapter', () => {
+it('does not fall back for an explicitly invalid null filesystem', () => {
   const { dependencies, readText } = host();
   expect(() => lint({ ...request, fs: null as never }, dependencies)).toThrow(TypeError);
   expect(readText).not.toHaveBeenCalled();
-});
-
-it('passes literal PM patterns to the glob port without engine-specific escaping', () => {
-  const { dependencies, compile } = host();
-  compileAdditionalWorkspaceGlob('packages/[api]/*', 'deno', false, false, dependencies.globs);
-  expect(compile).toHaveBeenCalledWith('packages/[api]/*', {
-    kind: 'directory',
-    syntax: 'wildcards',
-    includeDotDirectories: false,
-    caseInsensitive: true,
-  });
-  expect(compile).toHaveBeenCalledWith('packages/[api]/*/package.json', {
-    kind: 'directory',
-    syntax: 'wildcards',
-    caseInsensitive: true,
-  });
 });

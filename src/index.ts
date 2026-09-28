@@ -13,7 +13,14 @@ export { type LintCommandOptions, lintCommand } from './runtime.ts';
 export { CONFIG_FILES } from './core/config-files.ts';
 export type { ConfigValue, KeyPath, ParsedConfig } from './core/contracts/config-value.ts';
 export { getByPath } from './core/contracts/config-value.ts';
-export type { ConfigReadValue, Finding, LintResult } from './core/contracts/lint-result.ts';
+export type { InstallationRootInput } from './core/inspection-options.ts';
+export type {
+  Inspection,
+  PolicyTarget,
+  ConfigReadValue,
+  Finding,
+  LintResult,
+} from './core/contracts/lint-result.ts';
 export { type ProjectType, PROJECT_TYPES } from './core/contracts/project-type.ts';
 export { isPM, isSeverity, type PM, PMS, SEVERITIES, type Severity } from './core/contracts/pms.ts';
 export { defineRule } from './core/contracts/rule.ts';
@@ -34,6 +41,7 @@ export type { Reporter } from './core/contracts/reporter.ts';
 export {
   overrideBindings,
   type RequireConfigKeyOptions,
+  type RequireConfigKeySpec,
   requireConfigKey,
 } from './core/rules/builders/require-config-key.ts';
 export { ConfigError, SiroError, UsageError } from './core/contracts/errors.ts';

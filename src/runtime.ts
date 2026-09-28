@@ -1,5 +1,5 @@
 import { createBuiltinRules } from './core/rules/builtin-rules.ts';
-import { minimatchGlobs } from './adapters/workspace-globs.ts';
+import { compileExclusions } from './adapters/exclusions.ts';
 import { lint as evaluate, type LintOptions } from './core/lint.ts';
 import { lintCommand as report, type LintCommandOptions } from './core/lint-command.ts';
 import type { LintDependencies } from './core/contracts/lint-dependencies.ts';
@@ -22,8 +22,7 @@ const dependencies: LintDependencies = {
   paths: nodePaths,
   createRepoContext,
   codecFor,
-  globs: minimatchGlobs,
-  caseInsensitiveGlobs: process.platform === 'darwin' || process.platform === 'win32',
+  compileExclusions,
 };
 
 /** Public Node API: callers can replace the filesystem without assembling the application. */

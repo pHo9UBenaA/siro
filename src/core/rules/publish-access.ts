@@ -4,7 +4,7 @@ import { isPublishable } from './publishable.ts';
 
 const { packageJson } = CONFIG_FILES;
 
-const publishAccessBinding: RuleBinding = {
+export const publishAccessBinding: RuleBinding = {
   // Same ctx.packageJson rationale as files-field.ts: typed valibot view,
   // advisory-only binding.
   check(ctx) {

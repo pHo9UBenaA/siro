@@ -24,6 +24,7 @@ const buildRule = (opts: {
   defaultSatisfiedSeverity?: 'error' | 'warn' | 'info' | 'off';
   accept?: (actual: unknown) => boolean;
   ruleSeverity?: 'error' | 'warn' | 'info';
+  defaultSafety?: 'unconditional' | 'conditional';
   versionNote?: VersionNote;
 }): Rule => {
   const npmBinding: {
@@ -31,11 +32,18 @@ const buildRule = (opts: {
     keyPath: ['ky'];
     message: string;
     value: boolean;
+    defaultSafety: 'unconditional' | 'conditional';
     documentedDefault?: ConfigValue;
     defaultSatisfiedSeverity?: 'error' | 'warn' | 'info' | 'off';
     accept?: (actual: unknown) => boolean;
     versionNote?: VersionNote;
-  } = { file: npmrc, keyPath: ['ky'], message: 'pin it', value: true };
+  } = {
+    file: npmrc,
+    keyPath: ['ky'],
+    message: 'pin it',
+    value: true,
+    defaultSafety: opts.defaultSafety ?? 'unconditional',
+  };
   if (typeof opts.documentedDefault !== 'undefined') {
     npmBinding.documentedDefault = opts.documentedDefault;
   }
@@ -112,6 +120,7 @@ describe('documentedDefault — basic behaviour', () => {
       documentedDefault: true,
       ruleSeverity: 'error',
       versionNote: { defaultSafeSince: 'npm 12.0.0' },
+      defaultSafety: 'conditional',
     });
     const { findings, summary } = runLint({
       repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),

@@ -122,7 +122,8 @@ try {
   cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'good'), { recursive: true });
   cpSync(join(root, 'test/fixtures/npm-bad'), join(consumer, 'bad'), { recursive: true });
   const report = JSON.parse(run(cli, ['lint', 'good', '--json']));
-  assert.equal(report.schemaVersion, 2);
+  assert.equal(report.schemaVersion, 3);
+  assert.equal(report.inspection.installationRoots[0].directory, '.');
   assert.equal(report.siroVersion, manifest.version);
   const versionReport = JSON.parse(
     run(cli, ['lint', 'good', '--pm', 'npm', '--pm-version', '11.9.0', '--json'], consumer, 1),
@@ -145,15 +146,36 @@ try {
     join(consumer, 'workspace/siro.config.mjs'),
     "export default { rules: { 'files-field': 'error' } };\n",
   );
-  run(cli, ['lint', 'workspace']);
-  const workspaceReport = JSON.parse(
-    run(cli, ['lint', 'workspace', '--workspaces', '--json'], consumer, 1),
-  );
+  run(cli, ['lint', 'workspace', '--exclude', 'child']);
+  run(cli, ['lint', 'workspace', '--workspaces'], consumer, 2);
+  const workspaceReport = JSON.parse(run(cli, ['lint', 'workspace', '--json'], consumer, 1));
   assert.ok(
     workspaceReport.findings.some(
       (finding) => finding.ruleId === 'files-field' && finding.file === 'child/package.json',
     ),
   );
+  const installedScope = JSON.parse(
+    run(
+      cli,
+      ['lint', 'workspace', '--installation-root', '.', '--installation-root', 'child', '--json'],
+      consumer,
+      2,
+    ) || 'null',
+  );
+  assert.equal(installedScope, null, 'Unknown child PM must fail without a success document');
+  writeFileSync(
+    join(consumer, 'workspace/child/package.json'),
+    '{"name":"child","packageManager":"npm@12.0.2"}',
+  );
+  const expandedScope = JSON.parse(
+    run(
+      cli,
+      ['lint', 'workspace', '--installation-root', '.', '--installation-root', 'child', '--json'],
+      consumer,
+      1,
+    ),
+  );
+  assert.equal(expandedScope.inspection.installationRoots.length, 2);
   run(cli, ['--invalid-option'], consumer, 2);
   writeFileSync(
     join(consumer, 'good/siro.config.mjs'),

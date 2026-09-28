@@ -2,6 +2,10 @@
 # Package manager comparison
 
 Which security rules `siro` can check for each package manager.
+Generic `files-field` and portable `publish-access` checks also run on discovered
+manifests with unknown PMs, once per manifest. Other checks require local policy
+targets; installation checks run only at explicit installation roots. This matrix
+is not a claim of effective-policy inspection for every discovered package.
 **✅** = a check is implemented · **—** = no check is implemented.
 An absent check says nothing about the manager's capabilities. See the
 [rule reference](rules.md) for primary inputs, severity overrides, and version notes.

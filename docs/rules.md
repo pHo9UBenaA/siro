@@ -1,10 +1,11 @@
 <!-- AUTO-GENERATED from the rule registry. Run `pnpm gen:docs` to update. -->
 # Rule reference
 
-Each rule encodes one security intent and maps it per package manager. See the
+Each rule encodes one security intent. Generic publication checks do not need a PM;
+installation checks and setting availability use local PM targets. See the
 [comparison matrix](comparison.md) for which PMs each rule applies to.
 Bindings may read additional files through the rule context. Result-specific severity
-and user overrides can change the default shown below. Version notes describe policy;
+and user overrides can change the default shown below. Version notes are display-only, separate from explicit default-safety policy;
 siro does not inspect the installed package-manager version. See [policy sources](policy-sources.md).
 
 | Severity | Meaning |
@@ -16,6 +17,7 @@ siro does not inspect the installed package-manager version. See [policy sources
 ## `advisory-check` — warn
 
 Query the OSV database for known-malicious packages during dependency resolution.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://aube.jdx.dev/security.html>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -25,6 +27,7 @@ Upstream: <https://aube.jdx.dev/security.html>
 ## `approved-git-repos` — warn
 
 Restrict git: protocol dependencies to an explicit allowlist of approved repository URL patterns.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://yarnpkg.com/configuration/yarnrc#approvedGitRepositories>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -34,6 +37,7 @@ Upstream: <https://yarnpkg.com/configuration/yarnrc#approvedGitRepositories>
 ## `audit-suppression` — info
 
 Flag audit advisory suppressions that may silently hide future vulnerabilities via broad glob patterns.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://yarnpkg.com/configuration/yarnrc#npmAuditIgnoreAdvisories>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -43,6 +47,7 @@ Upstream: <https://yarnpkg.com/configuration/yarnrc#npmAuditIgnoreAdvisories>
 ## `block-auto-install` — warn
 
 Disable auto-install so dependencies are only installed through an explicit install step where security guards apply.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://bun.sh/docs/runtime/bunfig#install-auto>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -52,6 +57,7 @@ Upstream: <https://bun.sh/docs/runtime/bunfig#install-auto>
 ## `block-exotic-subdeps` — warn
 
 Refuse to install transitive dependencies sourced from git or tarball URLs, which bypass registry integrity checking.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://pnpm.io/settings#blockexoticsubdeps>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -63,6 +69,7 @@ Upstream: <https://pnpm.io/settings#blockexoticsubdeps>
 ## `bun-security-scanner` — info
 
 Bun supports a Security Scanner API that intercepts new packages at install time (e.g. Socket Firewall).
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#preinstall-scanners>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -72,6 +79,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#preinstall-s
 ## `checksum-verification` — warn
 
 Throw on checksum mismatches so tampered or corrupted packages are never silently installed.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://yarnpkg.com/configuration/yarnrc#checksumBehavior>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -81,6 +89,7 @@ Upstream: <https://yarnpkg.com/configuration/yarnrc#checksumBehavior>
 ## `commit-lockfile` — error
 
 Lockfiles pin the full dependency tree and integrity hashes, enabling reproducible, verifiable installs (e.g. `npm ci`).
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lockfiles>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -95,6 +104,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lo
 ## `dependency-overrides` — info
 
 Flag dependency overrides that can replace transitive packages with arbitrary versions or forks — a supply-chain injection vector.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://pnpm.io/settings#overrides>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -105,6 +115,7 @@ Upstream: <https://pnpm.io/settings#overrides>
 ## `disable-lifecycle-scripts` — error
 
 Malicious postinstall scripts are a primary supply-chain attack vector. Prevent automatic execution of dependency lifecycle scripts.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#3-disable-lifecycle-scripts>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -118,6 +129,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#3-disable-li
 ## `enforce-strict-ssl` — warn
 
 Require SSL certificate validation so registry traffic cannot be intercepted or tampered with.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://docs.npmjs.com/cli/v11/using-npm/config#strict-ssl>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -128,6 +140,7 @@ Upstream: <https://docs.npmjs.com/cli/v11/using-npm/config#strict-ssl>
 ## `files-field` — info
 
 An explicit `files` array in package.json restricts what gets published, preventing accidental inclusion of secrets or local files.
+Inspection scope: Every discovered manifest, with PM-neutral checks once per manifest.
 Applies to: package.
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#11-review-published-files>
 
@@ -143,6 +156,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#11-review-pu
 ## `frozen-lockfile` — warn
 
 Refuse to mutate the lockfile on install so unexpected dependency changes fail loudly.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lockfiles>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -156,6 +170,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lo
 ## `frozen-store` — info
 
 Consider read-only store access for deployments whose dependencies are already present.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://pnpm.io/settings/store#frozenstore>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -165,6 +180,7 @@ Upstream: <https://pnpm.io/settings/store#frozenstore>
 ## `hardened-mode` — warn
 
 Yarn 4's enableHardenedMode performs end-to-end checksum, lockfile, and version verification at install time.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://yarnpkg.com/configuration/yarnrc#enableHardenedMode>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -174,6 +190,7 @@ Upstream: <https://yarnpkg.com/configuration/yarnrc#enableHardenedMode>
 ## `minimum-release-age` — warn
 
 Refuse to install releases newer than a cooldown window so freshly published (possibly compromised) versions are skipped.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#set-minimal-release-age>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -188,6 +205,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#set-minimal-
 ## `named-registries` — info
 
 Flag named registry mappings that redirect package resolution to custom registries, which may enable dependency confusion attacks.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://pnpm.io/settings#namedregistries>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -197,6 +215,7 @@ Upstream: <https://pnpm.io/settings#namedregistries>
 ## `paranoid-mode` — info
 
 Activate the strict-security setting bundle that forces trustPolicy, jailBuilds, minimumReleaseAgeStrict, strictStoreIntegrity, strictDepBuilds, and advisoryCheck on in one switch.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://aube.jdx.dev/security.html>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -206,6 +225,7 @@ Upstream: <https://aube.jdx.dev/security.html>
 ## `patched-dependencies` — info
 
 Review local patches separately from the registry artifacts they modify.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://pnpm.io/settings#patcheddependencies>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -215,6 +235,7 @@ Upstream: <https://pnpm.io/settings#patcheddependencies>
 ## `pin-exact-versions` — error
 
 Semver ranges (^, ~) auto-adopt new releases, including compromised ones. Save exact versions by default.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#1-pin-dependency-versions>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -229,7 +250,9 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#1-pin-depend
 ## `provenance` — warn
 
 Provenance statements (via Sigstore) bind a published artifact to its recorded source and build.
+Inspection scope: Explicit installation roots only (local settings).
 Applies to: package.
+For npm, own package.json publishConfig.provenance overrides .npmrc, including false. Manifest-only children do not receive effective provenance checks.
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#10-generate-provenance-statements>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -242,6 +265,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#10-generate-
 ## `publish-access` — info
 
 Set `publishConfig.access` so a misconfigured scope or registry never accidentally publishes an internal package publicly.
+Inspection scope: Every discovered manifest, with PM-neutral checks once per manifest.
 Applies to: package.
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#for-maintainers>
 
@@ -256,6 +280,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#for-maintain
 ## `store-server` — info
 
 Flag use of an external store server process, which introduces a trust boundary where tampered packages could be served.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://pnpm.io/settings#userunningStoreserver>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -265,6 +290,7 @@ Upstream: <https://pnpm.io/settings#userunningStoreserver>
 ## `strict-allow-scripts` — warn
 
 Turn install-script policy warnings into hard errors so unapproved lifecycle scripts block installation.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://docs.npmjs.com/cli/v12/using-npm/config#strict-allow-scripts>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -274,6 +300,7 @@ Upstream: <https://docs.npmjs.com/cli/v12/using-npm/config#strict-allow-scripts>
 ## `strict-release-age` — info
 
 Fail when no satisfying version meets the release age, instead of falling back to the lowest satisfying version.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://aube.jdx.dev/security.html>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -283,6 +310,7 @@ Upstream: <https://aube.jdx.dev/security.html>
 ## `strict-store-integrity` — warn
 
 Refuse to import tarballs from the registry when the packument lacks a dist.integrity field, preventing silent integrity bypass.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://aube.jdx.dev/security.html>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -292,6 +320,7 @@ Upstream: <https://aube.jdx.dev/security.html>
 ## `trust-policy` — warn
 
 Fail installation when a package trust level has decreased compared to previous releases, catching publisher credential downgrades.
+Inspection scope: Explicit installation roots only (local settings).
 Upstream: <https://pnpm.io/settings#trustpolicy>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -301,7 +330,8 @@ Upstream: <https://pnpm.io/settings#trustpolicy>
 
 ## `unsupported-settings` — error
 
-Report configured settings whose recorded introduction version is newer than the declared or explicit stable PM target. Reports each affected file separately, grouping its unsupported keys. Workspace findings retain their member directory. Only the coverage table below is checked. Unknown targets and unlisted settings are not evaluated for availability.
+Report configured settings whose recorded introduction version is newer than the declared or explicit stable PM target. Reports each affected file separately, grouping its unsupported keys. Findings retain their evaluation directory. Only the coverage table below is checked. Unknown targets and unlisted settings are not evaluated for availability.
+Inspection scope: Manifest entries per local manifest target; install-config entries only at explicit installation roots.
 Upstream: <https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error>
 
 | PM | Primary input | Default severity | Version notes | Reference |

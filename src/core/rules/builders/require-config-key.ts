@@ -11,7 +11,8 @@ import {
 import { type PM, PMS, type Severity } from '../../contracts/pms.ts';
 import type { RepoContext } from '../../contracts/repo-context.ts';
 
-interface RequireConfigKeySpec {
+/** One public helper binding: setting requirement, safe-default policy and proposal. */
+export interface RequireConfigKeySpec {
   readonly file: ConfigFileRef;
   readonly keyPath: KeyPath;
   /** Expected value and proposed replacement; `accept` may allow other values. */
@@ -20,11 +21,10 @@ interface RequireConfigKeySpec {
   readonly docs?: string;
   readonly severity?: Severity;
   accept?: (actual: unknown) => boolean;
-  /**
-   * An omitted value that is safe across every supported version and target
-   * environment emits info. Version-dependent defaults retain full severity.
-   */
+  /** Recorded default value; does not establish safety without `defaultSafety`. */
   readonly documentedDefault?: ConfigValue;
+  /** Only unconditional defaults may reduce severity; omitted means conditional. */
+  readonly defaultSafety?: 'unconditional' | 'conditional';
   /**
    * Severity used when `documentedDefault` satisfies the requirement. Defaults
    * to `'info'` (advisory). Set `'off'` to silence the finding entirely.
@@ -59,7 +59,7 @@ const checkKeyValue = (spec: RequireConfigKeySpec, config: ParsedConfig): CheckS
   const coveredByDefault =
     actual === undefined &&
     spec.documentedDefault !== undefined &&
-    spec.versionNote?.defaultSafeSince === undefined &&
+    spec.defaultSafety === 'unconditional' &&
     accepts(spec, spec.documentedDefault);
 
   if (!coveredByDefault && accepts(spec, actual)) return { state: 'ok' };

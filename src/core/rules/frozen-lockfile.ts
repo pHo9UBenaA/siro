@@ -50,6 +50,7 @@ const builtRule = requireConfigKey({
     yarn: {
       docs: 'https://yarnpkg.com/configuration/yarnrc#enableImmutableInstalls',
       documentedDefault: true,
+      defaultSafety: 'conditional',
       file: yarnrc,
       keyPath: ['enableImmutableInstalls'],
       message:

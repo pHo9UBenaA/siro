@@ -11,9 +11,12 @@ import { captureIO } from '../helpers/io.ts';
 
 const ESC_OPEN = '[';
 
+const inspection = { manifests: [], installationRoots: [] };
 const result: LintResult = {
+  inspection,
   findings: [
     {
+      directory: '.',
       file: '.npmrc',
 
       message: 'set ignore-scripts',
@@ -68,8 +71,10 @@ describe('githubReporter — special characters', () => {
   it('keeps special characters in messages and paths from being reinterpreted by GitHub', () => {
     expect.hasAssertions();
     const tricky: LintResult = {
+      inspection,
       findings: [
         {
+          directory: '.',
           file: 'path/with,comma.txt',
 
           message: 'set foo=bar, baz: 100%\nnext line',
@@ -95,7 +100,10 @@ describe('prettyReporter — success output', () => {
   it('emits a non-empty success indicator when there are no findings', () => {
     expect.hasAssertions();
     const { io, out } = captureIO();
-    prettyReporter.format({ findings: [], summary: { error: 0, info: 0, warn: 0 } }, io);
+    prettyReporter.format(
+      { inspection, findings: [], summary: { error: 0, info: 0, warn: 0 } },
+      io,
+    );
     expect(out().trim()).not.toBe('');
     expect(out()).toMatch(/no .+(?<kind>issues|findings|problems)/iu);
   });
@@ -147,8 +155,10 @@ describe('prettyReporter — layout', () => {
   it('renders a finding with rule id, pm tag, message, docs link, and summary line', () => {
     expect.hasAssertions();
     const withDocs: LintResult = {
+      inspection,
       findings: [
         {
+          directory: '.',
           docs: 'https://example.com/docs/ignore-scripts',
           file: '.npmrc',
 
@@ -176,9 +186,18 @@ it('emits ordered annotations with severity, file and optional docs', () => {
   const { io, out } = captureIO();
   githubReporter.format(
     {
+      inspection,
       findings: [
-        { pm: 'npm', ruleId: 'first', severity: 'error', message: 'first message', file: '.npmrc' },
         {
+          directory: '.',
+          pm: 'npm',
+          ruleId: 'first',
+          severity: 'error',
+          message: 'first message',
+          file: '.npmrc',
+        },
+        {
+          directory: '.',
           pm: 'pnpm',
           ruleId: 'second',
           severity: 'warn',
@@ -186,19 +205,19 @@ it('emits ordered annotations with severity, file and optional docs', () => {
           file: 'pnpm-workspace.yaml',
           docs: 'https://example.com/guide',
         },
-        { pm: 'yarn', ruleId: 'third', severity: 'info', message: 'third message' },
+        { directory: '.', pm: 'yarn', ruleId: 'third', severity: 'info', message: 'third message' },
       ],
       summary: { error: 1, warn: 1, info: 1 },
     },
     io,
   );
   expect(out().trim().split('\n').map(parseGithubAnnotation)).toEqual([
-    { command: 'error', props: { file: '.npmrc', title: 'first' }, body: '[npm] first message' },
+    { command: 'error', props: { file: '.npmrc', title: 'first' }, body: '[npm] .: first message' },
     {
       command: 'warning',
       props: { file: 'pnpm-workspace.yaml', title: 'second' },
-      body: '[pnpm] second message (https://example.com/guide)',
+      body: '[pnpm] .: second message (https://example.com/guide)',
     },
-    { command: 'notice', props: { title: 'third' }, body: '[yarn] third message' },
+    { command: 'notice', props: { title: 'third' }, body: '[yarn] .: third message' },
   ]);
 });

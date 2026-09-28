@@ -39,6 +39,7 @@ const builtRule = requireConfigKey({
     aube: {
       docs: 'https://aube.jdx.dev/security.html',
       documentedDefault: true,
+      defaultSafety: 'unconditional',
       file: aubeWorkspace,
       keyPath: ['blockExoticSubdeps'],
       message:
@@ -48,6 +49,7 @@ const builtRule = requireConfigKey({
     pnpm: {
       docs: 'https://pnpm.io/settings#blockexoticsubdeps',
       documentedDefault: true,
+      defaultSafety: 'conditional',
       file: pnpmWorkspace,
       keyPath: ['blockExoticSubdeps'],
       message:

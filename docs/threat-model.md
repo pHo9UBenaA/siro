@@ -38,6 +38,8 @@ See [SECURITY.md](../SECURITY.md). This document describes the current boundarie
 
 Declared or explicit PM versions drive the limited [setting introduction checks](rules.md#checked-introduction-versions). They are not an attestation of the installed binary or effective runtime configuration. Unknown targets and unlisted settings have no availability verdict; later removals, backports, and version-specific value syntax are not checked.
 
-Opt-in [workspace inspection](configuration.md#workspace-members) checks declared members' publication metadata. It does not prove that each member inherits secure installation settings or validate each member's effective provenance policy. Child executable configs are not loaded; directory symlinks are not traversed. Native manifest-file symlinks retain the normal file-read behavior.
+[Recursive discovery](configuration.md#inspection-scope-packages-and-installation-roots) checks every selected manifest independently of PM workspace membership. Installation policy is checked only at explicit installation roots (default cwd); unlisted independent projects may remain uninspected. Manifest-only children do not receive effective provenance checks. No inheritance, commands, environment or global configuration is resolved. The inspection record describes inputs, not passing security controls.
 
-References: [GitHub Actions secure use](https://docs.github.com/en/actions/reference/security/secure-use), [versioning policy](configuration.md#versioning-policy), [JSON output](json-output.md).
+Child and additional-root executable configs are not loaded. Directory symlinks below cwd are not traversed; cwd itself uses normal resolution and manifest-file symlinks retain normal reads. This is not a containment sandbox. Native POSIX backslashes remain filename characters in output. Successful per-context reads are cached, but independent paths and existence probes are not an atomic snapshot.
+
+References: [GitHub Actions secure use](https://docs.github.com/en/actions/reference/security/secure-use), [target-version policy](configuration.md#target-pm-versions), [JSON output](json-output.md).

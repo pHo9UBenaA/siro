@@ -7,7 +7,7 @@ import { isPublishable } from './publishable.ts';
 
 const { packageJson, denoJson } = CONFIG_FILES;
 
-const packageJsonFilesBinding: RuleBinding = {
+export const packageJsonFilesBinding: RuleBinding = {
   // Advisory binding — uses ctx.packageJson (typed valibot view) instead
   // of the codec-agnostic ParsedConfig so `files` arrives as
   // `string[] | undefined` without a cast.
@@ -39,7 +39,7 @@ const packageJsonFilesBinding: RuleBinding = {
 // a `name` cannot be published to JSR, so the rule is N/A for internal/CLI
 // deno repos — mirroring the `isPublishable` guard used by the package.json
 // binding (whose privacy signal is `private: true` rather than missing name).
-const denoPublishBinding: RuleBinding = {
+export const denoPublishBinding: RuleBinding = {
   check(ctx, config) {
     if (resolveDenoProjectType(ctx, config) !== 'package') {
       return { state: 'na' };

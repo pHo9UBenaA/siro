@@ -195,6 +195,7 @@ const builtRule = requireConfigKey({
     yarn: {
       docs: 'https://yarnpkg.com/configuration/yarnrc#enableScripts',
       documentedDefault: false,
+      defaultSafety: 'conditional',
       file: yarnrc,
       keyPath: ['enableScripts'],
       message: 'Set `enableScripts: false` in .yarnrc.yml to pin the policy across versions.',

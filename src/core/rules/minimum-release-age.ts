@@ -39,7 +39,7 @@ const isNonDisabledDenoReleaseAge = (
   if (!isPlainRecord(value)) return isActiveDenoReleaseAge(value, now, parse);
   if (Object.keys(value).some((key) => key !== 'age' && key !== 'exclude')) return false;
   if (value.exclude !== undefined && !isStringList(value.exclude)) return false;
-  return value.age == null || isActiveDenoReleaseAge(value.age, now, parse);
+  return value.age != null && isActiveDenoReleaseAge(value.age, now, parse);
 };
 
 const denoAgeUsesFallback = (value: unknown): boolean => {
@@ -59,6 +59,7 @@ const baseRule = requireConfigKey({
       accept: isPositiveNumber,
       docs: 'https://aube.sh/settings/',
       documentedDefault: DOCUMENTED_DEFAULT_MINUTES,
+      defaultSafety: 'unconditional',
       file: aubeWorkspace,
       keyPath: ['minimumReleaseAge'],
       message: `Set minimumReleaseAge (~${RECOMMENDED_RELEASE_AGE_MINUTES} minutes for a 3-day cooldown) in aube-workspace.yaml.`,
@@ -77,6 +78,7 @@ const baseRule = requireConfigKey({
       accept: isPositiveNumber,
       docs: 'https://pnpm.io/settings#minimumreleaseage',
       documentedDefault: DOCUMENTED_DEFAULT_MINUTES,
+      defaultSafety: 'conditional',
       file: pnpmWorkspace,
       keyPath: ['minimumReleaseAge'],
       message: `Set minimumReleaseAge (~${RECOMMENDED_RELEASE_AGE_MINUTES} minutes for a 3-day cooldown) in pnpm-workspace.yaml.`,
@@ -90,6 +92,7 @@ const baseRule = requireConfigKey({
       accept: isPositiveYarnDuration,
       docs: 'https://yarnpkg.com/configuration/yarnrc#npmMinimalAgeGate',
       documentedDefault: DOCUMENTED_DEFAULT_MINUTES,
+      defaultSafety: 'conditional',
       file: yarnrc,
       keyPath: ['npmMinimalAgeGate'],
       message: `Set npmMinimalAgeGate (~${RECOMMENDED_RELEASE_AGE_MINUTES} minutes for a 3-day cooldown) in .yarnrc.yml.`,

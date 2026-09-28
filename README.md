@@ -25,6 +25,11 @@ Requires Node.js `^22.18.0` or `^24.0.0`. From your repository:
 npx @pho9ubenaa/siro lint
 ```
 
+siro recursively discovers package.json and strict deno.json below cwd, independently of PM
+workspace declarations. It checks local installation policy at cwd by default; add independent
+projects with `--installation-root`. Exclude intentional fixtures with `--exclude test/fixtures`.
+Discovery does not imply that every package's installation settings were inspected.
+
 siro detects managers from `packageManager`, lockfiles, and configuration files. If it cannot
 detect one, choose it explicitly, for example `npx @pho9ubenaa/siro lint --pm npm`.
 The CLI may download code through `npx` and imports a repository's `siro.config.*` as executable
@@ -45,18 +50,19 @@ For regular use, install it as a dev dependency with
 
 `check` is an alias for `lint`. Run `siro lint --help` for the complete CLI syntax.
 
-| Option                                    | Use                                                                                        |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Inspect one manager instead of auto-detection.                                             |
-| `--pm-version <x.y.z>`                    | Supply an exact stable target version (requires `--pm`); it does not run an installed PM.  |
-| `--project-type <application\|package>`   | Choose whether publication safeguards apply; omitted means infer from publish metadata.    |
-| `--workspaces`                            | Also check declared members' publication metadata; installation checks remain at the root. |
-| `--severity <error\|warn\|info>`          | Set both the display and CI failure threshold; default failure threshold is `error`.       |
-| `--reporter <pretty\|json\|github>`       | Choose terminal, JSON, or GitHub Actions output; `--json` is a JSON shortcut.              |
+| Option                                    | Use                                                                                       |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Inspect one manager instead of auto-detection.                                            |
+| `--pm-version <x.y.z>`                    | Supply an exact stable target version (requires `--pm`); it does not run an installed PM. |
+| `--project-type <application\|package>`   | Choose whether publication safeguards apply; omitted means infer from publish metadata.   |
+| `--exclude <pattern>`                     | Prune directories from recursive discovery (repeatable).                                  |
+| `--installation-root <path>`              | Replace the default cwd installation scope (repeatable; include `.` to retain cwd).       |
+| `--severity <error\|warn\|info>`          | Set both the display and CI failure threshold; default failure threshold is `error`.      |
+| `--reporter <pretty\|json\|github>`       | Choose terminal, JSON, or GitHub Actions output; `--json` is a JSON shortcut.             |
 
 For a walkthrough and deeper reference, use these guides:
 
-- [Getting started](docs/getting-started.md) walks through findings and CI; [configuration](docs/configuration.md) covers PM selection, workspace scope, executable config, and exit codes.
+- [Getting started](docs/getting-started.md) walks through findings and CI; [configuration](docs/configuration.md) covers local PM/version selection, discovery and explicit installation scope, executable config, exit codes, and migration from the removed `--workspaces` flag.
 - The [rule reference](docs/rules.md) and [PM comparison](docs/comparison.md) show what is checked for each manager.
 - [JSON output](docs/json-output.md) documents the machine-readable remediation contract.
 

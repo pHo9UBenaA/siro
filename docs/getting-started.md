@@ -14,6 +14,23 @@ See the [threat model](threat-model.md).
 files, then reports supported configuration gaps. It does not scan for known vulnerabilities.
 If detection finds no manager, pass `--pm` explicitly.
 
+## Choose the scope
+
+The default is recursive package.json / strict deno.json discovery, but local
+installation checks run only at cwd. PM workspace exclusions no longer select
+packages. Exclude deliberate fixtures; explicitly add independent install projects:
+
+```sh
+siro lint . --exclude test/fixtures --exclude vendor --exclude dist
+siro lint . --installation-root . --installation-root tools/standalone
+```
+
+The repeatable flags replace config arrays. Additional roots use their own PM and
+version, not root `--pm` options. Use config `{ installationRoots: [] }` for a
+manifest-only scan, or object entries to specify a PM per additional root. Review
+`inspection` in JSON: discovering packages is not a guarantee that every independent
+project's install policy was checked.
+
 ## Fix the findings
 
 siro is a linter: it reports violations but never writes your config files.
@@ -42,17 +59,18 @@ npx @pho9ubenaa/siro lint --reporter github          # GitHub Actions annotation
 
 `check` is an alias for `lint`. Run `siro lint --help` for the complete CLI syntax.
 
-| Option                                    | Use                                                                                        |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Inspect one manager instead of auto-detection.                                             |
-| `--pm-version <x.y.z>`                    | Supply an exact stable target version (requires `--pm`). It does not run an installed PM.  |
-| `--project-type <application\|package>`   | Choose whether publication safeguards apply; omitted means infer from publish metadata.    |
-| `--workspaces`                            | Also check declared members' publication metadata; installation checks remain at the root. |
-| `--severity <error\|warn\|info>`          | Set both the display and CI failure threshold; default failure threshold is `error`.       |
-| `--reporter <pretty\|json\|github>`       | Choose terminal, JSON, or GitHub Actions output; `--json` is a JSON shortcut.              |
+| Option                                    | Use                                                                                       |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Inspect one manager instead of auto-detection.                                            |
+| `--pm-version <x.y.z>`                    | Supply an exact stable target version (requires `--pm`). It does not run an installed PM. |
+| `--project-type <application\|package>`   | Choose whether publication safeguards apply; omitted means infer from publish metadata.   |
+| `--exclude <pattern>`                     | Prune discovery directories (repeatable).                                                 |
+| `--installation-root <path>`              | Replace installation scope (repeatable; include `.` for cwd).                             |
+| `--severity <error\|warn\|info>`          | Set both the display and CI failure threshold; default failure threshold is `error`.      |
+| `--reporter <pretty\|json\|github>`       | Choose terminal, JSON, or GitHub Actions output; `--json` is a JSON shortcut.             |
 
 See [configuration and behavior](configuration.md) for PM selection, target-version
-precedence, workspace patterns, executable config, library use, and the [exit codes](configuration.md#exit-codes).
+precedence, common exclusions, explicit installation scope, executable config, library use, and exit codes. The old `--workspaces` flag is rejected; see [migration](configuration.md#migration-from-05x).
 
 ## Install as a dev dependency (optional)
 

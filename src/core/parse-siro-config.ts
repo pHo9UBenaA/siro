@@ -1,4 +1,9 @@
 import * as vb from 'valibot';
+import {
+  parseExcludes,
+  parseInstallationRoots,
+  type InstallationRootInput,
+} from './inspection-options.ts';
 import { isPM, PMS, SEVERITIES } from './contracts/pms.ts';
 import { PROJECT_TYPES } from './contracts/project-type.ts';
 import { type Reporter, isReporterShape } from './contracts/reporter.ts';
@@ -12,6 +17,18 @@ const RuleSettingSchema = vb.union([vb.picklist(SEVERITIES), vb.literal('off')])
 
 const ConfigSchema = vb.strictObject(
   {
+    exclude: vb.optional(
+      vb.custom<readonly string[]>((value) => {
+        parseExcludes(value);
+        return true;
+      }),
+    ),
+    installationRoots: vb.optional(
+      vb.custom<readonly InstallationRootInput[]>((value) => {
+        parseInstallationRoots(value);
+        return true;
+      }),
+    ),
     customRules: vb.optional(
       vb.array(vb.custom<Rule>(isRuleShape, 'must be a structurally valid rule')),
     ),

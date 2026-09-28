@@ -15,8 +15,10 @@ const render = (result: LintResult): unknown => {
 };
 
 const result: LintResult = {
+  inspection: { manifests: [], installationRoots: [] },
   findings: [
     {
+      directory: '.',
       actual: void 0,
       expected: true,
       file: '.npmrc',
@@ -37,8 +39,8 @@ const result: LintResult = {
       ruleId: 'pin-exact-versions',
       severity: 'error',
     },
-    { message: 'warn', pm: 'npm', ruleId: 'warn-rule', severity: 'warn' },
-    { message: 'info', pm: 'npm', ruleId: 'info-rule', severity: 'info' },
+    { directory: '.', message: 'warn', pm: 'npm', ruleId: 'warn-rule', severity: 'warn' },
+    { directory: '.', message: 'info', ruleId: 'info-rule', severity: 'info' },
   ],
   summary: { error: 1, info: 1, warn: 1 },
 };
@@ -47,7 +49,8 @@ describe('json reporter contract', () => {
   it('renders one parseable document with versions, summary, and remediation', () => {
     expect.hasAssertions();
     expect(render(result)).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
+      inspection: { manifests: [], installationRoots: [] },
       siroVersion: version,
       summary: { error: 1, info: 1, warn: 1 },
       findings: [

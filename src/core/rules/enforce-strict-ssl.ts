@@ -49,6 +49,7 @@ const builtRule = requireConfigKey({
     npm: {
       docs: 'https://docs.npmjs.com/cli/v11/using-npm/config#strict-ssl',
       documentedDefault: true,
+      defaultSafety: 'unconditional',
       file: npmrc,
       keyPath: ['strict-ssl'],
       message: 'Set `strict-ssl=true` in .npmrc to enforce SSL certificate validation.',

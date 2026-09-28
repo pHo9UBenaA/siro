@@ -18,14 +18,23 @@ export type ParsedCommand =
       cwd: AbsPath;
       pm?: PM;
       pmVersion?: string;
-      workspaces?: boolean;
+      exclude?: readonly string[];
+      installationRoots?: readonly string[];
       projectType?: ProjectType;
       reporter: string;
       severity?: Severity;
     };
 
-const VALUE_FLAGS = new Set(['pm', 'pm-version', 'project-type', 'reporter', 'severity']);
-const BOOLEAN_FLAGS = new Set(['help', 'version', 'json', 'workspaces']);
+const REPEATABLE_FLAGS = new Set(['exclude', 'installation-root']);
+const VALUE_FLAGS = new Set([
+  'pm',
+  'pm-version',
+  'project-type',
+  'reporter',
+  'severity',
+  ...REPEATABLE_FLAGS,
+]);
+const BOOLEAN_FLAGS = new Set(['help', 'version', 'json']);
 
 export const parseCommand = (argv: readonly string[]): ParsedCommand => {
   // Tokenize first so a missing option value cannot consume a following --help.
@@ -37,6 +46,7 @@ export const parseCommand = (argv: readonly string[]): ParsedCommand => {
     tokens: true,
   });
   const flags = new Map<string, string | true>();
+  const repeated = new Map<string, string[]>();
   const positionals: string[] = [];
   let error: string | undefined;
   for (let index = 0; index < tokens.length; index += 1) {
@@ -68,11 +78,18 @@ export const parseCommand = (argv: readonly string[]): ParsedCommand => {
       if (value === undefined || value === '') {
         error ??= `${token.rawName} requires a value.`;
       } else {
-        if (flags.has(token.name)) error ??= `${token.rawName} must be specified only once.`;
-        flags.set(token.name, value);
+        if (REPEATABLE_FLAGS.has(token.name)) {
+          repeated.set(token.name, [...(repeated.get(token.name) ?? []), value]);
+        } else {
+          if (flags.has(token.name)) error ??= `${token.rawName} must be specified only once.`;
+          flags.set(token.name, value);
+        }
       }
     } else {
-      error ??= `Unknown flag: ${token.rawName}`;
+      error ??=
+        token.name === 'workspaces'
+          ? 'The --workspaces flag was removed in 0.6.0; discovery is recursive by default. Use --exclude and --installation-root.'
+          : `Unknown flag: ${token.rawName}`;
     }
   }
 
@@ -102,7 +119,8 @@ export const parseCommand = (argv: readonly string[]): ParsedCommand => {
     cwd: asAbsPath(path.resolve(cwd ?? process.cwd())),
     pm: parsePmFlag(flags.get('pm')),
     pmVersion: typeof pmVersion === 'string' ? pmVersion : undefined,
-    workspaces: flags.has('workspaces') || undefined,
+    exclude: repeated.get('exclude'),
+    installationRoots: repeated.get('installation-root'),
     projectType: parseProjectTypeFlag(flags.get('project-type')),
     severity: parseSeverityFlag(flags.get('severity')),
     reporter:

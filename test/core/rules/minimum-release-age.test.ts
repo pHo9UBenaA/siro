@@ -206,10 +206,16 @@ describe('minimum-release-age (deno)', () => {
     );
   });
 
-  it('passes an object setting without an age', () => {
-    expect.hasAssertions();
-    expect(deno.check(ctx, { minimumDependencyAge: { exclude: ['npm:foo'] } }).state).toBe('ok');
-  });
+  it.each([undefined, null, {}, { age: null }, { exclude: ['npm:foo'] }])(
+    'requires an active fallback for %j',
+    (value) => {
+      expect(deno.check(ctx, { minimumDependencyAge: value }).state).toBe('violation');
+      const fallback = makeCtx({
+        readText: (file) => (file === '.npmrc' ? 'min-release-age=3\n' : undefined),
+      });
+      expect(deno.check(fallback, { minimumDependencyAge: value }).state).toBe('ok');
+    },
+  );
 
   it('flags zero-duration cooldowns in string and numeric forms', () => {
     expect.hasAssertions();
@@ -256,7 +262,6 @@ describe('Deno release-age formats from the official parser', () => {
 
   it.each([
     '2016-12-31T23:59:60Z',
-    { age: null },
     '+P3D',
     'P2w',
     'PT1.5s',

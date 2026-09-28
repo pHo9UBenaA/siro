@@ -1,6 +1,6 @@
 import type { RepositoryPaths } from './repository-paths.ts';
 import type { Rule } from './rule.ts';
-import type { WorkspaceGlobs } from './workspace-glob.ts';
+import type { CompileExclusions } from './exclusions.ts';
 import type { AbsPath } from './paths.ts';
 import type { FileSystem } from './file-system.ts';
 import type { RepoContext } from './repo-context.ts';
@@ -13,9 +13,7 @@ export interface LintDependencies {
   readonly fileSystem: FileSystem;
   readonly paths: RepositoryPaths;
   readonly codecFor: CodecFor;
-  readonly globs: WorkspaceGlobs;
-  /** Preserve the host's PM glob policy, independently of literal directory lookup. */
-  readonly caseInsensitiveGlobs: boolean;
+  readonly compileExclusions: CompileExclusions;
   readonly createRepoContext: (
     root: AbsPath,
     fs: FileSystem,

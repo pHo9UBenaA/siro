@@ -8,6 +8,8 @@ export interface ResolvePMsOptions {
   readonly pmOverride?: PM;
   /** User's `siro.config.ts` `pms` allow-list; intersected with the detection. */
   readonly allowed?: readonly PM[];
+  /** Publication-only root may have no target. */
+  readonly optional?: boolean;
 }
 
 /** Apply the explicit selection or detection, then the configured allow-list. */
@@ -18,6 +20,7 @@ export const resolvePMs = (ctx: RepoContext, opts: ResolvePMsOptions): readonly 
   if (pms.length > 0) {
     return pms;
   }
+  if (opts.optional && detected.length === 0) return [];
   if (!allowed) {
     throw new UsageError(
       `No package manager detected. Pass --pm <${PMS.join('|')}> to be explicit.`,

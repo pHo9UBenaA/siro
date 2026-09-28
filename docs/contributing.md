@@ -33,9 +33,9 @@ contains non-empty instructions. They cannot coexist. A missing binding means
 that a rule does not apply to that package manager. A binding without `file`
 uses the repository context directly, such as a lockfile existence check.
 
-Each root or member repository context owns a lazy config parser for one lint call.
-Successful reads of the same kind and relative path are reused for workspace
-selection and rule evaluation; a later call or another context starts fresh. User severity
+Each selected directory owns a context and lazy parser for one lint call.
+Discovery, manifest evaluation and explicit installation evaluation share successful
+reads and parses; another directory or later call starts fresh. User severity
 settings override result, binding, and rule defaults, in that order. Preserve
 these boundaries because they prevent inconsistent results, not to satisfy a
 prescribed number of layers or files.
@@ -47,21 +47,19 @@ prescribed number of layers or files.
 2. Add a rule in `src/core/rules/` and register it in `src/core/rules/builtin-rules.ts`.
    Use `requireConfigKey` for a single setting; use a direct binding for precedence,
    multiple settings, or manual remediation. See [configuration.md](configuration.md).
-3. Choose `root-only` or `root-and-member` in the exhaustive built-in scope table in
-   `src/core/rules/builtin-rules.ts`. Only built-in publication checks run on members;
-   custom rules remain root-only. If a member check needs a new file, verify the
-   restricted child FS in `src/core/workspaces/members.ts`. Test root and member
-   behavior, unsafe and accepted states, bypasses, and the proposed remedy. Exercise
-   the CLI when parsing, selection, or output changes.
+3. Choose manifest, installation, or split availability scope in the exhaustive
+   table in `src/core/rules/builtin-rules.ts`. Custom rules stay at cwd. Do not
+   invent a PM for a generic check or read installation config for manifest-only
+   packages. Test local target versions, unknown targets, privacy, immutable remedy
+   paths and failure propagation through the public API and real CLI.
 4. Run `pnpm gen:docs` and `pnpm verify`.
 
-Adding a package manager also requires detection signals, applicable rule bindings,
-version-availability evidence where relevant, and an explicit workspace declaration
-and matching strategy. The exhaustive branches in `core/workspaces/declarations.ts`
-and `selection.ts` must not silently adopt another manager's semantics. Verify
-selection order, exclusions, root/member scope, injected FS and CLI behavior; an
-absent binding means N/A rather than implied support. Add a codec only when its
-format differs from the supported formats.
+Adding a PM requires local detection signals, applicable bindings and verified
+availability evidence, not a workspace matcher. Discovery has one PM-independent
+exclusion dialect. Verify native/injected FS, explicit installation scope and
+CLI behavior; an absent binding means N/A, not implied support. VersionNote is
+presentation only; requireConfigKey default safety must be an explicit decision.
+Test output order, not DFS/BFS or unrelated read/failure order.
 
 ## Verification boundaries
 

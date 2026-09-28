@@ -34,7 +34,7 @@ const resolveBindingProjectType = (
 };
 
 /** Evaluate every applicable rule binding and collect violations. */
-export const runLint = (opts: RunLintOptions): LintResult => {
+export const runLint = (opts: RunLintOptions): Pick<LintResult, 'findings' | 'summary'> => {
   const { repository, pms, ruleSet, severityOverrides } = opts;
   const { ctx, parseConfig } = repository;
   const findings: Finding[] = [];
@@ -68,6 +68,7 @@ export const runLint = (opts: RunLintOptions): LintResult => {
 
         const finding: Finding = {
           ruleId: rule.id,
+          directory: '.',
           pm,
           severity: decideSeverity(status, binding, rule, severityOverrides?.get(rule.id)),
           message: renderVersionNoteMessage(status.message, binding.versionNote),

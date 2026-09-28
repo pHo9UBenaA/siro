@@ -1,358 +1,270 @@
 # Configuration and behavior
 
-## Versioning policy
+## Inspection scope: packages and installation roots
 
-siro evaluates repository settings against the recorded policy snapshot in
-[policy-sources.md](policy-sources.md). It detects package-manager names and checks
-selected settings against a declared or explicit stable target version. It does
-not inspect installed binaries. Defaults that
-depend on a version, CI, or a public pull request retain the configured severity
-when their setting is absent.
+A **package** is a directory with a manifest. A **dependency** is something it
+consumes. A PM **workspace** groups packages for that manager; an independent
+installation project manages its own dependency installation. The exploration
+root (`cwd`), package roots, and installation roots need not coincide.
 
-The checks do not resolve command-line flags, environment variables, user/global
-configuration, or workspace children into an effective installation policy.
-A clean result is not a security attestation. See [threat-model.md](threat-model.md).
+`siro lint [cwd]` recursively discovers `package.json` and strict `deno.json`,
+including cwd. PM workspace declarations do not select, exclude, or stop traversal.
+Changing npm/Bun workspace order, Deno `workspace`/`vendor`, or YAML `packages`
+does not change discovery. `pnpm-workspace.yaml` and `aube-workspace.yaml` are
+still read as installation configuration where applicable.
 
-## Selection and input
+Manifest-only checks cover `files-field`, npm-format `publish-access`, and the
+manifest entries of `unsupported-settings`. Generic publication checks run once
+per manifest, even with multiple PM targets, and carry no invented PM. Private or
+unnamed packages are normally applications; Deno `name` and `publish: false` are
+judged independently of npm metadata, including when both manifests coexist.
+An explicit `projectType: 'application' | 'package'` applies to **all** targets,
+with API/CLI overriding config. Parent privacy never propagates to children.
 
-Detection combines `package.json#packageManager`, lockfiles, and manager-specific
-configuration files. All detected managers are checked. `.npmrc` alone identifies
-no manager because several managers read it. With no detection signal, the CLI
-exits `2`; `--pm` selects one manager explicitly and bypasses detection.
-
-`projectType: 'application'` skips published-artifact rules. `'package'` evaluates
-them even when metadata is temporarily private. An explicit option overrides
-configuration; otherwise siro infers the type from publish metadata (`private`
-and `name` in package.json, or `name` in deno.json).
-
-Inspected JSON and YAML files must have object roots. Arrays, scalars, and `null`
-are errors. Missing files and empty YAML documents provide no settings; empty
-JSON is invalid. `package.json`, when present, must be an object. Supported targets
-are listed in [rules.md](rules.md). Lockfile checks inspect presence, not git
-tracking or lockfile contents. Deno currently supports strict `deno.json`, not
-`deno.jsonc` or external import maps.
-
-Value options must be specified once with a non-empty value. Boolean flags
-(`--json`, `--help`, `--version`, `--workspaces`) take no values or `--no-` variants.
-`--help` takes precedence over other arguments; `--version` comes next.
-Arguments after `--` are rejected.
-
-## Target PM versions
-
-The `unsupported-settings` rule reports settings introduced after the target version.
-For example, `packageManager: "npm@11.9.0"` with `min-release-age=3` produces an error:
-the setting requires npm 11.10.0. Setting presence is checked even for `false`, zero,
-or null values. Affected keys are grouped within each configuration file, producing
-one finding per file with its own location and source links in the manual steps.
-
-Targets are resolved separately for each selected manager, in this priority order:
-
-1. CLI `--pm-version` / API `pmVersion`, together with `--pm` / `pm`.
-2. `config.pmVersions`, such as `{ npm: '11.10.0', pnpm: '10.16.0' }`.
-3. An exact stable `package.json#packageManager` declaration for that manager.
-
-```sh
-siro lint --pm npm --pm-version 11.10.0
-```
-
-```ts
-lint({ cwd, pm: 'pnpm', pmVersion: '10.16.0' });
-```
-
-Version maps do not select managers or bypass `pms` restrictions. Lockfiles do not
-establish a runtime version. A declaration for npm never supplies pnpm's version.
-Versions are exact stable SemVer strings; build metadata, including Corepack's
-`+sha512.…` suffix, is accepted and ignored for ordering. Ranges, tags, partial
-versions, `v` prefixes, and prereleases are rejected in explicit options/config
-with exit 2. Such `packageManager` declarations leave the version unknown, preserving
-name detection and existing checks. No PM binary is executed or downloaded.
-
-Only the [listed setting/file pairs](rules.md#checked-introduction-versions) have
-availability checks in this release (npm, pnpm, Yarn, Bun, and Deno's
-`.npmrc#min-release-age`). Aube still has its existing security checks but no verified
-introduction table. Unlisted keys,
-unknown targets, later removals, backports, and version-specific value syntax are
-outside this check. A passing result does not establish that every setting works.
-The target is the user's declaration, not proof of what CI actually runs.
-
-`unsupported-settings` defaults to `error`, so projects with unsupported
-settings can exit 1. It supports the usual `rules` severity override or `'off'`.
-Existing security rules and their remediation remain in effect; a target version
-does not lower severity for missing settings or prove environment-dependent defaults.
-
-## Workspace members
-
-Use `siro lint --workspaces` or `lint({ cwd, workspaces: true })` to add checks of
-declared members' publication metadata (`package.json`, or `deno.json` for Deno). The default remains one root.
-Run from the workspace root; siro does not search parent directories for it.
-
-- npm, Yarn, and Bun read the root `package.json#workspaces` array. The
-  `{ packages: [...] }` form is also accepted.
-- pnpm reads `pnpm-workspace.yaml#packages`. Omitted or empty `packages` adds no
-  members, matching the root-only default verified in pnpm 10.17.1.
-- For npm, pnpm, and Yarn, relative directory patterns use minimatch, including `*`, `**`,
-  and braces. Bun uses the same bounded matcher with extglob disabled: leading `!`, `*`,
-  `?`, `{`, and `[` select its glob path, while extglob parentheses remain literal.
-  Leading `!` excludes matching workspace candidates; a trailing `/**`
-  exclusion also prunes the covered subtree. Other exclusions do not hide nested
-  candidates that match a positive pattern. For npm, a later
-  positive pattern matching earlier exclusions cancels them according to npm's forward scan:
-  `['packages/**', '!packages/b/**', 'packages/b/a']` includes both `packages/b/a`
-  and other members under `packages/b`. Adjacent duplicate exclusions are significant:
-  `['packages/**', '!packages/b/**', '!packages/b/**', 'packages/b/a']` remains
-  excluded because npm's scan skips the shifted duplicate. Cancellation compares declaration
-  strings case-sensitively using npm's default minimatch options. npm also treats an odd
-  number of leading `!` characters as negative and an even number as positive. Bun keeps
-  explicitly named positive members regardless of negative globs. Each positive Bun glob is
-  filtered only by later negative patterns, so a later positive glob can re-include an earlier
-  exclusion. For pnpm and Yarn, exclusions retain priority regardless of order. Patterns use `/`;
-  absolute paths, parent traversal, and backslash patterns are rejected. A leading
-  `#` makes an npm pattern a comment, while `#` within a later path segment is literal.
-  Colons in ordinary relative segments are accepted; drive-letter paths remain invalid.
-  Brace expansion is limited to 8,192 expanded alternatives before
-  compilation; larger expansions fail as configuration errors.
-  Matching is case-insensitive on macOS and Windows, including literal segments
-  and exclusions, and case-sensitive elsewhere. This platform policy also applies
-  to injected filesystems and does not detect individual volume settings.
-- Root `.` entries, duplicate matches, `node_modules`, `.git`, and directory symlinks
-  are excluded from member traversal. Bun excludes `CMakeFiles` from glob traversal,
-  matching its walker, but still accepts an explicitly named member below it.
-  Node-PM directories without `package.json` are skipped.
-  Only the root declaration is expanded; nested workspace declarations are not followed.
-- Aube reads `aube-workspace.yaml#packages`, then `pnpm-workspace.yaml#packages`,
-  then package.json workspaces when neither YAML file exists. An existing YAML file
-  wins even when `packages` is empty or omitted. Supported patterns are literals,
-  component `*`/`?`, and trailing `**` after a literal prefix (or `**` alone).
-  Braces, character classes, extglobs, and mixed recursive patterns fail explicitly.
-  Matching is case-sensitive and includes dot directories. Exclusions filter
-  candidates without pruning their descendants; negative `*` can span `/`.
-- Deno combines `deno.json#workspace` with package.json workspaces. The former
-  discovers Deno or npm manifests; the latter requires package.json. Deno uses
-  `*`, `?`, and whole-component `**`, treats brackets/braces literally, and uses
-  case-insensitive matching after the first wildcard. The fixed prefix before that
-  wildcard (or the entire explicit path) uses native filesystem name resolution.
-  Thus `Packages/*` selects `packages/` only if the actual filesystem resolves
-  those names to the same directory. Findings retain the enumerated spelling.
-  Negative literal paths compare exactly. Negative globs match without case only
-  when their declared base and a positive base whose resolved scope contains the
-  candidate are related
-  as ancestor/descendant paths (compared exactly); they perform no native lookup.
-  Later matching glob entries win; explicit positive paths remain included.
-  If overlapping positive bases disagree on a matching exclusion's applicability,
-  inspection fails explicitly. Use consistent prefix spelling or non-overlapping
-  patterns. Deno's full base-order/visited-directory collector is not reproduced.
-  Glob expansion excludes the root `vendor` directory when `vendor: true`.
-  Selected JSONC-only members and nested workspace declarations fail explicitly.
-  An existing explicitly named directory without the required manifest is an error.
-  An absent member directory adds no findings. A Deno declaration selecting its
-  own root is an error. Named Deno packages with `publish: false` are internal;
-  npm `private` does not opt a Deno manifest out of JSR publication checks.
-
-These are bounded inspection semantics, not a replacement for a PM resolver or
-publication dry run. Deno/Aube behavior is based on Deno 2.9.4 and Aube commit
-`afcf46f39c070b8549642cd4cc0b53b0db0287da`; historical versions can differ. siro
-retains relative-path validation, skipped directory symlinks, fail-loud reads, and deduplicated
-members. It does not reproduce every upstream glob form or duplicate-member error.
-See [policy sources](policy-sources.md) for the versioned implementation references.
-
-The root receives the usual checks once. Members reuse `files-field`, `publish-access`,
-and the manifest entries of `unsupported-settings`; Deno uses `files-field` for
-`publish.include`. Findings identify paths such
-as `packages/ui/package.json`. Missing `files` or access settings use their existing
-informational severity; overrides and the CLI threshold apply to the combined result.
-Malformed selected manifests and directory-read failures stop the command with an error
-instead of producing a partial report. The JSON schema remains 2.
-
-Each child infers its own publication status, so a private root does not hide a public
-child. An explicit `projectType` applies to both root and children. Members use the
-root's selected PM and resolved target version; a child's `packageManager` does not
-override the workspace target. Multiple selected managers expand their own declarations.
-
-Installation settings and lockfiles are checked only at the root. Child installation
-configs, effective setting inheritance, dependency graphs, and child provenance policy
-are outside this inspection. The availability check on `publishConfig.provenance`
-establishes only its introduction version, not whether publication emits attestations.
-Root custom rules run once; child `siro.config.*` files are never loaded or executed.
-
-Within one lint call, each root or member repository context reuses the first
-successfully parsed value of a configuration file (including an absent file) by
-kind and relative path. Workspace declarations, Deno vendor selection, and rules
-in that context see the same parsed value. Overlapping declarations for the same
-accepted member within one PM reuse its context and parser, while still checking
-each declaration source's manifest requirements. Different members, managers, and
-later lint calls have separate member caches. This does not make the entire filesystem
-an atomic snapshot: file-existence checks remain live, and an initial read or parse
-failure propagates.
-
-Injected `FileSystem` implementations can supply `readDirectories(path)`, returning
-ordinary child directory names without symlinks and propagating access errors. It is
-required only when member discovery needs directory enumeration. A missing implementation
-fails explicitly; siro never falls back to host filesystem reads for a virtual repository.
-The optional `resolveDirectory(parent, name)` returns the enumerated ordinary child
-name according to that filesystem's lookup semantics, or `undefined` for absence.
-Other errors must propagate. Deno uses it for literal prefixes; without it, injected
-filesystems use exact child names, regardless of the host OS. Returned names must
-belong to `readDirectories(parent)`. Native lookup excludes directory symlinks and
-fails explicitly if an alias cannot be identified uniquely from filesystem identities.
-Native manifest-file symlinks follow the existing file-read behavior.
-`FileSystem.exists` checks for a regular file, following file symlinks. Only a missing
-path (`ENOENT`) returns false; non-file entries and other filesystem errors must throw.
-`FileSystem.readText` likewise accepts only regular files (including file symlinks),
-returns `undefined` only for `ENOENT`, and throws for non-file entries before reading.
-
-## Executable CLI configuration
-
-The CLI loads the first existing `siro.config.ts`, `siro.config.mjs`, or
-`siro.config.js` in that order. These files run with the caller's privileges.
-TypeScript must use erasable syntax supported by the required Node version.
+**Discovery is not complete installation-policy inspection.** By default only
+cwd (`installationRoots: ['.']`) receives local installation checks. Additional
+independent installation projects must be explicitly named. siro does not infer
+them from `.npmrc`, lockfiles, packageManager, or dependency declarations, and
+cannot guarantee detection of omitted installation projects. Inspect the returned
+`inspection` scope, not just finding counts.
 
 ```ts
 import { defineConfig } from '@pho9ubenaa/siro';
-
 export default defineConfig({
-  projectType: 'application',
-  pms: ['npm', 'pnpm'],
-  rules: { provenance: 'off', 'pin-exact-versions': 'warn' },
-  customRules: [],
-  reporters: [],
+  exclude: ['test/fixtures', 'vendor', 'dist'],
+  installationRoots: [
+    '.',
+    'tools/standalone',
+    { path: 'tools/no-detection-signal', pm: 'npm', pmVersion: '12.0.2' },
+  ],
 });
 ```
 
-`pms` restricts detection and must be non-empty when present. Rule IDs must be
-known and unique across built-in and custom rules. Unknown config keys and
-malformed extension objects are errors. Config maps must be ordinary objects
-or objects with a null prototype; class instances and inherited maps are rejected.
+```sh
+siro lint . --exclude test/fixtures --exclude vendor
+siro lint . --installation-root . --installation-root tools/standalone
+```
 
-Each call reloads the config entry module. Node still caches its imported
-dependencies. This is not a sandbox or a general hot-reload mechanism.
+`exclude` defaults to `[]`; `installationRoots` defaults to `['.']`. API options
+replace their corresponding config arrays completely. One or more CLI
+`--exclude` / `--installation-root` values likewise replace that config array.
+Specifying `['tools/a']` does **not** automatically add `.`. `installationRoots: []`
+explicitly disables installation checks while keeping manifest checks. Use config
+or API for the empty array and for per-root PM/version objects.
+
+Installation paths are literal directories, not globs: a real `tools/*` directory
+is not an expansion. They must use exact enumerated spelling, **including case on
+all hosts**, inside the selected subtree. Missing paths, files, symlinks (including
+intermediate components), excluded paths, `.git`, and `node_modules` are rejected.
+Normalized duplicate entries are evaluated once; conflicting PM/version entries
+are errors. `.` objects cannot contain PM fields: use the top-level root options.
+Arrays must be dense and correctly typed; unknown object keys are errors.
+
+Parent and child installation roots are each evaluated using their own local
+settings, not inheritance. A root with no manifest can still receive installation
+checks when its PM can be resolved. No synthetic public package is created.
+`provenance` also reads PM configuration, so it runs only for publishable packages
+at explicit installation roots. **Manifest-only children do not receive effective
+provenance-policy evaluation.** Availability of `publishConfig.provenance` is a
+separate question from whether publishing emits attestations.
+
+## Common exclusions and filesystem behavior
+
+One case-sensitive, lexical dialect applies on every OS:
+
+- Patterns use `/` and support `*`, `?`, and whole-component `**`. Dot directories
+  are ordinary candidates. Braces, character classes and extglob punctuation are
+  literal, not additional operators.
+- `test/fixtures` and `test/fixtures/**` both prune that directory and its entire
+  subtree **before manifest reads or child enumeration**.
+- cwd itself is always included. `exclude: ['**']` keeps only cwd;
+  `exclude: ['.']` is an error.
+- Leading `!` reinclusion is rejected; order cannot re-add excluded directories.
+  Absolute paths, `..` components, NUL, backslash patterns and engine limits are
+  configuration errors. Literal installation input never interprets wildcard characters and must match
+  a host-validated enumerated path. POSIX backslashes/colons within a native
+  component are preserved (for example `scratch\\notes` or `C:notes`); they are
+  not Windows path separators or drive aliases.
+- Ordinary children named `.git` or `node_modules` are always skipped. Directory
+  symlinks are never followed below cwd. `dist`, `examples`, fixtures, `vendor`,
+  `CMakeFiles`, and dot directories have no other implicit exceptions.
+- `.gitignore`, tracked-file lists and PM exclusions are not consulted.
+
+Selected malformed manifests, JSONC-only directories, and directory/read errors
+fail the entire run; no successful partial report is emitted. If both `deno.json`
+and `deno.jsonc` exist, strict `deno.json` takes precedence. Intentionally broken
+fixtures require explicit exclusion. JSON/YAML configuration roots must be
+objects; empty YAML supplies no settings, while empty JSON is invalid. Consumed
+package.json fields, including `publishConfig.provenance`, are type-validated.
+Lockfile rules check presence, not git tracking or lockfile contents.
+
+Injected `FileSystem.readDirectories` is **required**. Return a dense array of
+ordinary native child directory names without symlinks; no host filesystem
+fallback exists. Empty names, `.`, `..`, NUL, nonstrings and native separators
+are rejected. On POSIX, literal `scratch\notes` and `C:notes` names are valid;
+`scratch\notes` and `scratch/notes` remain distinct in reads and output. Public
+output paths preserve native component spelling, joining components with `/`.
+Do not blindly replace backslashes in reported paths.
+
+`readText` and `exists` accept regular files, including file symlinks. Only ENOENT
+means absence; access errors and non-file entries must throw. The explicitly
+chosen cwd itself uses normal native directory resolution, including a symlink.
+Manifest-file symlinks retain normal reads: this is **not a containment sandbox**.
+
+Within a call, each directory has one shared context and parser for discovery,
+manifest checks and installation checks. Successful reads (including absence)
+and successful parses keyed by `(kind, relative path)` are reused. Typed manifest
+validation and JSON parsing share raw bytes. Failures propagate; they are not
+cached as absence. Other directories and later calls have fresh caches. Existence
+checks remain live; this is not a filesystem-wide atomic snapshot.
+
+## Target PM versions
+
+PM names and versions are local policy declarations, not attestation of an
+installed or executed binary. No PM executable is run or downloaded.
+
+| Evaluation directory                     | PM selection                                                                         | Version precedence                                                        |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| cwd installation/custom checks           | root `pm` / `--pm`, otherwise local detection; root config `pms` restricts selection | root `pmVersion` → config `pmVersions[pm]` → local exact `packageManager` |
+| Additional installation root             | entry `pm`, otherwise local detection                                                | entry `pmVersion` → its own exact `packageManager`                        |
+| Manifest at an installation root         | that directory's targets, filtered for manifest format                               | same local versions                                                       |
+| cwd manifest without installation checks | optional root selection/detection                                                    | root precedence above                                                     |
+| Other discovered manifest                | its own manifest declaration; Deno format identifies Deno with unknown version       | its own exact stable declaration only                                     |
+
+Local detection combines `packageManager`, lockfiles and manager-specific config
+presence. `.npmrc` alone identifies no PM. Root `pms` is a nonempty **restriction**,
+not a list of forced targets. Version maps never select PMs. Root flags/config
+never propagate to additional roots or publication-only children, and npm versions
+never become Deno versions.
+
+For example, cwd `--pm npm --pm-version 9.4.0` does not override a discovered
+child's `npm@12.0.2`, nor an additional root's explicit pnpm target. A publication-only
+package without a declaration still gets generic publication checks; its empty
+target list means availability was **not evaluated**, not that settings are safe.
+A target without `version` likewise has unknown availability. Installation roots
+with no detectable/explicit PM fail with a path-specific error. Active custom
+rules require a cwd PM; all-off custom rules do not. With `installationRoots: []`,
+root PM options can select manifest policy without re-enabling installation checks.
+
+Explicit versions require a PM and exact stable SemVer. Build metadata (including
+Corepack `+sha512.…`) is accepted. Ranges, prereleases, tags, partial versions and
+`v` prefixes in explicit options/config are errors. Such manifest declarations
+leave the version unknown while retaining manager-name detection where possible.
+
+`unsupported-settings` checks only the [verified introduction table](rules.md#checked-introduction-versions).
+Unknown targets, unlisted keys, later removals, backports and version-specific value
+grammars are outside that check. It defaults to error and accepts severity/off
+overrides. Remediation for a known too-old target becomes manual upgrade guidance;
+missing settings do not become safe just because a new version was declared.
+
+## Local policy, not effective runtime configuration
+
+siro does not resolve environment variables, user/global configuration, CI
+commands, install/publish flags, dependency graphs or workspace inheritance into
+an effective policy. All checks use the explicitly selected local inputs.
+A clean result is not a security attestation; see [threat-model.md](threat-model.md).
+
+For npm provenance, own `package.json#publishConfig.provenance` overrides local
+`.npmrc#provenance`, including false. The finding and remedy target the responsible
+file; unrelated publishConfig keys are preserved. This precedence is not assumed
+for other PMs. Deno's valid object with absent/null age uses local `.npmrc` fallback;
+without a positive active fallback it retains configured severity. Explicit inactive
+or invalid age is not rescued by fallback, and zero fallback is an opt-out.
+
+## Executable CLI configuration
+
+The CLI loads only cwd's first existing `siro.config.ts`, `.mjs`, or `.js`, in that
+order, once per invocation. It runs with the caller's privileges. TypeScript must
+use Node-supported erasable syntax. Child package and additional installation-root
+configs are **not** automatically loaded or executed. No parent/global search is
+added. Entry modules reload between calls; imported dependencies remain subject
+to Node's cache. This is neither a sandbox nor general hot reload.
+
+Unknown config keys, unknown/duplicate rule IDs and malformed extensions are
+errors. Maps must be plain or null-prototype objects, not inherited/class maps.
+Custom rules run only at cwd, once per selected binding. All targets share root
+rule overrides and reporters.
 
 ## Library use
 
-The library never discovers or executes repository configuration implicitly.
-Pass a `config` object to `lint` for results, or to `lintCommand` for reporting
-and an exit code. `fs` supplies all package-manager file reads.
+`lint` is synchronous. `lintCommand` is async and awaits reporters. Neither imports
+executable repository configuration implicitly. Use `loadConfig` explicitly only
+for a trusted repository:
 
 ```ts
 import { asAbsPath, lint, lintCommand, loadConfig, nodeIO } from '@pho9ubenaa/siro';
-
 const cwd = asAbsPath(process.cwd());
-const result = lint({ cwd, config: { projectType: 'application' } });
-
-// Opt into executing a trusted repository's configuration.
-const config = await loadConfig(cwd);
+const result = lint({
+  cwd,
+  exclude: ['test/fixtures'],
+  installationRoots: ['.', 'tools/standalone'],
+});
+const config = await loadConfig(cwd); // explicitly executes trusted code
 const exitCode = await lintCommand({ cwd, config, reporter: 'json' }, nodeIO);
 ```
 
-Custom rules and reporters belong in `config.customRules` and `config.reporters`.
-`LintOptions` describes evaluation; `LintCommandOptions` adds `reporter` and
-`severity`. See the [changelog](../CHANGELOG.md) for historical API changes.
-Path constructors validate their input: roots must be absolute; repository paths
-must be relative and contain no parent traversal. Filesystem symlinks still follow
-normal Node behavior. Native filesystem targets must be existing directories;
-an injected `FileSystem` defines its own virtual repository namespace.
+Custom checks/reporters belong in `config.customRules`/`config.reporters`. Public
+path constructors validate user paths; native filesystem discovery has a separate
+component-validation boundary. Private consumers must use the public package
+entry, not internal ports.
 
 ## Custom checks and remediation
 
-```ts
-import { CONFIG_FILES, defineRule, getByPath } from '@pho9ubenaa/siro';
+`defineRule` describes PM bindings. Each check receives a `RuleContext` with local
+`pmVersion` and cached `readConfig(file)`, returning `ok`, `na`, a violation, or
+`{ state: 'violations', violations: [first, ...rest] }`. Each violation has its own
+message, optional severity/file, actual/expected values and remediation. Empty,
+sparse, nested or malformed groups fail before reporting. A missing file uses the
+binding file, if any; file-less checks do not acquire a synthetic manifest path.
 
-const approval = defineRule({
-  id: 'local-approval',
-  title: 'Require approval',
-  description: 'Require the project approval setting.',
-  severity: 'error',
-  bindings: {
-    npm: {
-      file: CONFIG_FILES.npmrc,
-      check(_ctx, config) {
-        if (getByPath(config, ['local-approval']) === true) return { state: 'ok' };
-        return {
-          state: 'violation',
-          message: 'Enable local approval.',
-          remediation: {
-            kind: 'automatic',
-            operations: [
-              { op: 'setKey', file: CONFIG_FILES.npmrc, keyPath: ['local-approval'], value: true },
-            ],
-          },
-        };
-      },
-    },
-  },
-});
-```
+Rules return context-relative paths. Results carry cwd-relative `file` and every
+`operations[].file.path`, plus the evaluation `directory` (`.` for cwd). Rebasing
+is immutable and happens after availability guards. Manual instructions receive
+child directory context once. See [JSON schema 3](json-output.md).
 
-A check returns `ok`, `na`, one violation, or a nonempty group of violations, optionally with automatic operations
-or manual steps. The engine validates untyped results before reporting them.
-The binding receives a `RuleContext`: `pmVersion` is the resolved stable version of
-that binding's manager, or `undefined`; `readConfig(file)` reads additional inputs
-through the same validated parsers and per-run cache. A violation may return
-`file` to identify a different repository-relative input. Otherwise the binding
-file is used. A binding may omit `file` when it only needs the repository context.
-See [json-output.md](json-output.md) for schema 2 and its migration notes.
+`requireConfigKey` describes a scalar setting and remedy. `documentedDefault`
+specifies a value; **`defaultSafety: 'unconditional'`** explicitly permits that
+value to lower omitted-setting severity if it satisfies the requirement.
+`'conditional'` and omitted safety preserve configured severity. `VersionNote`
+is display-only: editing `defaultSafeSince` cannot change policy. Conditional
+version/CI/environment defaults remain conservative even for a new declared PM.
+`defaultSatisfiedSeverity` defaults to info, or can be off; an override cannot
+resurrect a finding the check never emitted. Use direct bindings for precedence
+or multi-setting behavior. The former `extraFix` option is rejected.
 
-`requireConfigKey` describes one setting and its proposed scalar replacement.
-Use a direct binding for multiple settings or precedence-dependent remediation.
-The former `extraFix` option is rejected. For example, a bypass may require manual
-removal even when setting another key would normally be sufficient.
+## Severity, reporters, CLI and exits
 
-## Severity and reporters
+User rule overrides outrank result, binding and rule severities; off removes a
+rule. By default all findings are displayed but only errors fail. `--severity`
+changes both display and failure thresholds. Summary counts displayed findings,
+not inspected inputs; filtering preserves `inspection`. Exit is decided before
+reporters run. Pretty shows generic findings as `[package]` plus scope information;
+JSON emits one document; GitHub emits escaped violation annotations, not fake scope
+violations. Registered reporters can replace built-ins by name. Async rejection,
+sync throws and partial-output failures propagate.
 
-User `rules` overrides take precedence over result, binding, and rule severities.
-`'off'` removes a rule. A `requireConfigKey` binding may use `documentedDefault`
-to emit `info` only when an omitted key is safe across every supported package-manager
-version and target environment. A `defaultSafeSince` note does not establish that
-the effective runtime satisfies the condition: declared targets are used only for
-availability checks, so version- or environment-dependent defaults retain the rule's
-configured severity. `defaultSatisfiedSeverity: 'off'` suppresses only an
-unconditionally safe default; a severity override cannot resurrect a finding the
-check did not emit.
-
-`pretty` prints findings and manual steps, `json` emits the versioned document,
-and `github` emits workflow annotations. Configured reporters register by name;
-later registrations replace earlier ones. An explicit reporter object is also
-accepted by `lintCommand`. The exit decision is computed before the reporter runs.
-Reporters may return a promise; `lintCommand` waits for completion and propagates
-reporting failures. Unexpected rejections use exit 70, just like synchronous exceptions.
-
-By default all findings are displayed and only `error` fails. `--severity warn`
-or `--severity info` changes both display and failure thresholds.
+`check` aliases `lint`. Value options must be nonempty. Only `--exclude` and
+`--installation-root` repeat; other value flags occur once. Boolean `--json`,
+`--help`, `--version` take no values or `--no-` variants. Help has first priority,
+version second. Arguments after `--` are rejected.
 
 ## Exit codes
 
-| Code | Meaning                                                                 |
-| ---- | ----------------------------------------------------------------------- |
-| `0`  | No findings at or above the failure threshold                           |
-| `1`  | Findings at or above the failure threshold                              |
-| `2`  | Invalid options, configuration, extension results, or filesystem access |
-| `70` | Unexpected exception, including a throwing custom rule or reporter      |
+| Exit | Meaning                                                                    |
+| ---- | -------------------------------------------------------------------------- |
+| 0    | No findings meet the failure threshold                                     |
+| 1    | Findings meet the threshold                                                |
+| 2    | Invalid options/config/results or filesystem access; inspection incomplete |
+| 70   | Unexpected exception, including custom rule/reporter failure               |
 
-## Public API scope
+## Migration from 0.5.x
 
-The package entry exposes evaluation and reporting, explicit configuration loading,
-rule and reporter contracts, rule-authoring helpers, validated paths, and error types.
-Internal codec selection, detection signals, reporter registries, severity/exit-code
-helpers, and metadata/error rendering helpers are not public API in v0.4.0.
-Use `lint` for results and `lintCommand` for built-in reporting and thresholds.
-Custom checks use `RuleContext` and `getByPath`; custom reporters consume `LintResult`.
-
-## Invalid and unsupported data
-
-Malformed types in the `package.json` fields consumed by siro are configuration errors; they are not replaced with defaults. A Deno project using only `deno.jsonc` fails explicitly because the current parser supports strict `deno.json` only. Error exit code `2` means evaluation did not complete.
-
-### Multiple findings from one check
-
-Return `{ state: 'violations', violations: [first, ...rest] }` for independent
-problems. Every entry is a `ViolationStatus` with `state: 'violation'` and its own
-message, optional file, severity, expected/actual values, and remediation. A missing
-file falls back to the binding file. Empty, sparse, nested or malformed groups fail
-with a configuration error before a report is produced. Existing single-result
-checks remain valid; consumers switching exhaustively on `CheckStatus.state` must
-also handle `violations`.
-
-The engine expands groups into ordinary findings; JSON schema 2 and reporter fields
-are unchanged. Multiple findings may share a rule ID. `unsupported-settings` groups
-related keys within each file and preserves separate workspace member paths. Aube's
-lifecycle rule reports missing sandboxing and approval controls separately, each
-with only that file's proposal. Other rules can retain one finding when their
-settings describe a single problem or alternative protections.
+- Remove `--workspaces` / `workspaces`, which now fail explicitly, even
+  `workspaces: false`. This is **not a rename**: discovery is always recursive and
+  old PM exclusions no longer hide fixtures or vendor/dist packages. Add siro
+  `exclude` patterns; `['**']` approximates former root-only inspection.
+- Add independent `installationRoots` deliberately; discovery does not add them.
+- Stop relying on root PM/version inheritance or duplicated generic PM findings.
+- Consume schema 3: optional finding PM, required directory and inspection scope.
+- Injected filesystems must implement `readDirectories`; `resolveDirectory` is removed.
+- Custom `requireConfigKey` defaults without `defaultSafety` are now conservative.

@@ -77,12 +77,13 @@ describe('createRepoContext — packageJson parsing', () => {
 
 describe('createRepoContext — readText and exists', () => {
   it.each(['/repo', '/repo/packages/member'])(
-    'reuses the %s manifest source while other files remain live',
+    'reuses successful text reads within the %s context',
     (root) => {
       let manifestReads = 0;
       let otherReads = 0;
       const manifest = path.join(root, 'package.json');
       const fs = {
+        readDirectories: () => [],
         exists: () => false,
         readText: (file: string) => {
           if (file === manifest) {
@@ -99,13 +100,14 @@ describe('createRepoContext — readText and exists', () => {
       expect(ctx.readText(asRelPath('./package.json'))).toBe('{"private":false}');
       expect(manifestReads).toBe(1);
       expect(ctx.readText(asRelPath('.npmrc'))).toBe('1');
-      expect(ctx.readText(asRelPath('.npmrc'))).toBe('2');
+      expect(ctx.readText(asRelPath('.npmrc'))).toBe('1');
     },
   );
 
   it('keeps an absent manifest absent for this context', () => {
     let reads = 0;
     const ctx = createRepoContext(asAbsPath('/repo'), {
+      readDirectories: () => [],
       exists: () => true,
       readText: () => (++reads === 1 ? undefined : '{}'),
     });
@@ -118,6 +120,7 @@ describe('createRepoContext — readText and exists', () => {
     const failure = new Error('EACCES: package.json');
     expect(() =>
       createRepoContext(asAbsPath('/repo'), {
+        readDirectories: () => [],
         exists: () => false,
         readText: () => {
           throw failure;

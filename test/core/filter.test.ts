@@ -2,10 +2,14 @@ import type { LintResult } from '../../src/core/contracts/lint-result.ts';
 import { exitCodeForLint, filterBySeverity } from '../../src/core/filter.ts';
 
 const result: LintResult = {
+  inspection: {
+    manifests: [{ path: 'child/package.json', projectType: 'package', targets: [] }],
+    installationRoots: [],
+  },
   findings: [
-    { message: 'm', pm: 'npm', ruleId: 'a', severity: 'error' },
-    { message: 'm', pm: 'npm', ruleId: 'b', severity: 'warn' },
-    { message: 'm', pm: 'npm', ruleId: 'c', severity: 'info' },
+    { directory: '.', message: 'm', pm: 'npm', ruleId: 'a', severity: 'error' },
+    { directory: '.', message: 'm', pm: 'npm', ruleId: 'b', severity: 'warn' },
+    { directory: 'child', message: 'm', ruleId: 'c', severity: 'info' },
   ],
   summary: { error: 1, info: 1, warn: 1 },
 };
@@ -18,6 +22,7 @@ it.each([
   const filtered = filterBySeverity(result, threshold);
   expect(filtered.findings.map((finding) => finding.ruleId)).toEqual(ids);
   expect(filtered.summary).toEqual(summary);
+  expect(filtered.inspection).toBe(result.inspection);
 });
 
 it.each([
@@ -35,9 +40,6 @@ it.each([
     threshold: 'error',
     exit: 0,
   },
-] as const)(
-  'returns $exit for $summary at $threshold',
-  ({ findings, summary, threshold, exit }) => {
-    expect(exitCodeForLint({ findings, summary }, threshold)).toBe(exit);
-  },
-);
+] as const)('returns $exit for $summary at $threshold', ({ findings, threshold, exit }) => {
+  expect(exitCodeForLint({ findings }, threshold)).toBe(exit);
+});

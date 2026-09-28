@@ -4,12 +4,17 @@ import { pathToFileURL } from 'node:url';
 import type { Rule } from '../src/core/contracts/rule.ts';
 import { PMS } from '../src/core/contracts/pms.ts';
 import { rules as defaultRules } from '../src/runtime.ts';
+import { scopeOf } from '../src/core/rules/builtin-rules.ts';
 import { settingAvailability } from '../src/core/rules/setting-availability.ts';
 
 const COMPARISON_INTRO = `<!-- AUTO-GENERATED from the rule registry. Run \`pnpm gen:docs\` to update. -->
 # Package manager comparison
 
 Which security rules \`siro\` can check for each package manager.
+Generic \`files-field\` and portable \`publish-access\` checks also run on discovered
+manifests with unknown PMs, once per manifest. Other checks require local policy
+targets; installation checks run only at explicit installation roots. This matrix
+is not a claim of effective-policy inspection for every discovered package.
 **✅** = a check is implemented · **—** = no check is implemented.
 An absent check says nothing about the manager's capabilities. See the
 [rule reference](rules.md) for primary inputs, severity overrides, and version notes.
@@ -47,7 +52,14 @@ const renderRule = (rule: Rule): string => {
   if (rule.docs) {
     overview = `\nUpstream: <${rule.docs}>`;
   }
-  const scope = rule.projectTypes ? `\nApplies to: ${rule.projectTypes.join(', ')}.` : '';
+  const scopes = {
+    installation: 'Explicit installation roots only (local settings).',
+    manifest: 'Every discovered manifest, with PM-neutral checks once per manifest.',
+    split:
+      'Manifest entries per local manifest target; install-config entries only at explicit installation roots.',
+    custom: 'cwd only.',
+  };
+  const scope = `\nInspection scope: ${scopes[scopeOf(rule.id)]}${rule.projectTypes ? `\nApplies to: ${rule.projectTypes.join(', ')}.` : ''}${rule.id === 'provenance' ? '\nFor npm, own package.json publishConfig.provenance overrides .npmrc, including false. Manifest-only children do not receive effective provenance checks.' : ''}`;
   const coverage =
     rule.id === 'unsupported-settings'
       ? `\n\n### Checked introduction versions\n\nOnly the following setting/file pairs are checked. This is not whole-schema validation or a guarantee of support in all later versions. Deno coverage is limited to \`.npmrc#min-release-age\`; Aube has no availability entries in this release.\n\n| PM | File | Setting | First stable version in this file | Source |\n| --- | --- | --- | --- | --- |\n${settingAvailability.map((setting) => `| ${setting.pm} | \`${setting.file.path}\` | \`${setting.keyPath.join('.')}\` | ${setting.since} | [release history](${setting.source}) |`).join('\n')}\n\nFor pnpm, strictDepBuilds was introduced in 10.3.0; the checked YAML location requires 10.6.0. A prerelease or range in packageManager leaves availability unknown. See [target versions](configuration.md#target-pm-versions) for explicit versions and precedence.`
@@ -73,10 +85,11 @@ export const renderComparison = (rules: readonly Rule[] = defaultRules): string 
 const RULES_INTRO = `<!-- AUTO-GENERATED from the rule registry. Run \`pnpm gen:docs\` to update. -->
 # Rule reference
 
-Each rule encodes one security intent and maps it per package manager. See the
+Each rule encodes one security intent. Generic publication checks do not need a PM;
+installation checks and setting availability use local PM targets. See the
 [comparison matrix](comparison.md) for which PMs each rule applies to.
 Bindings may read additional files through the rule context. Result-specific severity
-and user overrides can change the default shown below. Version notes describe policy;
+and user overrides can change the default shown below. Version notes are display-only, separate from explicit default-safety policy;
 siro does not inspect the installed package-manager version. See [policy sources](policy-sources.md).
 
 | Severity | Meaning |

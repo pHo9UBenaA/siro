@@ -74,18 +74,18 @@ it.each(['deno', 'aube'] satisfies PM[])('does not invent introduction history f
   expect(result.findings.some((finding) => finding.ruleId === 'unsupported-settings')).toBe(false);
 });
 
-it('keeps every unsupported key with its own root or workspace file', () => {
+it('keeps every unsupported key with its local manifest or installation file', () => {
   const files: Record<string, string> = {
     '/repo/.npmrc': 'provenance=true\nmin-release-age=3',
     '/repo/package.json':
       '{"private":true,"workspaces":["child"],"publishConfig":{"provenance":true}}',
-    '/repo/child/package.json': '{"name":"child","publishConfig":{"provenance":true}}',
+    '/repo/child/package.json':
+      '{"name":"child","packageManager":"npm@9.4.2","publishConfig":{"provenance":true}}',
   };
   const result = lint({
     cwd: asAbsPath('/repo'),
     pm: 'npm',
     pmVersion: '9.4.2',
-    workspaces: true,
     config: { rules: { 'unsupported-settings': 'warn' } },
     fs: {
       exists: (file) => Object.hasOwn(files, file.replaceAll('\\', '/')),
@@ -95,18 +95,21 @@ it('keeps every unsupported key with its own root or workspace file', () => {
     },
   });
   const findings = result.findings.filter((item) => item.ruleId === 'unsupported-settings');
-  expect(findings.map((item) => item.file)).toEqual([
+  expect(findings.map((item) => item.file).sort()).toEqual([
     '.npmrc',
-    'package.json',
     'child/package.json',
+    'package.json',
   ]);
   expect(findings.every((item) => item.remediation?.kind === 'manual')).toBe(true);
-  expect(findings[0]?.message).toContain('provenance');
-  expect(findings[0]?.message).toContain('min-release-age');
-  expect(findings[0]?.message).not.toContain('package.json#');
-  expect(findings.slice(1).every((item) => item.message.includes('publishConfig.provenance'))).toBe(
-    true,
-  );
+  const npmrc = findings.find((item) => item.file === '.npmrc');
+  expect(npmrc?.message).toContain('provenance');
+  expect(npmrc?.message).toContain('min-release-age');
+  expect(npmrc?.message).not.toContain('package.json#');
+  expect(
+    findings
+      .filter((item) => item.file !== '.npmrc')
+      .every((item) => item.message.includes('publishConfig.provenance')),
+  ).toBe(true);
   expect(findings.every((item) => item.severity === 'warn')).toBe(true);
   expect(result.summary.warn).toBe(
     result.findings.filter((item) => item.severity === 'warn').length,

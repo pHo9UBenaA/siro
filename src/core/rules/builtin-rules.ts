@@ -63,41 +63,37 @@ export const createBuiltinRules = (time: DateTime) =>
 
 export type BuiltinRuleId = ReturnType<typeof createBuiltinRules>[number]['id'];
 
-// Every built-in requires an explicit member decision. This internal policy is
-// deliberately separate from the public Rule contract: custom rules stay at root.
+// Every built-in requires an explicit scope. Custom rules stay at cwd.
 const builtinScope = {
-  'advisory-check': 'root-only',
-  'approved-git-repos': 'root-only',
-  'audit-suppression': 'root-only',
-  'block-auto-install': 'root-only',
-  'block-exotic-subdeps': 'root-only',
-  'bun-security-scanner': 'root-only',
-  'checksum-verification': 'root-only',
-  'commit-lockfile': 'root-only',
-  'dependency-overrides': 'root-only',
-  'disable-lifecycle-scripts': 'root-only',
-  'enforce-strict-ssl': 'root-only',
-  'files-field': 'root-and-member',
-  'frozen-lockfile': 'root-only',
-  'frozen-store': 'root-only',
-  'hardened-mode': 'root-only',
-  'minimum-release-age': 'root-only',
-  'named-registries': 'root-only',
-  'paranoid-mode': 'root-only',
-  'patched-dependencies': 'root-only',
-  'pin-exact-versions': 'root-only',
-  provenance: 'root-only',
-  'publish-access': 'root-and-member',
-  'store-server': 'root-only',
-  'strict-allow-scripts': 'root-only',
-  'strict-release-age': 'root-only',
-  'strict-store-integrity': 'root-only',
-  'trust-policy': 'root-only',
-  'unsupported-settings': 'root-and-member',
-} as const satisfies Record<BuiltinRuleId, 'root-only' | 'root-and-member'>;
+  'advisory-check': 'installation',
+  'approved-git-repos': 'installation',
+  'audit-suppression': 'installation',
+  'block-auto-install': 'installation',
+  'block-exotic-subdeps': 'installation',
+  'bun-security-scanner': 'installation',
+  'checksum-verification': 'installation',
+  'commit-lockfile': 'installation',
+  'dependency-overrides': 'installation',
+  'disable-lifecycle-scripts': 'installation',
+  'enforce-strict-ssl': 'installation',
+  'files-field': 'manifest',
+  'frozen-lockfile': 'installation',
+  'frozen-store': 'installation',
+  'hardened-mode': 'installation',
+  'minimum-release-age': 'installation',
+  'named-registries': 'installation',
+  'paranoid-mode': 'installation',
+  'patched-dependencies': 'installation',
+  'pin-exact-versions': 'installation',
+  provenance: 'installation',
+  'publish-access': 'manifest',
+  'store-server': 'installation',
+  'strict-allow-scripts': 'installation',
+  'strict-release-age': 'installation',
+  'strict-store-integrity': 'installation',
+  'trust-policy': 'installation',
+  'unsupported-settings': 'split',
+} as const satisfies Record<BuiltinRuleId, 'installation' | 'manifest' | 'split'>;
 
-export const memberPublicationRuleIds: ReadonlySet<string> = new Set(
-  Object.entries(builtinScope)
-    .filter(([, scope]) => scope === 'root-and-member')
-    .map(([id]) => id),
-);
+export const scopeOf = (id: string): 'installation' | 'manifest' | 'split' | 'custom' =>
+  Object.hasOwn(builtinScope, id) ? builtinScope[id as BuiltinRuleId] : 'custom';

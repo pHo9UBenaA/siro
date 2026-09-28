@@ -1,139 +1,93 @@
 # Architecture
 
-siro is a single hexagon, not a hierarchy of DDD entities and services. `src/core/`
-contains the product's decisions and use cases. It does not import Node, the glob
-engine, the reporter implementations, or the standard runtime wiring. The public
-package entry remains `src/index.ts`; consumers do not assemble internal ports.
+siro is one hexagon. `src/core/` contains product decisions and use cases, without
+Node, native adapters, reporter implementations or runtime wiring. Consumers use
+`src/index.ts`, not internal assembly ports.
 
 ```text
-CLI / explicit loadConfig / public API  ──▶  core use cases
-                                              │
-                                              ▼
-                                        core/contracts
-                                              ▲
-                                              │
-                                     driven adapters
-
-runtime.ts ──▶ core + driven adapters (standard wiring and evaluation-time clock)
+CLI / explicit loadConfig / public API → core use cases → core/contracts
+                                                            ↑
+                                                      driven adapters
+runtime.ts → core + driven adapters + evaluation-time clock
 ```
 
-## Responsibilities and dependency direction
+## Responsibilities and direction
 
-| Area                                           | Responsibility                                                                            | Source dependencies                                                                         |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `core/contracts/`                              | Adapter-facing ports, public values, schemas, and pure validators                         | Other contracts and host-independent computation libraries                                  |
-| `core/` outside `contracts/`                   | Input selection, rule evaluation, PM policy, workspace discovery, and reporting decisions | Core and contracts, never outer implementations                                             |
-| `core/rules/`                                  | Security intents with PM-specific bindings and setting availability                       | Core and contracts                                                                          |
-| `core/workspaces/`                             | PM declaration policy, selection, traversal, member-context preparation                   | Core and contracts; traversal invokes supplied FS/glob ports                                |
-| `adapters/`                                    | Driven Node filesystem/paths, repository context, config codecs, glob engine, reporters   | Other adapters, contracts, and static version metadata; never core use-case implementations |
-| `runtime.ts`                                   | Standard dependencies, built-in rule clock, and public `lint`/`lintCommand` wiring        | Core and adapters                                                                           |
-| `load-config.ts`, `cli/`, `cli.ts`, `index.ts` | Executable-config import, CLI driving adapter, public facade                              | Inward dependencies and outer host helpers                                                  |
-| `version.ts`                                   | Static package metadata                                                                   | `package.json` only                                                                         |
+| Area                                           | Responsibility                                                                                                |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `core/contracts/`                              | Closed adapter-facing values, validators and ports; contracts and host-independent libraries only             |
+| `core/`                                        | Input validation, common discovery, local target resolution, evaluation and reporting decisions               |
+| `core/rules/`                                  | Security intents, explicit built-in scopes and verified availability table                                    |
+| `adapters/`                                    | Node FS/paths, contexts, codecs, one exclusion matcher and reporters; contracts/adapters/static metadata only |
+| `runtime.ts`                                   | Standard composition and evaluation-time DateTime callbacks                                                   |
+| `cli/`, `cli.ts`, `load-config.ts`, `index.ts` | Driving input/config/public facade; inward and outer host dependencies                                        |
+| `version.ts`                                   | Static package metadata only                                                                                  |
 
-`core/contracts/` is a _closed_ adapter-facing boundary. It contains both output
-ports (`FileSystem`, `WorkspaceGlobs`, `ConfigCodec`, `Reporter`, `IO`) and the
-values their implementations need (`PackageJson`, `ParsedConfig`, `LintResult`,
-paths, PMs, errors, and `Rule`). For example, the repository adapter uses the
-pure `parsePackageJson` validator and codecs use `toParsedConfig`. Placing those
-alongside ports avoids an adapter-to-use-case import or a filename allowlist.
-Contracts cannot import other core implementations, including via type imports
-or re-exports. `SiroConfig` is not in this closed group: its built-in rule ID
-completion depends (type-only) on the actual rule registry. The outer driving
-`load-config.ts` may call the shared core validator; driven adapters may not call
-a lint use case. Public `Rule`, `SiroConfig`, and reporter types are still
-exported only through the package entry point.
-
-The architecture test resolves TypeScript imports, including type imports,
-re-exports, static dynamic imports and `.js` references to `.ts` sources. It
-checks dependencies among these areas, metadata access and unresolved local
-imports. It forbids host built-ins and dynamic module selection in core, and
-adapter-to-core-implementation references. It does not impose a particular file
-count, ban same-area cycles, inspect third-party internals, or prove PM behavior.
-Runtime calls from core through a supplied output port do not reverse the source
-dependency direction.
+Contracts include `FileSystem`, `RepositoryPaths`, `CompileExclusions`,
+`ConfigCodec`, `IO`, `Reporter`, and the values their implementations need.
+Driven adapters never import use-case implementations. `SiroConfig` stays outside
+the closed contracts because rule-ID completion depends on the built-in registry.
+The architecture gate resolves TS, JS-to-TS, type, re-export, static dynamic and
+CommonJS imports; it rejects forbidden directions, unresolved source dependencies,
+host imports in core and dynamic module selection in core/driven adapters. This
+is not a proof of security or a requirement to preserve file/folder counts.
 
 ## Execution and state
 
-1. CLI input parsing is a driving operation. The CLI automatically finds and
-   imports `siro.config.*` through `load-config.ts`. The exported `loadConfig`
-   also imports executable configuration **when explicitly called**. Library
-   `lint` and `lintCommand` accept config as a value and never discover or
-   execute target-repository config files themselves.
-2. `runtime.ts` supplies the standard FS, paths, codecs, glob engine, reporter
-   registry and clock callbacks. `core/lint.ts` validates input, resolves PMs,
-   versions and rules, and prepares root/member contexts. It accepts a caller's
-   `FileSystem` in place of the standard one without a host fallback. Its explicit
-   `PreparedLint` result separates reporting extensions from `LintEvaluation`:
-   only repository inputs, selected PMs, versions, rules and severity overrides
-   reach evaluation. Preparation performs reads and validation; it is not a pure
-   plan or an atomic repository snapshot.
-3. `core/run-lint.ts` evaluates each applicable rule binding and builds findings.
-   It requires a `RepositoryEvaluation` pairing the repository context with its
-   parser, rather than accepting codecs and optionally constructing a parser.
-   Root/member preparation owns these pairs; `createRepositoryEvaluation` pairs
-   an existing context with a fresh lazy parser without reading more files.
-   A parser belongs to **one repository context in one lint call**.
-   Workspace declarations, Deno vendor selection, nested checks and rule reads
-   of the same `(kind, relative path)` share its first successfully parsed value
-   (including an absent file). Root and each member have distinct parsers; a new
-   lint call builds fresh contexts. The first read/parse failure propagates and
-   is not cached. This is not a filesystem-wide atomic snapshot: existence
-   checks remain live, and independent paths need not describe one instant.
-   Each context also reads its `package.json` raw text once for both manifest
-   validation and rule parsing.
-4. `core/lint-command.ts` prepares input (including member validation), validates
-   the selected reporter, evaluates, computes an exit status from the full result,
-   filters display findings, and awaits reporter output through `IO`. Preparation
-   failures precede reporter selection failures; an invalid reporter prevents rule
-   execution. Reporter rejection propagates even after partial output. `cli.ts`
-   classifies expected failures and owns process exit. Neither evaluation nor
-   reporting failures are converted into a partial successful result.
+1. The CLI imports only cwd's executable config. Library calls never implicitly
+   import configuration; `loadConfig` is an explicit opt-in. Child configs are not
+   executed. Entry reload does not invalidate Node's imported-dependency cache.
+2. `prepareLint` validates options/config, compiles common exclusions once and
+   calls `discovery.ts`. Traversal ignores PM declarations, hard-skips `.git` and
+   `node_modules`, and prunes excluded directories before reads/enumeration.
+   `RepositoryPaths.child` validates native child names without conflating them
+   with portable user paths. Directory symlinks are excluded by the FS port.
+3. One `RepositoryEvaluation` per selected directory pairs context and parser.
+   Discovery validates manifests; installation roots are validated against exact
+   selected directory spelling. Contexts share first successful text reads
+   (including absence); parsers share successful `(kind, relative path)` values.
+   Manifest validation and codecs share raw bytes. Installation and publication
+   reuse the same context. No caches cross directories or lint calls; failures
+   propagate. Existence probes remain live: there is no atomic FS snapshot.
+4. Targets are resolved locally: root options affect cwd, entry options affect
+   their additional root, and other manifests supply only manifest-local evidence.
+   Unknown publication targets still receive generic checks. Required installation
+   and active custom targets fail if unresolved. Manifest-only directories never
+   parse installation configuration just to supply availability checks.
+5. `builtinScope` requires an explicit decision for every built-in: installation,
+   manifest, or split availability. `manifest-checks.ts` evaluates PM-neutral
+   publication checks once without inventing a PM; PM-sensitive alias/availability
+   checks use actual local targets. `run-lint.ts` evaluates installation/custom PM
+   bindings. Availability's manifest and configuration entries have separate owners,
+   not string-based finding deduplication. Custom rules run only at cwd.
+6. `rebase-finding.ts` copies context-local findings and all automatic operation
+   paths into cwd-relative output **after** availability guards. File-less rules
+   stay file-less. Manual steps receive child context once. Findings and inspection
+   scope are stably ordered, without promising DFS/BFS or a read-event sequence.
+7. `lint-command.ts` prepares input, validates reporter selection before executing
+   rules, evaluates, computes exit from the full result, filters display findings
+   and awaits reporting. Filtering preserves inspection. Failures never become
+   successful partial reports; reporter failure propagates even after output.
+   The CLI classifies expected failures as exit 2 and unexpected failures as 70.
 
-Workspace declaration sources remain PM-specific. `core/workspaces/declarations.ts`
-validates them; `selection.ts` compiles inclusion, exclusion and descent policy;
-`walk.ts` lists ordinary directories using the supplied FS; `members.ts` builds
-restricted child publication contexts. Selection passes both the actual directory
-and whether a positive Deno literal selected it. Member construction does
-not reinterpret the declaration spelling to rediscover that fact. Positive Deno
-prefixes may use the injected resolver; negative paths remain lexical. Bun's
-ordered glob pass, npm's exclusion cancellation, Deno's two declaration sources,
-Aube's limited matcher, directory sorting and failure order retain their distinct
-semantics. No PM-specific walker or repository-wide directory cache is introduced.
+`PreparedLint` separates evaluation inputs from reporter extensions. `lint` stays
+synchronous and `lintCommand` asynchronous. Security intents remain grouped by
+rule, not PM strategy classes. `VersionNote` is presentation only; default safety
+and setting introductions are explicit policy. DateTime callbacks preserve native
+npm date parsing and evaluate time when a check runs.
 
-Member preparation follows explicit PM, declaration and candidate loops. All
-sources for a PM are validated before walking; each declaration's directory
-traversal and sorting complete before reading candidate manifests. Within a PM,
-accepted members reuse their context/parser pair across declarations, but each
-source's manifest requirements and Deno nested-workspace checks still precede
-deduplication. Only configuration errors from child preparation receive a member
-path prefix; raw filesystem errors propagate unchanged. New lint calls and other
-PMs do not share the member cache.
-
-Root and member evaluation calls list their inputs explicitly. Member findings
-are then copied into repository-relative output, including manual instructions,
-without changing root findings or the remediation returned by a rule. These
-internal preparation contracts live beside their use cases, not in the
-adapter-facing `core/contracts/` boundary or the public package exports.
-
-Security intents remain grouped by rule, not by PM. `DateTime.now()` reads epoch
-milliseconds at evaluation time; `DateTime.parse()` retains native parsing,
-including the host timezone for offsetless npm cutoffs. The built-in publication
-IDs selected in `core/rules/builtin-rules.ts` run on members; custom rules and installation
-policy remain root-only. Member remediation is only proposed, never applied.
+There is no PM workspace declaration expansion, alias resolver, ordered selection,
+member parity layer or second legacy scanner. The sole matcher implements siro's
+small common directory-exclusion contract.
 
 ## Changes and verification
 
-Keep contracts small and describe absence and failures where they are produced.
-Do not add internal ports to the public package solely for private consumers. To
-change workspace semantics, test declaration selection, real adapter behavior,
-public API and CLI failure propagation separately. In particular, a Deno literal
-resolved via a native alias must retain its explicit-member status when checking
-for a missing manifest; this is different from a negative path's lexical match.
+Test observable input scope, generic/PM-specific findings, native and injected FS
+safety, local PM/version boundaries, cache reuse, immutable remedy paths and real
+API/CLI failure propagation. Do not fix traversal order or unrelated failure order.
+Do not expose internal ports solely for private consumers.
 
-`pnpm verify` includes typecheck, lint/format, dead-code checking, generated rule
-docs and behavioral tests. `pnpm test:package` tests the packed, installed API,
-strict exported types and the executable's exit codes. The direction gate is not
-an architectural verdict by itself: verify API/CLI output, rule ordering, error
-propagation and PM behavior as well. Keep the public facade, JSON schema,
-synchronous `lint`, asynchronous `lintCommand`, public `loadConfig` semantics and
-child publication scope stable during internal relocation.
+`pnpm verify` runs types, lint/format, dead-code checking, generated-doc checking
+and behavioral tests. `pnpm test:package` packs and installs the public artifact,
+checking strict types, API and executable exits. Documentation generators own
+`rules.md`, `comparison.md` and ignored Typedoc output.

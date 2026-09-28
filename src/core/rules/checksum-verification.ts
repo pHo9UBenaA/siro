@@ -8,6 +8,7 @@ export const checksumVerification = requireConfigKey({
     yarn: {
       docs: 'https://yarnpkg.com/configuration/yarnrc#checksumBehavior',
       documentedDefault: 'throw',
+      defaultSafety: 'unconditional',
       file: yarnrc,
       keyPath: ['checksumBehavior'],
       message:

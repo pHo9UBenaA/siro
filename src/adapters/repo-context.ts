@@ -34,11 +34,13 @@ export const createRepoContext = (
   if (fs === nodeFileSystem) assertDirectory(root);
   const packageFile = resolveIn(root, asRelPath('package.json'));
   // The manifest and a rule's JSON codec must see the same bytes within this context.
-  // Other paths remain live reads; this is not a repository-wide FS snapshot.
+  // Successful reads (including absence) belong to this context, not a global snapshot.
   const raw = fs.readText(packageFile);
+  const texts = new Map<AbsPath, string | undefined>([[packageFile, raw]]);
   const readText = (relPath: RelPath): string | undefined => {
     const file = resolveIn(root, relPath);
-    return file === packageFile ? raw : fs.readText(file);
+    if (!texts.has(file)) texts.set(file, fs.readText(file));
+    return texts.get(file);
   };
   const exists = (relPath: RelPath): boolean => fs.exists(resolveIn(root, relPath));
   let packageJson: PackageJson | undefined = void 0;

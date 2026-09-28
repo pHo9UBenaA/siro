@@ -17,14 +17,17 @@ export const filterBySeverity = (result: LintResult, threshold: Severity): LintR
       summary[finding.severity] += 1;
     }
   }
-  return { findings, summary };
+  return { ...result, findings, summary };
 };
 
 /**
  * Exit code for a lint run. Non-zero when any finding meets `threshold`
  * (default: only `error` fails the run).
  */
-export const exitCodeForLint = (result: LintResult, threshold: Severity = 'error'): number => {
+export const exitCodeForLint = (
+  result: Pick<LintResult, 'findings'>,
+  threshold: Severity = 'error',
+): number => {
   if (result.findings.some((finding) => meetsThreshold(finding.severity, threshold))) {
     return EXIT_FAILURE;
   }

@@ -1,3 +1,4 @@
+import type { InstallationRootInput } from './inspection-options.ts';
 import type { PM, Severity } from './contracts/pms.ts';
 import type { BuiltinRuleId } from './rules/builtin-rules.ts';
 import type { Reporter } from './contracts/reporter.ts';
@@ -18,6 +19,9 @@ export type RuleSetting = Severity | 'off';
  *   })
  */
 export interface SiroConfig {
+  readonly exclude?: readonly string[];
+  /** Replaces the default ['.']; [] disables installation checks, not manifest checks. */
+  readonly installationRoots?: readonly InstallationRootInput[];
   readonly pms?: readonly PM[];
   /** Exact stable target versions; does not select managers or inspect installed binaries. */
   readonly pmVersions?: Readonly<Partial<Record<PM, string>>>;

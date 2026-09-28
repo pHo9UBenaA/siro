@@ -15,7 +15,6 @@ import {
   type Reporter,
   type SiroConfig,
 } from '../../src/index.ts';
-import { createMemFileSystem } from '../helpers/memfs.ts';
 import { npmGoodFs } from '../helpers/fixtures.ts';
 import { captureIO } from '../helpers/io.ts';
 
@@ -37,6 +36,7 @@ it.each(['package.json', './package.json'])(
     let reads = 0;
     const manifest = path.join('/repo', 'package.json');
     const fs: FileSystem = {
+      readDirectories: () => [],
       exists: () => false,
       readText: (file) => {
         if (file !== manifest) return undefined;
@@ -154,31 +154,6 @@ it.each(['unknown', { name: 'broken' }])(
     ).rejects.toThrow(UsageError);
   },
 );
-
-it('validates member manifests before selecting a reporter', async () => {
-  const { io, out, err } = captureIO();
-  await expect(
-    lintCommand(
-      {
-        cwd: asAbsPath('/repo'),
-        pm: 'npm',
-        workspaces: true,
-        reporter: 'unknown',
-        fs: {
-          ...createMemFileSystem({
-            'package.json': '{"private":true,"workspaces":["child"]}',
-            'child/package.json': '{',
-          }),
-          readDirectories: (directory) =>
-            directory.replaceAll('\\', '/') === '/repo' ? ['child'] : [],
-        },
-      },
-      io,
-    ),
-  ).rejects.toThrow('child/package.json: invalid JSON');
-  expect(out()).toBe('');
-  expect(err()).toBe('');
-});
 
 it('rejects an unknown reporter before running any rule', async () => {
   const check = vi.fn<() => CheckStatus>(() => {
@@ -303,7 +278,7 @@ it('keeps the lint exit decision independent of reporter mutations', async () =>
     {
       cwd: asAbsPath('/virtual'),
       pm: 'npm',
-      fs: { exists: () => false, readText: () => undefined },
+      fs: { readDirectories: () => [], exists: () => false, readText: () => undefined },
       reporter: {
         name: 'mutating',
         format(result) {

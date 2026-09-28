@@ -45,11 +45,9 @@ const renderFinding = (
   },
 ): void => {
   let where = '';
-  if (finding.file) {
-    where = ctx.colors.dim(` (${finding.file})`);
-  }
+  where = ctx.colors.dim(` (${finding.file ?? finding.directory})`);
   ctx.io.stdout(
-    `${ctx.tag[finding.severity](GLYPH[finding.severity])}  [${finding.pm}] ${ctx.colors.bold(finding.ruleId)}${where}`,
+    `${ctx.tag[finding.severity](GLYPH[finding.severity])}  [${finding.pm ?? 'package'}] ${ctx.colors.bold(finding.ruleId)}${where}`,
   );
   ctx.io.stdout(`    ${finding.message}`);
   for (const step of finding.remediation?.kind === 'manual' ? finding.remediation.steps : []) {
@@ -79,6 +77,12 @@ const buildRenderCtx = (
 export const prettyReporter: Reporter<'pretty'> = {
   format(result: LintResult, io: IO): void {
     const ctx = buildRenderCtx(io);
+    io.stdout(
+      `Inspection: ${result.inspection.manifests.length} manifests; installation roots: ${result.inspection.installationRoots.map((root) => root.directory).join(', ') || 'none'}.`,
+    );
+    io.stdout(
+      'Unknown PM/version targets have no availability assessment; installation scope is explicit.',
+    );
     if (result.findings.length === 0) {
       io.stdout(ctx.colors.green('✔ No security best-practice issues found.'));
       return;

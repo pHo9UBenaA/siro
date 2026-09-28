@@ -1,6 +1,8 @@
 import { CONFIG_FILES } from '../config-files.ts';
 import { isPublishable } from './publishable.ts';
-import { requireConfigKey } from './builders/require-config-key.ts';
+import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
+import { proposeChanges } from './remediation.ts';
+import { guardRemediationAvailability } from './remediation-availability.ts';
 
 const { npmrc, yarnrc } = CONFIG_FILES;
 
@@ -11,7 +13,7 @@ const npmrcProvenance = {
   value: true,
 };
 
-export const provenance = requireConfigKey({
+const baseRule = requireConfigKey({
   applies: isPublishable,
   bindings: {
     bun: {
@@ -45,4 +47,34 @@ export const provenance = requireConfigKey({
   projectTypes: ['package'],
   severity: 'warn',
   title: 'Publish with provenance',
+});
+
+export const provenance = overrideBindings(baseRule, {
+  npm: {
+    ...baseRule.bindings.npm,
+    check(ctx, config) {
+      if (!isPublishable(ctx)) return { state: 'na' };
+      const publishConfig = ctx.packageJson?.publishConfig;
+      if (!publishConfig || !Object.hasOwn(publishConfig, 'provenance')) {
+        return baseRule.bindings.npm!.check(ctx, config);
+      }
+      if (publishConfig.provenance === true) return { state: 'ok' };
+      const file = CONFIG_FILES.packageJson;
+      return {
+        state: 'violation',
+        file: file.path,
+        actual: publishConfig.provenance,
+        expected: true,
+        message:
+          'Set publishConfig.provenance=true in package.json (and publish from CI) to attest releases.',
+        remediation: guardRemediationAvailability(
+          'npm',
+          ctx.pmVersion,
+          proposeChanges(ctx.readConfig(file), [
+            { file, op: 'setKey', keyPath: ['publishConfig', 'provenance'], value: true },
+          ]),
+        ),
+      };
+    },
+  },
 });
