@@ -8,7 +8,7 @@ export const compileExclusions: CompileExclusions = (patterns) => {
       (pattern) =>
         new Minimatch(
           // A trailing globstar also excludes its base directory before it is read.
-          pattern.replace(/(?:\/\*\*)+$/u, '').replace(/[[\]]/gu, '\\$&'),
+          pattern.replace(/(?:\/\*\*)+$/u, '').replace(/[\\[\]]/gu, '\\$&'),
           {
             dot: true,
             nocase: false,
@@ -16,7 +16,8 @@ export const compileExclusions: CompileExclusions = (patterns) => {
             nocomment: true,
             nobrace: true,
             noext: true,
-            // Escape brackets: only *, ? and whole-component ** are operators.
+            // Escape brackets and the escape character itself. Only *, ?
+            // and whole-component ** are operators; no second escape language.
             platform: 'linux',
           },
         ),

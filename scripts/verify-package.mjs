@@ -32,15 +32,6 @@ function run(command, args, cwd = consumer, status = 0) {
   if (command === 'pnpm') {
     ({ command, args } = pnpmCommand(args));
   }
-  if (process.platform === 'win32') {
-    if (command.endsWith('siro.cmd')) {
-      // Exercise the installed Windows shim. All CLI arguments below are fixed
-      // test inputs; use a relative executable to avoid quoting the temp path.
-      assert.ok(args.every((arg) => /^[\w./-]+$/u.test(arg)));
-      args = ['/d', '/s', '/c', `node_modules\\.bin\\siro.cmd ${args.join(' ')}`];
-      command = process.env.ComSpec ?? 'cmd.exe';
-    }
-  }
   const result = spawnSync(command, args, {
     cwd,
     encoding: 'utf8',
@@ -56,6 +47,22 @@ function run(command, args, cwd = consumer, status = 0) {
     `${command} ${args.join(' ')}\n${result.stdout}\n${result.stderr}`,
   );
   return result.stdout;
+}
+
+// Keep shell execution out of the general runner: pnpm entries, tarball names
+// and absolute paths must never become cmd.exe command text. Only this shim
+// probe accepts fixed CLI tokens; it rejects shell metacharacters before launch.
+function runCli(args, cwd = consumer, status = 0) {
+  if (process.platform === 'win32') {
+    assert.ok(args.every((arg) => /^[\w./-]+$/u.test(arg)));
+    return run(
+      process.env.ComSpec ?? 'cmd.exe',
+      ['/d', '/s', '/c', `node_modules\\.bin\\siro.cmd ${args.join(' ')}`],
+      cwd,
+      status,
+    );
+  }
+  return run(join(consumer, 'node_modules/.bin/siro'), args, cwd, status);
 }
 
 try {
@@ -119,11 +126,10 @@ try {
   run(process.execPath, ['consumer.mts']);
 
   // Use the installed executable link, including its shebang and package bin mapping.
-  const cli = join(consumer, `node_modules/.bin/siro${process.platform === 'win32' ? '.cmd' : ''}`);
-  assert.equal(run(cli, ['--version']).trim(), manifest.version);
+  assert.equal(runCli(['--version']).trim(), manifest.version);
   cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'good'), { recursive: true });
   cpSync(join(root, 'test/fixtures/npm-bad'), join(consumer, 'bad'), { recursive: true });
-  const report = JSON.parse(run(cli, ['lint', 'good', '--json']));
+  const report = JSON.parse(runCli(['lint', 'good', '--json']));
   assert.equal(report.schemaVersion, 3);
   assert.equal(report.inspection.installationRoots[0].directory, '.');
   assert.equal(report.siroVersion, manifest.version);
@@ -144,12 +150,12 @@ try {
     closeSync(readOnly);
   }
   const versionReport = JSON.parse(
-    run(cli, ['lint', 'good', '--pm', 'npm', '--pm-version', '11.9.0', '--json'], consumer, 1),
+    runCli(['lint', 'good', '--pm', 'npm', '--pm-version', '11.9.0', '--json'], consumer, 1),
   );
   assert.ok(versionReport.findings.some((finding) => finding.ruleId === 'unsupported-settings'));
-  run(cli, ['lint', 'good', '--pm', 'npm', '--pm-version', '11.10.0']);
-  run(cli, ['lint', 'good', '--pm-version', '11.10.0'], consumer, 2);
-  run(cli, ['lint', 'bad'], consumer, 1);
+  runCli(['lint', 'good', '--pm', 'npm', '--pm-version', '11.10.0']);
+  runCli(['lint', 'good', '--pm-version', '11.10.0'], consumer, 2);
+  runCli(['lint', 'bad'], consumer, 1);
   cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'workspace'), { recursive: true });
   const workspaceManifest = JSON.parse(
     readFileSync(join(consumer, 'workspace/package.json'), 'utf8'),
@@ -164,17 +170,16 @@ try {
     join(consumer, 'workspace/siro.config.mjs'),
     "export default { rules: { 'files-field': 'error' } };\n",
   );
-  run(cli, ['lint', 'workspace', '--exclude', 'child']);
-  run(cli, ['lint', 'workspace', '--workspaces'], consumer, 2);
-  const workspaceReport = JSON.parse(run(cli, ['lint', 'workspace', '--json'], consumer, 1));
+  runCli(['lint', 'workspace', '--exclude', 'child']);
+  runCli(['lint', 'workspace', '--workspaces'], consumer, 2);
+  const workspaceReport = JSON.parse(runCli(['lint', 'workspace', '--json'], consumer, 1));
   assert.ok(
     workspaceReport.findings.some(
       (finding) => finding.ruleId === 'files-field' && finding.file === 'child/package.json',
     ),
   );
   const installedScope = JSON.parse(
-    run(
-      cli,
+    runCli(
       ['lint', 'workspace', '--installation-root', '.', '--installation-root', 'child', '--json'],
       consumer,
       2,
@@ -186,20 +191,19 @@ try {
     '{"name":"child","packageManager":"npm@12.0.2"}',
   );
   const expandedScope = JSON.parse(
-    run(
-      cli,
+    runCli(
       ['lint', 'workspace', '--installation-root', '.', '--installation-root', 'child', '--json'],
       consumer,
       1,
     ),
   );
   assert.equal(expandedScope.inspection.installationRoots.length, 2);
-  run(cli, ['--invalid-option'], consumer, 2);
+  runCli(['--invalid-option'], consumer, 2);
   writeFileSync(
     join(consumer, 'good/siro.config.mjs'),
     "export default { reporters: [{ name: 'crash', format() { throw new Error('Package verification crash probe'); } }] };\n",
   );
-  run(cli, ['lint', 'good', '--reporter', 'crash'], consumer, 70);
+  runCli(['lint', 'good', '--reporter', 'crash'], consumer, 70);
   // Retain the verified bytes for publication without packing a second time.
   if (output) copyFileSync(tarball, output);
   console.log(
