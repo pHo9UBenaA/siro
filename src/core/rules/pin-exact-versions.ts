@@ -100,7 +100,7 @@ const npmBinding: RuleBinding = {
 
 const aubeBinding: RuleBinding = {
   file: npmrc,
-  docs: 'https://aube.jdx.dev/settings/#saveprefix',
+  docs: 'https://aube.sh/settings/#setting-saveprefix',
   check(_ctx, config) {
     const prefixes = ['save-prefix', 'savePrefix']
       .filter((key) => Object.hasOwn(config, key))
@@ -148,7 +148,7 @@ const baseRule = requireConfigKey({
   },
   description:
     'Semver ranges (^, ~) auto-adopt new releases, including compromised ones. Save exact versions by default; for Deno, inspect registry mappings in both inline imports and scopes (not external import maps).',
-  docs: 'https://github.com/bodadotsh/npm-security-best-practices#1-pin-dependency-versions',
+  docs: 'https://github.com/bodadotsh/npm-security-best-practices#4-pin-dependency-versions',
   id: 'pin-exact-versions',
   severity: 'error',
   title: 'Pin exact dependency versions',

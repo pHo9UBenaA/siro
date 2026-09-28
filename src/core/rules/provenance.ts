@@ -42,7 +42,7 @@ const baseRule = requireConfigKey({
   },
   description:
     'Provenance statements (via Sigstore) bind a published artifact to its recorded source and build.',
-  docs: 'https://github.com/bodadotsh/npm-security-best-practices#10-generate-provenance-statements',
+  docs: 'https://github.com/bodadotsh/npm-security-best-practices#11-generate-provenance-statements',
   id: 'provenance',
   projectTypes: ['package'],
   severity: 'warn',

@@ -60,7 +60,7 @@ export const denoPublishBinding: RuleBinding = {
       state: 'violation',
     };
   },
-  docs: 'https://docs.deno.com/runtime/reference/cli/publish/#how-publishing-works',
+  docs: 'https://docs.deno.com/runtime/reference/deno_json/#publish---override-.gitignore',
   file: denoJson,
 };
 
@@ -75,7 +75,7 @@ export const filesField = defineRule({
   },
   description:
     'An explicit `files` array in package.json restricts what gets published, preventing accidental inclusion of secrets or local files.',
-  docs: 'https://github.com/bodadotsh/npm-security-best-practices#11-review-published-files',
+  docs: 'https://github.com/bodadotsh/npm-security-best-practices#12-review-published-files',
   id: 'files-field',
   projectTypes: ['package'],
   severity: 'info',

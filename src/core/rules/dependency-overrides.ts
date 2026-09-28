@@ -40,11 +40,15 @@ const makeBinding = (file: ConfigFileRef, fileName: string, docs: string): RuleB
 export const dependencyOverrides = defineRule({
   bindings: {
     aube: makeBinding(aubeWorkspace, 'aube-workspace.yaml', 'https://aube.sh/settings/'),
-    pnpm: makeBinding(pnpmWorkspace, 'pnpm-workspace.yaml', 'https://pnpm.io/settings#overrides'),
+    pnpm: makeBinding(
+      pnpmWorkspace,
+      'pnpm-workspace.yaml',
+      'https://pnpm.io/settings/dependency-resolution#overrides',
+    ),
   },
   description:
     'Flag dependency overrides that can replace transitive packages with arbitrary versions or forks — a supply-chain injection vector.',
-  docs: 'https://pnpm.io/settings#overrides',
+  docs: 'https://pnpm.io/settings/dependency-resolution#overrides',
   id: 'dependency-overrides',
   severity: 'info',
   title: 'Review dependency overrides',

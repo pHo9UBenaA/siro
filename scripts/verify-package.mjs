@@ -26,19 +26,20 @@ assert.ok(
   'Usage: pnpm test:package [package.tgz | --output package.tgz]',
 );
 let tarball = cliArgs.length === 1 ? resolve(cliArgs[0]) : undefined;
-const consumer = mkdtempSync(join(tmpdir(), 'siro-consumer-'));
+// Exercise literal native paths throughout packing, installation and CLI launches.
+const consumer = mkdtempSync(join(tmpdir(), 'siro-consumer & spaces-'));
+const processOptions = {
+  encoding: 'utf8',
+  timeout: 120_000,
+  maxBuffer: 4 * 1024 * 1024,
+  env: { ...process.env, NODE_PATH: '', NODE_OPTIONS: '' },
+};
 
 function run(command, args, cwd = consumer, status = 0) {
   if (command === 'pnpm') {
     ({ command, args } = pnpmCommand(args));
   }
-  const result = spawnSync(command, args, {
-    cwd,
-    encoding: 'utf8',
-    timeout: 120_000,
-    maxBuffer: 4 * 1024 * 1024,
-    env: { ...process.env, NODE_PATH: '', NODE_OPTIONS: '' },
-  });
+  const result = spawnSync(command, args, { ...processOptions, cwd });
   assert.ifError(result.error);
   assert.equal(result.signal, null, `${command} terminated by ${result.signal}`);
   assert.equal(
@@ -49,20 +50,20 @@ function run(command, args, cwd = consumer, status = 0) {
   return result.stdout;
 }
 
-// Keep shell execution out of the general runner: pnpm entries, tarball names
-// and absolute paths must never become cmd.exe command text. Only this shim
-// probe accepts fixed CLI tokens; it rejects shell metacharacters before launch.
-function runCli(args, cwd = consumer, status = 0) {
-  if (process.platform === 'win32') {
-    assert.ok(args.every((arg) => /^[\w./-]+$/u.test(arg)));
-    return run(
-      process.env.ComSpec ?? 'cmd.exe',
-      ['/d', '/s', '/c', `node_modules\\.bin\\siro.cmd ${args.join(' ')}`],
-      cwd,
-      status,
-    );
-  }
-  return run(join(consumer, 'node_modules/.bin/siro'), args, cwd, status);
+// The only shell launch is this fixed Windows shim probe. No arguments, paths
+// or environment values are interpolated into command text or routed through run.
+function installedShimVersion() {
+  if (process.platform !== 'win32')
+    return run(join(consumer, 'node_modules/.bin/siro'), ['--version']);
+  const result = spawnSync(
+    'cmd.exe',
+    ['/d', '/s', '/c', 'node_modules\\.bin\\siro.cmd --version'],
+    { ...processOptions, cwd: consumer },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.signal, null);
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  return result.stdout;
 }
 
 try {
@@ -101,6 +102,10 @@ try {
   );
   assert.equal(installed.name, manifest.name);
   assert.equal(installed.version, manifest.version);
+  const installedBin = join(consumer, 'node_modules', manifest.name, installed.bin.siro);
+  // All variable CLI arguments stay literal Node argv, including on Windows.
+  const runCli = (args, cwd = consumer, status = 0) =>
+    run(process.execPath, [installedBin, ...args], cwd, status);
 
   cpSync(join(root, 'test/package/consumer.mts'), join(consumer, 'consumer.mts'));
   writeFileSync(
@@ -126,23 +131,27 @@ try {
   run(process.execPath, ['consumer.mts']);
 
   // Use the installed executable link, including its shebang and package bin mapping.
-  assert.equal(runCli(['--version']).trim(), manifest.version);
+  assert.equal(installedShimVersion().trim(), manifest.version);
   cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'good'), { recursive: true });
   cpSync(join(root, 'test/fixtures/npm-bad'), join(consumer, 'bad'), { recursive: true });
   const report = JSON.parse(runCli(['lint', 'good', '--json']));
   assert.equal(report.schemaVersion, 3);
   assert.equal(report.inspection.installationRoots[0].directory, '.');
   assert.equal(report.siroVersion, manifest.version);
+  const literalTarget = 'fixture & literal';
+  cpSync(join(consumer, 'good'), join(consumer, literalTarget), { recursive: true });
+  assert.deepEqual(JSON.parse(runCli(['lint', literalTarget, '--json'])), report);
   // Exercise the installed executable against an actual unwritable output fd.
   const outputFile = join(consumer, 'readonly-output');
   writeFileSync(outputFile, '');
   const readOnly = openSync(outputFile, 'r');
   try {
-    const failedOutput = spawnSync(
-      process.execPath,
-      [join(consumer, 'node_modules', manifest.name, installed.bin.siro), 'lint', 'good', '--json'],
-      { cwd: consumer, encoding: 'utf8', stdio: ['ignore', readOnly, 'pipe'], timeout: 10_000 },
-    );
+    const failedOutput = spawnSync(process.execPath, [installedBin, 'lint', 'good', '--json'], {
+      cwd: consumer,
+      encoding: 'utf8',
+      stdio: ['ignore', readOnly, 'pipe'],
+      timeout: 10_000,
+    });
     assert.ifError(failedOutput.error);
     assert.equal(failedOutput.status, 70, failedOutput.stderr);
     assert.match(failedOutput.stderr, /Output failed/);

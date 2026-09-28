@@ -43,16 +43,26 @@ selected threshold; exit `1` means there are findings. Usage/configuration error
 without completing the check; unexpected failures exit `70`. Errors fail CI by default. siro
 suggests fixes but **does not edit files**: review changes and rerun the linter.
 
-For regular use, install it as a dev dependency with
-`npm install --save-dev --save-exact @pho9ubenaa/siro` and run `siro lint` in your CI script.
+For regular use, install it with `npm install --save-dev --save-exact @pho9ubenaa/siro`
+and add a package script:
+
+```json
+{
+  "scripts": { "lint:security": "siro lint" }
+}
+```
+
+After installing dependencies in CI, run `npm run lint:security`. A local install
+makes `siro` available to package scripts, not to every shell or Git hook.
+For exclusions and rule overrides, see the [configuration examples](docs/configuration.md).
 
 ## Common CLI options
 
-`check` is an alias for `lint`. Run `siro lint --help` for the complete CLI syntax.
+`check` is an alias for `lint`. Run `npx @pho9ubenaa/siro lint --help` for the complete CLI syntax.
 
 | Option                                    | Use                                                                                       |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Inspect one manager instead of auto-detection.                                            |
+| `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Select one manager at cwd; additional installation roots retain their own targets.        |
 | `--pm-version <x.y.z>`                    | Supply an exact stable target version (requires `--pm`); it does not run an installed PM. |
 | `--project-type <application\|package>`   | Choose whether publication safeguards apply; omitted means infer from publish metadata.   |
 | `--exclude <pattern>`                     | Prune directories from recursive discovery (repeatable).                                  |

@@ -17,7 +17,7 @@ const builtRule = requireConfigKey({
       value: 'no-downgrade',
     },
     pnpm: {
-      docs: 'https://pnpm.io/settings#trustpolicy',
+      docs: 'https://pnpm.io/settings/dependency-resolution#trustpolicy',
       file: pnpmWorkspace,
       keyPath: ['trustPolicy'],
       message:
@@ -28,7 +28,7 @@ const builtRule = requireConfigKey({
   },
   description:
     'Fail installation when a package trust level has decreased compared to previous releases, catching publisher credential downgrades.',
-  docs: 'https://pnpm.io/settings#trustpolicy',
+  docs: 'https://pnpm.io/settings/dependency-resolution#trustpolicy',
   id: 'trust-policy',
   severity: 'warn',
   title: 'Enforce trust policy on dependency updates',

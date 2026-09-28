@@ -58,12 +58,12 @@ Upstream: <https://bun.sh/docs/runtime/bunfig#install-auto>
 
 Refuse to install transitive dependencies sourced from git or tarball URLs, which bypass registry integrity checking.
 Inspection scope: Explicit installation roots only (local settings).
-Upstream: <https://pnpm.io/settings#blockexoticsubdeps>
+Upstream: <https://pnpm.io/settings/dependency-resolution#blockexoticsubdeps>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
 | `npm` | `.npmrc` | warn | (default safe since npm 12.0.0) | [official docs](https://docs.npmjs.com/cli/v12/using-npm/config#allow-git) |
-| `pnpm` | `pnpm-workspace.yaml` | warn | (available since pnpm 10.26.0; default safe since pnpm 10.26.0) | [official docs](https://pnpm.io/settings#blockexoticsubdeps) |
+| `pnpm` | `pnpm-workspace.yaml` | warn | (available since pnpm 10.26.0; default safe since pnpm 10.26.0) | [official docs](https://pnpm.io/settings/dependency-resolution#blockexoticsubdeps) |
 | `aube` | `aube-workspace.yaml` | warn | — | [official docs](https://aube.jdx.dev/security.html) |
 
 ## `bun-security-scanner` — info
@@ -90,7 +90,7 @@ Upstream: <https://yarnpkg.com/configuration/yarnrc#checksumBehavior>
 
 Lockfiles pin the full dependency tree and integrity hashes, enabling reproducible, verifiable installs (e.g. `npm ci`).
 Inspection scope: Explicit installation roots only (local settings).
-Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lockfiles>
+Upstream: <https://github.com/bodadotsh/npm-security-best-practices#3-include-lockfiles>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
@@ -98,30 +98,30 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lo
 | `pnpm` | Repository | error | — | [official docs](https://pnpm.io/git#lockfiles) |
 | `yarn` | Repository | error | — | [official docs](https://yarnpkg.com/getting-started/qa#should-lockfiles-be-committed-to-the-repository) |
 | `bun` | Repository | error | — | [official docs](https://bun.com/docs/install/lockfile) |
-| `deno` | `deno.json` | error | (available since deno 1.28.0) | [official docs](https://docs.deno.com/runtime/fundamentals/modules/#integrity-checking-and-lock-files) |
+| `deno` | `deno.json` | error | (available since deno 1.28.0) | [official docs](https://docs.deno.com/runtime/reference/deno_json/#lockfile) |
 | `aube` | Repository | error | — | [official docs](https://github.com/aubepkg/aube/blob/main/docs/package-manager/lockfiles.md) |
 
 ## `dependency-overrides` — info
 
 Flag dependency overrides that can replace transitive packages with arbitrary versions or forks — a supply-chain injection vector.
 Inspection scope: Explicit installation roots only (local settings).
-Upstream: <https://pnpm.io/settings#overrides>
+Upstream: <https://pnpm.io/settings/dependency-resolution#overrides>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
-| `pnpm` | `pnpm-workspace.yaml` | info | — | [official docs](https://pnpm.io/settings#overrides) |
+| `pnpm` | `pnpm-workspace.yaml` | info | — | [official docs](https://pnpm.io/settings/dependency-resolution#overrides) |
 | `aube` | `aube-workspace.yaml` | info | — | [official docs](https://aube.sh/settings/) |
 
 ## `disable-lifecycle-scripts` — error
 
 Malicious postinstall scripts are a primary supply-chain attack vector. Prevent automatic execution of dependency lifecycle scripts.
 Inspection scope: Explicit installation roots only (local settings).
-Upstream: <https://github.com/bodadotsh/npm-security-best-practices#3-disable-lifecycle-scripts>
+Upstream: <https://github.com/bodadotsh/npm-security-best-practices#1-disable-lifecycle-scripts>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
 | `npm` | `.npmrc` | error | — | [official docs](https://docs.npmjs.com/cli/v11/using-npm/config#ignore-scripts) |
-| `pnpm` | `pnpm-workspace.yaml` | error | (available since pnpm 10.3.0; default safe since pnpm 11.0.0; pnpm-workspace.yaml settings require pnpm 10.6.0) | [official docs](https://pnpm.io/settings#strictdepbuilds) |
+| `pnpm` | `pnpm-workspace.yaml` | error | (available since pnpm 10.3.0; default safe since pnpm 11.0.0; pnpm-workspace.yaml settings require pnpm 10.6.0) | [official docs](https://pnpm.io/settings/build#strictdepbuilds) |
 | `yarn` | `.yarnrc.yml` | error | (available since yarn 2.0.0; default safe since yarn 4.14.0) | [official docs](https://yarnpkg.com/configuration/yarnrc#enableScripts) |
 | `bun` | `bunfig.toml` | info | (available since bun 1.2.0) | [official docs](https://bun.com/docs/pm/lifecycle) |
 | `aube` | `aube-workspace.yaml` | error | — | [official docs](https://aube.jdx.dev/security.html) |
@@ -142,7 +142,7 @@ Upstream: <https://docs.npmjs.com/cli/v11/using-npm/config#strict-ssl>
 An explicit `files` array in package.json restricts what gets published, preventing accidental inclusion of secrets or local files.
 Inspection scope: Every discovered manifest, with PM-neutral checks once per manifest.
 Applies to: package.
-Upstream: <https://github.com/bodadotsh/npm-security-best-practices#11-review-published-files>
+Upstream: <https://github.com/bodadotsh/npm-security-best-practices#12-review-published-files>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
@@ -150,21 +150,21 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#11-review-pu
 | `pnpm` | `package.json` | info | — | [official docs](https://docs.npmjs.com/cli/v11/configuring-npm/package-json#files) |
 | `yarn` | `package.json` | info | — | [official docs](https://docs.npmjs.com/cli/v11/configuring-npm/package-json#files) |
 | `bun` | `package.json` | info | — | [official docs](https://docs.npmjs.com/cli/v11/configuring-npm/package-json#files) |
-| `deno` | `deno.json` | info | — | [official docs](https://docs.deno.com/runtime/reference/cli/publish/#how-publishing-works) |
+| `deno` | `deno.json` | info | — | [official docs](https://docs.deno.com/runtime/reference/deno_json/#publish---override-.gitignore) |
 | `aube` | `package.json` | info | — | [official docs](https://docs.npmjs.com/cli/v11/configuring-npm/package-json#files) |
 
 ## `frozen-lockfile` — warn
 
 Refuse to mutate the lockfile on install so unexpected dependency changes fail loudly.
 Inspection scope: Explicit installation roots only (local settings).
-Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-include-lockfiles>
+Upstream: <https://github.com/bodadotsh/npm-security-best-practices#3-include-lockfiles>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
-| `pnpm` | `pnpm-workspace.yaml` | warn | — | [official docs](https://pnpm.io/settings#frozenlockfile) |
+| `pnpm` | `pnpm-workspace.yaml` | warn | — | [official docs](https://pnpm.io/cli/install#--frozen-lockfile) |
 | `yarn` | `.yarnrc.yml` | warn | (available since yarn 2.0.0; default safe since yarn 3.0.0 in CI) | [official docs](https://yarnpkg.com/configuration/yarnrc#enableImmutableInstalls) |
 | `bun` | `bunfig.toml` | warn | (available since bun 0.6.10) | [official docs](https://bun.com/docs/runtime/bunfig#install-frozenlockfile) |
-| `deno` | `deno.json` | warn | — | [official docs](https://docs.deno.com/runtime/fundamentals/configuration/#lock) |
+| `deno` | `deno.json` | warn | — | [official docs](https://docs.deno.com/runtime/reference/deno_json/#lockfile) |
 | `aube` | Repository | info | — | [official docs](https://github.com/aubepkg/aube/blob/main/docs/cli/ci.md) |
 
 ## `frozen-store` — info
@@ -191,12 +191,12 @@ Upstream: <https://yarnpkg.com/configuration/yarnrc#enableHardenedMode>
 
 Refuse to install releases newer than a cooldown window so freshly published (possibly compromised) versions are skipped.
 Inspection scope: Explicit installation roots only (local settings).
-Upstream: <https://github.com/bodadotsh/npm-security-best-practices#set-minimal-release-age>
+Upstream: <https://github.com/bodadotsh/npm-security-best-practices#2-set-cooldowns--minimum-release-age>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
 | `npm` | `.npmrc` | warn | (min-release-age available since npm 11.10.0) | [official docs](https://docs.npmjs.com/cli/v12/using-npm/config#min-release-age) |
-| `pnpm` | `pnpm-workspace.yaml` | warn | (available since pnpm 10.16.0; default safe since pnpm 11.0.0 (1440 minutes)) | [official docs](https://pnpm.io/settings#minimumreleaseage) |
+| `pnpm` | `pnpm-workspace.yaml` | warn | (available since pnpm 10.16.0; default safe since pnpm 11.0.0 (1440 minutes)) | [official docs](https://pnpm.io/settings/dependency-resolution#minimumreleaseage) |
 | `yarn` | `.yarnrc.yml` | warn | (available since yarn 4.10.0; default safe since yarn 4.15.0 (1440 minutes)) | [official docs](https://yarnpkg.com/configuration/yarnrc#npmMinimalAgeGate) |
 | `bun` | `bunfig.toml` | warn | (available since bun 1.3.0) | [official docs](https://bun.com/docs/runtime/bunfig#install-minimumreleaseage) |
 | `deno` | `deno.json` | warn | (default safe since deno 2.9.0 (1440 minutes); object age may be omitted; project .npmrc fallback available since deno 2.8.1) | [official docs](https://docs.deno.com/runtime/reference/deno_json/) |
@@ -206,11 +206,11 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#set-minimal-
 
 Flag named registry mappings that redirect package resolution to custom registries, which may enable dependency confusion attacks.
 Inspection scope: Explicit installation roots only (local settings).
-Upstream: <https://pnpm.io/settings#namedregistries>
+Upstream: <https://pnpm.io/settings/dependency-resolution#namedregistries>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
-| `pnpm` | `pnpm-workspace.yaml` | info | — | [official docs](https://pnpm.io/settings#namedregistries) |
+| `pnpm` | `pnpm-workspace.yaml` | info | — | [official docs](https://pnpm.io/settings/dependency-resolution#namedregistries) |
 
 ## `paranoid-mode` — info
 
@@ -226,17 +226,17 @@ Upstream: <https://aube.jdx.dev/security.html>
 
 Review local patches separately from the registry artifacts they modify.
 Inspection scope: Explicit installation roots only (local settings).
-Upstream: <https://pnpm.io/settings#patcheddependencies>
+Upstream: <https://pnpm.io/cli/patch#patcheddependencies>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
-| `pnpm` | `pnpm-workspace.yaml` | info | — | [official docs](https://pnpm.io/settings#patcheddependencies) |
+| `pnpm` | `pnpm-workspace.yaml` | info | — | [official docs](https://pnpm.io/cli/patch#patcheddependencies) |
 
 ## `pin-exact-versions` — error
 
 Semver ranges (^, ~) auto-adopt new releases, including compromised ones. Save exact versions by default; for Deno, inspect registry mappings in both inline imports and scopes (not external import maps).
 Inspection scope: Explicit installation roots only (local settings).
-Upstream: <https://github.com/bodadotsh/npm-security-best-practices#1-pin-dependency-versions>
+Upstream: <https://github.com/bodadotsh/npm-security-best-practices#4-pin-dependency-versions>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
@@ -245,7 +245,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#1-pin-depend
 | `yarn` | `.yarnrc.yml` | error | (available since yarn 2.0.0) | [official docs](https://yarnpkg.com/configuration/yarnrc#defaultSemverRangePrefix) |
 | `bun` | `bunfig.toml` | error | (install.exact verified in bun 1.2.0) | [official docs](https://bun.com/docs/runtime/bunfig#install-exact) |
 | `deno` | `deno.json` | error | (available since deno 1.30.0) | [official docs](https://docs.deno.com/runtime/reference/cli/add/) |
-| `aube` | `.npmrc` | error | — | [official docs](https://aube.jdx.dev/settings/#saveprefix) |
+| `aube` | `.npmrc` | error | — | [official docs](https://aube.sh/settings/#setting-saveprefix) |
 
 ## `provenance` — warn
 
@@ -253,7 +253,7 @@ Provenance statements (via Sigstore) bind a published artifact to its recorded s
 Inspection scope: Explicit installation roots only (local settings).
 Applies to: package.
 For npm, own package.json publishConfig.provenance overrides .npmrc, including false. Manifest-only children do not receive effective provenance checks.
-Upstream: <https://github.com/bodadotsh/npm-security-best-practices#10-generate-provenance-statements>
+Upstream: <https://github.com/bodadotsh/npm-security-best-practices#11-generate-provenance-statements>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
@@ -281,11 +281,11 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#for-maintain
 
 Flag use of an external store server process, which introduces a trust boundary where tampered packages could be served.
 Inspection scope: Explicit installation roots only (local settings).
-Upstream: <https://pnpm.io/settings#userunningStoreserver>
+Upstream: <https://pnpm.io/settings/store#userunningstoreserver>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
-| `pnpm` | `pnpm-workspace.yaml` | info | — | [official docs](https://pnpm.io/settings#userunningStoreserver) |
+| `pnpm` | `pnpm-workspace.yaml` | info | — | [official docs](https://pnpm.io/settings/store#userunningstoreserver) |
 
 ## `strict-allow-scripts` — warn
 
@@ -321,11 +321,11 @@ Upstream: <https://aube.jdx.dev/security.html>
 
 Fail installation when a package trust level has decreased compared to previous releases, catching publisher credential downgrades.
 Inspection scope: Explicit installation roots only (local settings).
-Upstream: <https://pnpm.io/settings#trustpolicy>
+Upstream: <https://pnpm.io/settings/dependency-resolution#trustpolicy>
 
 | PM | Primary input | Default severity | Version notes | Reference |
 | --- | --- | --- | --- | --- |
-| `pnpm` | `pnpm-workspace.yaml` | warn | (available since pnpm 10.21.0) | [official docs](https://pnpm.io/settings#trustpolicy) |
+| `pnpm` | `pnpm-workspace.yaml` | warn | (available since pnpm 10.21.0) | [official docs](https://pnpm.io/settings/dependency-resolution#trustpolicy) |
 | `aube` | `aube-workspace.yaml` | warn | — | [official docs](https://aube.jdx.dev/security.html) |
 
 ## `unsupported-settings` — error

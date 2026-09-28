@@ -11,7 +11,7 @@ import { getByPath } from '../contracts/config-value.ts';
 
 const { npmrc, pnpmWorkspace, yarnrc, aubeWorkspace, bunfig } = CONFIG_FILES;
 
-const pnpmStrictDepBuildsDocs = 'https://pnpm.io/settings#strictdepbuilds';
+const pnpmStrictDepBuildsDocs = 'https://pnpm.io/settings/build#strictdepbuilds';
 const pnpmVersionNote: VersionNote = {
   configAvailableSince: 'pnpm 10.3.0',
   note: 'pnpm-workspace.yaml settings require pnpm 10.6.0',
@@ -205,7 +205,7 @@ const builtRule = requireConfigKey({
   },
   description:
     'Malicious postinstall scripts are a primary supply-chain attack vector. Prevent automatic execution of dependency lifecycle scripts.',
-  docs: 'https://github.com/bodadotsh/npm-security-best-practices#3-disable-lifecycle-scripts',
+  docs: 'https://github.com/bodadotsh/npm-security-best-practices#1-disable-lifecycle-scripts',
   id: 'disable-lifecycle-scripts',
   severity: 'error',
   title: 'Disable dependency lifecycle scripts',

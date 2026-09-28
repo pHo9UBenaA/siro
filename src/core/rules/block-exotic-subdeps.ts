@@ -47,7 +47,7 @@ const builtRule = requireConfigKey({
       value: true,
     },
     pnpm: {
-      docs: 'https://pnpm.io/settings#blockexoticsubdeps',
+      docs: 'https://pnpm.io/settings/dependency-resolution#blockexoticsubdeps',
       documentedDefault: true,
       defaultSafety: 'conditional',
       file: pnpmWorkspace,
@@ -63,7 +63,7 @@ const builtRule = requireConfigKey({
   },
   description:
     'Refuse to install transitive dependencies sourced from git or tarball URLs, which bypass registry integrity checking.',
-  docs: 'https://pnpm.io/settings#blockexoticsubdeps',
+  docs: 'https://pnpm.io/settings/dependency-resolution#blockexoticsubdeps',
   id: 'block-exotic-subdeps',
   severity: 'warn',
   title: 'Block exotic subdependencies',

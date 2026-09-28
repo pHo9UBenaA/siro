@@ -78,7 +78,7 @@ const baseRule = requireConfigKey({
     },
     pnpm: {
       accept: isPositiveNumber,
-      docs: 'https://pnpm.io/settings#minimumreleaseage',
+      docs: 'https://pnpm.io/settings/dependency-resolution#minimumreleaseage',
       documentedDefault: DOCUMENTED_DEFAULT_MINUTES,
       defaultSafety: 'conditional',
       file: pnpmWorkspace,
@@ -107,7 +107,7 @@ const baseRule = requireConfigKey({
   },
   description:
     'Refuse to install releases newer than a cooldown window so freshly published (possibly compromised) versions are skipped.',
-  docs: 'https://github.com/bodadotsh/npm-security-best-practices#set-minimal-release-age',
+  docs: 'https://github.com/bodadotsh/npm-security-best-practices#2-set-cooldowns--minimum-release-age',
   id: 'minimum-release-age',
   severity: 'warn',
   title: 'Set a minimum release age',

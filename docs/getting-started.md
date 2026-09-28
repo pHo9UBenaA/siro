@@ -21,13 +21,16 @@ installation checks run only at cwd. PM workspace exclusions no longer select
 packages. Exclude deliberate fixtures; explicitly add independent install projects:
 
 ```sh
-siro lint . --exclude test/fixtures --exclude vendor --exclude dist
-siro lint . --installation-root . --installation-root tools/standalone
+npx @pho9ubenaa/siro lint . --exclude test/fixtures --exclude vendor --exclude dist
+npx @pho9ubenaa/siro lint . --installation-root . --installation-root tools/standalone
 ```
 
+Replace `tools/standalone` with an existing independent installation directory.
 The repeatable flags replace config arrays. Additional roots use their own PM and
 version, not root `--pm` options. Use config `{ installationRoots: [] }` for a
-manifest-only scan, or object entries to specify a PM per additional root. Review
+manifest-only scan, or object entries to specify a PM per additional root. The
+[config examples](configuration.md#rule-settings) include rule overrides and an
+import-free `siro.config.mjs` usable with `npx`. Review
 `inspection` in JSON: discovering packages is not a guarantee that every independent
 project's install policy was checked.
 
@@ -41,7 +44,7 @@ npx @pho9ubenaa/siro lint --reporter json
 ```
 
 Review and apply the proposed operations or manual steps with your editor — or hand the JSON to an agent
-skill that edits the files and re-runs `siro lint` until it exits `0`. For example,
+skill that edits the files and re-runs `npx @pho9ubenaa/siro lint` until it exits `0`. For example,
 if an npm repo sets `ignore-scripts=false` in `.npmrc`, consider whether its builds
 require lifecycle scripts before setting it to `true`. Other findings may remain.
 The output shape is a versioned contract; see [json-output.md](json-output.md).
@@ -57,11 +60,11 @@ npx @pho9ubenaa/siro lint --reporter github          # GitHub Actions annotation
 
 ## Common options
 
-`check` is an alias for `lint`. Run `siro lint --help` for the complete CLI syntax.
+`check` is an alias for `lint`. Run `npx @pho9ubenaa/siro lint --help` for the complete CLI syntax.
 
 | Option                                    | Use                                                                                       |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Inspect one manager instead of auto-detection.                                            |
+| `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Select one manager at cwd; additional installation roots retain their own targets.        |
 | `--pm-version <x.y.z>`                    | Supply an exact stable target version (requires `--pm`). It does not run an installed PM. |
 | `--project-type <application\|package>`   | Choose whether publication safeguards apply; omitted means infer from publish metadata.   |
 | `--exclude <pattern>`                     | Prune discovery directories (repeatable).                                                 |
@@ -78,8 +81,18 @@ precedence, common exclusions, explicit installation scope, executable config, l
 npm install --save-dev --save-exact @pho9ubenaa/siro
 ```
 
-Then wire `siro lint` into your `pre-push` hook or CI workflow. For a trusted
-repository, explicitly pass `--pm` when auto-detection cannot identify its manager.
+Add a script to your existing `package.json` (preserve its other fields):
+
+```json
+{
+  "scripts": { "lint:security": "siro lint" }
+}
+```
+
+Run `npm run lint:security` from a shell, `pre-push` hook, or CI after dependency
+installation. To pass extra flags, use `npm run lint:security -- --severity warn`.
+Installing a dev dependency does not put its binary on the global shell PATH.
+For a trusted repository, pass `--pm` when detection cannot identify its manager.
 
 Next: the [rule reference](rules.md) explains each check, the
 [comparison matrix](comparison.md) shows per-manager support, and

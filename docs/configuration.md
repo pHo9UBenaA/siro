@@ -28,21 +28,24 @@ them from `.npmrc`, lockfiles, packageManager, or dependency declarations, and
 cannot guarantee detection of omitted installation projects. Inspect the returned
 `inspection` scope, not just finding counts.
 
-```ts
-import { defineConfig } from '@pho9ubenaa/siro';
-export default defineConfig({
+Save this as `siro.config.mjs` in the directory passed to `lint`. Adapt the
+installation paths to directories that actually exist in your repository.
+This import-free form also works when running siro only through `npx`:
+
+```js
+export default {
   exclude: ['test/fixtures', 'vendor', 'dist'],
   installationRoots: [
     '.',
     'tools/standalone',
     { path: 'tools/no-detection-signal', pm: 'npm', pmVersion: '12.0.2' },
   ],
-});
+};
 ```
 
 ```sh
-siro lint . --exclude test/fixtures --exclude vendor
-siro lint . --installation-root . --installation-root tools/standalone
+npx @pho9ubenaa/siro lint . --exclude test/fixtures --exclude vendor
+npx @pho9ubenaa/siro lint . --installation-root . --installation-root tools/standalone
 ```
 
 `exclude` defaults to `[]`; `installationRoots` defaults to `['.']`. API options
@@ -182,6 +185,51 @@ For npm, a known pre-12 target may use npm-shrinkwrap.json. npm 12+ requires
 package-lock.json; shrinkwrap-only with an unknown target asks for an explicit target
 or migration, rather than claiming that no file exists.
 
+## Rule settings
+
+Rules are enabled at their built-in severities unless overridden. For example,
+save this as `siro.config.mjs` to change selected rules without importing siro:
+
+```js
+export default {
+  rules: {
+    'files-field': 'warn',
+    provenance: 'error',
+    'store-server': 'off', // Deliberately omit this advisory after reviewing your policy.
+  },
+};
+```
+
+Allowed values are `'error'`, `'warn'`, `'info'`, and `'off'`. Off removes the
+check, not just its output. Unknown rule IDs are errors. Overrides apply to all
+selected directories; `--severity` separately controls display and failure thresholds.
+
+The optional top-level config fields are:
+
+| Field               | Value and purpose                                                                   |
+| ------------------- | ----------------------------------------------------------------------------------- |
+| `exclude`           | Array of directory patterns; defaults to `[]`.                                      |
+| `installationRoots` | Array of paths or `{ path, pm?, pmVersion? }`; defaults to `['.']`.                 |
+| `rules`             | Map of built-in or registered custom rule IDs to severity or `'off'`.               |
+| `pms`               | Nonempty array restricting cwd's PM selection; does not force detection.            |
+| `pmVersions`        | Map such as `{ npm: '12.0.2' }`; declares versions for cwd, not installed binaries. |
+| `projectType`       | `'application'` or `'package'`; overrides inference for all selected manifests.     |
+| `customRules`       | Array of rules built with `defineRule` or `requireConfigKey`; run only at cwd.      |
+| `reporters`         | Array of `{ name, format }` reporters; can replace built-ins by name.               |
+
+For TypeScript completion, **first install siro in the target project** with
+`npm install --save-dev --save-exact @pho9ubenaa/siro`, then use `siro.config.ts`:
+
+```ts
+import { defineConfig } from '@pho9ubenaa/siro';
+export default defineConfig({
+  rules: { provenance: 'error' },
+});
+```
+
+An `npx` temporary installation does not make imports from your repository's config
+resolvable. Without a local dependency, use the import-free `.mjs` form above.
+
 ## Executable CLI configuration
 
 The CLI loads only cwd's first existing `siro.config.ts`, `.mjs`, or `.js`, in that
@@ -205,16 +253,21 @@ rule overrides and reporters.
 executable repository configuration implicitly. Use `loadConfig` explicitly only
 for a trusted repository:
 
+Install siro as a project dependency before using these imports. The following
+example assumes `tools/standalone` is an existing, independently installable project:
+
 ```ts
 import { asAbsPath, lint, lintCommand, loadConfig, nodeIO } from '@pho9ubenaa/siro';
 const cwd = asAbsPath(process.cwd());
-const result = lint({
+const config = await loadConfig(cwd); // explicitly executes trusted code
+const options = {
   cwd,
+  config,
   exclude: ['test/fixtures'],
   installationRoots: ['.', 'tools/standalone'],
-});
-const config = await loadConfig(cwd); // explicitly executes trusted code
-const exitCode = await lintCommand({ cwd, config, reporter: 'json' }, nodeIO);
+};
+const result = lint(options); // Returns findings without reporting.
+const exitCode = await lintCommand({ ...options, reporter: 'json' }, nodeIO); // Evaluates again.
 ```
 
 Custom checks/reporters belong in `config.customRules`/`config.reporters`. Public
@@ -300,3 +353,9 @@ version second. Arguments after `--` are rejected.
 - Consume schema 3: optional finding PM, required directory and inspection scope.
 - Injected filesystems must implement `readDirectories`; `resolveDirectory` is removed.
 - Custom `requireConfigKey` defaults without `defaultSafety` are now conservative.
+- Direct reporter calls require a third argument and must be awaited:
+  `await githubReporter.format(result, io, { cwd })`. Two-argument custom reporter
+  implementations may ignore the new context, but callers must supply it.
+- `IO.stdout` / `stderr`, including `nodeIO`, may now return promises. Await direct
+  writes and handle rejections. `lintCommand` already awaits reporter completion
+  and tracks writes through the IO it supplies; do not schedule writes after return.

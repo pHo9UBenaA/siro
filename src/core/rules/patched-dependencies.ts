@@ -29,14 +29,14 @@ const pnpmBinding: RuleBinding = {
       state: 'violation',
     };
   },
-  docs: 'https://pnpm.io/settings#patcheddependencies',
+  docs: 'https://pnpm.io/cli/patch#patcheddependencies',
   file: pnpmWorkspace,
 };
 
 export const patchedDependencies = defineRule({
   bindings: { pnpm: pnpmBinding },
   description: 'Review local patches separately from the registry artifacts they modify.',
-  docs: 'https://pnpm.io/settings#patcheddependencies',
+  docs: 'https://pnpm.io/cli/patch#patcheddependencies',
   id: 'patched-dependencies',
   severity: 'info',
   title: 'Review patched dependencies',

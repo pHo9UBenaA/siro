@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.0] — Unreleased
+## [0.6.0] — 2026-09-29
 
 This incorporates the unpublished 0.5.2 architecture and cache work; 0.5.2 is not
 listed as a published release. Its PM-specific member machinery is superseded.
@@ -26,6 +26,10 @@ listed as a published release. Its PM-specific member machinery is superseded.
   No implicit vendor/dist/fixture exclusions or native filesystem fallback.
 - `requireConfigKey.defaultSafety` explicitly controls safe-default downgrades;
   omitted safety is conservative. VersionNote has no policy effect.
+- Reporter calls require scan cwd as a third argument:
+  `await reporter.format(result, io, { cwd })`. Await built-in reporters and direct
+  IO writes, which may now complete asynchronously; handle output rejections.
+  Two-argument custom reporter implementations can ignore the additional context.
 
 ### Fixes
 
@@ -34,8 +38,7 @@ listed as a published release. Its PM-specific member machinery is superseded.
   cutoffs rather than treating any positive integer as protection.
 - Respect known pre-12 npm targets when checking npm-shrinkwrap.json; explain removed
   or unknown-version lockfiles instead of incorrectly reporting that no file exists.
-- Supply scan cwd as the third reporter argument. Direct calls must pass `{ cwd }`
-  and await completion; GitHub annotations now reference the correct absolute file.
+- GitHub annotations reference the correct absolute file using the supplied scan cwd.
   API/JSON paths and schema 3 retain their existing meaning.
 - Escape untrusted display controls and workflow markers without changing API paths
   or parsed JSON values. Observe actual stream writes and preserve exit 70 on output
@@ -55,6 +58,10 @@ listed as a published release. Its PM-specific member machinery is superseded.
   with separators or portable user input. Reject malformed/traversing adapter names.
 - Rebase all automatic operation paths immutably to cwd, not just finding/manual
   paths; preserve file-less findings and apply availability guards before rebasing.
+- Separate the fixed Windows installed-shim probe from literal-argv package/CLI
+  execution; exercise paths containing spaces and shell metacharacters.
+- Make one-shot and locally installed usage explicit, restore rule configuration
+  examples, and update moved documentation anchors in findings and the rule reference.
 
 ### Architecture, behavior and limits
 

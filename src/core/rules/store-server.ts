@@ -23,7 +23,7 @@ const pnpmBinding: RuleBinding = {
       state: 'violation',
     };
   },
-  docs: 'https://pnpm.io/settings#userunningStoreserver',
+  docs: 'https://pnpm.io/settings/store#userunningstoreserver',
   file: pnpmWorkspace,
 };
 
@@ -31,7 +31,7 @@ export const storeServer = defineRule({
   bindings: { pnpm: pnpmBinding },
   description:
     'Flag use of an external store server process, which introduces a trust boundary where tampered packages could be served.',
-  docs: 'https://pnpm.io/settings#userunningStoreserver',
+  docs: 'https://pnpm.io/settings/store#userunningstoreserver',
   id: 'store-server',
   severity: 'info',
   title: 'Review store server usage',

@@ -29,7 +29,7 @@ const pnpmBinding: RuleBinding = {
       state: 'violation',
     };
   },
-  docs: 'https://pnpm.io/settings#namedregistries',
+  docs: 'https://pnpm.io/settings/dependency-resolution#namedregistries',
   file: pnpmWorkspace,
 };
 
@@ -37,7 +37,7 @@ export const namedRegistries = defineRule({
   bindings: { pnpm: pnpmBinding },
   description:
     'Flag named registry mappings that redirect package resolution to custom registries, which may enable dependency confusion attacks.',
-  docs: 'https://pnpm.io/settings#namedregistries',
+  docs: 'https://pnpm.io/settings/dependency-resolution#namedregistries',
   id: 'named-registries',
   severity: 'info',
   title: 'Review named registry mappings',

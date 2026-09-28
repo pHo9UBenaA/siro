@@ -78,8 +78,11 @@ malformed subtrees; scope tests verify the actual inputs measured. The large YAM
 fixture measures parsing, not expansion of its ignored workspace declarations.
 
 Test IO with real stream/pipe failures as well as injected sinks. Reporter calls take
-`{ cwd }` context and must be awaited. For script subprocesses use a literal Node argv
-for pnpm's invoking JS entry; do not execute Windows .cmd shims via shell concatenation.
+`{ cwd }` context and must be awaited. For script subprocesses use literal Node argv
+for pnpm's invoking JS entry and the installed CLI entry. The Windows installed-shim
+probe uses a separate, entirely fixed command; never route variable arguments or
+paths through that shell call. Package verification exercises paths with spaces
+and shell metacharacters.
 
 Package contents should contain only distributed code and public package documents.
 
@@ -95,3 +98,20 @@ pass its path: `pnpm test:package /absolute/path/package.tgz`.
 `pnpm test:package --output /absolute/path/package.tgz` retains the verified tarball
 at the specified path only after all checks pass. The publication workflow stages
 this file for npm approval without repacking. Verification itself never publishes.
+
+## Release review
+
+A green workflow is not a clean security report. On the exact release head, inspect
+check summaries and every annotation, including successful CodeQL checks, plus the
+matching code-scanning alerts and analysis coverage. Resolve security alerts and
+explain remaining warnings before declaring readiness. A missing analysis, failed
+API request, or old successful run is not a clean result. Recheck the revised head
+on GitHub after a security repair; local tests cannot close a hosted alert.
+
+Review README, configuration, migration, JSON, rule/policy, security and contributor
+docs against the implementation. Run examples in a fresh project, distinguishing
+one-shot `npx` use from a local dependency and package scripts. Run `pnpm check:docs`
+and `pnpm gen:api`; check internal links and external destination headings, not only
+HTTP status. Update rule-source URLs before regenerating docs. Network link checks
+are deliberate release-review work, not a claim that sources or policy are correct.
+Finalize the changelog and verify package/tag identity before publication.

@@ -11,7 +11,7 @@ import { isPlainRecord } from '../contracts/records.ts';
 const LOCKFILE_DOCS: Partial<Record<PM, string>> = {
   aube: 'https://github.com/aubepkg/aube/blob/main/docs/package-manager/lockfiles.md',
   bun: 'https://bun.com/docs/install/lockfile',
-  deno: 'https://docs.deno.com/runtime/fundamentals/modules/#integrity-checking-and-lock-files',
+  deno: 'https://docs.deno.com/runtime/reference/deno_json/#lockfile',
   npm: 'https://docs.npmjs.com/cli/v12/configuring-npm/package-lock-json',
   pnpm: 'https://pnpm.io/git#lockfiles',
   yarn: 'https://yarnpkg.com/getting-started/qa#should-lockfiles-be-committed-to-the-repository',
@@ -134,7 +134,7 @@ export const commitLockfile = defineRule({
   },
   description:
     'Lockfiles pin the full dependency tree and integrity hashes, enabling reproducible, verifiable installs (e.g. `npm ci`).',
-  docs: 'https://github.com/bodadotsh/npm-security-best-practices#2-include-lockfiles',
+  docs: 'https://github.com/bodadotsh/npm-security-best-practices#3-include-lockfiles',
   id: 'commit-lockfile',
   severity: 'error',
   title: 'Commit a lockfile',

@@ -24,7 +24,7 @@ const aubeBinding: RuleBinding = {
 const builtRule = requireConfigKey({
   bindings: {
     deno: {
-      docs: 'https://docs.deno.com/runtime/fundamentals/configuration/#lock',
+      docs: 'https://docs.deno.com/runtime/reference/deno_json/#lockfile',
       file: denoJson,
       keyPath: ['lock', 'frozen'],
       message: 'Set `lock.frozen: true` in deno.json for reproducible, verified installs.',
@@ -40,7 +40,7 @@ const builtRule = requireConfigKey({
       versionNote: { configAvailableSince: 'bun 0.6.10' },
     },
     pnpm: {
-      docs: 'https://pnpm.io/settings#frozenlockfile',
+      docs: 'https://pnpm.io/cli/install#--frozen-lockfile',
       file: pnpmWorkspace,
       keyPath: ['frozenLockfile'],
       message:
@@ -64,7 +64,7 @@ const builtRule = requireConfigKey({
   },
   description:
     'Refuse to mutate the lockfile on install so unexpected dependency changes fail loudly.',
-  docs: 'https://github.com/bodadotsh/npm-security-best-practices#2-include-lockfiles',
+  docs: 'https://github.com/bodadotsh/npm-security-best-practices#3-include-lockfiles',
   id: 'frozen-lockfile',
   severity: 'warn',
   title: 'Freeze the lockfile',
