@@ -1,8 +1,9 @@
-import type { IO } from '../../domain/ports/io.ts';
-import type { LintResult } from '../../domain/entities/lint-result.ts';
-import type { Reporter } from '../../domain/ports/reporter.ts';
-import type { Severity } from '../../domain/entities/pms.ts';
+import type { IO } from '../../core/contracts/io.ts';
+import type { LintResult } from '../../core/contracts/lint-result.ts';
+import type { Reporter } from '../../core/contracts/reporter.ts';
+import type { Severity } from '../../core/contracts/pms.ts';
 import pc from 'picocolors';
+import { safeText } from '../safe-text.ts';
 
 const GLYPH: Record<Severity, string> = {
   error: '✖ error',
@@ -44,19 +45,16 @@ const renderFinding = (
     readonly tag: Record<Severity, (str: string) => string>;
   },
 ): void => {
-  let where = '';
-  if (finding.file) {
-    where = ctx.colors.dim(` (${finding.file})`);
-  }
+  const where = ctx.colors.dim(` (${safeText(finding.file ?? finding.directory)})`);
   ctx.io.stdout(
-    `${ctx.tag[finding.severity](GLYPH[finding.severity])}  [${finding.pm}] ${ctx.colors.bold(finding.ruleId)}${where}`,
+    `${ctx.tag[finding.severity](GLYPH[finding.severity])}  [${finding.pm ?? 'package'}] ${ctx.colors.bold(safeText(finding.ruleId))}${where}`,
   );
-  ctx.io.stdout(`    ${finding.message}`);
+  ctx.io.stdout(`    ${safeText(finding.message)}`);
   for (const step of finding.remediation?.kind === 'manual' ? finding.remediation.steps : []) {
-    ctx.io.stdout(`    ↳ ${step}`);
+    ctx.io.stdout(`    ↳ ${safeText(step)}`);
   }
   if (finding.docs) {
-    ctx.io.stdout(ctx.colors.dim(`    → ${finding.docs}`));
+    ctx.io.stdout(ctx.colors.dim(`    → ${safeText(finding.docs)}`));
   }
 };
 
@@ -77,18 +75,27 @@ const buildRenderCtx = (
 };
 
 export const prettyReporter: Reporter<'pretty'> = {
-  format(result: LintResult, io: IO): void {
-    const ctx = buildRenderCtx(io);
+  async format(result: LintResult, io: IO): Promise<void> {
+    const lines: string[] = [];
+    const collect = (line: string) => {
+      lines.push(line);
+    };
+    const ctx = buildRenderCtx({ stdout: collect, stderr: collect });
+    collect(
+      `Inspection: ${result.inspection.manifests.length} manifests; installation roots: ${result.inspection.installationRoots.map((root) => safeText(root.directory)).join(', ') || 'none'}.`,
+    );
+    collect(
+      'Unknown PM/version targets have no availability assessment; installation scope is explicit.',
+    );
     if (result.findings.length === 0) {
-      io.stdout(ctx.colors.green('✔ No security best-practice issues found.'));
-      return;
+      collect(ctx.colors.green('✔ No security best-practice issues found.'));
+    } else {
+      for (const finding of result.findings) renderFinding(finding, ctx);
+      const { error, warn, info } = result.summary;
+      collect('');
+      collect(`Summary: ${error} error, ${warn} warn, ${info} info`);
     }
-    for (const finding of result.findings) {
-      renderFinding(finding, ctx);
-    }
-    const { error, warn, info } = result.summary;
-    io.stdout('');
-    io.stdout(`Summary: ${error} error, ${warn} warn, ${info} info`);
+    await io.stdout(lines.join('\n'));
   },
   name: 'pretty',
 };

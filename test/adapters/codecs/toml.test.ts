@@ -1,4 +1,4 @@
-import { getByPath } from '../../../src/domain/entities/config-value.ts';
+import { getByPath } from '../../../src/core/contracts/config-value.ts';
 import { tomlCodec } from '../../../src/adapters/codecs/toml.ts';
 
 describe('tomlCodec.parse', () => {

@@ -5,10 +5,10 @@ import {
   type Severity,
   isPM,
   isSeverity,
-} from '../domain/entities/pms.ts';
-import { PROJECT_TYPES, type ProjectType, isProjectType } from '../domain/entities/project-type.ts';
+} from '../core/contracts/pms.ts';
+import { PROJECT_TYPES, type ProjectType, isProjectType } from '../core/contracts/project-type.ts';
 import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../adapters/node-version.ts';
-import { UsageError } from '../shared/errors.ts';
+import { UsageError } from '../core/contracts/errors.ts';
 
 export const parsePmFlag = (raw: unknown): PM | undefined => {
   if (typeof raw === 'undefined') {

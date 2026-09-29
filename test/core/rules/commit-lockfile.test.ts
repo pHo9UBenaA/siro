@@ -1,0 +1,94 @@
+import { manualSteps } from '../../helpers/remediation.ts';
+
+import assert from 'node:assert';
+import type { PM } from '../../../src/core/contracts/pms.ts';
+import type { RuleContext } from '../../../src/core/contracts/repo-context.ts';
+import { commitLockfile } from '../../../src/core/rules/commit-lockfile.ts';
+import { makeCtx, makePublishableCtx } from '../../helpers/ctx.ts';
+
+const ctxWith = (files: readonly string[]): RuleContext => makeCtx({ files });
+
+describe('commit-lockfile (npm)', () => {
+  const npmBinding = commitLockfile.bindings.npm;
+  assert(npmBinding, 'expected npm binding');
+
+  it('requires an npm lockfile and explains how to generate it', () => {
+    const status = npmBinding.check(ctxWith([]), {});
+
+    expect(status.state).toBe('violation');
+
+    expect(commitLockfile.severity).toBe('error');
+
+    const ops = manualSteps(status)!;
+    const firstOp = ops[0];
+    assert(firstOp, 'expected at least one fix op');
+    expect(firstOp).toContain('generate package-lock.json');
+  });
+
+  it('passes when package-lock.json exists', () => {
+    expect.hasAssertions();
+    expect(npmBinding.check(ctxWith(['package-lock.json']), {}).state).toBe('ok');
+  });
+
+  it('requires a supported lockfile when only the removed npm shrinkwrap exists', () => {
+    expect.hasAssertions();
+    expect(npmBinding.check(ctxWith(['npm-shrinkwrap.json']), {}).state).toBe('violation');
+  });
+});
+
+// PM-specific filenames and the text lockfiles Aube can reuse.
+const LOCKFILE_BY_PM: readonly { pm: PM; lockfile: string }[] = [
+  { lockfile: 'pnpm-lock.yaml', pm: 'pnpm' },
+  { lockfile: 'yarn.lock', pm: 'yarn' },
+  { lockfile: 'bun.lock', pm: 'bun' },
+  { lockfile: 'deno.lock', pm: 'deno' },
+  { lockfile: 'aube-lock.yaml', pm: 'aube' },
+  { lockfile: 'pnpm-lock.yaml', pm: 'aube' },
+  { lockfile: 'bun.lock', pm: 'aube' },
+];
+
+describe('commit-lockfile per-PM lockfile detection', () => {
+  it.each(LOCKFILE_BY_PM)(
+    '$pm: ok when $lockfile exists, violation when absent',
+    ({ pm, lockfile }) => {
+      expect.hasAssertions();
+      const bd = commitLockfile.bindings[pm];
+      assert(bd, `expected ${pm} binding`);
+      expect(bd.check(makePublishableCtx({ exists: (fp) => fp === lockfile }), {}).state).toBe(
+        'ok',
+      );
+      expect(bd.check(makePublishableCtx({ exists: () => false }), {}).state).toBe('violation');
+    },
+  );
+});
+
+it.each([
+  { lock: 'locks/custom.lock', files: ['locks/custom.lock'], state: 'ok' },
+  { lock: { path: 'locks/custom.lock' }, files: ['locks/custom.lock'], state: 'ok' },
+  { lock: 'locks/custom.lock', files: ['deno.lock'], state: 'violation' },
+  { lock: false, files: ['deno.lock'], state: 'violation' },
+  { lock: null, files: ['deno.lock'], state: 'ok' },
+  { lock: { path: null, frozen: null }, files: ['deno.lock'], state: 'ok' },
+  { lock: 42, files: ['deno.lock'], state: 'violation' },
+  { lock: [], files: ['deno.lock'], state: 'violation' },
+  { lock: { path: 42 }, files: ['deno.lock'], state: 'violation' },
+  { lock: { frozen: 'yes' }, files: ['deno.lock'], state: 'violation' },
+])('checks the Deno lockfile selected by configuration: %j', ({ lock, files, state }) => {
+  const ctx = makeCtx({ files });
+  expect(commitLockfile.bindings.deno?.check(ctx, { lock }).state).toBe(state);
+});
+
+it.each(['bun.lockb', 'deno.lock'])('does not treat %s as a reusable Aube lockfile', (file) => {
+  expect(commitLockfile.bindings.aube?.check(makeCtx({ files: [file] }), {}).state).toBe(
+    'violation',
+  );
+});
+
+it('requires conversion of a binary Bun lockfile even when an Aube lockfile exists', () => {
+  expect(
+    commitLockfile.bindings.aube?.check(makeCtx({ files: ['aube-lock.yaml', 'bun.lockb'] }), {}),
+  ).toMatchObject({
+    state: 'violation',
+    remediation: { kind: 'manual', steps: [expect.stringContaining('--save-text-lockfile')] },
+  });
+});

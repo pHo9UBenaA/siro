@@ -1,36 +1,37 @@
 #!/usr/bin/env node
 import { assertDirectory } from './adapters/node-file-system.ts';
-import { loadConfig } from './adapters/config-loader.ts';
-import { SiroError } from './shared/errors.ts';
+import { loadConfig } from './load-config.ts';
+import { SiroError } from './core/contracts/errors.ts';
 import { ensureNodeVersion } from './cli/parsers.ts';
-import type { IO } from './domain/ports/io.ts';
+import type { IO } from './core/contracts/io.ts';
 import { isNodeError } from './adapters/node-errors.ts';
-import { lintCommand } from './composition/lint.ts';
+import { lintCommand } from './runtime.ts';
 import { nodeIO } from './adapters/node-io.ts';
 import { type ParsedCommand, parseCommand } from './cli/parse-args.ts';
 import { pathToFileURL } from 'node:url';
 import { renderHelp } from './cli/help.ts';
 import { version } from './version.ts';
+import { safeText } from './adapters/safe-text.ts';
 
 const EXIT_SUCCESS = 0;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
 
-const dispatch = (cmd: ParsedCommand, io: IO): number | Promise<number> => {
+const dispatch = async (cmd: ParsedCommand, io: IO): Promise<number> => {
   switch (cmd.kind) {
     case 'version': {
-      io.stdout(version);
+      await io.stdout(version);
       return EXIT_SUCCESS;
     }
     case 'help': {
-      io.stdout(renderHelp(cmd.target));
+      await io.stdout(renderHelp(cmd.target));
       return EXIT_SUCCESS;
     }
     case 'usage': {
       if (cmd.reason) {
-        io.stderr(`${cmd.reason}\n`);
+        await io.stderr(`${safeText(cmd.reason)}\n`);
       }
-      io.stderr(renderHelp());
+      await io.stderr(renderHelp());
       return EXIT_USAGE;
     }
     case 'lint': {
@@ -44,14 +45,14 @@ const dispatch = (cmd: ParsedCommand, io: IO): number | Promise<number> => {
   }
 };
 
-const handleError = (error: unknown, io: IO): number => {
+const handleError = async (error: unknown, io: IO): Promise<number> => {
   if (error instanceof SiroError) {
-    io.stderr(error.message);
+    await io.stderr(safeText(error.message));
     return error.exitCode;
   }
   // Numeric errno distinguishes filesystem failures from Node's ERR_* exceptions.
   if (isNodeError(error) && 'errno' in error && typeof error.errno === 'number') {
-    io.stderr(`File system error: ${error.message}`);
+    await io.stderr(safeText(`File system error: ${error.message}`));
     return EXIT_USAGE;
   }
   throw error;
@@ -73,8 +74,13 @@ export const runMain = async (argv: readonly string[]): Promise<void> => {
   } catch (error) {
     // Keep unexpected failures distinct from the exit-1 "findings found" result.
     const errStr = error instanceof Error ? (error.stack ?? error.message) : String(error);
-    process.stderr.write(`${errStr}\n`);
     process.exitCode = EXIT_CRASH;
+    try {
+      await nodeIO.stderr(safeText(errStr));
+    } catch {
+      // A broken diagnostic sink cannot report its own failure. Keep exit 70;
+      // do not recurse or leave another stream error/rejection unobserved.
+    }
   }
 };
 

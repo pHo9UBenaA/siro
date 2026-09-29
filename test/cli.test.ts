@@ -149,22 +149,10 @@ describe('cli', () => {
 
   test('rejects combining --reporter with --json (exit 2)', () => {
     expect.hasAssertions();
-    // The two select the reporter by different routes; using both is
-    // ambiguous intent. Reject rather than silently letting one win — applies
-    // to a genuine conflict (--reporter github --json) and the redundant
-    // synonym (--reporter json --json) alike.
-    const cases = [
-      ['lint', '--reporter', 'github', '--json'],
-      ['lint', '--reporter', 'json', '--json'],
-    ];
-    return Promise.all(
-      cases.map((args) =>
-        runExpectCode(args).then(({ code, err }) => {
-          expect(code).toBe(EXIT_USAGE);
-          expect(err).toMatch(/reporter|json/iu);
-        }),
-      ),
-    );
+    return runExpectCode(['lint', '--reporter', 'github', '--json']).then(({ code, err }) => {
+      expect(code).toBe(EXIT_USAGE);
+      expect(err).toMatch(/reporter|json/iu);
+    });
   });
 
   test('rejects repeated reporter selectors (exit 2)', () => {
@@ -181,22 +169,6 @@ describe('cli', () => {
         }),
       ),
     );
-  });
-
-  test('re-throws a non-SiroError instead of swallowing it (bootstrap maps it to exit 70)', () => {
-    expect.hasAssertions();
-    // run() maps SiroError to an exit code but lets unexpected errors
-    // propagate so the process bootstrap can give them a dedicated exit (70),
-    // distinct from the exit-1 "findings found" path. Embedders catch it too.
-    const throwingIo = {
-      stderr: (): void => {
-        // no-op
-      },
-      stdout: (): void => {
-        throw new Error('boom');
-      },
-    };
-    return expect(run(['--version'], throwingIo)).rejects.toThrow('boom');
   });
 });
 

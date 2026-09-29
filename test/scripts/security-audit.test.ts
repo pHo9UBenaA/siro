@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { pnpmCommand } from '../../scripts/pnpm-command.ts';
 
 // Process startup can exceed five seconds on a shared runner. Keep a bounded
 // child timeout and give this subprocess suite time to report the actual error.
@@ -60,8 +61,8 @@ const run = (pnpm = output(cleanPnpm), osv = output(cleanOsv)) => {
       childProcess.spawnSync = (command, args) => {
         commands.push([command, ...args]);
         writeFileSync(new URL('./commands.json', import.meta.url), JSON.stringify(commands));
-        if (command === 'pnpm' && args[0] === 'audit') return responses.pnpm;
-        if (command === 'osv-scanner' || (command === 'pnpm' && args[0] === 'exec')) return responses.osv;
+        if (JSON.stringify(args.slice(-2)) === JSON.stringify(['audit', '--json'])) return responses.pnpm;
+        if (command === 'osv-scanner') return responses.osv;
         throw new Error('Unexpected external command: ' + command);
       };
       syncBuiltinESMExports();
@@ -89,7 +90,7 @@ it('reports both completed clean audits and runs the installed OSV scanner direc
   expect(result.stdout).toContain('No vulnerabilities found by pnpm audit.');
   expect(result.stdout).toContain('No vulnerabilities found by osv-scanner.');
   expect(result.commands).toEqual([
-    ['pnpm', 'audit', '--json'],
+    [pnpmCommand(['audit', '--json']).command, ...pnpmCommand(['audit', '--json']).args],
     ['osv-scanner', 'scan', 'source', '--format', 'json', '--recursive', '.'],
   ]);
 });

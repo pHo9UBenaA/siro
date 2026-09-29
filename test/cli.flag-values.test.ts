@@ -1,5 +1,5 @@
 import { run } from '../src/cli.ts';
-import type { IO } from '../src/domain/ports/io.ts';
+import type { IO } from '../src/core/contracts/io.ts';
 
 const EXIT_USAGE = 2;
 

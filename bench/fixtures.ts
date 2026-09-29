@@ -1,9 +1,14 @@
+import type { LintOptions } from '../src/index.ts';
+
 export interface Fixture {
   readonly name: string;
   readonly files: Readonly<Record<string, string>>;
+  readonly options?: Pick<LintOptions, 'exclude' | 'installationRoots'>;
+  readonly expectedScope: { readonly manifests: number; readonly installationRoots: number };
 }
 
 const SMALL: Fixture = {
+  expectedScope: { manifests: 1, installationRoots: 1 },
   files: {
     '/repo/package.json': JSON.stringify({
       name: 'demo',
@@ -14,6 +19,7 @@ const SMALL: Fixture = {
 };
 
 const MEDIUM: Fixture = {
+  expectedScope: { manifests: 1, installationRoots: 1 },
   files: {
     '/repo/.npmrc': [
       'ignore-scripts=true',
@@ -44,6 +50,7 @@ frozenLockfile: true
 const WORKSPACE_ENTRY_COUNT = 50;
 
 const WORKSPACE_MANIFEST: Fixture = {
+  expectedScope: { manifests: 1, installationRoots: 1 },
   files: {
     '/repo/package.json': JSON.stringify({
       name: 'monorepo-root',
@@ -58,7 +65,48 @@ const WORKSPACE_MANIFEST: Fixture = {
       '\n',
     )}\nstrictDepBuilds: true\nsavePrefix: ''\nminimumReleaseAge: 4320\nfrozenLockfile: true\n`,
   },
-  name: `workspace manifest (${WORKSPACE_ENTRY_COUNT} entries, pnpm)`,
+  name: `large workspace config (${WORKSPACE_ENTRY_COUNT} ignored declarations, no child packages)`,
 };
 
-export const fixtures = [SMALL, MEDIUM, WORKSPACE_MANIFEST] as const satisfies readonly Fixture[];
+const PACKAGE_COUNT = 50;
+const packageFiles = Object.fromEntries(
+  Array.from({ length: PACKAGE_COUNT }, (_, index) => [
+    `/repo/packages/p${index}/package.json`,
+    JSON.stringify({ name: `package-${index}`, packageManager: 'npm@12.0.2' }),
+  ]),
+);
+const tree = {
+  '/repo/package.json': '{"private":true,"packageManager":"npm@12.0.2"}',
+  ...packageFiles,
+};
+const publication: Fixture = {
+  expectedScope: { manifests: PACKAGE_COUNT + 1, installationRoots: 0 },
+  name: `${PACKAGE_COUNT} real packages (manifest-only)`,
+  files: tree,
+  options: { installationRoots: [] },
+};
+const independent: Fixture = {
+  expectedScope: { manifests: PACKAGE_COUNT + 1, installationRoots: 3 },
+  name: `${PACKAGE_COUNT} real packages (three installation roots)`,
+  files: tree,
+  options: { installationRoots: ['.', 'packages/p0', 'packages/p1'] },
+};
+const excluded: Fixture = {
+  expectedScope: { manifests: PACKAGE_COUNT + 1, installationRoots: 0 },
+  name: `${PACKAGE_COUNT} real packages (excluded fixture subtree)`,
+  files: {
+    ...tree,
+    ...Object.fromEntries(
+      Array.from({ length: 200 }, (_, index) => [`/repo/fixtures/p${index}/package.json`, '{']),
+    ),
+  },
+  options: { installationRoots: [], exclude: ['fixtures'] },
+};
+export const fixtures: readonly Fixture[] = [
+  SMALL,
+  MEDIUM,
+  WORKSPACE_MANIFEST,
+  publication,
+  independent,
+  excluded,
+];

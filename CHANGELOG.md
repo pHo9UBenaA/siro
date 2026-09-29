@@ -1,5 +1,67 @@
 # Changelog
 
+## [0.6.0] — 2026-09-29
+
+### Breaking changes and inspection scope
+
+- Discover package.json and strict deno.json recursively by default, independently
+  of PM workspace declarations. Remove `--workspaces` / API `workspaces`, including
+  false; legacy calls receive migration errors. PM exclusions no longer hide
+  fixtures, vendor or dist. Use `exclude: ['test/fixtures', 'vendor', 'dist']`, or
+  `exclude: ['**']` to keep only cwd.
+- Add common exclusions and explicit `installationRoots` (default `['.']`). Arrays
+  replace config values; `[]` disables installation checks, not publication checks.
+  Example: `siro lint . --installation-root . --installation-root tools/standalone`.
+  Additional independent installation projects are not automatically inferred.
+- Resolve PM/version locally: root options stay at cwd, additional roots use their
+  entry/local detection, and other packages use manifest-local evidence. Unknown
+  PMs still receive generic publication checks; unknown availability is not safety.
+- JSON schema 3 adds `inspection`, required finding `directory`, and optional `pm`.
+  Generic publication findings run once per manifest without a synthetic PM.
+- Require injected `FileSystem.readDirectories`; remove `resolveDirectory`. Skip
+  directory symlinks, `.git`, node_modules and explicit exclusions before reads.
+  No implicit vendor/dist/fixture exclusions or native filesystem fallback.
+- `requireConfigKey.defaultSafety` explicitly controls safe-default downgrades;
+  omitted safety is conservative. VersionNote has no policy effect.
+- Reporter calls require scan cwd as a third argument:
+  `await reporter.format(result, io, { cwd })`. Await built-in reporters and direct
+  IO writes, which may now complete asynchronously; handle output rejections.
+  Two-argument custom reporter implementations can ignore the additional context.
+
+### Fixes
+
+- Validate consumed Deno publication metadata before applicability and check exact
+  registry pins in both inline imports and scopes. Reject unrepresentable npmrc age
+  cutoffs rather than treating any positive integer as protection.
+- Respect known pre-12 npm targets when checking npm-shrinkwrap.json; explain removed
+  or unknown-version lockfiles instead of incorrectly reporting that no file exists.
+- GitHub annotations reference the correct absolute file using the supplied scan cwd.
+  API/JSON paths and schema 3 retain their existing meaning.
+- Escape untrusted display controls and workflow markers without changing API paths
+  or parsed JSON values. Observe actual stream writes and preserve exit 70 on output
+  failure. IO may complete asynchronously; synchronous return values remain ignored.
+- Reject Promise/thenable config exports and check results without an unhandled
+  rejection overriding the configuration-error exit. Keep lint synchronous.
+- Deno empty/age-null/exclude-only objects no longer falsely satisfy release age.
+  Valid omitted ages use active local npmrc fallback, retaining zero opt-out and
+  explicit-age precedence. Leaf remedies preserve valid exclusions.
+- npm own publishConfig.provenance overrides npmrc, including false. Validate its
+  consumed boolean type; align finding/remedy with the responsible file and keep
+  both locations' old-target availability guards.
+- Preserve legal POSIX backslash and colon directory names without confusing them
+  with separators or portable user input. Reject malformed/traversing adapter names.
+- Make every remediation operation path relative to scan cwd, including multi-file
+  remedies. Findings without a responsible file remain file-less.
+- Fix Windows package verification for paths with spaces and shell metacharacters.
+- Make one-shot and locally installed usage explicit, restore rule configuration
+  examples, and update moved documentation anchors in findings and the rule reference.
+
+### Inspection limits
+
+Installation checks use local settings, not inherited effective policy. Manifest-only
+children have no provenance-policy checks, and child executable configs are not loaded.
+See [scope and migration](docs/configuration.md) and [schema 3](docs/json-output.md).
+
 ## [0.5.1]
 
 ### Refactoring

@@ -4,7 +4,16 @@ export interface GithubAnnotation {
   readonly body: string;
 }
 
-// Property delimiters remain literal; encoded values are intentionally not decoded.
+// Split literal delimiters before decoding, exactly once (a literal %0A must survive).
+const decode = (value: string, property = false): string => {
+  const codes: Record<string, string> = {
+    '%25': '%',
+    '%0D': '\r',
+    '%0A': '\n',
+    ...(property ? { '%3A': ':', '%2C': ',' } : {}),
+  };
+  return value.replace(/%[0-9A-F]{2}/giu, (token) => codes[token.toUpperCase()] ?? token);
+};
 const LINE_RE = /^::(?<command>[a-z][a-z-]*)(?: (?<propString>[^:]*))?::(?<body>.*)$/u;
 
 const parseProps = (raw: string): Record<string, string> => {
@@ -17,7 +26,7 @@ const parseProps = (raw: string): Record<string, string> => {
     if (eq === -1) {
       throw new Error(`Malformed property in annotation: ${JSON.stringify(entry)}`);
     }
-    props[entry.slice(0, eq)] = entry.slice(eq + 1);
+    props[entry.slice(0, eq)] = decode(entry.slice(eq + 1), true);
   }
   return props;
 };
@@ -29,5 +38,5 @@ export const parseGithubAnnotation = (line: string): GithubAnnotation => {
     throw new Error(`Unparseable GitHub annotation line: ${JSON.stringify(line)}`);
   }
   const props = parseProps(match.groups.propString ?? '');
-  return { body: match.groups.body ?? '', command: match.groups.command ?? '', props };
+  return { body: decode(match.groups.body ?? ''), command: match.groups.command ?? '', props };
 };

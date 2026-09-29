@@ -35,16 +35,35 @@ const spawnBin = (args: readonly string[]) => {
   return spawnSync(DIST_BIN, args, { encoding: 'utf8' });
 };
 
-it('reports an un-compilable workspace pattern with exit 2', () => {
+it('reports selected JSONC-only manifests with exit 2, regardless of Deno workspace declarations', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'siro-deno-member-'));
+  try {
+    mkdirSync(path.join(dir, 'child'));
+    writeFileSync(path.join(dir, 'deno.json'), '{"workspace":["child"]}');
+    writeFileSync(path.join(dir, 'child/deno.jsonc'), '{}');
+    const result = spawnBin(['lint', dir, '--pm', 'deno', '--json']);
+    expect(result.status).toBe(EXIT_USAGE);
+    expect(result.stderr).toContain('child/deno.jsonc');
+    expect(result.stdout).toBe('');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+it('reports an un-compilable exclusion pattern with exit 2', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'siro-workspace-pattern-'));
   try {
     writeFileSync(
       path.join(dir, 'package.json'),
       JSON.stringify({ workspaces: ['a'.repeat(65_537)] }),
     );
-    const result = spawnBin(['lint', dir, '--pm', 'npm', '--workspaces', '--json']);
+    writeFileSync(
+      path.join(dir, 'siro.config.mjs'),
+      `export default { exclude: [${JSON.stringify('a'.repeat(65_537))}] };`,
+    );
+    const result = spawnBin(['lint', dir, '--pm', 'npm', '--json']);
     expect(result.status).toBe(EXIT_USAGE);
-    expect(result.stderr).toContain('workspace pattern');
+    expect(result.stderr).toContain('exclude');
     expect(result.stdout).toBe('');
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -67,7 +86,7 @@ describe.skipIf(process.platform === 'win32')('FIFO manifests', () => {
         expect(spawnSync('mkfifo', [path.join(dir, manifest)]).status).toBe(0);
         const result = spawnSync(
           process.execPath,
-          [DIST_BIN, 'lint', dir, '--pm', 'npm', '--workspaces', '--json'],
+          [DIST_BIN, 'lint', dir, '--pm', 'npm', '--json'],
           { encoding: 'utf8', timeout: 2000, killSignal: 'SIGKILL' },
         );
         expect(result.error).toBeUndefined();
@@ -82,7 +101,7 @@ describe.skipIf(process.platform === 'win32')('FIFO manifests', () => {
   );
 });
 
-it('reports workspace member paths and failures through the executable', () => {
+it('reports recursively discovered package paths and failures without executing child config', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'siro-workspace-cli-'));
   try {
     mkdirSync(path.join(dir, 'child'));
@@ -98,8 +117,8 @@ it('reports workspace member paths and failures through the executable', () => {
     );
     writeFileSync(path.join(dir, 'child/package.json'), '{"name":"child"}');
     writeFileSync(path.join(dir, 'child/siro.config.mjs'), 'throw new Error("must not execute")');
-    expect(spawnBin(['lint', dir]).status).toBe(EXIT_SUCCESS);
-    const result = spawnBin(['lint', dir, '--workspaces', '--json']);
+    expect(spawnBin(['lint', dir, '--exclude', 'child']).status).toBe(EXIT_SUCCESS);
+    const result = spawnBin(['lint', dir, '--json']);
     expect(result.status).toBe(EXIT_FAILURE);
     expect(parseJsonOutput(result.stdout, result.stderr).findings).toContainEqual(
       expect.objectContaining({
@@ -108,10 +127,12 @@ it('reports workspace member paths and failures through the executable', () => {
         severity: 'error',
       }),
     );
-    const annotations = spawnBin(['lint', dir, '--workspaces', '--reporter', 'github']);
-    expect(annotations.stdout).toContain('file=child/package.json');
+    const annotations = spawnBin(['lint', dir, '--reporter', 'github']);
+    expect(annotations.stdout).toContain(
+      `file=${path.join(dir, 'child/package.json').replaceAll(':', '%3A')}`,
+    );
     writeFileSync(path.join(dir, 'child/package.json'), '{');
-    const broken = spawnBin(['lint', dir, '--workspaces', '--json']);
+    const broken = spawnBin(['lint', dir, '--json']);
     expect(broken.status).toBe(EXIT_USAGE);
     expect(broken.stderr).toContain('child/package.json');
     expect(broken.stdout).toBe('');
@@ -165,22 +186,29 @@ it('checks declared, configured, and CLI PM targets through the executable', () 
 });
 
 describe('CLI binary — error handling', () => {
-  test.each(['async '])('exits 70 when a %sconfig reporter throws', (modifier) => {
-    expect.hasAssertions();
-    const dir = mkdtempSync(path.join(tmpdir(), 'siro-boom-'));
-    try {
-      writeFileSync(
-        path.join(dir, 'package.json'),
-        JSON.stringify({ name: 'demo', packageManager: 'pnpm@10.0.0' }),
-      );
-      writeFileSync(
-        path.join(dir, 'siro.config.ts'),
-        `export default { reporters: [{ name: 'boom', ${modifier}format() { throw new Error('boom from reporter'); } }] };\n`,
-      );
-      const result = spawnBin(['lint', '--reporter', 'boom', dir]);
-      expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(EXIT_CRASH);
-    } finally {
-      rmSync(dir, { force: true, recursive: true });
-    }
-  });
+  test.each(['', 'async '])(
+    'exits 70 after partial output when a %sconfig reporter throws',
+    (modifier) => {
+      expect.hasAssertions();
+      const dir = mkdtempSync(path.join(tmpdir(), 'siro-boom-'));
+      try {
+        writeFileSync(
+          path.join(dir, 'package.json'),
+          JSON.stringify({ name: 'demo', packageManager: 'pnpm@10.0.0' }),
+        );
+        writeFileSync(
+          path.join(dir, 'siro.config.ts'),
+          `export default { reporters: [{ name: 'boom', ${modifier}format(_result, io) { io.stdout('partial output'); throw new Error('boom from reporter'); } }] };\n`,
+        );
+        const result = spawnBin(['lint', '--reporter', 'boom', dir]);
+        expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(
+          EXIT_CRASH,
+        );
+        expect(result.stdout).toContain('partial output');
+        expect(result.stderr).toContain('boom from reporter');
+      } finally {
+        rmSync(dir, { force: true, recursive: true });
+      }
+    },
+  );
 });

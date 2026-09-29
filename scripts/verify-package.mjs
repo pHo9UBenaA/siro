@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
+  closeSync,
+  openSync,
   cpSync,
   mkdtempSync,
   mkdirSync,
@@ -13,6 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pnpmCommand } from './pnpm-command.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
@@ -23,29 +26,20 @@ assert.ok(
   'Usage: pnpm test:package [package.tgz | --output package.tgz]',
 );
 let tarball = cliArgs.length === 1 ? resolve(cliArgs[0]) : undefined;
-const consumer = mkdtempSync(join(tmpdir(), 'siro-consumer-'));
+// Exercise literal native paths throughout packing, installation and CLI launches.
+const consumer = mkdtempSync(join(tmpdir(), 'siro-consumer & spaces-'));
+const processOptions = {
+  encoding: 'utf8',
+  timeout: 120_000,
+  maxBuffer: 4 * 1024 * 1024,
+  env: { ...process.env, NODE_PATH: '', NODE_OPTIONS: '' },
+};
 
 function run(command, args, cwd = consumer, status = 0) {
-  if (process.platform === 'win32') {
-    if (command === 'pnpm') {
-      assert.ok(process.env.npm_execpath, 'Run package verification through pnpm');
-      args = [process.env.npm_execpath, ...args];
-      command = process.execPath;
-    } else if (command.endsWith('siro.cmd')) {
-      // Exercise the installed Windows shim. All CLI arguments below are fixed
-      // test inputs; use a relative executable to avoid quoting the temp path.
-      assert.ok(args.every((arg) => /^[\w./-]+$/u.test(arg)));
-      args = ['/d', '/s', '/c', `node_modules\\.bin\\siro.cmd ${args.join(' ')}`];
-      command = process.env.ComSpec ?? 'cmd.exe';
-    }
+  if (command === 'pnpm') {
+    ({ command, args } = pnpmCommand(args));
   }
-  const result = spawnSync(command, args, {
-    cwd,
-    encoding: 'utf8',
-    timeout: 120_000,
-    maxBuffer: 4 * 1024 * 1024,
-    env: { ...process.env, NODE_PATH: '', NODE_OPTIONS: '' },
-  });
+  const result = spawnSync(command, args, { ...processOptions, cwd });
   assert.ifError(result.error);
   assert.equal(result.signal, null, `${command} terminated by ${result.signal}`);
   assert.equal(
@@ -53,6 +47,22 @@ function run(command, args, cwd = consumer, status = 0) {
     status,
     `${command} ${args.join(' ')}\n${result.stdout}\n${result.stderr}`,
   );
+  return result.stdout;
+}
+
+// The only shell launch is this fixed Windows shim probe. No arguments, paths
+// or environment values are interpolated into command text or routed through run.
+function installedShimVersion() {
+  if (process.platform !== 'win32')
+    return run(join(consumer, 'node_modules/.bin/siro'), ['--version']);
+  const result = spawnSync(
+    'cmd.exe',
+    ['/d', '/s', '/c', 'node_modules\\.bin\\siro.cmd --version'],
+    { ...processOptions, cwd: consumer },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.signal, null);
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   return result.stdout;
 }
 
@@ -92,6 +102,10 @@ try {
   );
   assert.equal(installed.name, manifest.name);
   assert.equal(installed.version, manifest.version);
+  const installedBin = join(consumer, 'node_modules', manifest.name, installed.bin.siro);
+  // All variable CLI arguments stay literal Node argv, including on Windows.
+  const runCli = (args, cwd = consumer, status = 0) =>
+    run(process.execPath, [installedBin, ...args], cwd, status);
 
   cpSync(join(root, 'test/package/consumer.mts'), join(consumer, 'consumer.mts'));
   writeFileSync(
@@ -117,20 +131,40 @@ try {
   run(process.execPath, ['consumer.mts']);
 
   // Use the installed executable link, including its shebang and package bin mapping.
-  const cli = join(consumer, `node_modules/.bin/siro${process.platform === 'win32' ? '.cmd' : ''}`);
-  assert.equal(run(cli, ['--version']).trim(), manifest.version);
+  assert.equal(installedShimVersion().trim(), manifest.version);
   cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'good'), { recursive: true });
   cpSync(join(root, 'test/fixtures/npm-bad'), join(consumer, 'bad'), { recursive: true });
-  const report = JSON.parse(run(cli, ['lint', 'good', '--json']));
-  assert.equal(report.schemaVersion, 2);
+  const report = JSON.parse(runCli(['lint', 'good', '--json']));
+  assert.equal(report.schemaVersion, 3);
+  assert.equal(report.inspection.installationRoots[0].directory, '.');
   assert.equal(report.siroVersion, manifest.version);
+  const literalTarget = 'fixture & literal';
+  cpSync(join(consumer, 'good'), join(consumer, literalTarget), { recursive: true });
+  assert.deepEqual(JSON.parse(runCli(['lint', literalTarget, '--json'])), report);
+  // Exercise the installed executable against an actual unwritable output fd.
+  const outputFile = join(consumer, 'readonly-output');
+  writeFileSync(outputFile, '');
+  const readOnly = openSync(outputFile, 'r');
+  try {
+    const failedOutput = spawnSync(process.execPath, [installedBin, 'lint', 'good', '--json'], {
+      cwd: consumer,
+      encoding: 'utf8',
+      stdio: ['ignore', readOnly, 'pipe'],
+      timeout: 10_000,
+    });
+    assert.ifError(failedOutput.error);
+    assert.equal(failedOutput.status, 70, failedOutput.stderr);
+    assert.match(failedOutput.stderr, /Output failed/);
+  } finally {
+    closeSync(readOnly);
+  }
   const versionReport = JSON.parse(
-    run(cli, ['lint', 'good', '--pm', 'npm', '--pm-version', '11.9.0', '--json'], consumer, 1),
+    runCli(['lint', 'good', '--pm', 'npm', '--pm-version', '11.9.0', '--json'], consumer, 1),
   );
   assert.ok(versionReport.findings.some((finding) => finding.ruleId === 'unsupported-settings'));
-  run(cli, ['lint', 'good', '--pm', 'npm', '--pm-version', '11.10.0']);
-  run(cli, ['lint', 'good', '--pm-version', '11.10.0'], consumer, 2);
-  run(cli, ['lint', 'bad'], consumer, 1);
+  runCli(['lint', 'good', '--pm', 'npm', '--pm-version', '11.10.0']);
+  runCli(['lint', 'good', '--pm-version', '11.10.0'], consumer, 2);
+  runCli(['lint', 'bad'], consumer, 1);
   cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'workspace'), { recursive: true });
   const workspaceManifest = JSON.parse(
     readFileSync(join(consumer, 'workspace/package.json'), 'utf8'),
@@ -145,21 +179,40 @@ try {
     join(consumer, 'workspace/siro.config.mjs'),
     "export default { rules: { 'files-field': 'error' } };\n",
   );
-  run(cli, ['lint', 'workspace']);
-  const workspaceReport = JSON.parse(
-    run(cli, ['lint', 'workspace', '--workspaces', '--json'], consumer, 1),
-  );
+  runCli(['lint', 'workspace', '--exclude', 'child']);
+  runCli(['lint', 'workspace', '--workspaces'], consumer, 2);
+  const workspaceReport = JSON.parse(runCli(['lint', 'workspace', '--json'], consumer, 1));
   assert.ok(
     workspaceReport.findings.some(
       (finding) => finding.ruleId === 'files-field' && finding.file === 'child/package.json',
     ),
   );
-  run(cli, ['--invalid-option'], consumer, 2);
+  const installedScope = JSON.parse(
+    runCli(
+      ['lint', 'workspace', '--installation-root', '.', '--installation-root', 'child', '--json'],
+      consumer,
+      2,
+    ) || 'null',
+  );
+  assert.equal(installedScope, null, 'Unknown child PM must fail without a success document');
+  writeFileSync(
+    join(consumer, 'workspace/child/package.json'),
+    '{"name":"child","packageManager":"npm@12.0.2"}',
+  );
+  const expandedScope = JSON.parse(
+    runCli(
+      ['lint', 'workspace', '--installation-root', '.', '--installation-root', 'child', '--json'],
+      consumer,
+      1,
+    ),
+  );
+  assert.equal(expandedScope.inspection.installationRoots.length, 2);
+  runCli(['--invalid-option'], consumer, 2);
   writeFileSync(
     join(consumer, 'good/siro.config.mjs'),
     "export default { reporters: [{ name: 'crash', format() { throw new Error('Package verification crash probe'); } }] };\n",
   );
-  run(cli, ['lint', 'good', '--reporter', 'crash'], consumer, 70);
+  runCli(['lint', 'good', '--reporter', 'crash'], consumer, 70);
   // Retain the verified bytes for publication without packing a second time.
   if (output) copyFileSync(tarball, output);
   console.log(

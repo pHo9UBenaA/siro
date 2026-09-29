@@ -1,59 +1,114 @@
 # Getting started
 
-## Run without installing
+## 1. Run a check
+
+Use a supported Node version (see [requirements](../README.md#try-it)) and run from
+your repository:
 
 ```sh
 npx @pho9ubenaa/siro lint
 ```
 
-`siro` auto-detects your package manager from the `packageManager` field, lockfiles, and config
-files, then reports any best-practice violations.
+`npx` may download the tool. The CLI also executes the repository's `siro.config.*`,
+if present. Review unfamiliar configs or use an isolated environment; see the
+[threat model](threat-model.md).
 
-## Fix the findings
-
-siro is a linter: it reports violations but never writes your config files.
-Built-in findings include machine-readable remediation (`remediation`) in the JSON output. Custom rules may omit it:
-
-```sh
-npx @pho9ubenaa/siro lint --reporter json
-```
-
-Review and apply the proposed operations or manual steps with your editor — or hand the JSON to an agent
-skill that edits the files and re-runs `siro lint` until it exits `0`. The
-output shape is a versioned contract; see [json-output.md](json-output.md).
-
-## Add it to CI
+siro detects managers from `packageManager`, lockfiles and manager-specific config.
+If it cannot detect yours, select it explicitly, for example:
 
 ```sh
-npx @pho9ubenaa/siro lint                            # fails (exit 1) on any error-level finding
-npx @pho9ubenaa/siro lint --severity warn            # also fail on warnings
-npx @pho9ubenaa/siro lint --reporter json            # machine-readable output (equivalent to --json)
-npx @pho9ubenaa/siro lint --reporter github          # GitHub Actions annotations on PRs
+npx @pho9ubenaa/siro lint --pm npm
 ```
 
-## Target a specific package manager
+## 2. Choose what to inspect
+
+All selected `package.json` and strict `deno.json` manifests below the current
+directory are checked. By default, installation settings are checked only at the
+current directory, not every discovered package. PM workspace declarations do
+not limit discovery.
+
+To exclude intentional fixtures and generated packages, save `siro.config.mjs`:
+
+```js
+export default {
+  exclude: ['test/fixtures', 'vendor', 'dist'],
+};
+```
+
+For an independent install project, explicitly add its directory:
 
 ```sh
-npx @pho9ubenaa/siro lint --pm pnpm
+npx @pho9ubenaa/siro lint . --installation-root . --installation-root tools/standalone
 ```
 
-## Select application or package policy
+Replace `tools/standalone` with an existing project. Include `.` to retain the
+current directory's installation checks. Additional roots use their own PM targets;
+root `--pm` does not propagate. Check the JSON `inspection` field when verifying
+scope. See [configuration](configuration.md) for exclusions and manifest-only scans.
+
+## 3. Read findings and adjust your policy
+
+siro reports issues and suggested changes; it does not edit files. By default,
+all findings are shown, but only errors cause exit `1`. Warnings and info do not
+fail the command unless you select a stricter threshold.
 
 ```sh
-npx @pho9ubenaa/siro lint --project-type application # skip published-artifact rules
-npx @pho9ubenaa/siro lint --project-type package     # require published-artifact safeguards
+npx @pho9ubenaa/siro lint --json
+npx @pho9ubenaa/siro lint --severity warn
 ```
 
-Omit the flag to infer the policy from the repository's publish metadata.
+Review each change before applying it. For example, before setting
+`ignore-scripts=true` in `.npmrc`, check whether your builds need lifecycle scripts.
+Rerun lint after editing. JSON findings contain proposed operations or manual
+steps; see the [output contract](json-output.md).
 
-## Install as a dev dependency (optional)
+To change a rule's severity, add a `rules` map to your existing config:
+
+```js
+export default {
+  exclude: ['test/fixtures', 'vendor', 'dist'],
+  rules: { 'files-field': 'warn' },
+};
+```
+
+The [rule reference](rules.md) explains the checks and supported managers.
+[Rule settings](configuration.md#rule-settings) also support disabling a check
+with `'off'`; do this deliberately, not just to obtain a clean result.
+
+## 4. Add a repeatable CI command
+
+Install a pinned dev dependency:
 
 ```sh
 npm install --save-dev --save-exact @pho9ubenaa/siro
 ```
 
-Then wire `siro lint` into your `pre-push` hook or CI workflow.
+Add a script to `package.json`, preserving its other fields:
 
-Next: the [rule reference](rules.md) explains each check, the
-[comparison matrix](comparison.md) shows per-manager support, and
-[json-output.md](json-output.md) documents the machine-readable contract.
+```json
+{
+  "scripts": { "lint:security": "siro lint" }
+}
+```
+
+After installing project dependencies in CI, run:
+
+```sh
+npm run lint:security
+```
+
+A local dependency is available to package scripts, not every shell or Git hook.
+Use `npm run lint:security` in hooks too. To pass extra options:
+
+```sh
+npm run lint:security -- --severity warn
+npm run lint:security -- --reporter github
+```
+
+The GitHub reporter emits Actions annotations. Exit `2` means invalid input or an
+incomplete scan; `70` means an unexpected failure, including output errors. Neither
+should be treated as a successful check.
+
+For more options, use `npx @pho9ubenaa/siro lint --help` or the
+[CLI summary](../README.md#common-cli-options). Upgrading from 0.5.x? Follow the
+[migration guide](configuration.md#migration-from-05x); `--workspaces` was removed.

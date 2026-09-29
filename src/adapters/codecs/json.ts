@@ -1,5 +1,5 @@
-import { type ParsedConfig, toParsedConfig } from '../../domain/entities/config-value.ts';
-import type { ConfigCodec } from '../../domain/ports/config-codec.ts';
+import { type ParsedConfig, toParsedConfig } from '../../core/contracts/config-value.ts';
+import type { ConfigCodec } from '../../core/contracts/config-codec.ts';
 
 /** Codec for strict JSON (deno.json, package.json). Comments are not supported. */
 export const jsonCodec: ConfigCodec = {

@@ -1,7 +1,7 @@
-import { PMS, SEVERITIES } from '../domain/entities/pms.ts';
+import { PMS, SEVERITIES } from '../core/contracts/pms.ts';
 import { BUILTIN_REPORTER_NAMES } from '../adapters/reporters/registry.ts';
 import type { CommandName } from './commands.ts';
-import { PROJECT_TYPES } from '../domain/entities/project-type.ts';
+import { PROJECT_TYPES } from '../core/contracts/project-type.ts';
 
 const PMS_LIST = PMS.join('|');
 const REPORTERS_LIST = BUILTIN_REPORTER_NAMES.join('|');
@@ -12,7 +12,8 @@ const FLAG_LINES = {
   json: '  --json               Shortcut for --reporter json',
   pm: `  --pm <name>          Target a specific package manager (${PMS_LIST})`,
   pmVersion: '  --pm-version <x.y.z>  Target an exact stable PM version (requires --pm)',
-  workspaces: "  --workspaces         Also check workspace members' publication metadata",
+  inspection:
+    '  --exclude <pattern>  Exclude directories from recursive discovery (repeatable)\n  --installation-root <path>  Inspect local install policy here (repeatable; default .)',
   projectType: `  --project-type <type>  Project type (${PROJECT_TYPES_LIST}; default auto)`,
   reporter: `  --reporter <name>    Reporter (${REPORTERS_LIST}; additional reporters can be registered via siro.config.ts)`,
   severity: `  --severity <level>   Show + fail on findings at or above this level (${SEVERITIES_LIST})`,
@@ -30,7 +31,7 @@ const HELP_ROOT = [
   'GLOBAL FLAGS',
   FLAG_LINES.pm,
   FLAG_LINES.pmVersion,
-  FLAG_LINES.workspaces,
+  FLAG_LINES.inspection,
   FLAG_LINES.projectType,
   '  --version            Print the siro version',
   '  --help               Show help for siro or a command',
@@ -61,7 +62,7 @@ const HELP_LINT = [
   'FLAGS',
   FLAG_LINES.pm,
   FLAG_LINES.pmVersion,
-  FLAG_LINES.workspaces,
+  FLAG_LINES.inspection,
   FLAG_LINES.projectType,
   FLAG_LINES.reporter,
   FLAG_LINES.json,
