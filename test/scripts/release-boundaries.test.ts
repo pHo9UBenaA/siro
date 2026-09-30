@@ -48,8 +48,23 @@ it('never stages missing, substituted or misidentified artifact bytes', (context
   const script = workflow.jobs.publish.steps.find((step: { run?: string }) =>
     step.run?.includes('npm stage publish'),
   ).run;
-  const digest = createHash('sha256').update('verified bytes').digest('hex');
   try {
+    mkdirSync(path.join(root, 'package'));
+    const archive = (version = '0.6.1') => {
+      writeFileSync(
+        path.join(root, 'package/package.json'),
+        JSON.stringify({ name: '@pho9ubenaa/siro', version }),
+      );
+      const packed = spawnSync(
+        'tar',
+        ['-czf', path.join(root, 'release/siro.tgz'), 'package/package.json'],
+        { cwd: root, encoding: 'utf8', timeout: 10000 },
+      );
+      expect(packed.status).toBe(0);
+      return createHash('sha256')
+        .update(readFileSync(path.join(root, 'release/siro.tgz')))
+        .digest('hex');
+    };
     mkdirSync(path.join(root, 'bin'));
     mkdirSync(path.join(root, 'release'));
     writeFileSync(
@@ -69,14 +84,14 @@ it('never stages missing, substituted or misidentified artifact bytes', (context
           GITHUB_REF_NAME: tag,
         },
       });
-    writeFileSync(path.join(root, 'release/siro.tgz'), 'verified bytes');
+    const digest = archive();
     expect(execute('0'.repeat(64)).status).not.toBe(0);
     expect(execute(digest, 'v0.6.2').status).not.toBe(0);
+    expect(execute(archive('0.6.2')).status).not.toBe(0);
     rmSync(path.join(root, 'release/siro.tgz'));
     expect(execute(digest).status).not.toBe(0);
     expect(() => readFileSync(path.join(root, 'staged'))).toThrow(/ENOENT/);
-    writeFileSync(path.join(root, 'release/siro.tgz'), 'verified bytes');
-    expect(execute(digest).status).toBe(0);
+    expect(execute(archive()).status).toBe(0);
     expect(readFileSync(path.join(root, 'staged'), 'utf8')).toBe('staged');
   } finally {
     rmSync(root, { recursive: true, force: true });

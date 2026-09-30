@@ -83,4 +83,18 @@ jobs:
           [[ "$ARTIFACT_SHA256" =~ ^[a-f0-9]{64}$ ]]
           test "$GITHUB_REF_NAME" = "v$RELEASE_VERSION"
           printf '%s  %s\n' "$ARTIFACT_SHA256" "$RUNNER_TEMP/release/siro.tgz" | sha256sum --check --strict
+          tar -xOzf "$RUNNER_TEMP/release/siro.tgz" package/package.json | node --input-type=module -e '
+            let size = 0;
+            const chunks = [];
+            for await (const chunk of process.stdin) {
+              size += chunk.length;
+              if (size > 65536) throw new Error("Release metadata exceeds 64 KiB.");
+              chunks.push(chunk);
+            }
+            let pkg;
+            try { pkg = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
+            catch { throw new Error("Invalid release package metadata."); }
+            if (pkg?.name !== "@pho9ubenaa/siro" || pkg?.version !== process.env.RELEASE_VERSION || pkg?.private)
+              throw new Error("Packed package identity does not match the release.");
+          '
           npm stage publish "$RUNNER_TEMP/release/siro.tgz" --access public --allow-file=all

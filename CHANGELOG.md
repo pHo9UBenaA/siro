@@ -14,8 +14,8 @@
   Exceeded input/evaluation budgets exit 2; output budgets exit 70, never a truncated
   clean report. Normal JSON schema 3 paths and decoded values remain unchanged.
 - Separate credential-free build/verification from OIDC staging; verify main ancestry,
-  tag identity and transferred artifact digest without checkout/install/repack in the
-  staging job. Document required remote protection and publisher settings.
+  tag identity, transferred artifact digest and bounded packed package identity
+  without checkout/install/repack or execution of packed code in the staging job. Document required remote protection and publisher settings.
 - Add installed CLI/API, parser confidentiality, native symlink/budget, serialization,
   release-failure and PM precedence/scope regressions. Clarify warn-level TLS checks,
   optional missing/empty configuration, lazy parsing and security impact calibration.
