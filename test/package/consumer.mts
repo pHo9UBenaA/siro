@@ -18,6 +18,8 @@ import {
   type PM,
   type LintOptions,
   type RequireConfigKeySpec,
+  DEFAULT_SCAN_LIMITS,
+  type ScanLimits,
 } from '@pho9ubenaa/siro';
 
 // Isolated installed consumer: no internal imports or dev dependency types.
@@ -32,6 +34,23 @@ const emptyFs: FileSystem = {
 };
 const builtinId: Extract<keyof NonNullable<SiroConfig['rules']>, 'files-field'> = 'files-field';
 check(builtinId === 'files-field');
+const limits: Partial<ScanLimits> = { maxFileBytes: DEFAULT_SCAN_LIMITS.maxFileBytes };
+check(
+  lint({ cwd: asAbsPath('/virtual'), fs: emptyFs, installationRoots: [], limits }).inspection
+    .manifests.length === 0,
+);
+let overflow = false;
+try {
+  lint({
+    cwd: asAbsPath('/virtual'),
+    fs: { ...emptyFs, readText: () => '{"private":true}' },
+    installationRoots: [],
+    limits: { maxFileBytes: 1 },
+  });
+} catch (error) {
+  overflow = error instanceof Error && error.message.includes('maxFileBytes');
+}
+check(overflow);
 // @ts-expect-error workspace selection is removed, not an alias.
 const oldOptions: LintOptions = { cwd: asAbsPath('/virtual'), workspaces: true };
 void oldOptions;

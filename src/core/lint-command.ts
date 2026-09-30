@@ -5,6 +5,7 @@ import type { IO } from './contracts/io.ts';
 import { UsageError } from './contracts/errors.ts';
 import type { LintDependencies } from './contracts/lint-dependencies.ts';
 import { prepareLint, runPreparedLint, type LintOptions } from './lint.ts';
+import { outputBudget } from './contracts/scan-limits.ts';
 
 export interface LintCommandOptions extends LintOptions {
   readonly reporter?: string | Reporter;
@@ -40,6 +41,7 @@ export const lintCommand = async (
   // legacy synchronous reporters that do not await their sink. Preserve the
   // original failure and await completion even after a reporter throws.
   const writes: Promise<void>[] = [];
+  const consumeOutput = outputBudget(prepared.evaluation.limits.maxOutputBytes);
   let outputFailed = false;
   let outputFailure: unknown;
   const recordFailure = (error: unknown) => {
@@ -52,6 +54,7 @@ export const lintCommand = async (
     (write: IO['stdout']): IO['stdout'] =>
     (line) => {
       try {
+        consumeOutput(`${line}\n`);
         const written = write(line);
         writes.push(Promise.resolve(written).then(() => {}, recordFailure));
         return written;
@@ -67,7 +70,7 @@ export const lintCommand = async (
         stdout: track((line) => io.stdout(line)),
         stderr: track((line) => io.stderr(line)),
       },
-      { cwd: options.cwd },
+      { cwd: options.cwd, limits: prepared.evaluation.limits },
     );
   } finally {
     await Promise.all(writes);

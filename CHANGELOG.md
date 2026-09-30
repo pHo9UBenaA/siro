@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.1] — 2026-09-30
+
+- Add `--no-config` for data-only CLI inspection without probing or executing root
+  configuration. Preserve automatic configuration for trusted existing callers.
+- Add `--strict-filesystem` / API `rejectSymlinks` for native input paths, with
+  explicit limits: this is not atomic containment or a sandbox.
+- Remove source excerpts from JSON/YAML/TOML syntax diagnostics without masking
+  observed finding values or silently accepting invalid input.
+- Bound native file reads and directory enumeration, per-scan bytes/discovery,
+  configuration nesting, unfiltered findings and report output. Add finite caller
+  overrides (`limits`, CLI `--max-*`) and export `DEFAULT_SCAN_LIMITS` / `ScanLimits`.
+  Exceeded input/evaluation budgets exit 2; output budgets exit 70, never a truncated
+  clean report. Normal JSON schema 3 paths and decoded values remain unchanged.
+- Separate credential-free build/verification from OIDC staging; verify main ancestry,
+  tag identity and transferred artifact digest without checkout/install/repack in the
+  staging job. Document required remote protection and publisher settings.
+- Add installed CLI/API, parser confidentiality, native symlink/budget, serialization,
+  release-failure and PM precedence/scope regressions. Clarify warn-level TLS checks,
+  optional missing/empty configuration, lazy parsing and security impact calibration.
+
 ## [0.6.0] — 2026-09-29
 
 ### Breaking changes and inspection scope

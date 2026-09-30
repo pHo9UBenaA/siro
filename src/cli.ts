@@ -36,7 +36,10 @@ const dispatch = async (cmd: ParsedCommand, io: IO): Promise<number> => {
     }
     case 'lint': {
       assertDirectory(cmd.cwd);
-      return loadConfig(cmd.cwd).then((config) => lintCommand({ ...cmd, config }, io));
+      const { noConfig, ...options } = cmd;
+      if (noConfig) return lintCommand(options, io);
+      const config = await loadConfig(cmd.cwd);
+      return lintCommand({ ...options, config }, io);
     }
     default: {
       const exhaustiveCheck: never = cmd;

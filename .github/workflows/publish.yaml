@@ -6,30 +6,81 @@ on:
 
 permissions:
   contents: read
-  id-token: write # OIDC trusted publisher
 
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-slim
     timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      sha256: ${{ steps.digest.outputs.sha256 }}
+      version: ${{ steps.identity.outputs.version }}
+      artifactId: ${{ steps.upload.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
-          registry-url: 'https://registry.npmjs.org'
-      - name: Check release identity
-        run: node scripts/check-release.mjs
+      - name: Check release identity and main ancestry
+        id: identity
+        run: |
+          set -euo pipefail
+          version=$(node scripts/check-release.mjs)
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
         env:
-          # Knip's raw transfer reserves 6 GiB, exceeding this runner's 5 GB limit.
           KNIP_DISABLE_RAW_TRANSFER: '1'
       - name: Pack and verify the release artifact
         run: pnpm test:package --output "$RUNNER_TEMP/siro.tgz"
-      - name: Stage the verified artifact
-        run: npm stage publish "$RUNNER_TEMP/siro.tgz" --access public --allow-file=all
+      - name: Record the verified bytes
+        id: digest
+        run: |
+          set -euo pipefail
+          digest=$(sha256sum "$RUNNER_TEMP/siro.tgz" | cut -d ' ' -f 1)
+          printf 'sha256=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        id: upload
+        with:
+          name: verified-release
+          path: ${{ runner.temp }}/siro.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    environment: npm-publish
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      # No checkout, repository scripts, install, build, consumer execution, or repack here.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+          registry-url: 'https://registry.npmjs.org'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifactId }}
+          path: ${{ runner.temp }}/release
+          merge-multiple: true
+      - name: Check identity and digest, then stage the exact artifact
+        env:
+          ARTIFACT_SHA256: ${{ needs.build.outputs.sha256 }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$ARTIFACT_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          test "$GITHUB_REF_NAME" = "v$RELEASE_VERSION"
+          printf '%s  %s\n' "$ARTIFACT_SHA256" "$RUNNER_TEMP/release/siro.tgz" | sha256sum --check --strict
+          npm stage publish "$RUNNER_TEMP/release/siro.tgz" --access public --allow-file=all

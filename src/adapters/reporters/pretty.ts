@@ -4,6 +4,7 @@ import type { Reporter } from '../../core/contracts/reporter.ts';
 import type { Severity } from '../../core/contracts/pms.ts';
 import pc from 'picocolors';
 import { safeText } from '../safe-text.ts';
+import { outputBudget, DEFAULT_SCAN_LIMITS } from '../../core/contracts/scan-limits.ts';
 
 const GLYPH: Record<Severity, string> = {
   error: '✖ error',
@@ -75,9 +76,13 @@ const buildRenderCtx = (
 };
 
 export const prettyReporter: Reporter<'pretty'> = {
-  async format(result: LintResult, io: IO): Promise<void> {
+  async format(result: LintResult, io: IO, context): Promise<void> {
     const lines: string[] = [];
+    const consume = outputBudget(
+      context.limits?.maxOutputBytes ?? DEFAULT_SCAN_LIMITS.maxOutputBytes,
+    );
     const collect = (line: string) => {
+      consume(`${line}\n`);
       lines.push(line);
     };
     const ctx = buildRenderCtx({ stdout: collect, stderr: collect });

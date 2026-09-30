@@ -1,4 +1,5 @@
 import { isPlainRecord } from './records.ts';
+import { ConfigParseError } from './errors.ts';
 
 export const CODEC_KINDS = ['json', 'npmrc', 'toml', 'yaml'] as const;
 export type CodecKind = (typeof CODEC_KINDS)[number];
@@ -37,5 +38,5 @@ export const toParsedConfig = (value: unknown): ParsedConfig => {
   if (isPlainRecord(value)) {
     return value;
   }
-  throw new TypeError('Config root must be a mapping.');
+  throw new ConfigParseError('Config root must be a mapping.');
 };

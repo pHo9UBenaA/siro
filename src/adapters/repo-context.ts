@@ -1,28 +1,18 @@
 import { type AbsPath, type RelPath, asRelPath } from '../core/contracts/paths.ts';
 import { type PackageJson, parsePackageJson } from '../core/contracts/package-json.ts';
 import { nodeFileSystem, resolveIn, assertDirectory } from './node-file-system.ts';
-import { ConfigError } from '../core/contracts/errors.ts';
+import { wrapCodecError } from '../core/contracts/errors.ts';
+import { parseJson } from './codecs/json.ts';
+import { DEFAULT_SCAN_LIMITS } from '../core/contracts/scan-limits.ts';
 import type { FileSystem } from '../core/contracts/file-system.ts';
 import type { RepoContext } from '../core/contracts/repo-context.ts';
 import type { ProjectType } from '../core/contracts/project-type.ts';
 
-const tryParseJson = (text: string): unknown => {
-  try {
-    return JSON.parse(text);
-  } catch (error) {
-    let errMsg = String(error);
-    if (error instanceof Error) {
-      errMsg = error.message;
-    }
-    throw new ConfigError(`package.json: invalid JSON — ${errMsg}`);
-  }
-};
-
-const readPackageJson = (raw: string): PackageJson => {
+const readPackageJson = (raw: string, maxDepth: number): PackageJson => {
   // trim() strips a leading U+FEFF BOM (per the ECMAScript whitespace
   // definition), matching how the json codec parses the same file and how
   // npm / pnpm / node's own require() treat BOM-prefixed package.json.
-  const parsed = tryParseJson(raw.trim());
+  const parsed = wrapCodecError('package.json', () => parseJson(raw, maxDepth));
   return parsePackageJson(parsed);
 };
 
@@ -30,6 +20,7 @@ export const createRepoContext = (
   root: AbsPath,
   fs: FileSystem = nodeFileSystem,
   projectType?: ProjectType,
+  maxDepth = DEFAULT_SCAN_LIMITS.maxConfigDepth,
 ): RepoContext => {
   if (fs === nodeFileSystem) assertDirectory(root);
   const packageFile = resolveIn(root, asRelPath('package.json'));
@@ -45,7 +36,7 @@ export const createRepoContext = (
   const exists = (relPath: RelPath): boolean => fs.exists(resolveIn(root, relPath));
   let packageJson: PackageJson | undefined = void 0;
   if (typeof raw !== 'undefined') {
-    packageJson = readPackageJson(raw);
+    packageJson = readPackageJson(raw, maxDepth);
   }
 
   return { exists, packageJson, projectType, readText, root };

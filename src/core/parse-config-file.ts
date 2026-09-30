@@ -3,6 +3,7 @@ import type { ConfigFileRef } from './contracts/config-file-ref.ts';
 import type { ParsedConfig } from './contracts/config-value.ts';
 import type { RepoContext } from './contracts/repo-context.ts';
 import { wrapCodecError } from './contracts/errors.ts';
+import { checkConfigDepth, DEFAULT_SCAN_LIMITS } from './contracts/scan-limits.ts';
 
 /** A repository-context parser that memoizes successful `(kind, path)` reads. */
 export type ConfigParser = (file?: ConfigFileRef) => ParsedConfig;
@@ -16,7 +17,11 @@ export interface RepositoryEvaluation {
 const EMPTY_FILE: ParsedConfig = Object.freeze({});
 
 /** Create a lazy parser for one repository context; callers own its lifetime. */
-export const createConfigParser = (codecFor: CodecFor, ctx: RepoContext): ConfigParser => {
+export const createConfigParser = (
+  codecFor: CodecFor,
+  ctx: RepoContext,
+  maxDepth = DEFAULT_SCAN_LIMITS.maxConfigDepth,
+): ConfigParser => {
   const cache = new Map<string, ParsedConfig>();
 
   return (file) => {
@@ -36,6 +41,7 @@ export const createConfigParser = (codecFor: CodecFor, ctx: RepoContext): Config
       return EMPTY_FILE;
     }
     const parsed = wrapCodecError(file.path, () => codecFor(file.kind).parse(text));
+    checkConfigDepth(parsed, maxDepth);
     cache.set(cacheKey, parsed);
     return parsed;
   };
@@ -45,4 +51,5 @@ export const createConfigParser = (codecFor: CodecFor, ctx: RepoContext): Config
 export const createRepositoryEvaluation = (
   ctx: RepoContext,
   codecFor: CodecFor,
-): RepositoryEvaluation => ({ ctx, parseConfig: createConfigParser(codecFor, ctx) });
+  maxDepth = DEFAULT_SCAN_LIMITS.maxConfigDepth,
+): RepositoryEvaluation => ({ ctx, parseConfig: createConfigParser(codecFor, ctx, maxDepth) });

@@ -6,10 +6,10 @@ const throwValue = (value: unknown): never => {
 };
 
 describe(wrapCodecError, () => {
-  it('coerces a non-Error thrown value through String() into the prefixed message', () => {
+  it('does not disclose an unknown parser exception in the prefixed message', () => {
     expect.hasAssertions();
     expect(() => wrapCodecError('x.json', () => throwValue('literal'))).toThrow(
-      new ConfigError('x.json: literal'),
+      new ConfigError('x.json: Invalid configuration.'),
     );
   });
 

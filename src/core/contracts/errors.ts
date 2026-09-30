@@ -21,6 +21,9 @@ export class UsageError extends SiroError {
   }
 }
 
+/** Parser diagnostics constructed from constant classifications, never source excerpts. */
+export class ConfigParseError extends Error {}
+
 /**
  * Run `fn` and wrap any non-`ConfigError` failure as a `ConfigError` prefixed
  * with `filePath`. A `ConfigError` that bubbles up from a nested call is re-thrown unchanged so
@@ -33,10 +36,8 @@ export const wrapCodecError = <TResult>(filePath: string, fn: () => TResult): TR
     if (error instanceof ConfigError) {
       throw error;
     }
-    let msg = String(error);
-    if (error instanceof Error) {
-      msg = error.message;
-    }
-    throw new ConfigError(`${filePath}: ${msg}`);
+    // Unknown parser exceptions can contain source lines, values, or secrets.
+    const message = error instanceof ConfigParseError ? error.message : 'Invalid configuration.';
+    throw new ConfigError(`${filePath}: ${message}`);
   }
 };

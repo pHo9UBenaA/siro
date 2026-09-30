@@ -10,8 +10,9 @@ npx @pho9ubenaa/siro lint
 ```
 
 `npx` may download the tool. The CLI also executes the repository's `siro.config.*`,
-if present. Review unfamiliar configs or use an isolated environment; see the
-[threat model](threat-model.md).
+if present. For unfamiliar checkouts, disable executable config and reject symlink
+input paths with `siro lint --no-config --strict-filesystem`, in an isolated environment
+without credentials. These options are not a sandbox; see the [threat model](threat-model.md).
 
 siro detects managers from `packageManager`, lockfiles and manager-specific config.
 If it cannot detect yours, select it explicitly, for example:
@@ -104,6 +105,11 @@ Use `npm run lint:security` in hooks too. To pass extra options:
 npm run lint:security -- --severity warn
 npm run lint:security -- --reporter github
 ```
+
+Do not run an untrusted checkout's executable config in a privileged
+`pull_request_target` job. Protect the trusted CI/policy definitions and use a
+credential-free, restricted job for data-only scans. Scan budgets can be adjusted
+through caller options, not repository config; overflow is not a clean scan.
 
 The GitHub reporter emits Actions annotations. Exit `2` means invalid input or an
 incomplete scan; `70` means an unexpected failure, including output errors. Neither

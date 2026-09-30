@@ -8,10 +8,15 @@ context: `await jsonReporter.format(result, io, { cwd })`.
 Parse JSON rather than comparing serialized bytes. Command-like sequences such as
 `##[` and display-control characters can use Unicode escapes; decoded values and
 schemaVersion 3 remain unchanged. No workflow-command wrapper lines surround JSON.
+JSON is constructed with a byte budget before writing, without silently truncating
+findings. Check the process outcome too: input/evaluation overflow exits 2; output
+budget or stream failure exits 70. Neither represents a successful empty result.
+Observed `actual` values are not secret-redacted, even when parser syntax diagnostics
+omit source excerpts.
 
 | Root field      | Meaning                                                                                |
 | --------------- | -------------------------------------------------------------------------------------- |
-| `schemaVersion` | `3` (independent of package version 0.6.0)                                             |
+| `schemaVersion` | `3` (independent of package version 0.6.1)                                             |
 | `siroVersion`   | Running package version                                                                |
 | `findings`      | Display-filtered findings                                                              |
 | `summary`       | `{ "error": number, "warn": number, "info": number }` finding counts                   |
@@ -20,7 +25,7 @@ schemaVersion 3 remain unchanged. No workflow-command wrapper lines surround JSO
 ```json
 {
   "schemaVersion": 3,
-  "siroVersion": "0.6.0",
+  "siroVersion": "0.6.1",
   "findings": [
     {
       "ruleId": "files-field",

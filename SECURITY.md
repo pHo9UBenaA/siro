@@ -10,6 +10,9 @@ Security fixes target the latest release; older release lines have no guaranteed
 
 ## Scope
 
-siro checks local package-manager configuration. A clean result is not proof that dependencies, installation scripts, or a repository are safe. Executable `siro.config.*` files and custom rules/reporters run with the invoking user's permissions. Review them before running siro, including in CI.
+siro checks local package-manager configuration. A clean result is not proof that dependencies, installation scripts, or a repository are safe. Executable `siro.config.*` files and custom rules/reporters run with the invoking user's permissions. For unfamiliar checkouts, use `--no-config --strict-filesystem` in an isolated,
+credential-free environment. Configuration is otherwise imported automatically;
+shape validation and scan budgets do not sandbox executable code. Findings may
+contain observed secrets; display escaping is not redaction.
 
 See the [threat model](docs/threat-model.md) for trust boundaries, limitations, and release controls.

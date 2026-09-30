@@ -8,7 +8,7 @@ git config core.hooksPath .githooks
 pnpm verify
 ```
 
-Pre-commit checks types and formatting/lint; pre-push and CI run `verify`.
+Pre-commit checks types, formatting/lint and tests; pre-push and CI run `verify`.
 Hooks check the working tree, not a separate partially staged tree.
 
 | Command             | Purpose                                                          |
@@ -62,3 +62,25 @@ To verify an existing artifact, run `pnpm test:package /absolute/path/package.tg
 To retain a verified artifact, use
 `pnpm test:package --output /absolute/path/package.tgz`. Verification never publishes;
 the publication workflow stages the verified tarball without repacking it.
+
+## Release controls
+
+Prepare releases on `release/v<x.y.z>` with Conventional Commits. Merge reviewed
+changes into protected main before creating `v<x.y.z>`: the workflow checks tag/version
+identity and that the release commit is an ancestor of fetched `origin/main`.
+Ancestry alone is not authorization; protect both main and `v*` tags.
+
+The build job has no OIDC authority. It installs, verifies, packs and consumer-tests
+the artifact, then transfers that exact tarball using a pinned Action and records its
+SHA-256. Only the separate `publish` job gets `id-token: write`; it does not checkout
+repository code, install packages, run repository scripts or repack. It checks the
+version and digest before `npm stage publish`. A digest identifies bytes, not benign
+code; compromised reviewed source/build inputs can still produce malicious bytes.
+
+Before enabling releases, maintainers must configure the `npm-publish` GitHub
+environment with required reviewers and tag restrictions, protected branches/tags,
+and the npm trusted publisher binding for this repository, `publish.yaml` and
+environment. Those remote controls cannot be proven by workflow YAML or local tests.
+Changing the binding/environment can block OIDC; verify it before a release.
+Staging and final approval/publication are distinct operator actions. Do not use
+production publishing authority for test probes.

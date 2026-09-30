@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { LintResult } from '../../core/contracts/lint-result.ts';
 import type { Reporter, ReportContext } from '../../core/contracts/reporter.ts';
 import type { Severity } from '../../core/contracts/pms.ts';
+import { DEFAULT_SCAN_LIMITS, outputBudget } from '../../core/contracts/scan-limits.ts';
 
 const COMMAND: Record<Severity, string> = {
   error: 'error',
@@ -21,6 +22,9 @@ const escapeProp = (raw: string): string =>
 /** Emit GitHub Actions workflow commands (annotations on PRs). */
 export const githubReporter: Reporter<'github'> = {
   async format(result: LintResult, io: IO, context: ReportContext): Promise<void> {
+    const consume = outputBudget(
+      context.limits?.maxOutputBytes ?? DEFAULT_SCAN_LIMITS.maxOutputBytes,
+    );
     for (const finding of result.findings) {
       // Findings identify files, not source spans.
       let file = '';
@@ -32,9 +36,9 @@ export const githubReporter: Reporter<'github'> = {
       if (finding.docs) {
         body += ` (${finding.docs})`;
       }
-      await io.stdout(
-        `::${COMMAND[finding.severity]} ${file}title=${escapeProp(finding.ruleId)}::${escapeData(body)}`,
-      );
+      const line = `::${COMMAND[finding.severity]} ${file}title=${escapeProp(finding.ruleId)}::${escapeData(body)}`;
+      consume(`${line}\n`);
+      await io.stdout(line);
     }
   },
   name: 'github',
