@@ -79,7 +79,6 @@ export default {
 npx @pho9ubenaa/siro lint . --installation-root . --installation-root tools/standalone
 ```
 
-- `exclude` defaults to `[]`; `installationRoots` defaults to `['.']`.
 - API arrays replace their config values. Repeated CLI `--exclude` or
   `--installation-root` values likewise replace the corresponding config array.
 - Naming a child does not automatically retain `.`. `installationRoots: []`
@@ -136,7 +135,7 @@ Parser diagnostics omit input excerpts; observed finding values are not redacted
 For a data-only inspection, use:
 
 ```sh
-siro lint --no-config --strict-filesystem
+npx @pho9ubenaa/siro lint --no-config --strict-filesystem
 ```
 
 `--strict-filesystem` (`rejectSymlinks: true` in the API) rejects a symlink selected
@@ -166,10 +165,9 @@ All overrides must be positive safe integers. Defaults are exported as
 Native reads bound actual bytes before/during reading, and enumeration counts all
 entries in visited directories, including files and skipped directory names.
 Injected IO is checked after returning data and counts returned child directories;
-Siro cannot bound allocations made inside a supplied IO function. Reads (including
-absence) are memoized within the scan. Decoded UTF-8 text is also byte-checked.
-Budget counters never persist across scans. Config depth applies to unconsumed
-manifest fields too, without whole-schema validation.
+siro cannot bound allocations made inside a supplied IO function. Decoded UTF-8 text
+is also byte-checked. Budgets apply per scan; config depth includes unconsumed
+manifest fields without whole-schema validation.
 
 Input/evaluation overflow aborts with exit 2, without a partial success document.
 Output overflow is exit 70; JSON is bounded before writing, while GitHub output may
@@ -230,9 +228,7 @@ TypeScript must use Node-supported erasable syntax. This default is automatic
 execution, not an opt-in or sandbox. `--no-config` skips config filename probing and
 import entirely, discarding its rule overrides, reporters, exclusions, installation
 roots, PM/version declarations and project type. CLI options and built-in defaults
-still apply; unknown custom reporter names fail rather than falling back. Ordinary
-directories named `siro.config.*` still participate in normal data discovery; they are
-not excluded merely because executable configuration lookup is disabled.
+still apply; unknown custom reporter names fail rather than falling back.
 
 Unknown keys, unknown/duplicate rule IDs and malformed extensions are errors.
 Config exports and check results must be synchronous objects, not Promises or

@@ -5,21 +5,17 @@ processing it. Messages are not stable identifiers. A registered custom `json`
 reporter may replace this contract. Await direct reporter calls and supply their scan
 context: `await jsonReporter.format(result, io, { cwd })`.
 
-Parse JSON rather than comparing serialized bytes. Command-like sequences such as
-`##[` and display-control characters can use Unicode escapes; decoded values and
-schemaVersion 3 remain unchanged. No workflow-command wrapper lines surround JSON.
-JSON is constructed with a byte budget before writing, without silently truncating
-findings. Check the process outcome too: input/evaluation overflow exits 2; output
-budget or stream failure exits 70. Neither represents a successful empty result.
-Observed `actual` values are not secret-redacted, even when parser syntax diagnostics
-omit source excerpts.
+Parse JSON rather than comparing serialized bytes: display controls and `##[` may
+use Unicode escapes without changing decoded values. No workflow-command wrappers
+surround the document. [Output budgets](configuration.md#strict-filesystem-and-scan-budgets)
+fail rather than silently truncating findings. Observed `actual` values are not secret-redacted.
 
 | Root field      | Meaning                                                                                |
 | --------------- | -------------------------------------------------------------------------------------- |
-| `schemaVersion` | `3` (independent of package version 0.6.1)                                             |
+| `schemaVersion` | `3`, independent of `siroVersion`                                                      |
 | `siroVersion`   | Running package version                                                                |
 | `findings`      | Display-filtered findings                                                              |
-| `summary`       | `{ "error": number, "warn": number, "info": number }` finding counts                   |
+| `summary`       | Counts of displayed findings by severity: `error`, `warn`, `info`                      |
 | `inspection`    | Selected manifests and explicit installation targets, unaffected by severity filtering |
 
 ```json
@@ -64,14 +60,12 @@ acquire a synthetic package.json. Multiple findings may share a rule ID.
 
 ## Paths and remediation
 
-Unlike API/JSON paths, GitHub annotation file references are absolute, resolved
-against the scan cwd.
-
 All output `file` and `operations[].file.path` values are cwd-relative, not relative
 to `directory`. Consumers must **not prefix directory again**. Native component
 spelling is preserved: POSIX `scratch\notes` differs from `scratch/notes`. JSON
 escapes a literal backslash normally. `/` joins components. These paths are not a
-cross-OS filename conversion or a filesystem containment sandbox.
+cross-OS filename conversion or a filesystem containment sandbox. GitHub annotation
+file references are instead absolute, resolved against the scan cwd.
 
 ```json
 {
@@ -119,6 +113,7 @@ with [common discovery and explicit installation roots](configuration.md).
 From schema 1: `fix`, `fixable`, `manualSteps` became `remediation`; setKey moved
 under operations, and note/ensureFileTracked became manual steps.
 
-Exit 0 only means no finding meets the configured failure threshold. Exit 2 means
-inspection did not complete; do not synthesize a successful empty report. Unexpected
-reporter/custom-rule exceptions exit 70, even after partial output.
+Check the process exit as well as the document. Exit 0 means no finding meets the
+failure threshold. Invalid input or input/evaluation overflow exits 2; output overflow,
+stream failure or unexpected exceptions exit 70, possibly after partial output.
+Neither failure represents a successful empty report.

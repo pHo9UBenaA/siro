@@ -16,10 +16,10 @@ helps review supported policy gaps; a clean result is not a security attestation
 - Installing siro trusts its distributed code and dependencies. `npx` may download
   code before checking anything. Pin an exact version when repeatability matters.
 
-For unfamiliar repositories or pull requests, use `siro lint --no-config --strict-filesystem`
-and an isolated environment without credentials and with restricted filesystem/network
-access. The flags are not a sandbox and do not make npx's downloaded code untrusted-safe. Do not execute repository
-config in a privileged `pull_request_target` job. Shape validation is not sandboxing.
+For unfamiliar repositories, use `npx @pho9ubenaa/siro lint --no-config --strict-filesystem`
+in an isolated environment without credentials and with restricted filesystem/network
+access. These flags do not sandbox npm/npx or extensions. Do not execute repository
+config in a privileged `pull_request_target` job.
 
 ## What a scan does not establish
 
@@ -46,9 +46,9 @@ ancestor replacement races and hard links remain outside its guarantee. Without 
 symlink targets can supply values that appear in findings, including external secrets.
 Lockfile presence does not prove validity or git tracking.
 
-Read/parse failures for selected, consumed inputs abort inspection. Optional missing
-PM configuration becomes empty configuration; empty YAML/TOML/INI is allowed, not
-empty JSON. Other PM files and disabled checks are not necessarily parsed.
+Only selected, consumed inputs are parsed; this is not a whole-repository syntax audit.
+See [configuration behavior](configuration.md#common-exclusions-and-filesystem-behavior)
+for missing, empty and invalid inputs.
 
 [Finite scan budgets](configuration.md#strict-filesystem-and-scan-budgets) bound
 native file reads, directory enumeration, discovery, nesting, findings and output.
@@ -60,11 +60,10 @@ and CI timeouts as well.
 
 Treat filenames, values and messages as untrusted data. Pretty output and CLI
 diagnostics escape display controls; JSON preserves decoded values; GitHub output
-escapes annotation fields. API/JSON paths are cwd-relative; GitHub annotation files
-are absolute, resolved against scan cwd. Parser syntax diagnostics omit source
-excerpts, but observed values, paths and trusted extension messages are not secret
-redaction. API consumers must encode for their own output context and must not assume
-filenames are portable across operating systems.
+escapes annotation fields. Parser diagnostics omit source excerpts, but observed
+values, paths and extension messages are not secret-redacted. Consumers must encode
+for their own output context and follow the [path contract](json-output.md#paths-and-remediation);
+filenames are not necessarily portable across operating systems.
 
 Remediation is advisory. Review edits, preserve unrelated content, resolve conflicts
 and rerun lint. The word "automatic" describes an operation format, not permission
@@ -77,18 +76,10 @@ not sandbox them. See [JSON output](json-output.md) for consumer requirements.
 
 ## Release authority and impact
 
-Build/install/test/consumer verification run without OIDC authority. A separate,
-environment-bound job stages the exact artifact after identity and digest checks;
-it does not checkout code, install dependencies or rebuild. Tag/version and fetched
-main ancestry checks do not prove authorization or benign bytes. Maintainers must
-configure protected main/tags, environment approval and npm trusted publisher bindings;
-see [release requirements](contributing.md#release-controls).
-
-Treat code execution, release compromise, policy false-negatives, information disclosure
-and availability attacks according to their demonstrated deployment impact, not rule
-severity or test counts. These are potential threats, not a list of established
-Critical/High vulnerabilities. Development tooling affecting releases is not low-impact
-merely because it is not part of the runtime lint path.
+Build and verification run without OIDC authority; a separate environment-bound job
+stages the verified artifact. Identity, digest and ancestry checks do not prove benign
+bytes or release authorization: compromised source or build tooling can still produce
+malicious packages. Maintainers must configure the [release controls](contributing.md#release-controls).
 
 ## Reporting vulnerabilities
 

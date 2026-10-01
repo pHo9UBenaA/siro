@@ -66,23 +66,11 @@ the publication workflow stages the verified tarball without repacking it.
 ## Release controls
 
 Prepare releases on `release/v<x.y.z>` with Conventional Commits. Merge reviewed
-changes into protected main before creating `v<x.y.z>`: the workflow checks tag/version
-identity and that the release commit is an ancestor of fetched `origin/main`.
-Ancestry alone is not authorization; protect both main and `v*` tags.
+changes into protected main before tagging `v<x.y.z>`; the tag must match the
+package version. The [publish workflow](../.github/workflows/publish.yaml) verifies
+and stages the package. Staging is separate from approval and public availability.
 
-The build job has no OIDC authority. It installs, verifies, packs and consumer-tests
-the artifact, then transfers that exact tarball using a pinned Action and records its
-SHA-256. Only the separate `publish` job gets `id-token: write`; it does not checkout
-repository code, install packages, run repository scripts or repack. It checks the
-version and digest, then parses at most 64 KiB of the packed package.json to verify
-its public name/version before `npm stage publish`. It does not execute packed API,
-bin or lifecycle code. A digest identifies bytes, not benign
-code; compromised reviewed source/build inputs can still produce malicious bytes.
-
-Before enabling releases, maintainers must configure the `npm-publish` GitHub
-environment with required reviewers and tag restrictions, protected branches/tags,
-and the npm trusted publisher binding for this repository, `publish.yaml` and
-environment. Those remote controls cannot be proven by workflow YAML or local tests.
-Changing the binding/environment can block OIDC; verify it before a release.
-Staging and final approval/publication are distinct operator actions. Do not use
-production publishing authority for test probes.
+Before publishing, protect main and `v*` tags, configure the `npm-publish` environment
+with required reviewers and tag restrictions, and match the npm trusted publisher
+binding to this repository, `publish.yaml` and environment. Local tests cannot verify
+these remote settings. Do not use publishing authority for test probes.

@@ -95,7 +95,7 @@ for defaults, precedence and version limits.
 
 | Severity | Meaning |
 | --- | --- |
-| \`error\` | High-impact supply-chain risk. Fails \`siro lint\` by default. |
+| \`error\` | Fails \`siro lint\` by default. |
 | \`warn\` | Strongly recommended hardening. Fails with \`--severity warn\`. |
 | \`info\` | Good hygiene; advisory. |
 `;

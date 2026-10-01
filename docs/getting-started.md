@@ -108,12 +108,10 @@ npm run lint:security -- --reporter github
 
 Do not run an untrusted checkout's executable config in a privileged
 `pull_request_target` job. Protect the trusted CI/policy definitions and use a
-credential-free, restricted job for data-only scans. Scan budgets can be adjusted
-through caller options, not repository config; overflow is not a clean scan.
+credential-free, restricted job for data-only scans.
 
-The GitHub reporter emits Actions annotations. Exit `2` means invalid input or an
-incomplete scan; `70` means an unexpected failure, including output errors. Neither
-should be treated as a successful check.
+The GitHub reporter emits Actions annotations. Treat [exit codes](configuration.md#severity-reporters-cli-and-exits)
+`2` and `70` as failed/incomplete checks, not successful empty results.
 
 For more options, use `npx @pho9ubenaa/siro lint --help` or the
 [CLI summary](../README.md#common-cli-options). Upgrading from 0.5.x? Follow the
