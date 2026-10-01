@@ -42,6 +42,38 @@ describe('pin-exact-versions (npm)', () => {
   });
 });
 
+it('reports large top-level and scoped Deno mappings without exceeding argument limits', () => {
+  const imports = Object.fromEntries(Array.from({ length: 150_000 }, (_, i) => [`p${i}`, 'npm:x']));
+  for (const [config, message] of [
+    [
+      { imports },
+      '150000 deno imports are not pinned: imports.p0=npm:x, imports.p1=npm:x, imports.p2=npm:x (and 149997 more). Use `deno add --save-exact` or pin manually.',
+    ],
+    [
+      { scopes: { './': imports } },
+      '150000 deno imports are not pinned: scopes["./"].p0=npm:x, scopes["./"].p1=npm:x, scopes["./"].p2=npm:x (and 149997 more). Use `deno add --save-exact` or pin manually.',
+    ],
+  ] as const) {
+    const text = JSON.stringify(config);
+    expect(Buffer.byteLength(text)).toBeLessThan(8 * 1024 * 1024);
+    const result = runLint({
+      repository: createRepositoryEvaluation(makeCtx({ readText: () => text }), codecFor),
+      pms: ['deno'],
+      ruleSet: [pinExactVersions],
+    });
+    expect(exitCodeForLint(result)).toBe(1);
+    expect(result.findings).toMatchObject([
+      {
+        ruleId: 'pin-exact-versions',
+        file: 'deno.json',
+        severity: 'error',
+        message: `${message} (available since deno 1.30.0)`,
+        remediation: { kind: 'manual' },
+      },
+    ]);
+  }
+});
+
 describe('pin-exact-versions (deno subpaths)', () => {
   it.each(['npm:lodash@4/fp', 'npm:@scope/pkg@1.x/subpath', 'jsr:@std/path@1/posix'])(
     'fails lint for the version range in %s',
