@@ -33,6 +33,7 @@ it('discovers every manifest independently of PM declarations, names, privacy, v
   });
   expect(first.inspection).toEqual(second.inspection);
   expect(first.inspection.manifests).toHaveLength(7);
+  expect(first.summary).toEqual({ error: 0, warn: 0, info: 10 });
   expect(packageFindings(first).map((f) => f.file)).toContain('deno.json');
   expect(packageFindings(first).map((f) => f.file)).not.toContain('package.json');
   expect(packageFindings(first).every((f) => f.pm === undefined)).toBe(true);

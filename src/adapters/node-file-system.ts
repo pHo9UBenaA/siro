@@ -1,7 +1,6 @@
 import { ConfigError, UsageError } from '../core/contracts/errors.ts';
-import { type AbsPath, type RelPath } from '../core/contracts/paths.ts';
+import type { AbsPath } from '../core/contracts/paths.ts';
 import { DEFAULT_SCAN_LIMITS, checkLimit, type ScanLimits } from '../core/contracts/scan-limits.ts';
-import { nodePaths } from './node-paths.ts';
 import {
   closeSync,
   constants,
@@ -125,8 +124,6 @@ export const nodeFileSystem: FileSystem = {
   exists: (file) => createNodeFileSystem().exists(file),
   readText: (file) => createNodeFileSystem().readText(file),
 };
-export const resolveIn = (root: AbsPath, relPath: RelPath): AbsPath =>
-  nodePaths.resolve(root, relPath);
 export const assertDirectory = (root: AbsPath): void => {
   if (!statSync(root).isDirectory()) throw new UsageError('The lint target must be a directory.');
 };

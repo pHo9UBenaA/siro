@@ -1,25 +1,14 @@
-import { asRelPath } from '../../../../src/core/contracts/paths.ts';
 import assert from 'node:assert';
-import type { CodecFor, ConfigCodec } from '../../../../src/core/contracts/config-codec.ts';
+import { codecFor } from '../../../../src/adapters/codecs/store.ts';
+import { asRelPath } from '../../../../src/core/contracts/paths.ts';
 import type { Rule, VersionNote } from '../../../../src/core/contracts/rule.ts';
-import type { ConfigFileRef } from '../../../../src/core/contracts/config-file-ref.ts';
-import type { ConfigValue } from '../../../../src/core/contracts/config-value.ts';
 import { makeCtx } from '../../../helpers/ctx.ts';
 import { requireConfigKey } from '../../../../src/core/rules/builders/require-config-key.ts';
 import { runLint } from '../../../../src/core/run-lint.ts';
 import { createRepositoryEvaluation } from '../../../../src/core/parse-config-file.ts';
 
-const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
-
-// runLint calls parseConfigFile before invoking each binding's `check`. These
-// tests target rules whose `check` reads keys via `getByPath`, so the codec
-// must produce an empty-but-shaped config (any parsed key is then undefined).
-const stubCodecFor: CodecFor = (): ConfigCodec => ({
-  parse: (): Record<string, never> => ({}),
-});
-
 const buildRule = (opts: {
-  documentedDefault?: ConfigValue;
+  documentedDefault?: boolean;
   defaultSatisfiedSeverity?: 'error' | 'warn' | 'info' | 'off';
   defaultSafety?: 'unconditional' | 'conditional';
   versionNote?: VersionNote;
@@ -28,7 +17,7 @@ const buildRule = (opts: {
     bindings: {
       npm: {
         ...opts,
-        file: npmrc,
+        file: { kind: 'npmrc', path: asRelPath('.npmrc') },
         keyPath: ['ky'],
         message: 'pin it',
         value: true,
@@ -36,101 +25,65 @@ const buildRule = (opts: {
       },
     },
     description: 'd',
-    id: 'd2-synthetic',
+    id: 'documented-default',
     severity: 'error',
     title: 't',
   });
 
-describe('documentedDefault — basic behaviour', () => {
-  it('1. PM default satisfies + key unset → finding severity is info', () => {
-    expect.hasAssertions();
-    // documentedDefault === value, so the unset case is "advisory": still a
-    // finding (we want users to pin explicitly) but dropped to info.
-    const rule = buildRule({ documentedDefault: true });
-    const { findings, summary } = runLint({
-      repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
+describe('documented defaults', () => {
+  it('reports an omitted setting as info when the unconditional default satisfies it', () => {
+    const result = runLint({
+      repository: createRepositoryEvaluation(makeCtx(), codecFor),
       pms: ['npm'],
-      ruleSet: [rule],
+      ruleSet: [buildRule({ documentedDefault: true })],
     });
-    expect(findings).toHaveLength(1);
-    const firstFinding1 = findings[0];
-    assert(firstFinding1, 'expected finding');
-    expect(firstFinding1.severity).toBe('info');
-    expect(summary).toStrictEqual({ error: 0, info: 1, warn: 0 });
+    expect(result.findings).toMatchObject([{ severity: 'info' }]);
   });
 
-  it('2. defaultSatisfiedSeverity: "off" + PM default satisfies → no finding', () => {
-    expect.hasAssertions();
-    // `'off'` is the silent option: the PM default fully mitigates the
-    // threat and the user has not asked for explicit pinning either.
-    const rule = buildRule({ defaultSatisfiedSeverity: 'off', documentedDefault: true });
-    const { findings, summary } = runLint({
-      repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
+  it('omits the finding when the satisfied default severity is off', () => {
+    const result = runLint({
+      repository: createRepositoryEvaluation(makeCtx(), codecFor),
       pms: ['npm'],
-      ruleSet: [rule],
+      ruleSet: [buildRule({ defaultSatisfiedSeverity: 'off', documentedDefault: true })],
     });
-    expect(findings).toHaveLength(0);
-    expect(summary).toStrictEqual({ error: 0, info: 0, warn: 0 });
+    expect(result.findings).toEqual([]);
   });
 
-  it('3. PM default does NOT satisfy + key unset → full rule.severity', () => {
-    expect.hasAssertions();
-    // documentedDefault is set but does not satisfy `value` (or `accept`),
-    // so the binding falls through to the normal violation path.
-    const rule = buildRule({ documentedDefault: false });
-    const { findings, summary } = runLint({
-      repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
+  it('keeps rule severity when the default does not satisfy the setting', () => {
+    const result = runLint({
+      repository: createRepositoryEvaluation(makeCtx(), codecFor),
       pms: ['npm'],
-      ruleSet: [rule],
+      ruleSet: [buildRule({ documentedDefault: false })],
     });
-    expect(findings).toHaveLength(1);
-    const firstFinding3 = findings[0];
-    assert(firstFinding3, 'expected finding');
-    expect(firstFinding3.severity).toBe('error');
-    expect(summary).toStrictEqual({ error: 1, info: 0, warn: 0 });
+    expect(result.findings).toMatchObject([{ severity: 'error' }]);
   });
 
-  it('keeps a version-dependent safe default at full severity when the version is unknown', () => {
-    expect.hasAssertions();
-    const rule = buildRule({
-      documentedDefault: true,
-      versionNote: { defaultSafeSince: 'npm 12.0.0' },
-      defaultSafety: 'conditional',
-    });
-    const { findings, summary } = runLint({
-      repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
+  it('does not downgrade a conditional default when the version is unknown', () => {
+    const result = runLint({
+      repository: createRepositoryEvaluation(makeCtx(), codecFor),
       pms: ['npm'],
-      ruleSet: [rule],
+      ruleSet: [
+        buildRule({
+          documentedDefault: true,
+          versionNote: { defaultSafeSince: 'npm 12.0.0' },
+          defaultSafety: 'conditional',
+        }),
+      ],
     });
-    expect(findings).toHaveLength(1);
-    expect(findings[0]?.severity).toBe('error');
-    expect(summary).toStrictEqual({ error: 1, info: 0, warn: 0 });
+    expect(result.findings).toMatchObject([{ severity: 'error' }]);
   });
-});
 
-describe('documentedDefault — explicit-value cases', () => {
-  it('4. explicit weak value + documentedDefault set → full rule.severity (regression case)', () => {
-    expect.hasAssertions();
-    // User explicitly wrote a value that fails the requirement; the
-    // documentedDefault path must NOT downgrade this — the user actively
-    // weakened the policy.
-    const rule = buildRule({ documentedDefault: true });
-    const ctx = makeCtx();
-    const binding = rule.bindings.npm;
-    assert(binding, 'binding missing');
-    // No dynamic downgrade — engine should fall back to rule.severity, so the
-    // status itself must not carry one.
-    const status = binding.check(ctx, { ky: false });
+  it('does not downgrade an explicitly weak setting', () => {
+    const binding = buildRule({ documentedDefault: true }).bindings.npm;
+    assert(binding);
+    const status = binding.check(makeCtx(), { ky: false });
     assert(status.state === 'violation');
     expect(status.severity).toBeUndefined();
   });
 
-  it('5a. explicit strong value + documentedDefault set → check returns ok', () => {
-    expect.hasAssertions();
-    const rule = buildRule({ documentedDefault: true });
-    const npmBd = rule.bindings.npm;
-    assert(npmBd, 'expected npm binding');
-    const status = npmBd.check(makeCtx(), { ky: true });
-    expect(status.state).toBe('ok');
+  it('accepts an explicitly strong setting', () => {
+    const binding = buildRule({ documentedDefault: true }).bindings.npm;
+    assert(binding);
+    expect(binding.check(makeCtx(), { ky: true }).state).toBe('ok');
   });
 });

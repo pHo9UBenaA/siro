@@ -29,10 +29,6 @@ export const discover = (
   dependencies: LintDependencies,
   limits: ScanLimits = DEFAULT_SCAN_LIMITS,
 ): DiscoveredDirectory[] => {
-  if (typeof fs.readDirectories !== 'function')
-    throw new ConfigError(
-      'FileSystem.readDirectories is required for package discovery; no native filesystem fallback is used.',
-    );
   const { paths, createRepoContext, codecFor } = dependencies;
   const pending = [asRelPath('.')];
   const directories: DiscoveredDirectory[] = [];
