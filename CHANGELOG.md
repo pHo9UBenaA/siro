@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.1] — 2026-09-30
+## [0.6.1] — 2026-10-02
 
 - Add `--no-config` for data-only CLI inspection without probing or executing root
   configuration. Preserve automatic configuration for trusted existing callers.
@@ -13,6 +13,10 @@
   overrides (`limits`, CLI `--max-*`) and export `DEFAULT_SCAN_LIMITS` / `ScanLimits`.
   Exceeded input/evaluation budgets exit 2; output budgets exit 70, never a truncated
   clean report. Normal JSON schema 3 paths and decoded values remain unchanged.
+- Inspect large Deno scoped import mappings within the file budget without exceeding
+  runtime argument limits; retain the violation count and sampled locations.
+- Keep first-run safety examples executable with `npx`, without requiring a global
+  install. The flags do not sandbox npm/npx or trusted extensions.
 - Separate credential-free build/verification from OIDC staging; verify main ancestry,
   tag identity, transferred artifact digest and bounded packed package identity
   without checkout/install/repack or execution of packed code in the staging job. Document required remote protection and publisher settings.
