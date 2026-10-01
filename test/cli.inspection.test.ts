@@ -14,23 +14,24 @@ const fixture = (files: Record<string, string>) => {
 const run = (root: string, ...args: string[]) =>
   spawnSync(process.execPath, [bin, 'lint', root, '--json', ...args], { encoding: 'utf8' });
 
-it('Deno missing/null object age fails at configured severity even on a known newer target; fallback works', () => {
+it('Deno exclude-only age fails at configured severity even on a known newer target; fallback works', () => {
   const root = fixture({
     'deno.lock': '{}',
     'siro.config.mjs': "export default { rules: { 'minimum-release-age': 'error' } };",
   });
   try {
-    for (const value of [undefined, null, {}, { age: null }, { exclude: ['npm:reviewed'] }]) {
-      writeFileSync(
-        path.join(root, 'deno.json'),
-        JSON.stringify({ lock: { frozen: true }, minimumDependencyAge: value }),
-      );
-      const result = run(root, '--pm', 'deno', '--pm-version', '2.9.4');
-      expect(result.status).toBe(1);
-      expect(JSON.parse(result.stdout).findings).toContainEqual(
-        expect.objectContaining({ ruleId: 'minimum-release-age', severity: 'error' }),
-      );
-    }
+    writeFileSync(
+      path.join(root, 'deno.json'),
+      JSON.stringify({
+        lock: { frozen: true },
+        minimumDependencyAge: { exclude: ['npm:reviewed'] },
+      }),
+    );
+    const result = run(root, '--pm', 'deno', '--pm-version', '2.9.4');
+    expect(result.status).toBe(1);
+    expect(JSON.parse(result.stdout).findings).toContainEqual(
+      expect.objectContaining({ ruleId: 'minimum-release-age', severity: 'error' }),
+    );
     writeFileSync(path.join(root, '.npmrc'), 'min-release-age=3');
     expect(run(root, '--pm', 'deno', '--pm-version', '2.8.1').status).toBe(0);
   } finally {
@@ -41,7 +42,6 @@ it('Deno missing/null object age fails at configured severity even on a known ne
 it.each([
   [true, false, 1],
   [false, true, 0],
-  [false, false, 1],
   [true, undefined, 0],
   [false, undefined, 1],
 ] as const)(

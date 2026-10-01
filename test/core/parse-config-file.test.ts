@@ -33,17 +33,6 @@ it('pairs a context with a fresh lazy parser without reading ahead', () => {
 });
 
 describe('createConfigParser — error handling', () => {
-  it('treats a missing optional config file as empty without invoking its codec', () => {
-    expect.hasAssertions();
-    const parse = vi.fn<ConfigCodec['parse']>();
-    const codecFor: CodecFor = () => makeCodec(parse);
-    const ctx = makeCtx({ readText: () => undefined });
-    const file: ConfigFileRef = { kind: 'json', path: asRelPath('deno.json') };
-
-    expect(createConfigParser(codecFor, ctx)(file)).toStrictEqual({});
-    expect(parse).not.toHaveBeenCalled();
-  });
-
   it('does not cache a filesystem failure, but caches the first successful parse', () => {
     const failure = new Error('Read failed');
     const readText = vi

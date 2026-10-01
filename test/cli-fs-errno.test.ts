@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { run } from '../src/cli.ts';
 import { tmpdir } from 'node:os';
+import { captureIO } from './helpers/io.ts';
 
 const EXIT_USAGE = 2;
 
@@ -18,18 +19,10 @@ describe.skipIf(process.platform === 'win32')('run maps filesystem errno errors 
     dir = mkdtempSync(path.join(tmpdir(), 'siro-errno-'));
     const filePath = path.join(dir, 'not-a-dir');
     writeFileSync(filePath, '');
-    const errLines: string[] = [];
-    const io = {
-      stderr: (line: string): void => {
-        errLines.push(line);
-      },
-      stdout: (): void => {
-        // no-op
-      },
-    };
+    const { io, err } = captureIO();
     return run(['lint', path.join(filePath, 'child')], io).then((code) => {
       expect(code).toBe(EXIT_USAGE);
-      expect(errLines.join('\n')).toContain('File system error');
+      expect(err()).toContain('File system error');
     });
   });
 });

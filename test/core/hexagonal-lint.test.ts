@@ -67,55 +67,68 @@ it('discovers and evaluates through supplied ports, with generic paths and expli
   expect(result.findings.every((finding) => finding.pm === undefined)).toBe(true);
 });
 
-it.each<Remediation | undefined>([
-  undefined,
-  { kind: 'manual', steps: ['Review settings.'] },
-  {
-    kind: 'automatic',
-    operations: [
-      {
-        op: 'setKey',
-        file: { kind: 'json', path: asRelPath('package.json') },
-        keyPath: ['publishConfig', 'provenance'],
-        value: true,
-      },
-      {
-        op: 'setKey',
-        file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-        keyPath: ['provenance'],
-        value: true,
-      },
-    ],
+it.each<[Remediation | undefined, Remediation | undefined]>([
+  [undefined, undefined],
+  [
+    { kind: 'manual', steps: ['Review settings.'] },
+    { kind: 'manual', steps: ['Work in child for this finding.', 'Review settings.'] },
+  ],
+  [
+    {
+      kind: 'automatic',
+      operations: [
+        {
+          op: 'setKey',
+          file: { kind: 'json', path: asRelPath('package.json') },
+          keyPath: ['publishConfig', 'provenance'],
+          value: true,
+        },
+        {
+          op: 'setKey',
+          file: { kind: 'npmrc', path: asRelPath('.npmrc') },
+          keyPath: ['provenance'],
+          value: true,
+        },
+      ],
+    },
+    {
+      kind: 'automatic',
+      operations: [
+        {
+          op: 'setKey',
+          file: { kind: 'json', path: asRelPath('child/package.json') },
+          keyPath: ['publishConfig', 'provenance'],
+          value: true,
+        },
+        {
+          op: 'setKey',
+          file: { kind: 'npmrc', path: asRelPath('child/.npmrc') },
+          keyPath: ['provenance'],
+          value: true,
+        },
+      ],
+    },
+  ],
+])(
+  'rebases all remedy paths immutably without inventing a finding file: %j',
+  (remediation, expected) => {
+    const finding: Finding = {
+      ruleId: 'test',
+      directory: '.',
+      severity: 'warn',
+      message: 'Review.',
+      remediation,
+    };
+    const original = structuredClone(finding);
+    const root = rebaseFinding(asRelPath('.'), finding);
+    const child = rebaseFinding(asRelPath('child'), finding);
+    expect(root).toEqual(original);
+    expect(child.file).toBeUndefined();
+    expect(child.directory).toBe('child');
+    expect(child.remediation).toEqual(expected);
+    expect(finding).toEqual(original);
   },
-])('rebases all remedy paths immutably without inventing a finding file: %j', (remediation) => {
-  const finding: Finding = {
-    ruleId: 'test',
-    directory: '.',
-    severity: 'warn',
-    message: 'Review.',
-    remediation,
-  };
-  const original = structuredClone(finding);
-  const root = rebaseFinding(asRelPath('.'), finding);
-  const child = rebaseFinding(asRelPath('child'), finding);
-  expect(root).toEqual(original);
-  expect(child.file).toBeUndefined();
-  expect(child.directory).toBe('child');
-  expect(child.remediation).toEqual(
-    remediation?.kind === 'automatic'
-      ? {
-          ...remediation,
-          operations: remediation.operations.map((op) => ({
-            ...op,
-            file: { ...op.file, path: `child/${op.file.path}` },
-          })),
-        }
-      : remediation?.kind === 'manual'
-        ? { ...remediation, steps: ['Work in child for this finding.', ...remediation.steps] }
-        : undefined,
-  );
-  expect(finding).toEqual(original);
-});
+);
 
 it('uses the explicitly supplied filesystem throughout discovery', () => {
   const { dependencies } = host();

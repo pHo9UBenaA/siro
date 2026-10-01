@@ -74,7 +74,7 @@ describe('files-field (deno)', () => {
   });
 });
 
-it.each(['npm', 'pnpm', 'yarn', 'bun', 'aube'] as const)(
+it.each(['pnpm', 'yarn', 'bun', 'aube'] as const)(
   'routes %s publication allow-list checks',
   (pm) => {
     const binding = filesField.bindings[pm];

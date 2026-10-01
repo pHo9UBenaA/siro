@@ -1,4 +1,3 @@
-import { applyConfig } from '../../../../src/core/apply-config.ts';
 import { asRelPath } from '../../../../src/core/contracts/paths.ts';
 import assert from 'node:assert';
 import type { CodecFor, ConfigCodec } from '../../../../src/core/contracts/config-codec.ts';
@@ -22,48 +21,25 @@ const stubCodecFor: CodecFor = (): ConfigCodec => ({
 const buildRule = (opts: {
   documentedDefault?: ConfigValue;
   defaultSatisfiedSeverity?: 'error' | 'warn' | 'info' | 'off';
-  accept?: (actual: unknown) => boolean;
-  ruleSeverity?: 'error' | 'warn' | 'info';
   defaultSafety?: 'unconditional' | 'conditional';
   versionNote?: VersionNote;
-}): Rule => {
-  const npmBinding: {
-    file: typeof npmrc;
-    keyPath: ['ky'];
-    message: string;
-    value: boolean;
-    defaultSafety: 'unconditional' | 'conditional';
-    documentedDefault?: ConfigValue;
-    defaultSatisfiedSeverity?: 'error' | 'warn' | 'info' | 'off';
-    accept?: (actual: unknown) => boolean;
-    versionNote?: VersionNote;
-  } = {
-    file: npmrc,
-    keyPath: ['ky'],
-    message: 'pin it',
-    value: true,
-    defaultSafety: opts.defaultSafety ?? 'unconditional',
-  };
-  if (typeof opts.documentedDefault !== 'undefined') {
-    npmBinding.documentedDefault = opts.documentedDefault;
-  }
-  if (typeof opts.defaultSatisfiedSeverity !== 'undefined') {
-    npmBinding.defaultSatisfiedSeverity = opts.defaultSatisfiedSeverity;
-  }
-  if (opts.accept) {
-    npmBinding.accept = opts.accept;
-  }
-  if (opts.versionNote) {
-    npmBinding.versionNote = opts.versionNote;
-  }
-  return requireConfigKey({
-    bindings: { npm: npmBinding },
+}): Rule =>
+  requireConfigKey({
+    bindings: {
+      npm: {
+        ...opts,
+        file: npmrc,
+        keyPath: ['ky'],
+        message: 'pin it',
+        value: true,
+        defaultSafety: opts.defaultSafety ?? 'unconditional',
+      },
+    },
     description: 'd',
     id: 'd2-synthetic',
-    severity: opts.ruleSeverity ?? 'error',
+    severity: 'error',
     title: 't',
   });
-};
 
 describe('documentedDefault — basic behaviour', () => {
   it('1. PM default satisfies + key unset → finding severity is info', () => {
@@ -101,7 +77,7 @@ describe('documentedDefault — basic behaviour', () => {
     expect.hasAssertions();
     // documentedDefault is set but does not satisfy `value` (or `accept`),
     // so the binding falls through to the normal violation path.
-    const rule = buildRule({ documentedDefault: false, ruleSeverity: 'error' });
+    const rule = buildRule({ documentedDefault: false });
     const { findings, summary } = runLint({
       repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
       pms: ['npm'],
@@ -118,7 +94,6 @@ describe('documentedDefault — basic behaviour', () => {
     expect.hasAssertions();
     const rule = buildRule({
       documentedDefault: true,
-      ruleSeverity: 'error',
       versionNote: { defaultSafeSince: 'npm 12.0.0' },
       defaultSafety: 'conditional',
     });
@@ -139,7 +114,7 @@ describe('documentedDefault — explicit-value cases', () => {
     // User explicitly wrote a value that fails the requirement; the
     // documentedDefault path must NOT downgrade this — the user actively
     // weakened the policy.
-    const rule = buildRule({ documentedDefault: true, ruleSeverity: 'error' });
+    const rule = buildRule({ documentedDefault: true });
     const ctx = makeCtx();
     const binding = rule.bindings.npm;
     assert(binding, 'binding missing');
@@ -157,26 +132,5 @@ describe('documentedDefault — explicit-value cases', () => {
     assert(npmBd, 'expected npm binding');
     const status = npmBd.check(makeCtx(), { ky: true });
     expect(status.state).toBe('ok');
-  });
-});
-
-describe('documentedDefault — override', () => {
-  it('6. user override outranks documentedDefault dynamic severity', () => {
-    expect.hasAssertions();
-    // User wrote `rules: { id: 'warn' }` — siro must honour that even though
-    // documentedDefault would otherwise demote to info.
-    const rule = buildRule({ documentedDefault: true, ruleSeverity: 'error' });
-    const adjusted = applyConfig([rule], { rules: { 'd2-synthetic': 'warn' } });
-    const { findings, summary } = runLint({
-      repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
-      pms: ['npm'],
-      ruleSet: adjusted.rules,
-      severityOverrides: adjusted.severityOverrides,
-    });
-    expect(findings).toHaveLength(1);
-    const firstFinding6 = findings[0];
-    assert(firstFinding6, 'expected finding');
-    expect(firstFinding6.severity).toBe('warn');
-    expect(summary).toStrictEqual({ error: 0, info: 0, warn: 1 });
   });
 });

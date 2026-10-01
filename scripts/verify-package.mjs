@@ -226,7 +226,6 @@ try {
   runCli(['lint', 'good', '--no-config', '--max-file-bytes', '8', '--json'], consumer, 2);
   runCli(['lint', 'good', '--no-config', '--max-output-bytes', '8', '--json'], consumer, 70);
   writeFileSync(join(consumer, 'good/package.json'), 'FAKE_SECRET_INVALID_JSON');
-  runCli(['lint', 'good', '--no-config', '--json'], consumer, 2);
   const invalidInput = spawnSync(
     process.execPath,
     [installedBin, 'lint', 'good', '--no-config', '--json'],

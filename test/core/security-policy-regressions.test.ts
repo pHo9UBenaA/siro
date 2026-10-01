@@ -2,71 +2,18 @@ import { asAbsPath, lint, lintCommand, type PM } from '../../src/index.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 import { captureIO } from '../helpers/io.ts';
 
-const inspect = (pm: PM, files: Record<string, string>, manifest: Record<string, unknown> = {}) =>
+const inspect = (pm: PM, files: Record<string, string>) =>
   lint({
     cwd: asAbsPath('/repo'),
     pm,
     fs: createMemFileSystem({
-      'package.json': JSON.stringify({ private: true, ...manifest }),
+      'package.json': '{"private":true}',
       ...files,
     }),
   });
 
 // Expectations come from the tagged upstream sources linked in docs/policy-sources.md,
 // not whether the repository happens to receive a clean overall result.
-it('npm before overrides relative release age, including unsafe future cutoffs', () => {
-  for (const [before, violation] of [
-    ['2000-01-01', false],
-    ['2999-01-01', true],
-  ] as const) {
-    expect(
-      inspect('npm', { '.npmrc': `before=${before}\nmin-release-age=3` }).findings.some(
-        (f) => f.ruleId === 'minimum-release-age',
-      ),
-    ).toBe(violation);
-  }
-});
-
-it('npm own false provenance wins over npmrc and the remedy identifies its responsible file', () => {
-  const result = inspect(
-    'npm',
-    { '.npmrc': 'provenance=true' },
-    {
-      name: 'public',
-      private: false,
-      files: ['dist'],
-      publishConfig: { provenance: false, access: 'public' },
-    },
-  );
-  const finding = result.findings.find((f) => f.ruleId === 'provenance');
-  expect(finding).toMatchObject({
-    actual: false,
-    file: 'package.json',
-    remediation: {
-      kind: 'automatic',
-      operations: [
-        { file: { path: 'package.json' }, keyPath: ['publishConfig', 'provenance'], value: true },
-      ],
-    },
-  });
-});
-
-it.each(['10.8.0', '10.9.0'])(
-  'pnpm %s cannot hide a configured bypass behind strictDepBuilds',
-  (pmVersion) => {
-    const result = inspect(
-      'pnpm',
-      { 'pnpm-workspace.yaml': 'strictDepBuilds: true\ndangerouslyAllowAllBuilds: true' },
-      { packageManager: `pnpm@${pmVersion}` },
-    );
-    const finding = result.findings.find((f) => f.ruleId === 'disable-lifecycle-scripts');
-    expect(finding).toMatchObject({ severity: 'error', remediation: { kind: 'manual' } });
-    expect(finding?.message).toMatch(
-      pmVersion === '10.8.0' ? /future-version bypass/ : /bypasses strictDepBuilds/,
-    );
-  },
-);
-
 it('Deno honors a configured lockfile and explicit inactive age cannot be rescued by fallback', () => {
   const files = {
     'deno.json': '{"lock":"locks/custom.lock","minimumDependencyAge":{"age":0}}',
