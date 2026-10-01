@@ -33,7 +33,7 @@ Discovery does not imply that every package's installation settings were inspect
 siro detects managers from `packageManager`, lockfiles, and configuration files. If it cannot
 detect one, choose it explicitly, for example `npx @pho9ubenaa/siro lint --pm npm`.
 The CLI may download code through `npx` and imports a repository's `siro.config.*` as executable
-code by default. For an unfamiliar project, use `siro lint --no-config --strict-filesystem`
+code by default. For an unfamiliar project, use `npx @pho9ubenaa/siro lint --no-config --strict-filesystem`
 in an isolated environment without credentials. These flags do not sandbox npx or
 extensions; see the [threat model](docs/threat-model.md).
 

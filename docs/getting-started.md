@@ -11,7 +11,7 @@ npx @pho9ubenaa/siro lint
 
 `npx` may download the tool. The CLI also executes the repository's `siro.config.*`,
 if present. For unfamiliar checkouts, disable executable config and reject symlink
-input paths with `siro lint --no-config --strict-filesystem`, in an isolated environment
+input paths with `npx @pho9ubenaa/siro lint --no-config --strict-filesystem`, in an isolated environment
 without credentials. These options are not a sandbox; see the [threat model](threat-model.md).
 
 siro detects managers from `packageManager`, lockfiles and manager-specific config.
