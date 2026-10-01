@@ -13,6 +13,8 @@
   overrides (`limits`, CLI `--max-*`) and export `DEFAULT_SCAN_LIMITS` / `ScanLimits`.
   Exceeded input/evaluation budgets exit 2; output budgets exit 70, never a truncated
   clean report. Normal JSON schema 3 paths and decoded values remain unchanged.
+- Update locked transitive dependencies to security-patched brace-expansion 5.0.12,
+  markdown-it 14.3.1 and fast-uri 3.1.8; keep direct dependencies and Node requirements unchanged.
 - Inspect large Deno scoped import mappings within the file budget without exceeding
   runtime argument limits; retain the violation count and sampled locations.
 - Keep first-run safety examples executable with `npx`, without requiring a global
