@@ -13,6 +13,8 @@ const normalizeJsonValue = (value: unknown, key: string): unknown => {
     const toJSON = (value as { toJSON?: unknown }).toJSON;
     if (typeof toJSON === 'function') value = Reflect.apply(toJSON, value, [key]);
   }
+  // Native JSON coerces number/string wrappers, but ignores overridden valueOf
+  // on boolean/bigint wrappers. Node's guards also recognize cross-realm wrappers.
   if (types.isNumberObject(value)) return +value;
   if (types.isStringObject(value)) return `${value}`;
   if (types.isBooleanObject(value)) return Boolean.prototype.valueOf.call(value);

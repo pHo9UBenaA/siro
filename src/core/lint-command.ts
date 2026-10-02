@@ -55,6 +55,7 @@ const reportAndAwaitWrites = async (
   // over sink failures, but all started writes must settle before it propagates.
   const pendingWrites: Promise<void>[] = [];
   const consumeOutput = outputBudget(context.limits.maxOutputBytes);
+  // The wrapper distinguishes "no failure" from a sink that throws undefined.
   let outputFailure: { error: unknown } | undefined;
   const recordFailure = (error: unknown) => {
     outputFailure ??= { error };
