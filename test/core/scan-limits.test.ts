@@ -1,4 +1,4 @@
-import { asAbsPath, lint, lintCommand } from '../../src/index.ts';
+import { asAbsPath, ConfigError, lint, lintCommand, type Rule } from '../../src/index.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 import { captureIO } from '../helpers/io.ts';
 
@@ -63,6 +63,58 @@ it('bounds findings without allowing severity filtering to hide overflow', async
     lintCommand({ ...request, severity: 'error', reporter: 'json' }, io),
   ).rejects.toThrow(/maxFindings/);
   expect(out()).toBe('');
+});
+
+const groupedRule = (count: number): Rule => ({
+  id: 'many-findings',
+  title: 'Many findings',
+  description: 'Exercises grouped results',
+  severity: 'info',
+  bindings: {
+    npm: {
+      check: () => ({
+        state: 'violations',
+        violations: [
+          { state: 'violation', message: 'finding 0' },
+          ...Array.from({ length: count - 1 }, (_, index) => ({
+            state: 'violation' as const,
+            message: `finding ${index + 1}`,
+          })),
+        ],
+      }),
+    },
+  },
+});
+
+it('classifies a large grouped result as a finding limit failure, not an engine argument overflow', async () => {
+  const request = {
+    ...options,
+    pm: 'npm' as const,
+    fs: createMemFileSystem({}),
+    config: { customRules: [groupedRule(150_000)] },
+  };
+  expect(() => lint(request)).toThrow(ConfigError);
+  const { io, out } = captureIO();
+  await expect(
+    lintCommand({ ...request, reporter: 'json', severity: 'error' }, io),
+  ).rejects.toThrow(/maxFindings/);
+  expect(out()).toBe('');
+  const result = lint({ ...request, limits: { maxFindings: 150_000 } });
+  expect(result.findings).toHaveLength(150_000);
+  expect(result.findings.at(-1)?.message).toBe('finding 149999');
+});
+
+it('accepts the exact grouped finding limit and rejects the next finding', () => {
+  const request = {
+    ...options,
+    pm: 'npm' as const,
+    fs: createMemFileSystem({}),
+    limits: { maxFindings: 2 },
+  };
+  expect(lint({ ...request, config: { customRules: [groupedRule(2)] } }).findings).toHaveLength(2);
+  expect(() => lint({ ...request, config: { customRules: [groupedRule(3)] } })).toThrow(
+    /maxFindings/,
+  );
 });
 
 it.each([NaN, Infinity, 0, -1, 1.5])('rejects invalid limits %s', (maxFileBytes) => {

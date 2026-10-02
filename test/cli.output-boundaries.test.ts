@@ -36,6 +36,33 @@ it.each([
   }
 });
 
+it('reports oversized grouped results as exit 2 without partial JSON', () => {
+  const root = fixture({
+    'siro.config.mjs': `
+      export default {
+        installationRoots: [],
+        customRules: [{
+          id: 'many', title: 'Many', description: 'Many findings', severity: 'info',
+          bindings: { npm: { check() {
+            return { state: 'violations', violations: Array.from({ length: 150_000 },
+              () => ({ state: 'violation', message: 'finding' })) };
+          } } },
+        }],
+      };
+    `,
+  });
+  try {
+    const result = run(root, '--pm', 'npm', '--json');
+    expect(result.error).toBeUndefined();
+    expect(result.signal).toBeNull();
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain('maxFindings');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 it('serializes legacy command openers safely while retaining JSON values', () => {
   const name = 'ordinary##[error]FORGED';
   const root = fixture({

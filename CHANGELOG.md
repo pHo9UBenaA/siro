@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Report oversized custom rule groups as finding-limit errors (CLI exit 2), rather
+  than JavaScript argument-limit failures (exit 70). Larger caller-supplied finding
+  budgets also work without truncating results.
+
 ## [0.6.1] — 2026-10-02
 
 - Add `--no-config` to skip executable repository configuration, and

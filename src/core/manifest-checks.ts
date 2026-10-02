@@ -51,26 +51,30 @@ export const checkManifest = (
   for (const rule of rules) {
     if (rule.projectTypes && !rule.projectTypes.includes(projectType)) continue;
     if (rule.id === 'unsupported-settings') {
-      findings.push(
-        ...runLint({
-          repository,
-          pms,
-          pmVersions,
-          ruleSet: [
-            { ...rule, bindings: createUnsupportedSettings((path) => path === file).bindings },
-          ],
-          severityOverrides: overrides,
-        }).findings,
-      );
+      const unsupported = runLint({
+        repository,
+        pms,
+        pmVersions,
+        ruleSet: [
+          { ...rule, bindings: createUnsupportedSettings((path) => path === file).bindings },
+        ],
+        severityOverrides: overrides,
+      }).findings;
+      for (const finding of unsupported) findings.push(finding);
     } else if (Object.hasOwn(selectBinding, rule.id)) {
       const binding = selectBinding[rule.id as ManifestRuleId](file, repository, targets);
       if (binding === 'pm') {
-        findings.push(
-          ...runLint({ repository, pms, pmVersions, ruleSet: [rule], severityOverrides: overrides })
-            .findings,
-        );
+        const evaluated = runLint({
+          repository,
+          pms,
+          pmVersions,
+          ruleSet: [rule],
+          severityOverrides: overrides,
+        }).findings;
+        for (const finding of evaluated) findings.push(finding);
       } else if (binding) {
-        findings.push(...evaluateBinding(repository, rule, binding, overrides));
+        for (const finding of evaluateBinding(repository, rule, binding, overrides))
+          findings.push(finding);
       }
     }
   }

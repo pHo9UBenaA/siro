@@ -42,12 +42,11 @@ export const runLint = (opts: RunLintOptions): Pick<LintResult, 'findings'> => {
           ))
       )
         continue;
-      findings.push(
-        ...evaluateBinding(repository, rule, binding, severityOverrides, {
-          pm,
-          version: opts.pmVersions?.[pm],
-        }),
-      );
+      const evaluated = evaluateBinding(repository, rule, binding, severityOverrides, {
+        pm,
+        version: opts.pmVersions?.[pm],
+      });
+      for (const finding of evaluated) findings.push(finding);
     }
   }
   return { findings };

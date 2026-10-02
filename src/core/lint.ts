@@ -189,7 +189,14 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
         projectType: manifestProjectType(repository, file),
         targets: manifestTargets,
       });
-      local.push(...checkManifest(repository, file, manifestTargets, ruleSet, severityOverrides));
+      const manifestFindings = checkManifest(
+        repository,
+        file,
+        manifestTargets,
+        ruleSet,
+        severityOverrides,
+      );
+      for (const finding of manifestFindings) local.push(finding);
     }
     if (installation) installationRoots.push({ directory, targets });
     const scopedRules = ruleSet.flatMap((rule): Rule[] => {
@@ -208,15 +215,14 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
       return [];
     });
     try {
-      local.push(
-        ...runLint({
-          repository,
-          pms: targets.map(({ pm }) => pm),
-          pmVersions: Object.fromEntries(targets.map(({ pm, version }) => [pm, version])),
-          ruleSet: scopedRules,
-          severityOverrides,
-        }).findings,
-      );
+      const installationFindings = runLint({
+        repository,
+        pms: targets.map(({ pm }) => pm),
+        pmVersions: Object.fromEntries(targets.map(({ pm, version }) => [pm, version])),
+        ruleSet: scopedRules,
+        severityOverrides,
+      }).findings;
+      for (const finding of installationFindings) local.push(finding);
     } catch (error) {
       if (error instanceof ConfigError && directory !== '.')
         throw new ConfigError(`${directory}/${error.message}`);
