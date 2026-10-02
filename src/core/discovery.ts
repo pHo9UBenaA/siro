@@ -1,7 +1,6 @@
 import type { LintDependencies } from './contracts/lint-dependencies.ts';
 import type { FileSystem } from './contracts/file-system.ts';
-import type { AbsPath, RelPath } from './contracts/paths.ts';
-import { asRelPath } from './contracts/paths.ts';
+import { type AbsPath, type RelPath, asRelPath } from './contracts/paths.ts';
 import type { ProjectType } from './contracts/project-type.ts';
 import { ConfigError } from './contracts/errors.ts';
 import {

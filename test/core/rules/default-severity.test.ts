@@ -39,15 +39,16 @@ describe('unverified package-manager defaults', () => {
 });
 
 describe('default-severity (aube)', () => {
-  const ctx = makePublishableCtx;
-
   it('uses the documented advisory and trust defaults without downgrading explicit opt-outs', () => {
     for (const [source, severity] of [
       ['', 'info'],
       ['advisoryCheck: off\ntrustPolicy: off', 'warn'],
     ] as const) {
       const result = runLint({
-        repository: createRepositoryEvaluation(ctx({ readText: () => source }), codecFor),
+        repository: createRepositoryEvaluation(
+          makePublishableCtx({ readText: () => source }),
+          codecFor,
+        ),
         targets: [{ pm: 'aube' }],
         ruleSet: [advisoryCheck, trustPolicy],
       });

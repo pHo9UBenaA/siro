@@ -19,8 +19,11 @@ const host = () => {
     fileSystem: {
       readText,
       exists: (path) => files[path] !== undefined,
-      readDirectories: (path) =>
-        path === '/virtual' ? ['packages'] : path === '/virtual/packages' ? ['api'] : [],
+      readDirectories(path) {
+        if (path === '/virtual') return ['packages'];
+        if (path === '/virtual/packages') return ['api'];
+        return [];
+      },
     },
     paths: {
       isAbsolute: (value): value is AbsPath =>

@@ -4,13 +4,15 @@ import { type Remediation } from '../../src/core/contracts/rule.ts';
 import { type Finding } from '../../src/core/contracts/lint-result.ts';
 
 describe('Path rebasing', () => {
-  it.each<[Remediation | undefined, Remediation | undefined]>([
-    [undefined, undefined],
+  it.each<[string, Remediation | undefined, Remediation | undefined]>([
+    ['absent remediation', undefined, undefined],
     [
+      'manual guidance',
       { kind: 'manual', steps: ['Review settings.'] },
       { kind: 'manual', steps: ['Work in child for this finding.', 'Review settings.'] },
     ],
     [
+      'automatic operations in multiple files',
       {
         kind: 'automatic',
         operations: [
@@ -46,24 +48,21 @@ describe('Path rebasing', () => {
         ],
       },
     ],
-  ])(
-    'rebases all remedy paths immutably without inventing a finding file: %j',
-    (remediation, expected) => {
-      const finding: Finding = {
-        ruleId: 'test',
-        directory: '.',
-        severity: 'warn',
-        message: 'Review.',
-        remediation,
-      };
-      const original = structuredClone(finding);
-      const root = rebaseFinding(asRelPath('.'), finding);
-      const child = rebaseFinding(asRelPath('child'), finding);
-      expect(root).toEqual(original);
-      expect(child.file).toBeUndefined();
-      expect(child.directory).toBe('child');
-      expect(child.remediation).toEqual(expected);
-      expect(finding).toEqual(original);
-    },
-  );
+  ])('rebases %s immutably without inventing a finding file', (_name, remediation, expected) => {
+    const finding: Finding = {
+      ruleId: 'test',
+      directory: '.',
+      severity: 'warn',
+      message: 'Review.',
+      remediation,
+    };
+    const original = structuredClone(finding);
+    const root = rebaseFinding(asRelPath('.'), finding);
+    const child = rebaseFinding(asRelPath('child'), finding);
+    expect(root).toEqual(original);
+    expect(child.file).toBeUndefined();
+    expect(child.directory).toBe('child');
+    expect(child.remediation).toEqual(expected);
+    expect(finding).toEqual(original);
+  });
 });

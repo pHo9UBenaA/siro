@@ -124,21 +124,19 @@ it('accepts pnpm ignoreScripts even when approval settings would otherwise allow
 });
 
 describe('disable-lifecycle-scripts (aube)', () => {
-  const ctx = makePublishableCtx;
-
   it('accepts paranoid despite individual settings', () => {
     const config: ParsedConfig = { jailBuilds: false, strictDepBuilds: false };
 
     const ruleBinding = bindingForTest(disableLifecycleScripts, 'aube');
 
-    expect(ruleBinding.check(ctx(), { ...config, paranoid: true }).state).toBe('ok');
+    expect(ruleBinding.check(makePublishableCtx(), { ...config, paranoid: true }).state).toBe('ok');
   });
 
   it('proposes jailBuilds and strictDepBuilds in their separate configuration files', () => {
     const ruleBinding = bindingForTest(disableLifecycleScripts, 'aube');
 
     expect(ruleBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
-    const status = ruleBinding.check(ctx(), {});
+    const status = ruleBinding.check(makePublishableCtx(), {});
     assertCheckState(status, 'violations');
     expect(status.violations.map((item) => item.file)).toEqual(['aube-workspace.yaml', '.npmrc']);
     const ops = status.violations.flatMap((item) => automaticOperations(item));
@@ -161,7 +159,7 @@ describe('disable-lifecycle-scripts (aube)', () => {
     'proposes only the independently missing Aube control: %j %j',
     (yaml, npm, file, key) => {
       const status = bindingForTest(disableLifecycleScripts, 'aube').check(
-        ctx({ readConfig: () => npm }),
+        makePublishableCtx({ readConfig: () => npm }),
         yaml,
       );
       expect(status).toMatchObject({ state: 'violation', file });
@@ -177,7 +175,7 @@ describe('disable-lifecycle-scripts (aube)', () => {
   );
 
   it('keeps the independent Aube proposal automatic when the other file needs manual repair', () => {
-    const status = bindingForTest(disableLifecycleScripts, 'aube').check(ctx(), {
+    const status = bindingForTest(disableLifecycleScripts, 'aube').check(makePublishableCtx(), {
       jailBuilds: { nested: true },
     });
     assertCheckState(status, 'violations');
@@ -189,12 +187,10 @@ describe('disable-lifecycle-scripts (aube)', () => {
 });
 
 describe('disable-lifecycle-scripts (bun)', () => {
-  const ctx = makePublishableCtx;
-
   it('reports missing Bun script policy with opt-out guidance and a proposal', () => {
     const ruleBinding = bindingForTest(disableLifecycleScripts, 'bun');
 
-    const status = ruleBinding.check(ctx(), {});
+    const status = ruleBinding.check(makePublishableCtx(), {});
 
     expect(ruleBinding.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
     expect(ruleBinding.severity).toBe('info');
@@ -237,13 +233,11 @@ describe('disable-lifecycle-scripts (bun)', () => {
 });
 
 describe('disable-lifecycle-scripts (yarn)', () => {
-  const ctx = makePublishableCtx;
-
   it('requires enableScripts: false', () => {
     const ruleBinding = bindingForTest(disableLifecycleScripts, 'yarn');
 
     expect(ruleBinding.file).toStrictEqual({ kind: 'yaml', path: '.yarnrc.yml' });
-    expect(ruleBinding.check(ctx(), {}).state).toBe('violation');
-    expect(ruleBinding.check(ctx(), { enableScripts: false }).state).toBe('ok');
+    expect(ruleBinding.check(makePublishableCtx(), {}).state).toBe('violation');
+    expect(ruleBinding.check(makePublishableCtx(), { enableScripts: false }).state).toBe('ok');
   });
 });

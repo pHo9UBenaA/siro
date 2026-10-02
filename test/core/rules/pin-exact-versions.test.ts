@@ -75,21 +75,20 @@ it('reports large top-level and scoped Deno mappings without exceeding argument 
 });
 
 describe('pin-exact-versions (deno subpaths)', () => {
+  const lintImport = (specifier: string) =>
+    runLint({
+      repository: createRepositoryEvaluation(
+        makeCtx({ readText: () => JSON.stringify({ imports: { dependency: specifier } }) }),
+        codecFor,
+      ),
+      targets: [{ pm: 'deno' }],
+      ruleSet: [pinExactVersions],
+    });
+
   it.each(['npm:lodash@4/fp', 'npm:@scope/pkg@1.x/subpath', 'jsr:@std/path@1/posix'])(
     'fails lint for the version range in %s',
     (specifier) => {
-      const result = runLint({
-        repository: createRepositoryEvaluation(
-          makeCtx({
-            readText: () => JSON.stringify({ imports: { dependency: specifier } }),
-          }),
-          codecFor,
-        ),
-        targets: [{ pm: 'deno' }],
-        ruleSet: [pinExactVersions],
-      });
-
-      expect(exitCodeForLint(result)).toBe(1);
+      expect(exitCodeForLint(lintImport(specifier))).toBe(1);
     },
   );
 
@@ -98,17 +97,7 @@ describe('pin-exact-versions (deno subpaths)', () => {
     'npm:@scope/pkg@1.2.3/subpath',
     'jsr:@std/path@1.0.0-x.1/posix',
   ])('accepts the exact version in %s', (specifier) => {
-    const result = runLint({
-      repository: createRepositoryEvaluation(
-        makeCtx({
-          readText: () => JSON.stringify({ imports: { dependency: specifier } }),
-        }),
-        codecFor,
-      ),
-      targets: [{ pm: 'deno' }],
-      ruleSet: [pinExactVersions],
-    });
-    expect(result.findings).toStrictEqual([]);
+    expect(lintImport(specifier).findings).toStrictEqual([]);
   });
 
   it.each([
@@ -118,17 +107,7 @@ describe('pin-exact-versions (deno subpaths)', () => {
     'npm:react@next/jsx-runtime',
     'npm:foo@1.2.3.4',
   ])('flags the unpinned registry import %s', (specifier) => {
-    const result = runLint({
-      repository: createRepositoryEvaluation(
-        makeCtx({
-          readText: () => JSON.stringify({ imports: { dependency: specifier } }),
-        }),
-        codecFor,
-      ),
-      targets: [{ pm: 'deno' }],
-      ruleSet: [pinExactVersions],
-    });
-    expect(exitCodeForLint(result)).toBe(1);
+    expect(exitCodeForLint(lintImport(specifier))).toBe(1);
   });
 });
 
@@ -165,15 +144,13 @@ it.each([
 });
 
 describe('pin-exact-versions (bun)', () => {
-  const ctx = makePublishableCtx;
-
   it('pin-exact-versions requires [install] exact=true', () => {
     const ruleBinding = bindingForTest(pinExactVersions, 'bun');
 
     expect(ruleBinding.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
-    expect(ruleBinding.check(ctx(), {}).state).toBe('violation');
-    expect(ruleBinding.check(ctx(), { install: { exact: true } }).state).toBe('ok');
-    const setKey = automaticOperations(ruleBinding.check(ctx(), {}))[0];
+    expect(ruleBinding.check(makePublishableCtx(), {}).state).toBe('violation');
+    expect(ruleBinding.check(makePublishableCtx(), { install: { exact: true } }).state).toBe('ok');
+    const setKey = automaticOperations(ruleBinding.check(makePublishableCtx(), {}))[0];
     expect(setKey).toMatchObject({ keyPath: ['install', 'exact'], value: true });
   });
 });
@@ -240,24 +217,24 @@ describe('pin-exact-versions (deno)', () => {
 });
 
 describe('pin-exact-versions (pnpm)', () => {
-  const ctx = makePublishableCtx;
-
   it('requires savePrefix empty', () => {
     const ruleBinding = bindingForTest(pinExactVersions, 'pnpm');
 
-    expect(ruleBinding.check(ctx(), {}).state).toBe('violation');
-    expect(ruleBinding.check(ctx(), { savePrefix: '' }).state).toBe('ok');
+    expect(ruleBinding.check(makePublishableCtx(), {}).state).toBe('violation');
+    expect(ruleBinding.check(makePublishableCtx(), { savePrefix: '' }).state).toBe('ok');
   });
 });
 
 describe('pin-exact-versions (yarn)', () => {
-  const ctx = makePublishableCtx;
-
   it('requires defaultSemverRangePrefix empty', () => {
     const ruleBinding = bindingForTest(pinExactVersions, 'yarn');
 
-    expect(ruleBinding.check(ctx(), { defaultSemverRangePrefix: '^' }).state).toBe('violation');
-    expect(ruleBinding.check(ctx(), { defaultSemverRangePrefix: '' }).state).toBe('ok');
+    expect(ruleBinding.check(makePublishableCtx(), { defaultSemverRangePrefix: '^' }).state).toBe(
+      'violation',
+    );
+    expect(ruleBinding.check(makePublishableCtx(), { defaultSemverRangePrefix: '' }).state).toBe(
+      'ok',
+    );
   });
 });
 

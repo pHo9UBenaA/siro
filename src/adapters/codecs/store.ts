@@ -1,8 +1,7 @@
 import type { CodecFor, ConfigCodec } from '../../core/contracts/config-codec.ts';
-import type { CodecKind } from '../../core/contracts/config-value.ts';
+import { type CodecKind, toParsedConfig } from '../../core/contracts/config-value.ts';
 import { iniCodec } from './ini.ts';
 import { jsonCodec, parseJson } from './json.ts';
-import { toParsedConfig } from '../../core/contracts/config-value.ts';
 import { checkConfigDepth, type ScanLimits } from '../../core/contracts/scan-limits.ts';
 import { tomlCodec } from './toml.ts';
 import { yamlCodec, parseYaml } from './yaml.ts';

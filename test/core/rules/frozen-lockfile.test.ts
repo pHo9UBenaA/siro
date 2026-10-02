@@ -5,15 +5,13 @@ import { frozenLockfile } from '../../../src/core/rules/frozen-lockfile.ts';
 import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 
 describe('frozen-lockfile (aube)', () => {
-  const ctx = makePublishableCtx;
-
   it.each<ParsedConfig>([{}, { preferFrozenLockfile: false }, { preferFrozenLockfile: true }])(
     'advises command-level enforcement regardless of the lockfile preference: %j',
     (config) => {
       const ruleBinding = bindingForTest(frozenLockfile, 'aube');
 
       expect(ruleBinding.severity).toBe('info');
-      expect(ruleBinding.check(ctx(), config)).toMatchObject({
+      expect(ruleBinding.check(makePublishableCtx(), config)).toMatchObject({
         state: 'violation',
         remediation: {
           kind: 'manual',
@@ -25,15 +23,17 @@ describe('frozen-lockfile (aube)', () => {
 });
 
 describe('frozen-lockfile (bun)', () => {
-  const ctx = makePublishableCtx;
-
   it('frozen-lockfile requires install.frozenLockfile=true (not install.frozen)', () => {
     const ruleBinding = bindingForTest(frozenLockfile, 'bun');
 
     expect(ruleBinding.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
-    expect(ruleBinding.check(ctx(), { install: { frozen: true } }).state).toBe('violation');
-    expect(ruleBinding.check(ctx(), { install: { frozenLockfile: true } }).state).toBe('ok');
-    const missing = ruleBinding.check(ctx(), {});
+    expect(ruleBinding.check(makePublishableCtx(), { install: { frozen: true } }).state).toBe(
+      'violation',
+    );
+    expect(
+      ruleBinding.check(makePublishableCtx(), { install: { frozenLockfile: true } }).state,
+    ).toBe('ok');
+    const missing = ruleBinding.check(makePublishableCtx(), {});
     assertCheckState(missing, 'violation');
     expect(missing.severity).toBeUndefined();
     expect(frozenLockfile.severity).toBe('warn');

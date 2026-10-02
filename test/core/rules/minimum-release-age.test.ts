@@ -274,18 +274,16 @@ describe('Deno release-age formats from the official parser', () => {
 });
 
 describe('minimum-release-age (aube)', () => {
-  const ctx = makePublishableCtx;
-
   it('reports the Aube default as info and proposes an explicit three-day cooldown', () => {
     const ruleBinding = bindingForTest(minimumReleaseAge, 'aube');
 
     expect(ruleBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
-    const status = ruleBinding.check(ctx(), {});
+    const status = ruleBinding.check(makePublishableCtx(), {});
     expect(status).toMatchObject({ state: 'violation', severity: 'info' });
-    const regression = ruleBinding.check(ctx(), { minimumReleaseAge: 0 });
+    const regression = ruleBinding.check(makePublishableCtx(), { minimumReleaseAge: 0 });
     expect(regression).toMatchObject({ state: 'violation' });
     expect(regression).not.toHaveProperty('severity');
-    expect(ruleBinding.check(ctx(), { minimumReleaseAge: 1440 }).state).toBe('ok');
+    expect(ruleBinding.check(makePublishableCtx(), { minimumReleaseAge: 1440 }).state).toBe('ok');
 
     const setKey = automaticOperations(status)[0];
     expect(setKey).toMatchObject({
@@ -296,13 +294,13 @@ describe('minimum-release-age (aube)', () => {
 });
 
 describe('minimum-release-age (bun)', () => {
-  const ctx = makePublishableCtx;
-
   it('minimum-release-age writes install.minimumReleaseAge (3 days in seconds)', () => {
     const ruleBinding = bindingForTest(minimumReleaseAge, 'bun');
 
-    expect(ruleBinding.check(ctx(), { install: { minimumReleaseAge: 259200 } }).state).toBe('ok');
-    const setKey = automaticOperations(ruleBinding.check(ctx(), {}))[0];
+    expect(
+      ruleBinding.check(makePublishableCtx(), { install: { minimumReleaseAge: 259200 } }).state,
+    ).toBe('ok');
+    const setKey = automaticOperations(ruleBinding.check(makePublishableCtx(), {}))[0];
     expect(setKey).toMatchObject({
       keyPath: ['install', 'minimumReleaseAge'],
       value: 259200,
@@ -311,14 +309,12 @@ describe('minimum-release-age (bun)', () => {
 });
 
 describe('minimum-release-age (pnpm)', () => {
-  const ctx = makePublishableCtx;
-
   it('checks minimumReleaseAge (3 days in minutes)', () => {
     const ruleBinding = bindingForTest(minimumReleaseAge, 'pnpm');
 
-    expect(ruleBinding.check(ctx(), {}).state).toBe('violation');
-    expect(ruleBinding.check(ctx(), { minimumReleaseAge: 1440 }).state).toBe('ok');
-    const setKey = automaticOperations(ruleBinding.check(ctx(), {}))[0];
+    expect(ruleBinding.check(makePublishableCtx(), {}).state).toBe('violation');
+    expect(ruleBinding.check(makePublishableCtx(), { minimumReleaseAge: 1440 }).state).toBe('ok');
+    const setKey = automaticOperations(ruleBinding.check(makePublishableCtx(), {}))[0];
     expect(setKey).toMatchObject({
       keyPath: ['minimumReleaseAge'],
       value: 4320,
@@ -327,8 +323,6 @@ describe('minimum-release-age (pnpm)', () => {
 });
 
 describe('minimum-release-age (yarn)', () => {
-  const ctx = makePublishableCtx;
-
   it.each([
     { npmMinimalAgeGate: '1w', state: 'ok' },
     { npmMinimalAgeGate: '1d', state: 'ok' },
@@ -343,14 +337,14 @@ describe('minimum-release-age (yarn)', () => {
     { npmMinimalAgeGate: '1d junk', state: 'violation' },
   ])('classifies Yarn age $npmMinimalAgeGate as $state', ({ npmMinimalAgeGate, state }) => {
     const ruleBinding = bindingForTest(minimumReleaseAge, 'yarn');
-    expect(ruleBinding.check(ctx(), { npmMinimalAgeGate }).state).toBe(state);
+    expect(ruleBinding.check(makePublishableCtx(), { npmMinimalAgeGate }).state).toBe(state);
   });
 
   it('checks npmMinimalAgeGate', () => {
     const ruleBinding = bindingForTest(minimumReleaseAge, 'yarn');
 
-    expect(ruleBinding.check(ctx(), { npmMinimalAgeGate: 1440 }).state).toBe('ok');
-    const setKey = automaticOperations(ruleBinding.check(ctx(), {}))[0];
+    expect(ruleBinding.check(makePublishableCtx(), { npmMinimalAgeGate: 1440 }).state).toBe('ok');
+    const setKey = automaticOperations(ruleBinding.check(makePublishableCtx(), {}))[0];
     expect(setKey).toMatchObject({
       keyPath: ['npmMinimalAgeGate'],
       value: 4320,

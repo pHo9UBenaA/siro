@@ -1,5 +1,4 @@
-import type { ParsedConfig } from './config-value.ts';
-import { getByPath } from './config-value.ts';
+import { type ParsedConfig, getByPath } from './config-value.ts';
 import { ConfigError } from './errors.ts';
 import { isPlainRecord } from './records.ts';
 

@@ -1,5 +1,6 @@
 import { lt } from 'semver';
 import type { PM } from '../contracts/pms.ts';
+import type { RelPath } from '../contracts/paths.ts';
 import { getByPath } from '../contracts/config-value.ts';
 import { defineRule, type RuleBinding, type ViolationStatus } from '../contracts/rule.ts';
 import { settingAvailability } from './setting-availability.ts';
@@ -17,9 +18,13 @@ const bindingFor = (pm: PM, includesFile: (file: string) => boolean): RuleBindin
           lt(version, setting.since) &&
           getByPath(ctx.readConfig(setting.file), setting.keyPath) !== undefined,
       );
-      const files = [...new Set(unsupported.map((setting) => setting.file.path))];
-      const violations = files.map((file): ViolationStatus => {
-        const fileSettings = unsupported.filter((setting) => setting.file.path === file);
+      const unsupportedByFile = new Map<RelPath, typeof settings>();
+      for (const setting of unsupported) {
+        const fileSettings = unsupportedByFile.get(setting.file.path) ?? [];
+        fileSettings.push(setting);
+        unsupportedByFile.set(setting.file.path, fileSettings);
+      }
+      const violations = [...unsupportedByFile].map(([file, fileSettings]): ViolationStatus => {
         const requirements = fileSettings.map(
           (setting) => `${setting.keyPath.join('.')} (requires ${pm} >=${setting.since})`,
         );

@@ -91,6 +91,7 @@ const buildBinding = (
     }
     const status = checkKeyValue(spec, config);
     if (status.state !== 'violation') return status;
+    // Public bindings can be checked directly, without evaluateBinding's proposal guard.
     return {
       ...status,
       remediation: guardRemediationAvailability(pm, ctx.pmVersion, status.remediation, [spec]),

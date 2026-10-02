@@ -4,16 +4,16 @@ import { captureIO } from '../helpers/io.ts';
 
 const cwd = asAbsPath('/repo');
 const options = { cwd, installationRoots: [] };
-const raw = '{"private":true}';
+const privateManifestText = '{"private":true}';
 
 it('enforces exact file byte boundaries and counts UTF-8 rather than code units', () => {
-  const fs = createMemFileSystem({ 'package.json': raw });
-  for (const maxFileBytes of [raw.length, raw.length + 1]) {
+  const fs = createMemFileSystem({ 'package.json': privateManifestText });
+  for (const maxFileBytes of [privateManifestText.length, privateManifestText.length + 1]) {
     expect(lint({ ...options, fs, limits: { maxFileBytes } }).inspection.manifests).toHaveLength(1);
   }
-  expect(() => lint({ ...options, fs, limits: { maxFileBytes: raw.length - 1 } })).toThrow(
-    /maxFileBytes/,
-  );
+  expect(() =>
+    lint({ ...options, fs, limits: { maxFileBytes: privateManifestText.length - 1 } }),
+  ).toThrow(/maxFileBytes/);
   const unicode = '{"name":"é"}';
   expect(() =>
     lint({
@@ -25,17 +25,20 @@ it('enforces exact file byte boundaries and counts UTF-8 rather than code units'
 });
 
 it('shares a scan read budget, memoizes reads, and resets between scans', () => {
-  const fs = createMemFileSystem({ 'package.json': raw, 'child/package.json': raw });
-  const request = { ...options, fs, limits: { maxTotalBytes: raw.length * 2 } };
+  const fs = createMemFileSystem({
+    'package.json': privateManifestText,
+    'child/package.json': privateManifestText,
+  });
+  const request = { ...options, fs, limits: { maxTotalBytes: privateManifestText.length * 2 } };
   expect(lint(request).inspection.manifests).toHaveLength(2);
   expect(lint(request).inspection.manifests).toHaveLength(2);
-  expect(() => lint({ ...request, limits: { maxTotalBytes: raw.length * 2 - 1 } })).toThrow(
-    /maxTotalBytes/,
-  );
+  expect(() =>
+    lint({ ...request, limits: { maxTotalBytes: privateManifestText.length * 2 - 1 } }),
+  ).toThrow(/maxTotalBytes/);
 });
 
 it('rejects tree count/depth overflow rather than returning partial inspection', () => {
-  const fs = createMemFileSystem({ 'a/b/package.json': raw });
+  const fs = createMemFileSystem({ 'a/b/package.json': privateManifestText });
   expect(
     lint({ ...options, fs, limits: { maxDirectories: 3, maxDirectoryDepth: 2 } }).inspection
       .manifests,
@@ -124,7 +127,7 @@ it.each([NaN, Infinity, 0, -1, 1.5])('rejects invalid limits %s', (maxFileBytes)
 });
 
 it('bounds JSON output before writing and preserves native JSON decoding', async () => {
-  const fs = createMemFileSystem({ 'package.json': raw });
+  const fs = createMemFileSystem({ 'package.json': privateManifestText });
   const { io, out } = captureIO();
   await expect(
     lintCommand({ ...options, fs, reporter: 'json', limits: { maxOutputBytes: 1 } }, io),

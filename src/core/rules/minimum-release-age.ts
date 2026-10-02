@@ -31,11 +31,7 @@ const isPositiveYarnDuration = (value: unknown): boolean => {
   return Number.isFinite(durationAmount) && durationAmount > 0;
 };
 
-const isPositiveDenoNpmrcDays = (
-  value: unknown,
-  nowMs: number,
-  parse: DateTime['parse'],
-): boolean =>
+const isActiveDenoNpmrcAge = (value: unknown, nowMs: number, parse: DateTime['parse']): boolean =>
   typeof value === 'number' &&
   Number.isSafeInteger(value) &&
   isActiveDenoReleaseAge(value * MINUTES_PER_DAY, nowMs, parse);
@@ -200,7 +196,7 @@ const createDenoBinding = (time: DateTime): RuleBinding => ({
     if (age == null) {
       const npmrcConfig = ctx.readConfig(npmrc);
       const npmrcAge = getByPath(npmrcConfig, ['min-release-age']);
-      if (isPositiveDenoNpmrcDays(npmrcAge, nowMs, time.parse)) return { state: 'ok' };
+      if (isActiveDenoNpmrcAge(npmrcAge, nowMs, time.parse)) return { state: 'ok' };
       // Deno treats zero as an explicit opt-out. Do not let an omitted object
       // age fall through to the version-dependent default in that case.
       if (npmrcAge === 0) {
