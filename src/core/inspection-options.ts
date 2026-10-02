@@ -24,12 +24,17 @@ const denseArray = (value: unknown, name: string): unknown[] => {
   return value;
 };
 
-const relativeInput = (value: unknown, name: 'exclude' | 'installationRoots'): string => {
+const normalizeScopePath = (value: unknown, name: 'exclude' | 'installationRoots'): string => {
+  // Exclusions are portable patterns; literal roots retain native POSIX name characters.
+  const invalidPattern =
+    name === 'exclude' &&
+    typeof value === 'string' &&
+    (value.includes('\\') || /^[a-z]:/iu.test(value));
   if (
     typeof value !== 'string' ||
     !value ||
     value.includes('\0') ||
-    (name === 'exclude' && (value.includes('\\') || /^[a-z]:/iu.test(value))) ||
+    invalidPattern ||
     /^[\\/]/u.test(value) ||
     /^[a-z]:[\\/]/iu.test(value) ||
     value.split('/').includes('..')
@@ -46,16 +51,15 @@ const relativeInput = (value: unknown, name: 'exclude' | 'installationRoots'): s
   );
 };
 
-export const parseExcludes = (value: unknown): string[] => [
-  ...new Set(
-    denseArray(value, 'exclude').map((input) => {
-      const pattern = relativeInput(input, 'exclude');
-      if (pattern === '.' || pattern.startsWith('!'))
-        throw new ConfigError('exclude cannot exclude cwd (.) or re-include with leading !.');
-      return pattern;
-    }),
-  ),
-];
+export const parseExcludes = (value: unknown): string[] => {
+  const patterns = denseArray(value, 'exclude').map((input) => {
+    const pattern = normalizeScopePath(input, 'exclude');
+    if (pattern === '.' || pattern.startsWith('!'))
+      throw new ConfigError('exclude cannot exclude cwd (.) or re-include with leading !.');
+    return pattern;
+  });
+  return [...new Set(patterns)];
+};
 
 export const parseInstallationRoots = (value: unknown): InstallationRoot[] => {
   const roots = new Map<string, InstallationRoot>();
@@ -72,26 +76,22 @@ export const parseInstallationRoots = (value: unknown): InstallationRoot[] => {
     const entry = typeof input === 'string' ? { path: input } : input;
     // Literal entries are later matched to host-validated enumerated directories,
     // never resolved directly. POSIX backslashes/colons may be actual name characters.
-    const path = relativeInput(entry.path, 'installationRoots');
+    const path = normalizeScopePath(entry.path, 'installationRoots');
+    const { pm, pmVersion } = entry;
     if (
-      (entry.pm !== undefined && (typeof entry.pm !== 'string' || !isPM(entry.pm))) ||
-      (entry.pmVersion !== undefined &&
-        (!entry.pm || typeof entry.pmVersion !== 'string' || !isStableVersion(entry.pmVersion)))
+      (pm !== undefined && (typeof pm !== 'string' || !isPM(pm))) ||
+      (pmVersion !== undefined && (!pm || !isStableVersion(pmVersion)))
     ) {
       throw new ConfigError(
         `${path}: pmVersion requires pm and an exact stable version; pm must be a supported manager.`,
       );
     }
-    if (path === '.' && (entry.pm !== undefined || entry.pmVersion !== undefined)) {
+    if (path === '.' && (pm !== undefined || pmVersion !== undefined)) {
       throw new ConfigError(
         'Use top-level pm / pmVersion / pms / pmVersions for installation root ".".',
       );
     }
-    const root: InstallationRoot = {
-      path,
-      pm: entry.pm as PM | undefined,
-      pmVersion: entry.pmVersion as string | undefined,
-    };
+    const root: InstallationRoot = { path, pm, pmVersion };
     const previous = roots.get(path);
     if (previous && (previous.pm !== root.pm || previous.pmVersion !== root.pmVersion))
       throw new ConfigError(`${path}: conflicting installationRoots entries.`);
