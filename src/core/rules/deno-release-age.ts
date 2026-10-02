@@ -14,8 +14,10 @@ const DENO_UNIT_SECONDS: Readonly<Record<string, number>> = {
 };
 
 const DENO_DATE = /^\d{4}-\d{2}-\d{2}$/u;
+// Full form: T/t/space separator, seconds required, optional fraction, Z/z or ±HH:MM.
 const DENO_TIMESTAMP =
   /^\d{4}-\d{2}-\d{2}[Tt ](?:[01]\d|2[0-3]):[0-5]\d:(?:[0-5]\d|60)(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/u;
+// Alternate form: optional seconds, ±HHMM or ±HH:MM, uppercase T, no fraction.
 const DENO_OFFSET_TIMESTAMP =
   /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::(?:[0-5]\d|60))?[+-](?:[01]\d|2[0-3]):?[0-5]\d$/u;
 const DENO_DURATION_TOKEN = /(\d+)(?:\.(\d+))?([WDHMS])/giu;

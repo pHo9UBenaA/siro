@@ -30,15 +30,15 @@ const prepareRuntime = <Options extends LintOptions>(
   const limits = resolveScanLimits(options.limits);
   if (options.rejectSymlinks !== undefined && typeof options.rejectSymlinks !== 'boolean')
     throw new UsageError('rejectSymlinks must be a boolean.');
-  const native = options.fs === undefined || options.fs === nodeFileSystem;
-  if (options.rejectSymlinks && !native)
+  const usesNativeFileSystem = options.fs === undefined || options.fs === nodeFileSystem;
+  if (options.rejectSymlinks && !usesNativeFileSystem)
     throw new UsageError(
       'rejectSymlinks requires the native filesystem; an injected FileSystem is trusted code.',
     );
-  if (native) assertDirectory(options.cwd);
+  if (usesNativeFileSystem) assertDirectory(options.cwd);
   const dependencies: LintDependencies = {
     rules,
-    fileSystem: native
+    fileSystem: usesNativeFileSystem
       ? createNodeFileSystem(limits, options.rejectSymlinks ? options.cwd : undefined)
       : options.fs!,
     paths: nodePaths,

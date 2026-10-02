@@ -34,12 +34,13 @@ export const loadConfig = async (
   }
   const url = pathToFileURL(path.join(cwd, name));
   url.searchParams.set('siro-load', String(++loadCounter));
-  let mod: unknown;
+  let module: unknown;
   try {
-    mod = await import(url.href);
+    module = await import(url.href);
   } catch (error) {
     throw new ConfigError(`Failed to load ${name}: ${describeError(error)}`);
   }
-  const candidate = mod !== null && typeof mod === 'object' && 'default' in mod ? mod.default : mod;
+  const candidate =
+    module !== null && typeof module === 'object' && 'default' in module ? module.default : module;
   return parseConfig(candidate, name);
 };

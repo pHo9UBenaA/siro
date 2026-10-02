@@ -24,15 +24,15 @@ export const strictStoreIntegrity = defineRule({
             state: 'violation',
           };
         }
-        const strict = getByPath(config, ['strictStoreIntegrity']);
-        if (strict === true || getByPath(config, ['paranoid']) === true) {
+        const strictStoreIntegritySetting = getByPath(config, ['strictStoreIntegrity']);
+        if (strictStoreIntegritySetting === true || getByPath(config, ['paranoid']) === true) {
           return { state: 'ok' };
         }
         return {
           remediation: proposeChanges(config, [
             { file: aubeWorkspace, keyPath: ['strictStoreIntegrity'], op: 'setKey', value: true },
           ]),
-          actual: strict,
+          actual: strictStoreIntegritySetting,
           expected: true,
           message:
             'Set `strictStoreIntegrity: true` in aube-workspace.yaml to refuse tarballs that lack integrity metadata.',

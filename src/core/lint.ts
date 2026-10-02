@@ -83,6 +83,15 @@ const validateLintOptions = (
     );
 };
 
+const attachTargetVersions = (
+  pms: readonly PM[],
+  versions: Partial<Record<PM, string>>,
+): PolicyTarget[] =>
+  pms.map((pm) => ({
+    pm,
+    ...(versions[pm] === undefined ? {} : { version: versions[pm] }),
+  }));
+
 const resolveDirectoryTargets = (
   item: DiscoveredDirectory,
   installationRoot: InstallationRoot | undefined,
@@ -103,10 +112,7 @@ const resolveDirectoryTargets = (
       ...config?.pmVersions,
       ...(options.pm && options.pmVersion ? { [options.pm]: options.pmVersion } : {}),
     };
-    return pms.map((pm) => ({
-      pm,
-      ...(versions[pm] === undefined ? {} : { version: versions[pm] }),
-    }));
+    return attachTargetVersions(pms, versions);
   }
   if (installationRoot) {
     try {
@@ -117,10 +123,7 @@ const resolveDirectoryTargets = (
           ? { [installationRoot.pm]: installationRoot.pmVersion }
           : {}),
       };
-      return pms.map((pm) => ({
-        pm,
-        ...(versions[pm] === undefined ? {} : { version: versions[pm] }),
-      }));
+      return attachTargetVersions(pms, versions);
     } catch (error) {
       if (error instanceof UsageError) throw new UsageError(`${item.directory}: ${error.message}`);
       throw error;
@@ -130,12 +133,10 @@ const resolveDirectoryTargets = (
     ctx.packageJson?.packageManager === undefined
       ? undefined
       : parsePackageManagerField(ctx.packageJson.packageManager);
-  return PMS.filter(
+  const manifestPMs = PMS.filter(
     (pm) => pm === declared || (pm === 'deno' && item.manifests.includes('deno.json')),
-  ).map((pm) => ({
-    pm,
-    ...(declaredVersions[pm] === undefined ? {} : { version: declaredVersions[pm] }),
-  }));
+  );
+  return attachTargetVersions(manifestPMs, declaredVersions);
 };
 
 /** Validate inputs and prepare shared contexts, without running rules or child executable configs. */
@@ -229,7 +230,7 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
   const ruleOrder = new Map(ruleSet.map((rule, index) => [rule.id, index]));
   for (const item of directories) {
     const { directory, repository, targets, isInstallationRoot } = item;
-    const local: Finding[] = [];
+    const directoryFindings: Finding[] = [];
     for (const file of item.manifests) {
       const manifestTargets = targets.filter(({ pm }) =>
         file === 'deno.json' ? pm === 'deno' : pm !== 'deno',
@@ -246,7 +247,7 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
         ruleSet,
         severityOverrides,
       );
-      for (const finding of manifestFindings) local.push(finding);
+      for (const finding of manifestFindings) directoryFindings.push(finding);
     }
     if (isInstallationRoot) installationRoots.push({ directory, targets });
     const scopedRules = selectInstallationRules(ruleSet, item);
@@ -257,16 +258,18 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
         ruleSet: scopedRules,
         severityOverrides,
       }).findings;
-      for (const finding of installationFindings) local.push(finding);
+      for (const finding of installationFindings) directoryFindings.push(finding);
     } catch (error) {
       if (error instanceof ConfigError && directory !== '.')
         throw new ConfigError(`${directory}/${error.message}`);
       throw error;
     }
     // Stable user-facing rule order is independent of traversal/read order.
-    local.sort((a, b) => (ruleOrder.get(a.ruleId) ?? 0) - (ruleOrder.get(b.ruleId) ?? 0));
-    checkLimit('maxFindings', findings.length + local.length, limits);
-    for (const finding of local) findings.push(rebaseFinding(directory, finding));
+    directoryFindings.sort(
+      (a, b) => (ruleOrder.get(a.ruleId) ?? 0) - (ruleOrder.get(b.ruleId) ?? 0),
+    );
+    checkLimit('maxFindings', findings.length + directoryFindings.length, limits);
+    for (const finding of directoryFindings) findings.push(rebaseFinding(directory, finding));
   }
   const summary = { error: 0, warn: 0, info: 0 };
   for (const finding of findings) summary[finding.severity] += 1;

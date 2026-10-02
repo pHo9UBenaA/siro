@@ -96,7 +96,9 @@ const collectArguments = (argv: readonly string[]) => {
       continue;
     }
     if (REPEATABLE_FLAGS.has(token.name)) {
-      repeatedFlags.set(token.name, [...(repeatedFlags.get(token.name) ?? []), value]);
+      const occurrences = repeatedFlags.get(token.name) ?? [];
+      occurrences.push(value);
+      repeatedFlags.set(token.name, occurrences);
     } else {
       if (values.has(token.name)) firstError ??= `${token.rawName} must be specified only once.`;
       values.set(token.name, value);

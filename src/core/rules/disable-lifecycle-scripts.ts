@@ -97,26 +97,26 @@ const pnpmBinding: RuleBinding = {
 const aubeBinding: RuleBinding = {
   check(ctx, config): CheckStatus {
     const npmConfig = ctx.readConfig(npmrc);
-    const jail = getByPath(config, ['jailBuilds']);
-    const strict = getByPath(npmConfig, ['strictDepBuilds']);
-    if (jail === true && strict === true) return { state: 'ok' };
+    const jailBuilds = getByPath(config, ['jailBuilds']);
+    const strictDepBuilds = getByPath(npmConfig, ['strictDepBuilds']);
+    if (jailBuilds === true && strictDepBuilds === true) return { state: 'ok' };
     const violations: ViolationStatus[] = [];
-    if (jail !== true)
+    if (jailBuilds !== true)
       violations.push({
         state: 'violation',
         file: aubeWorkspace.path,
-        actual: jail,
+        actual: jailBuilds,
         expected: true,
         message: 'Set `jailBuilds: true` in aube-workspace.yaml to sandbox approved builds.',
         remediation: proposeChanges(config, [
           { file: aubeWorkspace, keyPath: ['jailBuilds'], op: 'setKey', value: true },
         ]),
       });
-    if (strict !== true)
+    if (strictDepBuilds !== true)
       violations.push({
         state: 'violation',
         file: npmrc.path,
-        actual: strict,
+        actual: strictDepBuilds,
         expected: true,
         message: 'Set `strictDepBuilds=true` in .npmrc to reject unreviewed lifecycle scripts.',
         remediation: proposeChanges(npmConfig, [
@@ -141,8 +141,8 @@ const bunBinding: RuleBinding = {
     if (ignoreScripts === true) {
       return { state: 'ok' };
     }
-    const trusted = ctx.packageJson?.trustedDependencies;
-    if (typeof trusted !== 'undefined' && trusted.length === 0) {
+    const trustedDependencies = ctx.packageJson?.trustedDependencies;
+    if (trustedDependencies !== undefined && trustedDependencies.length === 0) {
       return { state: 'ok' };
     }
     return {

@@ -32,7 +32,8 @@ export const packageJsonFilesBinding: RuleBinding = {
   file: packageJson,
 };
 
-// Deno uses publish.include. A name implies a package unless projectType overrides it.
+// Deno uses publish.include. Without an explicit projectType, a nonblank name
+// implies a package only when publish is not false.
 export const denoPublishBinding: RuleBinding = {
   check(ctx, config) {
     if (resolveDenoProjectType(ctx, config) !== 'package') {

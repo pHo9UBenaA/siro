@@ -32,19 +32,19 @@ interface RenderPalette {
 
 const renderFinding = (
   finding: LintResult['findings'][number],
-  ctx: RenderPalette,
+  palette: RenderPalette,
   appendLine: (line: string) => void,
 ): void => {
-  const where = ctx.colors.dim(` (${safeText(finding.file ?? finding.directory)})`);
+  const location = palette.colors.dim(` (${safeText(finding.file ?? finding.directory)})`);
   appendLine(
-    `${ctx.tag[finding.severity](GLYPH[finding.severity])}  [${finding.pm ?? 'package'}] ${ctx.colors.bold(safeText(finding.ruleId))}${where}`,
+    `${palette.tag[finding.severity](GLYPH[finding.severity])}  [${finding.pm ?? 'package'}] ${palette.colors.bold(safeText(finding.ruleId))}${location}`,
   );
   appendLine(`    ${safeText(finding.message)}`);
   if (finding.remediation?.kind === 'manual') {
     for (const step of finding.remediation.steps) appendLine(`    ↳ ${safeText(step)}`);
   }
   if (finding.docs) {
-    appendLine(ctx.colors.dim(`    → ${safeText(finding.docs)}`));
+    appendLine(palette.colors.dim(`    → ${safeText(finding.docs)}`));
   }
 };
 
@@ -68,7 +68,7 @@ export const prettyReporter: Reporter<'pretty'> = {
       consume(`${line}\n`);
       lines.push(line);
     };
-    const ctx = createRenderPalette();
+    const palette = createRenderPalette();
     collect(
       `Inspection: ${result.inspection.manifests.length} manifests; installation roots: ${result.inspection.installationRoots.map((root) => safeText(root.directory)).join(', ') || 'none'}.`,
     );
@@ -76,9 +76,9 @@ export const prettyReporter: Reporter<'pretty'> = {
       'Unknown PM/version targets have no availability assessment; installation scope is explicit.',
     );
     if (result.findings.length === 0) {
-      collect(ctx.colors.green('✔ No security best-practice issues found.'));
+      collect(palette.colors.green('✔ No security best-practice issues found.'));
     } else {
-      for (const finding of result.findings) renderFinding(finding, ctx, collect);
+      for (const finding of result.findings) renderFinding(finding, palette, collect);
       const { error, warn, info } = result.summary;
       collect('');
       collect(`Summary: ${error} error, ${warn} warn, ${info} info`);
