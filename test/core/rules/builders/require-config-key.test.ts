@@ -8,6 +8,25 @@ import { makeCtx } from '../../../helpers/ctx.ts';
 
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
 
+it.each([
+  ['11.9.0', 'manual'],
+  ['11.10.0', 'automatic'],
+])('guards npm min-release-age remediation at version %s', (pmVersion, kind) => {
+  const rule = requireConfigKey({
+    id: 'age',
+    title: 'Age',
+    description: 'Age policy',
+    severity: 'warn',
+    bindings: {
+      npm: { file: npmrc, keyPath: ['min-release-age'], value: 3, message: 'Set an age.' },
+    },
+  });
+  expect(rule.bindings.npm?.check(makeCtx({ pmVersion }), {})).toMatchObject({
+    state: 'violation',
+    remediation: { kind },
+  });
+});
+
 const vnRule = (versionNote?: VersionNote): Rule => {
   return requireConfigKey({
     bindings: {

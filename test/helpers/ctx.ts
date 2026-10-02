@@ -17,7 +17,11 @@ export const makeCtx = (overrides: ContextOptions = {}): RuleContext => {
     readText: overrides.readText ?? (() => undefined),
     root: overrides.root ?? DEFAULT_ROOT,
   };
-  return { ...ctx, readConfig: overrides.readConfig ?? createConfigParser(codecFor, ctx) };
+  return {
+    ...ctx,
+    pmVersion: overrides.pmVersion,
+    readConfig: overrides.readConfig ?? createConfigParser(codecFor, ctx),
+  };
 };
 
 export const makePublishableCtx = (overrides: ContextOptions = {}): RuleContext =>
