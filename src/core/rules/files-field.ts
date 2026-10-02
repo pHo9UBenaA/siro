@@ -1,4 +1,4 @@
-import { isStringList } from './config-predicates.ts';
+import { isNonBlankStringArray } from './config-predicates.ts';
 import { type RuleBinding, defineRule } from '../contracts/rule.ts';
 import { CONFIG_FILES } from '../config-files.ts';
 import { getByPath } from '../contracts/config-value.ts';
@@ -8,15 +8,12 @@ import { isPublishable } from './publishable.ts';
 const { packageJson, denoJson } = CONFIG_FILES;
 
 export const packageJsonFilesBinding: RuleBinding = {
-  // Advisory binding — uses ctx.packageJson (typed valibot view) instead
-  // of the codec-agnostic ParsedConfig so `files` arrives as
-  // `string[] | undefined` without a cast.
   check(ctx) {
     if (!isPublishable(ctx)) {
       return { state: 'na' };
     }
     const files = ctx.packageJson?.files;
-    if (isStringList(files) && files.length > 0) {
+    if (isNonBlankStringArray(files) && files.length > 0) {
       return { state: 'ok' };
     }
     return {
@@ -35,17 +32,14 @@ export const packageJsonFilesBinding: RuleBinding = {
   file: packageJson,
 };
 
-// Deno publishes to JSR via deno.json `publish.include`. A deno.json without
-// a `name` cannot be published to JSR, so the rule is N/A for internal/CLI
-// deno repos — mirroring the `isPublishable` guard used by the package.json
-// binding (whose privacy signal is `private: true` rather than missing name).
+// Deno uses publish.include. A name implies a package unless projectType overrides it.
 export const denoPublishBinding: RuleBinding = {
   check(ctx, config) {
     if (resolveDenoProjectType(ctx, config) !== 'package') {
       return { state: 'na' };
     }
     const include = getByPath(config, ['publish', 'include']);
-    if (isStringList(include) && include.length > 0) {
+    if (isNonBlankStringArray(include) && include.length > 0) {
       return { state: 'ok' };
     }
     return {

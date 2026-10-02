@@ -33,7 +33,7 @@ const collectUnpinnedImports = (imports: unknown, location: string): string[] =>
 
 const MAX_SAMPLE_COUNT = 3;
 
-const formatOffenders = (offenders: readonly string[]): CheckStatus => {
+const createUnpinnedImportsViolation = (offenders: readonly string[]): CheckStatus => {
   const sample = offenders.slice(0, MAX_SAMPLE_COUNT).join(', ');
   let more = '';
   if (offenders.length > MAX_SAMPLE_COUNT) {
@@ -51,9 +51,7 @@ const formatOffenders = (offenders: readonly string[]): CheckStatus => {
   };
 };
 
-const OK: CheckStatus = { state: 'ok' };
-
-const unpinnedInlineImports = (config: ParsedConfig): string[] => {
+const collectUnpinnedInlineImports = (config: ParsedConfig): string[] => {
   const imports = getByPath(config, ['imports']);
   const offenders = imports == null ? [] : collectUnpinnedImports(imports, 'imports');
   const scopes = getByPath(config, ['scopes']);
@@ -69,11 +67,11 @@ const unpinnedInlineImports = (config: ParsedConfig): string[] => {
 
 const denoBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
-    const offenders = unpinnedInlineImports(config);
+    const offenders = collectUnpinnedInlineImports(config);
     if (offenders.length === 0) {
-      return OK;
+      return { state: 'ok' };
     }
-    return formatOffenders(offenders);
+    return createUnpinnedImportsViolation(offenders);
   },
   docs: 'https://docs.deno.com/runtime/reference/cli/add/',
   file: denoJson,
@@ -87,7 +85,7 @@ const npmBinding: RuleBinding = {
   check(_ctx, config) {
     const exact = getByPath(config, ['save-exact']);
     const prefix = getByPath(config, ['save-prefix']);
-    if (exact === true || prefix === '' || prefix === '=') return OK;
+    if (exact === true || prefix === '' || prefix === '=') return { state: 'ok' };
     return {
       remediation: proposeChanges(config, [
         { op: 'setKey', file: npmrc, keyPath: ['save-exact'], value: true },
@@ -107,7 +105,7 @@ const aubeBinding: RuleBinding = {
     const prefixes = ['save-prefix', 'savePrefix']
       .filter((key) => Object.hasOwn(config, key))
       .map((key) => config[key]);
-    if (prefixes.length > 0 && prefixes.every((value) => value === '')) return OK;
+    if (prefixes.length > 0 && prefixes.every((value) => value === '')) return { state: 'ok' };
     return {
       remediation: {
         kind: 'manual',

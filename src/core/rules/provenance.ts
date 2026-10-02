@@ -49,14 +49,16 @@ const baseRule = requireConfigKey({
   title: 'Publish with provenance',
 });
 
+const npmBinding = baseRule.bindings.npm!;
+
 export const provenance = overrideBindings(baseRule, {
   npm: {
-    ...baseRule.bindings.npm,
+    ...npmBinding,
     check(ctx, config) {
       if (!isPublishable(ctx)) return { state: 'na' };
       const publishConfig = ctx.packageJson?.publishConfig;
       if (!publishConfig || !Object.hasOwn(publishConfig, 'provenance')) {
-        return baseRule.bindings.npm!.check(ctx, config);
+        return npmBinding.check(ctx, config);
       }
       if (publishConfig.provenance === true) return { state: 'ok' };
       const file = CONFIG_FILES.packageJson;

@@ -1,6 +1,6 @@
 import type { AbsPath } from './paths.ts';
 
-/** IO boundary: swap in memfs (or any other backend) for tests. */
+/** Read-only filesystem boundary for repository inspection. */
 export interface FileSystem {
   /** Ordinary native child directory names, excluding symlinks. Required for recursive discovery. Errors must propagate. */
   readDirectories: (path: AbsPath) => readonly string[];

@@ -1,14 +1,9 @@
 import { type RuleBinding, defineRule } from '../contracts/rule.ts';
 import { CONFIG_FILES } from '../config-files.ts';
 import { getByPath } from '../contracts/config-value.ts';
+import { isNonEmptyObject } from './config-predicates.ts';
 
 const { pnpmWorkspace } = CONFIG_FILES;
-
-const isNonEmptyObject = (value: unknown): boolean =>
-  typeof value === 'object' &&
-  value !== null &&
-  !Array.isArray(value) &&
-  Object.keys(value).length > 0;
 
 const pnpmBinding: RuleBinding = {
   check(_ctx, config) {

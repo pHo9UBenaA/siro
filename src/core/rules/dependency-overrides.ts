@@ -2,14 +2,9 @@ import { type RuleBinding, type CheckStatus, defineRule } from '../contracts/rul
 import type { ConfigFileRef } from '../contracts/config-file-ref.ts';
 import { CONFIG_FILES } from '../config-files.ts';
 import { type ParsedConfig, getByPath } from '../contracts/config-value.ts';
+import { isNonEmptyObject } from './config-predicates.ts';
 
 const { aubeWorkspace, pnpmWorkspace } = CONFIG_FILES;
-
-const isNonEmptyObject = (value: unknown): boolean =>
-  typeof value === 'object' &&
-  value !== null &&
-  !Array.isArray(value) &&
-  Object.keys(value).length > 0;
 
 const checkOverrides = (config: ParsedConfig, file: string): CheckStatus => {
   const value = getByPath(config, ['overrides']);
@@ -29,9 +24,9 @@ const checkOverrides = (config: ParsedConfig, file: string): CheckStatus => {
   };
 };
 
-const makeBinding = (file: ConfigFileRef, fileName: string, docs: string): RuleBinding => ({
+const makeBinding = (file: ConfigFileRef, docs: string): RuleBinding => ({
   check(_ctx, config) {
-    return checkOverrides(config, fileName);
+    return checkOverrides(config, file.path);
   },
   docs,
   file,
@@ -39,12 +34,8 @@ const makeBinding = (file: ConfigFileRef, fileName: string, docs: string): RuleB
 
 export const dependencyOverrides = defineRule({
   bindings: {
-    aube: makeBinding(aubeWorkspace, 'aube-workspace.yaml', 'https://aube.sh/settings/'),
-    pnpm: makeBinding(
-      pnpmWorkspace,
-      'pnpm-workspace.yaml',
-      'https://pnpm.io/settings/dependency-resolution#overrides',
-    ),
+    aube: makeBinding(aubeWorkspace, 'https://aube.sh/settings/'),
+    pnpm: makeBinding(pnpmWorkspace, 'https://pnpm.io/settings/dependency-resolution#overrides'),
   },
   description:
     'Flag dependency overrides that can replace transitive packages with arbitrary versions or forks — a supply-chain injection vector.',

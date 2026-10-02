@@ -3,9 +3,9 @@ import { guardRemediationAvailability } from './remediation-availability.ts';
 import { isActiveDenoReleaseAge } from './deno-release-age.ts';
 import { getByPath } from '../contracts/config-value.ts';
 import { proposeChanges } from './remediation.ts';
-import type { RuleBinding } from '../contracts/rule.ts';
+import type { RuleBinding, ViolationStatus } from '../contracts/rule.ts';
 import { isPlainRecord } from '../contracts/records.ts';
-import { isStringList } from './config-predicates.ts';
+import { isNonBlankStringArray } from './config-predicates.ts';
 import { CONFIG_FILES } from '../config-files.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 
@@ -24,36 +24,21 @@ const { npmrc, pnpmWorkspace, yarnrc, bunfig, denoJson, aubeWorkspace } = CONFIG
 const isPositiveNumber = (value: unknown): boolean =>
   typeof value === 'number' && Number.isFinite(value) && value > 0;
 
-const isPositiveYarnDuration = (value: unknown): boolean =>
-  isPositiveNumber(value) ||
-  (typeof value === 'string' &&
-    /^\d*\.?\d+(?:ms|s|m|h|d|w)?$/u.test(value) &&
-    Number.isFinite(Number.parseFloat(value)) &&
-    Number.parseFloat(value) > 0);
+const isPositiveYarnDuration = (value: unknown): boolean => {
+  if (isPositiveNumber(value)) return true;
+  if (typeof value !== 'string' || !/^\d*\.?\d+(?:ms|s|m|h|d|w)?$/u.test(value)) return false;
+  const durationAmount = Number.parseFloat(value);
+  return Number.isFinite(durationAmount) && durationAmount > 0;
+};
 
-const isNonDisabledDenoReleaseAge = (
+const isPositiveDenoNpmrcDays = (
   value: unknown,
-  now: number,
+  nowMs: number,
   parse: DateTime['parse'],
-): boolean => {
-  if (!isPlainRecord(value)) return isActiveDenoReleaseAge(value, now, parse);
-  if (Object.keys(value).some((key) => key !== 'age' && key !== 'exclude')) return false;
-  if (value.exclude !== undefined && !isStringList(value.exclude)) return false;
-  return value.age != null && isActiveDenoReleaseAge(value.age, now, parse);
-};
-
-const denoAgeUsesFallback = (value: unknown): boolean => {
-  if (value === undefined || value === null) return true;
-  if (!isPlainRecord(value)) return false;
-  if (Object.keys(value).some((key) => key !== 'age' && key !== 'exclude')) return false;
-  if (value.exclude !== undefined && !isStringList(value.exclude)) return false;
-  return value.age == null;
-};
-
-const isPositiveDenoNpmrcDays = (value: unknown, now: number, parse: DateTime['parse']): boolean =>
+): boolean =>
   typeof value === 'number' &&
   Number.isSafeInteger(value) &&
-  isActiveDenoReleaseAge(value * MINUTES_PER_DAY, now, parse);
+  isActiveDenoReleaseAge(value * MINUTES_PER_DAY, nowMs, parse);
 
 const baseRule = requireConfigKey({
   bindings: {
@@ -118,16 +103,27 @@ const createNpmBinding = (time: DateTime): RuleBinding => ({
   docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#min-release-age',
   versionNote: { note: 'min-release-age available since npm 11.10.0' },
   check(ctx, config) {
-    const now = time.now();
+    const nowMs = time.now();
     // npm gives an explicit before priority over min-release-age in the same source.
     if (Object.hasOwn(config, 'before')) {
       const actual = config.before;
       if (
         (typeof actual === 'string' || typeof actual === 'number') &&
-        time.parse(String(actual)) < now
+        time.parse(String(actual)) < nowMs
       ) {
         return { state: 'ok' };
       }
+      const alternative = guardRemediationAvailability(
+        'npm',
+        ctx.pmVersion,
+        {
+          kind: 'manual',
+          steps: [
+            `Alternatively, remove before and set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days.`,
+          ],
+        },
+        [{ file: npmrc, keyPath: ['min-release-age'] }],
+      );
       return {
         state: 'violation',
         actual,
@@ -137,25 +133,15 @@ const createNpmBinding = (time: DateTime): RuleBinding => ({
           kind: 'manual',
           steps: [
             'In .npmrc, set before to a valid past date. A future or disabled before overrides min-release-age in this file.',
-            ...(guardRemediationAvailability(
-              'npm',
-              ctx.pmVersion,
-              {
-                kind: 'manual',
-                steps: [
-                  `Alternatively, remove before and set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days.`,
-                ],
-              },
-              [{ file: npmrc, keyPath: ['min-release-age'] }],
-            )?.steps ?? []),
+            ...(alternative?.steps ?? []),
           ],
         },
       };
     }
     const actual = getByPath(config, ['min-release-age']);
-    const age = typeof actual === 'number' || typeof actual === 'string' ? Number(actual) : NaN;
-    const cutoff = new Date(now - SECONDS_PER_DAY * 1000 * age).valueOf();
-    if (age > 0 && Number.isFinite(cutoff) && cutoff < now) return { state: 'ok' };
+    const ageDays = typeof actual === 'number' || typeof actual === 'string' ? Number(actual) : NaN;
+    const cutoffMs = new Date(nowMs - SECONDS_PER_DAY * 1000 * ageDays).valueOf();
+    if (ageDays > 0 && Number.isFinite(cutoffMs) && cutoffMs < nowMs) return { state: 'ok' };
     return {
       state: 'violation',
       actual,
@@ -187,11 +173,34 @@ const createDenoBinding = (time: DateTime): RuleBinding => ({
   },
   check(ctx, config) {
     const actual = getByPath(config, ['minimumDependencyAge']);
-    const now = time.now();
-    if (denoAgeUsesFallback(actual)) {
+    const nowMs = time.now();
+    const violation: ViolationStatus = {
+      state: 'violation',
+      actual,
+      expected: 'P3D',
+      message: `Set minimumDependencyAge (e.g. "P3D" for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in deno.json.`,
+    };
+    const objectAge = isPlainRecord(actual);
+    if (
+      objectAge &&
+      (Object.keys(actual).some((key) => key !== 'age' && key !== 'exclude') ||
+        (actual.exclude !== undefined && !isNonBlankStringArray(actual.exclude)))
+    ) {
+      return {
+        ...violation,
+        remediation: {
+          kind: 'manual',
+          steps: [
+            'Use only age and exclude in minimumDependencyAge. Make exclude a list of package names and set age to a positive supported duration.',
+          ],
+        },
+      };
+    }
+    const age = objectAge ? actual.age : actual;
+    if (age == null) {
       const npmrcConfig = ctx.readConfig(npmrc);
       const npmrcAge = getByPath(npmrcConfig, ['min-release-age']);
-      if (isPositiveDenoNpmrcDays(npmrcAge, now, time.parse)) return { state: 'ok' };
+      if (isPositiveDenoNpmrcDays(npmrcAge, nowMs, time.parse)) return { state: 'ok' };
       // Deno treats zero as an explicit opt-out. Do not let an omitted object
       // age fall through to the version-dependent default in that case.
       if (npmrcAge === 0) {
@@ -212,32 +221,17 @@ const createDenoBinding = (time: DateTime): RuleBinding => ({
         };
       }
     }
-    if (isNonDisabledDenoReleaseAge(actual, now, time.parse)) return { state: 'ok' };
-    const objectAge = isPlainRecord(actual);
-    const invalidObject =
-      objectAge &&
-      (Object.keys(actual).some((key) => key !== 'age' && key !== 'exclude') ||
-        (actual.exclude !== undefined && !isStringList(actual.exclude)));
+    if (isActiveDenoReleaseAge(age, nowMs, time.parse)) return { state: 'ok' };
     return {
-      state: 'violation',
-      actual,
-      expected: 'P3D',
-      message: `Set minimumDependencyAge (e.g. "P3D" for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in deno.json.`,
-      remediation: invalidObject
-        ? {
-            kind: 'manual',
-            steps: [
-              'Use only age and exclude in minimumDependencyAge. Make exclude a list of package names and set age to a positive supported duration.',
-            ],
-          }
-        : proposeChanges(config, [
-            {
-              file: denoJson,
-              op: 'setKey',
-              keyPath: objectAge ? ['minimumDependencyAge', 'age'] : ['minimumDependencyAge'],
-              value: 'P3D',
-            },
-          ]),
+      ...violation,
+      remediation: proposeChanges(config, [
+        {
+          file: denoJson,
+          op: 'setKey',
+          keyPath: objectAge ? ['minimumDependencyAge', 'age'] : ['minimumDependencyAge'],
+          value: 'P3D',
+        },
+      ]),
     };
   },
 });

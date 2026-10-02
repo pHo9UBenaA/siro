@@ -17,85 +17,65 @@ const pnpmVersionNote: VersionNote = {
   note: 'pnpm-workspace.yaml settings require pnpm 10.6.0',
   defaultSafeSince: 'pnpm 11.0.0',
 };
+const checkPnpmBypass = (
+  pmVersion: string | undefined,
+  strictDepBuilds: unknown,
+): ViolationStatus => {
+  const bypassTarget = { file: pnpmWorkspace, keyPath: ['dangerouslyAllowAllBuilds'] as const };
+  if (settingSupportedByTarget('pnpm', pmVersion, bypassTarget) === false) {
+    const steps: [string, ...string[]] = [
+      'Remove `dangerouslyAllowAllBuilds: true` before upgrading to pnpm 10.9.0 or newer; the declared target ignores it, but a later version would activate the bypass.',
+    ];
+    if (strictDepBuilds !== true)
+      steps.push(
+        'Set `strictDepBuilds: true` in pnpm-workspace.yaml to enable lifecycle-script gating for the declared target.',
+      );
+    const proposal = { kind: 'manual' as const, steps };
+    return {
+      state: 'violation',
+      actual: true,
+      expected: false,
+      message:
+        'The declared target ignores this future-version bypass. Removing the ignored bypass alone does not provide protection against lifecycle scripts, and leaving it configured would disable gating after an upgrade.',
+      remediation:
+        strictDepBuilds === true
+          ? proposal
+          : guardRemediationAvailability('pnpm', pmVersion, proposal, [
+              { file: pnpmWorkspace, keyPath: ['strictDepBuilds'] },
+            ]),
+    };
+  }
+  // Once this bypass exists (10.9+), YAML strictDepBuilds is also available (10.6+).
+  return {
+    state: 'violation',
+    actual: true,
+    expected: false,
+    message:
+      '`dangerouslyAllowAllBuilds: true` in pnpm-workspace.yaml bypasses strictDepBuilds — remove it (or set it to false) to restore lifecycle-script gating.',
+    remediation: {
+      kind: 'manual',
+      steps: [
+        'Remove `dangerouslyAllowAllBuilds: true` from pnpm-workspace.yaml (or set it to `false`). Setting `strictDepBuilds: true` alone has no effect while the bypass remains.',
+      ],
+    },
+  };
+};
+
 const pnpmBinding: RuleBinding = {
   check(ctx, config): CheckStatus {
     if (getByPath(config, ['ignoreScripts']) === true) return { state: 'ok' };
-    const bypass = getByPath(config, ['dangerouslyAllowAllBuilds']);
-    const strict = getByPath(config, ['strictDepBuilds']);
-    if (bypass === true) {
-      const bypassTarget = {
-        file: pnpmWorkspace,
-        keyPath: ['dangerouslyAllowAllBuilds'] as const,
-      };
-      if (settingSupportedByTarget('pnpm', ctx.pmVersion, bypassTarget) === false) {
-        const proposal = {
-          kind: 'manual' as const,
-          steps: [
-            'Remove `dangerouslyAllowAllBuilds: true` before upgrading to pnpm 10.9.0 or newer; the declared target ignores it, but a later version would activate the bypass.',
-            ...(strict === true
-              ? []
-              : [
-                  'Set `strictDepBuilds: true` in pnpm-workspace.yaml to enable lifecycle-script gating for the declared target.',
-                ]),
-          ] as [string, ...string[]],
-        };
-        return {
-          state: 'violation',
-          actual: bypass,
-          expected: false,
-          message:
-            'The declared target ignores this future-version bypass. Removing the ignored bypass alone does not provide protection against lifecycle scripts, and leaving it configured would disable gating after an upgrade.',
-          remediation:
-            strict === true
-              ? proposal
-              : guardRemediationAvailability('pnpm', ctx.pmVersion, proposal, [
-                  { file: pnpmWorkspace, keyPath: ['strictDepBuilds'] },
-                ]),
-        };
-      }
-      const proposal = {
-        kind: 'manual' as const,
-        steps: [
-          'After upgrading, remove `dangerouslyAllowAllBuilds: true` (or set it to false) and configure lifecycle-script gating.',
-        ] as const,
-      };
-      const guarded = guardRemediationAvailability('pnpm', ctx.pmVersion, proposal, [
-        { file: pnpmWorkspace, keyPath: ['strictDepBuilds'] },
-        { file: pnpmWorkspace, keyPath: ['dangerouslyAllowAllBuilds'] },
-      ]);
-      if (guarded !== proposal) {
-        return {
-          state: 'violation',
-          actual: bypass,
-          expected: false,
-          message:
-            'The target cannot use the proposed YAML lifecycle-script controls. Removing an unsupported bypass alone does not provide protection.',
-          remediation: guarded,
-        };
-      }
-      return {
-        actual: bypass,
-        expected: false,
-        remediation: {
-          kind: 'manual',
-          steps: [
-            'Remove `dangerouslyAllowAllBuilds: true` from pnpm-workspace.yaml (or set it to `false`). Setting `strictDepBuilds: true` alone has no effect while the bypass remains.',
-          ],
-        },
-        message:
-          '`dangerouslyAllowAllBuilds: true` in pnpm-workspace.yaml bypasses strictDepBuilds — remove it (or set it to false) to restore lifecycle-script gating.',
-        state: 'violation',
-      };
-    }
-    if (strict === true) {
+    const dangerouslyAllowAllBuilds = getByPath(config, ['dangerouslyAllowAllBuilds']);
+    const strictDepBuilds = getByPath(config, ['strictDepBuilds']);
+    if (dangerouslyAllowAllBuilds === true) return checkPnpmBypass(ctx.pmVersion, strictDepBuilds);
+    if (strictDepBuilds === true) {
       return { state: 'ok' };
     }
     return {
       state: 'violation',
-      actual: strict,
+      actual: strictDepBuilds,
       expected: true,
       message:
-        strict === undefined
+        strictDepBuilds === undefined
           ? 'Set `strictDepBuilds: true` in pnpm-workspace.yaml to pin lifecycle-script gating across versions.'
           : 'Set `strictDepBuilds: true` in pnpm-workspace.yaml to block silent skips of un-approved dep builds.',
       remediation: guardRemediationAvailability(
@@ -144,11 +124,9 @@ const aubeBinding: RuleBinding = {
         ]),
       });
     const [first, ...rest] = violations;
-    return !first
-      ? { state: 'ok' }
-      : rest.length === 0
-        ? first
-        : { state: 'violations', violations: [first, ...rest] };
+    if (!first) return { state: 'ok' };
+    if (rest.length === 0) return first;
+    return { state: 'violations', violations: [first, ...rest] };
   },
   docs: 'https://aube.jdx.dev/security.html',
   file: aubeWorkspace,

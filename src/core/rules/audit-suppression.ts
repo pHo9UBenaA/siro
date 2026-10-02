@@ -1,6 +1,6 @@
-import { type RuleBinding, type CheckStatus, defineRule } from '../contracts/rule.ts';
+import { type RuleBinding, defineRule } from '../contracts/rule.ts';
 import { CONFIG_FILES } from '../config-files.ts';
-import { type ConfigReadValue, type ParsedConfig, getByPath } from '../contracts/config-value.ts';
+import { getByPath } from '../contracts/config-value.ts';
 
 const { yarnrc } = CONFIG_FILES;
 
@@ -8,29 +8,24 @@ const isNonEmptyArray = (value: unknown): boolean => Array.isArray(value) && val
 
 const SUPPRESSION_KEYS = ['npmAuditIgnoreAdvisories', 'npmAuditExcludePackages'] as const;
 
-const checkSuppression = (config: ParsedConfig): CheckStatus => {
-  const present = SUPPRESSION_KEYS.filter((key) => isNonEmptyArray(getByPath(config, [key])));
-  const [first] = present;
-  if (typeof first === 'undefined') {
-    return { state: 'ok' };
-  }
-  const actual: ConfigReadValue = getByPath(config, [first]);
-  return {
-    actual,
-    message: `Review audit suppression in .yarnrc.yml (${present.join(', ')}). Broad glob patterns can silently hide future vulnerabilities.`,
-    state: 'violation',
-    remediation: {
-      kind: 'manual',
-      steps: [
-        'Review entries in `npmAuditIgnoreAdvisories` and `npmAuditExcludePackages` — remove stale suppressions and overly broad glob patterns.',
-      ],
-    },
-  };
-};
-
 const yarnBinding: RuleBinding = {
   check(_ctx, config) {
-    return checkSuppression(config);
+    const suppressedKeys = SUPPRESSION_KEYS.filter((key) =>
+      isNonEmptyArray(getByPath(config, [key])),
+    );
+    const [first] = suppressedKeys;
+    if (first === undefined) return { state: 'ok' };
+    return {
+      actual: getByPath(config, [first]),
+      message: `Review audit suppression in .yarnrc.yml (${suppressedKeys.join(', ')}). Broad glob patterns can silently hide future vulnerabilities.`,
+      state: 'violation',
+      remediation: {
+        kind: 'manual',
+        steps: [
+          'Review entries in `npmAuditIgnoreAdvisories` and `npmAuditExcludePackages` — remove stale suppressions and overly broad glob patterns.',
+        ],
+      },
+    };
   },
   docs: 'https://yarnpkg.com/configuration/yarnrc#npmAuditIgnoreAdvisories',
   file: yarnrc,
