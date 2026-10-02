@@ -110,12 +110,11 @@ export const requireConfigKey = <const Id extends string>(
   const bindings: Partial<Record<PM, RuleBinding>> = {};
   for (const pm of PMS) {
     const spec = options.bindings[pm];
-    if (typeof spec !== 'undefined') {
-      if ('extraFix' in spec) {
-        throw new TypeError('extraFix is no longer supported; use a custom binding.');
-      }
-      bindings[pm] = buildBinding(spec, pm, options.applies);
+    if (spec === undefined) continue;
+    if ('extraFix' in spec) {
+      throw new TypeError('extraFix is no longer supported; use a custom binding.');
     }
+    bindings[pm] = buildBinding(spec, pm, options.applies);
   }
   return {
     bindings,

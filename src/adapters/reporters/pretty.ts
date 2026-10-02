@@ -69,8 +69,11 @@ export const prettyReporter: Reporter<'pretty'> = {
       lines.push(line);
     };
     const palette = createRenderPalette();
+    const installationDirectories =
+      result.inspection.installationRoots.map((root) => safeText(root.directory)).join(', ') ||
+      'none';
     collect(
-      `Inspection: ${result.inspection.manifests.length} manifests; installation roots: ${result.inspection.installationRoots.map((root) => safeText(root.directory)).join(', ') || 'none'}.`,
+      `Inspection: ${result.inspection.manifests.length} manifests; installation roots: ${installationDirectories}.`,
     );
     collect(
       'Unknown PM/version targets have no availability assessment; installation scope is explicit.',

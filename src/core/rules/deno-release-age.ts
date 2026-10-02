@@ -30,8 +30,10 @@ const durationSeconds = (value: string): number => {
   let seconds = 0;
   for (const [, integer, fraction, unit] of value.matchAll(DENO_DURATION_TOKEN)) {
     // Sub-nanosecond fractional seconds are truncated by Deno.
-    const amount = Number(integer) + Number(`0.${(fraction ?? '').slice(0, 9) || '0'}`);
-    seconds += amount * (DENO_UNIT_SECONDS[unit?.toLowerCase() ?? ''] ?? 0);
+    const fractionDigits = (fraction ?? '').slice(0, 9) || '0';
+    const amount = Number(integer) + Number(`0.${fractionDigits}`);
+    const secondsPerUnit = DENO_UNIT_SECONDS[unit?.toLowerCase() ?? ''] ?? 0;
+    seconds += amount * secondsPerUnit;
   }
   return seconds;
 };

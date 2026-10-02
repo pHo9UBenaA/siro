@@ -98,7 +98,6 @@ const aubeBinding: RuleBinding = {
     const npmConfig = ctx.readConfig(npmrc);
     const jailBuilds = getByPath(config, ['jailBuilds']);
     const strictDepBuilds = getByPath(npmConfig, ['strictDepBuilds']);
-    if (jailBuilds === true && strictDepBuilds === true) return { state: 'ok' };
     const violations: ViolationStatus[] = [];
     if (jailBuilds !== true)
       violations.push({
