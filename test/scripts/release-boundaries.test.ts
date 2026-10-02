@@ -5,10 +5,18 @@ import path from 'node:path';
 import { parse } from 'yaml';
 import { createHash } from 'node:crypto';
 
+const workflow = parse(
+  readFileSync(path.resolve(import.meta.dirname, '../../.github/workflows/publish.yaml'), 'utf8'),
+);
+
 it('does not expose OIDC to install/build/verification and transfers one exact artifact', () => {
-  const workflow = parse(
-    readFileSync(path.resolve(import.meta.dirname, '../../.github/workflows/publish.yaml'), 'utf8'),
-  );
+  const buildSteps = workflow.jobs.build.steps as { run?: string; uses?: string }[];
+  const pack = buildSteps.findIndex((step) => step.run?.includes('pnpm test:package'));
+  const identity = buildSteps.findIndex((step) => step.run?.includes('scripts/check-release.mjs'));
+  const upload = buildSteps.findIndex((step) => step.uses?.startsWith('actions/upload-artifact'));
+  expect(pack).toBeGreaterThanOrEqual(0);
+  expect(identity).toBeGreaterThan(pack);
+  expect(upload).toBeGreaterThan(identity);
   expect(workflow.permissions['id-token']).toBeUndefined();
   expect(workflow.jobs.build.permissions['id-token']).toBeUndefined();
   expect(workflow.jobs.publish.needs).toBe('build');
@@ -36,43 +44,24 @@ it('does not expose OIDC to install/build/verification and transfers one exact a
   for (const action of actions) expect(action).toMatch(/@[a-f0-9]{40}$/);
 });
 
-it('never stages missing, substituted or misidentified artifact bytes', (context) => {
+it('only stages the bytes matching the build checksum', (context) => {
   if (process.platform !== 'linux') {
     context.skip();
     return;
   }
   const root = mkdtempSync(path.join(tmpdir(), 'siro-stage-boundary-'));
-  const workflow = parse(
-    readFileSync(path.resolve(import.meta.dirname, '../../.github/workflows/publish.yaml'), 'utf8'),
-  );
   const script = workflow.jobs.publish.steps.find((step: { run?: string }) =>
     step.run?.includes('npm stage publish'),
   ).run;
   try {
-    mkdirSync(path.join(root, 'package'));
-    const archive = (version = '0.6.1') => {
-      writeFileSync(
-        path.join(root, 'package/package.json'),
-        JSON.stringify({ name: '@pho9ubenaa/siro', version }),
-      );
-      const packed = spawnSync(
-        'tar',
-        ['-czf', path.join(root, 'release/siro.tgz'), 'package/package.json'],
-        { cwd: root, encoding: 'utf8', timeout: 10000 },
-      );
-      expect(packed.status).toBe(0);
-      return createHash('sha256')
-        .update(readFileSync(path.join(root, 'release/siro.tgz')))
-        .digest('hex');
-    };
     mkdirSync(path.join(root, 'bin'));
     mkdirSync(path.join(root, 'release'));
     writeFileSync(
       path.join(root, 'bin/npm'),
-      '#!/bin/sh\nprintf staged > "$RUNNER_TEMP/staged"\n',
+      '#!/bin/sh\ntest "$1" = stage && test "$2" = publish && cp "$3" "$RUNNER_TEMP/staged"\n',
       { mode: 0o755 },
     );
-    const execute = (sha: string, tag = 'v0.6.1') =>
+    const execute = (sha: string) =>
       spawnSync('bash', ['-c', script], {
         encoding: 'utf8',
         timeout: 10000,
@@ -80,25 +69,29 @@ it('never stages missing, substituted or misidentified artifact bytes', (context
           PATH: `${path.join(root, 'bin')}:${process.env.PATH}`,
           RUNNER_TEMP: root,
           ARTIFACT_SHA256: sha,
-          RELEASE_VERSION: '0.6.1',
-          GITHUB_REF_NAME: tag,
         },
       });
-    const digest = archive();
-    expect(execute('0'.repeat(64)).status).not.toBe(0);
-    expect(execute(digest, 'v0.6.2').status).not.toBe(0);
-    expect(execute(archive('0.6.2')).status).not.toBe(0);
-    rmSync(path.join(root, 'release/siro.tgz'));
+    const artifact = path.join(root, 'release/siro.tgz');
+    const bytes = 'verified artifact';
+    const digest = createHash('sha256').update(bytes).digest('hex');
+    writeFileSync(artifact, bytes);
+    expect(execute('not-a-digest').status).not.toBe(0);
+    writeFileSync(artifact, 'substituted artifact');
+    expect(execute(digest).status).not.toBe(0);
+    rmSync(artifact);
     expect(execute(digest).status).not.toBe(0);
     expect(() => readFileSync(path.join(root, 'staged'))).toThrow(/ENOENT/);
-    expect(execute(archive()).status).toBe(0);
-    expect(readFileSync(path.join(root, 'staged'), 'utf8')).toBe('staged');
+    writeFileSync(artifact, bytes);
+    const valid = execute(digest);
+    expect(valid.error).toBeUndefined();
+    expect(valid.status).toBe(0);
+    expect(readFileSync(path.join(root, 'staged'), 'utf8')).toBe(bytes);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-it('rejects a release tag/version mismatch and a commit outside main', () => {
+it('rejects invalid packed identity, mismatched tags and commits outside main', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'siro-release-check-'));
   const script = path.resolve(import.meta.dirname, '../../scripts/check-release.mjs');
   // Hooks export GIT_DIR/GIT_INDEX_FILE/config overrides. Never let a temporary
@@ -112,8 +105,19 @@ it('rejects a release tag/version mismatch and a commit outside main', () => {
     expect(result.status).toBe(0);
     return result.stdout.trim();
   };
+  const artifact = path.join(root, 'siro artifact & spaces.tgz');
+  const archive = (raw: string) => {
+    writeFileSync(path.join(root, 'package/package.json'), raw);
+    const result = spawnSync('tar', ['-czf', artifact, 'package/package.json'], {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+  };
   const check = (tag: string) =>
-    spawnSync(process.execPath, [script], {
+    spawnSync(process.execPath, [script, artifact], {
       cwd: root,
       encoding: 'utf8',
       timeout: 10000,
@@ -130,8 +134,36 @@ it('rejects a release tag/version mismatch and a commit outside main', () => {
     git('add', 'package.json');
     git('commit', '-m', 'chore: fixture');
     git('update-ref', 'refs/remotes/origin/main', git('rev-parse', 'HEAD'));
-    expect(check('v0.6.1').status).toBe(0);
+    mkdirSync(path.join(root, 'package'));
+    const identity = { name: '@pho9ubenaa/siro', version: '0.6.1' };
+    archive(JSON.stringify(identity));
+    const valid = check('v0.6.1');
+    expect(valid.error).toBeUndefined();
+    expect(valid.status).toBe(0);
+    expect(valid.stdout.trim()).toBe(
+      createHash('sha256').update(readFileSync(artifact)).digest('hex'),
+    );
     expect(check('v0.6.2').status).not.toBe(0);
+    for (const raw of [
+      JSON.stringify({ ...identity, name: 'other' }),
+      JSON.stringify({ ...identity, version: '0.6.2' }),
+      JSON.stringify({ ...identity, private: true }),
+      'null',
+      'FAKE_SECRET_NOT_JSON',
+      `${JSON.stringify(identity)}\n${JSON.stringify(identity)}`,
+    ]) {
+      archive(raw);
+      const invalid = check('v0.6.1');
+      expect(invalid.error).toBeUndefined();
+      expect(invalid.status).not.toBe(0);
+      expect(invalid.stdout).toBe('');
+      expect(invalid.stderr).not.toContain('FAKE_SECRET');
+    }
+    writeFileSync(artifact, 'not an archive');
+    expect(check('v0.6.1').status).not.toBe(0);
+    rmSync(artifact);
+    expect(check('v0.6.1').status).not.toBe(0);
+    archive(JSON.stringify(identity));
     git('switch', '-c', 'unreviewed');
     writeFileSync(path.join(root, 'extra'), 'data');
     git('add', 'extra');

@@ -15,7 +15,6 @@ jobs:
       contents: read
     outputs:
       sha256: ${{ steps.digest.outputs.sha256 }}
-      version: ${{ steps.identity.outputs.version }}
       artifactId: ${{ steps.upload.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,23 +26,17 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - name: Check release identity and main ancestry
-        id: identity
-        run: |
-          set -euo pipefail
-          version=$(node scripts/check-release.mjs)
-          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
       - run: pnpm install --frozen-lockfile
       - run: pnpm verify
         env:
           KNIP_DISABLE_RAW_TRANSFER: '1'
       - name: Pack and verify the release artifact
         run: pnpm test:package --output "$RUNNER_TEMP/siro.tgz"
-      - name: Record the verified bytes
+      - name: Check packed release and record its digest
         id: digest
         run: |
           set -euo pipefail
-          digest=$(sha256sum "$RUNNER_TEMP/siro.tgz" | cut -d ' ' -f 1)
+          digest=$(node scripts/check-release.mjs "$RUNNER_TEMP/siro.tgz")
           printf 'sha256=%s\n' "$digest" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         id: upload
@@ -60,8 +53,7 @@ jobs:
     environment: npm-publish
     permissions:
       contents: read
-      actions: read
-      id-token: write
+      id-token: write # npm trusted publishing
     steps:
       # No checkout, repository scripts, install, build, consumer execution, or repack here.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -74,27 +66,11 @@ jobs:
           artifact-ids: ${{ needs.build.outputs.artifactId }}
           path: ${{ runner.temp }}/release
           merge-multiple: true
-      - name: Check identity and digest, then stage the exact artifact
+      - name: Check digest, then stage the exact artifact
         env:
           ARTIFACT_SHA256: ${{ needs.build.outputs.sha256 }}
-          RELEASE_VERSION: ${{ needs.build.outputs.version }}
         run: |
           set -euo pipefail
           [[ "$ARTIFACT_SHA256" =~ ^[a-f0-9]{64}$ ]]
-          test "$GITHUB_REF_NAME" = "v$RELEASE_VERSION"
           printf '%s  %s\n' "$ARTIFACT_SHA256" "$RUNNER_TEMP/release/siro.tgz" | sha256sum --check --strict
-          tar -xOzf "$RUNNER_TEMP/release/siro.tgz" package/package.json | node --input-type=module -e '
-            let size = 0;
-            const chunks = [];
-            for await (const chunk of process.stdin) {
-              size += chunk.length;
-              if (size > 65536) throw new Error("Release metadata exceeds 64 KiB.");
-              chunks.push(chunk);
-            }
-            let pkg;
-            try { pkg = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
-            catch { throw new Error("Invalid release package metadata."); }
-            if (pkg?.name !== "@pho9ubenaa/siro" || pkg?.version !== process.env.RELEASE_VERSION || pkg?.private)
-              throw new Error("Packed package identity does not match the release.");
-          '
           npm stage publish "$RUNNER_TEMP/release/siro.tgz" --access public --allow-file=all
