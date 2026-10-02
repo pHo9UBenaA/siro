@@ -61,25 +61,36 @@ it('only stages the bytes matching the build checksum', (context) => {
       '#!/bin/sh\ntest "$1" = stage && test "$2" = publish && cp "$3" "$RUNNER_TEMP/staged"\n',
       { mode: 0o755 },
     );
-    const execute = (sha: string) =>
-      spawnSync('bash', ['-c', script], {
+    const execute = (sha: string) => {
+      const result = spawnSync('bash', ['-c', script], {
         encoding: 'utf8',
         timeout: 10000,
         env: {
           PATH: `${path.join(root, 'bin')}:${process.env.PATH}`,
           RUNNER_TEMP: root,
           ARTIFACT_SHA256: sha,
+          LC_ALL: 'C',
         },
       });
+      expect(result.error).toBeUndefined();
+      expect(result.signal).toBeNull();
+      return result;
+    };
     const artifact = path.join(root, 'release/siro.tgz');
     const bytes = 'verified artifact';
     const digest = createHash('sha256').update(bytes).digest('hex');
     writeFileSync(artifact, bytes);
-    expect(execute('not-a-digest').status).not.toBe(0);
+    const invalidDigest = execute('not-a-digest');
+    expect(invalidDigest.status).toBe(1);
+    expect(invalidDigest.stdout).toBe('');
     writeFileSync(artifact, 'substituted artifact');
-    expect(execute(digest).status).not.toBe(0);
+    const substituted = execute(digest);
+    expect(substituted.status).toBe(1);
+    expect(substituted.stdout).toContain('FAILED');
     rmSync(artifact);
-    expect(execute(digest).status).not.toBe(0);
+    const missing = execute(digest);
+    expect(missing.status).toBe(1);
+    expect(missing.stderr).toContain('No such file');
     expect(() => readFileSync(path.join(root, 'staged'))).toThrow(/ENOENT/);
     writeFileSync(artifact, bytes);
     const valid = execute(digest);
@@ -116,13 +127,24 @@ it('rejects invalid packed identity, mismatched tags and commits outside main', 
     expect(result.error).toBeUndefined();
     expect(result.status).toBe(0);
   };
-  const check = (tag: string) =>
-    spawnSync(process.execPath, [script, artifact], {
+  const check = (tag: string) => {
+    const result = spawnSync(process.execPath, [script, artifact], {
       cwd: root,
       encoding: 'utf8',
       timeout: 10000,
       env: { ...env, GITHUB_REF_NAME: tag },
     });
+    expect(result.error).toBeUndefined();
+    expect(result.signal).toBeNull();
+    return result;
+  };
+  const rejectRelease = (tag: string, diagnostic: string) => {
+    const result = check(tag);
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain(diagnostic);
+    expect(result.stderr).not.toContain('FAKE_SECRET');
+  };
   try {
     git('init', '--initial-branch=main');
     git('config', 'user.name', 'Test');
@@ -143,32 +165,30 @@ it('rejects invalid packed identity, mismatched tags and commits outside main', 
     expect(valid.stdout.trim()).toBe(
       createHash('sha256').update(readFileSync(artifact)).digest('hex'),
     );
-    expect(check('v0.6.2').status).not.toBe(0);
-    for (const raw of [
-      JSON.stringify({ ...identity, name: 'other' }),
-      JSON.stringify({ ...identity, version: '0.6.2' }),
-      JSON.stringify({ ...identity, private: true }),
-      'null',
-      'FAKE_SECRET_NOT_JSON',
-      `${JSON.stringify(identity)}\n${JSON.stringify(identity)}`,
-    ]) {
+    const identityError = 'Packed package identity does not match the public release tag.';
+    const metadataError = 'Invalid release package metadata.';
+    rejectRelease('v0.6.2', identityError);
+    for (const [raw, diagnostic] of [
+      [JSON.stringify({ ...identity, name: 'other' }), identityError],
+      [JSON.stringify({ ...identity, version: '0.6.2' }), identityError],
+      [JSON.stringify({ ...identity, private: true }), identityError],
+      ['null', identityError],
+      ['FAKE_SECRET_NOT_JSON', metadataError],
+      [`${JSON.stringify(identity)}\n${JSON.stringify(identity)}`, metadataError],
+    ] as const) {
       archive(raw);
-      const invalid = check('v0.6.1');
-      expect(invalid.error).toBeUndefined();
-      expect(invalid.status).not.toBe(0);
-      expect(invalid.stdout).toBe('');
-      expect(invalid.stderr).not.toContain('FAKE_SECRET');
+      rejectRelease('v0.6.1', diagnostic);
     }
     writeFileSync(artifact, 'not an archive');
-    expect(check('v0.6.1').status).not.toBe(0);
+    rejectRelease('v0.6.1', 'Cannot read packed package metadata.');
     rmSync(artifact);
-    expect(check('v0.6.1').status).not.toBe(0);
+    rejectRelease('v0.6.1', 'ENOENT');
     archive(JSON.stringify(identity));
     git('switch', '-c', 'unreviewed');
     writeFileSync(path.join(root, 'extra'), 'data');
     git('add', 'extra');
     git('commit', '-m', 'chore: unreviewed');
-    expect(check('v0.6.1').status).not.toBe(0);
+    rejectRelease('v0.6.1', 'Release commit must belong to fetched origin/main.');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
