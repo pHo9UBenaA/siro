@@ -24,7 +24,7 @@ it('carries the remediation chosen by the check without a second callback', () =
   };
   const result = runLint({
     repository: createRepositoryEvaluation(makeCtx(), codecFor),
-    pms: ['npm'],
+    targets: [{ pm: 'npm' }],
     ruleSet: [rule],
   });
   expect(result.findings[0]).toMatchObject({ remediation });
@@ -70,7 +70,7 @@ it.each([
   expect(() =>
     runLint({
       repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [rule],
     }),
   ).toThrow("Rule 'invalid-remedy' returned an invalid check result.");
@@ -99,7 +99,7 @@ it.each(['nested/../../outside'])('rejects external write targets: %s', (path) =
   expect(() =>
     runLint({
       repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [rule],
     }),
   ).toThrow(/invalid check result/u);

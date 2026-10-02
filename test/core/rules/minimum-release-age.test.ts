@@ -46,7 +46,7 @@ describe('minimum-release-age (npm)', () => {
         }),
         codecFor,
       ),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [minimumReleaseAge],
     });
     expect(result.findings).toStrictEqual([]);
@@ -63,7 +63,7 @@ describe('minimum-release-age (npm)', () => {
           }),
           codecFor,
         ),
-        pms: ['npm'],
+        targets: [{ pm: 'npm' }],
         ruleSet: [minimumReleaseAge],
       });
       expect(result.findings.map((finding) => finding.ruleId)).toStrictEqual([
@@ -147,7 +147,7 @@ describe('minimum-release-age (deno)', () => {
         }),
         codecFor,
       ),
-      pms: ['deno'],
+      targets: [{ pm: 'deno' }],
       ruleSet: [minimumReleaseAge],
     });
     expect(result.findings).toStrictEqual([]);
@@ -172,7 +172,7 @@ describe('minimum-release-age (deno)', () => {
         }),
         codecFor,
       ),
-      pms: ['deno'],
+      targets: [{ pm: 'deno' }],
       ruleSet: [minimumReleaseAge],
     });
     expect(result.findings).toMatchObject([

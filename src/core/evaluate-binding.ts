@@ -23,25 +23,22 @@ export const evaluateBinding = (
   assertSynchronous(response, `Rule '${rule.id}' check`);
   if (!isCheckStatusShape(response))
     throw new ConfigError(`Rule '${rule.id}' returned an invalid check result.`);
+  if (response.state === 'ok' || response.state === 'na') return [];
   const statuses = response.state === 'violations' ? response.violations : [response];
-  return statuses.flatMap((status): Finding[] =>
-    status.state !== 'violation'
-      ? []
-      : [
-          {
-            ruleId: rule.id,
-            directory: '.',
-            ...(target ? { pm: target.pm } : {}),
-            severity: decideSeverity(status, binding, rule, overrides?.get(rule.id)),
-            message: renderVersionNoteMessage(status.message, binding.versionNote),
-            file: status.file ?? binding.file?.path,
-            docs: binding.docs ?? rule.docs,
-            actual: status.actual,
-            expected: status.expected,
-            remediation: target
-              ? guardRemediationAvailability(target.pm, target.version, status.remediation)
-              : status.remediation,
-          },
-        ],
+  return statuses.map(
+    (status): Finding => ({
+      ruleId: rule.id,
+      directory: '.',
+      ...(target ? { pm: target.pm } : {}),
+      severity: decideSeverity(status, binding, rule, overrides?.get(rule.id)),
+      message: renderVersionNoteMessage(status.message, binding.versionNote),
+      file: status.file ?? binding.file?.path,
+      docs: binding.docs ?? rule.docs,
+      actual: status.actual,
+      expected: status.expected,
+      remediation: target
+        ? guardRemediationAvailability(target.pm, target.version, status.remediation)
+        : status.remediation,
+    }),
   );
 };

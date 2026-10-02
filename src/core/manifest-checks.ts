@@ -18,13 +18,13 @@ export const manifestProjectType = (repository: RepositoryEvaluation, file: Mani
     : resolvePackageJsonProjectType(repository.ctx);
 
 // The scope registry cannot add a manifest rule without supplying its dispatch here.
-const selectBinding: Record<
+const selectManifestBinding: Record<
   ManifestRuleId,
   (
     file: ManifestFile,
     repository: RepositoryEvaluation,
     targets: readonly PolicyTarget[],
-  ) => RuleBinding | 'pm' | undefined
+  ) => RuleBinding | 'use-pm-bindings' | undefined
 > = {
   'files-field': (file) => (file === 'deno.json' ? denoPublishBinding : packageJsonFilesBinding),
   'publish-access': (file, repository, targets) => {
@@ -32,7 +32,7 @@ const selectBinding: Record<
     // Only npm accepts the nonportable private alias. Unknown targets use the
     // generic portable-value check, never an invented npm target.
     return repository.ctx.packageJson?.publishConfig?.access === 'private' && targets.length > 0
-      ? 'pm'
+      ? 'use-pm-bindings'
       : publishAccessBinding;
   },
 };
@@ -46,28 +46,24 @@ export const checkManifest = (
 ): Finding[] => {
   const findings: Finding[] = [];
   const projectType = manifestProjectType(repository, file);
-  const pms = targets.map((target) => target.pm);
-  const pmVersions = Object.fromEntries(targets.map((target) => [target.pm, target.version]));
   for (const rule of rules) {
     if (rule.projectTypes && !rule.projectTypes.includes(projectType)) continue;
     if (rule.id === 'unsupported-settings') {
       const unsupported = runLint({
         repository,
-        pms,
-        pmVersions,
+        targets,
         ruleSet: [
           { ...rule, bindings: createUnsupportedSettings((path) => path === file).bindings },
         ],
         severityOverrides: overrides,
       }).findings;
       for (const finding of unsupported) findings.push(finding);
-    } else if (Object.hasOwn(selectBinding, rule.id)) {
-      const binding = selectBinding[rule.id as ManifestRuleId](file, repository, targets);
-      if (binding === 'pm') {
+    } else if (Object.hasOwn(selectManifestBinding, rule.id)) {
+      const binding = selectManifestBinding[rule.id as ManifestRuleId](file, repository, targets);
+      if (binding === 'use-pm-bindings') {
         const evaluated = runLint({
           repository,
-          pms,
-          pmVersions,
+          targets,
           ruleSet: [rule],
           severityOverrides: overrides,
         }).findings;

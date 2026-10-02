@@ -34,7 +34,7 @@ describe('documented defaults', () => {
   it('reports an omitted setting as info when the unconditional default satisfies it', () => {
     const result = runLint({
       repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [buildRule({ documentedDefault: true })],
     });
     expect(result.findings).toMatchObject([{ severity: 'info' }]);
@@ -43,7 +43,7 @@ describe('documented defaults', () => {
   it('omits the finding when the satisfied default severity is off', () => {
     const result = runLint({
       repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [buildRule({ defaultSatisfiedSeverity: 'off', documentedDefault: true })],
     });
     expect(result.findings).toEqual([]);
@@ -52,7 +52,7 @@ describe('documented defaults', () => {
   it('keeps rule severity when the default does not satisfy the setting', () => {
     const result = runLint({
       repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [buildRule({ documentedDefault: false })],
     });
     expect(result.findings).toMatchObject([{ severity: 'error' }]);
@@ -61,7 +61,7 @@ describe('documented defaults', () => {
   it('does not downgrade a conditional default when the version is unknown', () => {
     const result = runLint({
       repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [
         buildRule({
           documentedDefault: true,

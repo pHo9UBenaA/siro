@@ -17,7 +17,7 @@ it.each([
       makeCtx({ readText: (file) => (file === '.npmrc' ? npmrc : workspace) }),
       codecFor,
     ),
-    pms: ['aube'],
+    targets: [{ pm: 'aube' }],
     ruleSet: [disableLifecycleScripts],
   });
   expect(result.findings).toHaveLength(violations);
@@ -34,7 +34,7 @@ it('shares additional file parsing across rules and refreshes it on the next run
     },
   });
   const options = {
-    pms: ['npm'] as const,
+    targets: [{ pm: 'npm' }] as const,
     ruleSet: ['first', 'second'].map((id) => ({
       id,
       title: id,
@@ -80,7 +80,7 @@ it('propagates a parse failure from an additional configuration file', () => {
   expect(() =>
     runLint({
       repository: createRepositoryEvaluation(makeCtx({ readText: () => '[' }), codecFor),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [rule],
     }),
   ).toThrow(/deno.json/u);

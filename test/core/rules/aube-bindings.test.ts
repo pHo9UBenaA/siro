@@ -95,7 +95,7 @@ it('uses the documented advisory and trust defaults without downgrading explicit
   ] as const) {
     const result = runLint({
       repository: createRepositoryEvaluation(ctx({ readText: () => source }), codecFor),
-      pms: ['aube'],
+      targets: [{ pm: 'aube' }],
       ruleSet: [advisoryCheck, trustPolicy],
     });
     expect(result.findings.map((finding) => [finding.ruleId, finding.severity])).toEqual([

@@ -38,7 +38,12 @@ const lint = (
   ctx: RepoContext,
   ruleSet: readonly Rule[],
   pms: readonly ('npm' | 'pnpm' | 'yarn' | 'deno')[],
-) => runLint({ repository: createRepositoryEvaluation(ctx, noopCodecFor), pms, ruleSet });
+) =>
+  runLint({
+    repository: createRepositoryEvaluation(ctx, noopCodecFor),
+    targets: pms.map((pm) => ({ pm })),
+    ruleSet,
+  });
 
 describe('runLint binding evaluation', () => {
   it('reports every violating rule and PM binding in stable order', () => {
@@ -144,7 +149,7 @@ describe('runLint repository checks', () => {
 
     const result = runLint({
       repository: createRepositoryEvaluation(noopCtx, () => ({ parse })),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [rule],
     });
 
@@ -166,7 +171,7 @@ it('reports Aube install-command guidance without reading workspace configuratio
       },
       noopCodecFor,
     ),
-    pms: ['aube'],
+    targets: [{ pm: 'aube' }],
     ruleSet: [frozenLockfile],
   });
   expect(result.findings).toMatchObject([
@@ -255,8 +260,7 @@ it('guards each grouped remediation and applies an override to every entry', () 
   });
   const result = runLint({
     repository: createRepositoryEvaluation(noopCtx, noopCodecFor),
-    pms: ['npm'],
-    pmVersions: { npm: '11.9.0' },
+    targets: [{ pm: 'npm', version: '11.9.0' }],
     ruleSet: [rule],
     severityOverrides: new Map([['guarded-group', 'info']]),
   });

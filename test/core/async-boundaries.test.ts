@@ -43,6 +43,65 @@ it.each(asyncValues)(
   },
 );
 
+it.each([undefined, null, new Error('sink failure')])(
+  'preserves thrown sink values including %s',
+  async (failure) => {
+    await expect(
+      lintCommand(
+        {
+          ...options,
+          reporter: {
+            name: 'swallowing',
+            format(_result, io) {
+              try {
+                io.stdout('message');
+              } catch {
+                /* Deliberately swallowed. */
+              }
+            },
+          },
+        },
+        {
+          stdout() {
+            throw failure;
+          },
+          stderr() {},
+        },
+      ),
+    ).rejects.toBe(failure);
+  },
+);
+
+it('awaits pending writes but gives a reporter failure precedence over a sink failure', async () => {
+  const reporterFailure = new Error('reporter failure');
+  let writeSettled = false;
+  await expect(
+    lintCommand(
+      {
+        ...options,
+        reporter: {
+          name: 'failing',
+          format(_result, io) {
+            io.stdout('message');
+            throw reporterFailure;
+          },
+        },
+      },
+      {
+        stdout: () =>
+          new Promise<void>((_resolve, reject) =>
+            setImmediate(() => {
+              writeSettled = true;
+              reject(new Error('sink failure'));
+            }),
+          ),
+        stderr() {},
+      },
+    ),
+  ).rejects.toBe(reporterFailure);
+  expect(writeSettled).toBe(true);
+});
+
 it('observes writes from legacy synchronous reporters, even if they catch a synchronous sink failure', async () => {
   const failure = new Error('output failed');
   for (const stdout of [

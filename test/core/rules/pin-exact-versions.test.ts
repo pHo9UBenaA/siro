@@ -58,7 +58,7 @@ it('reports large top-level and scoped Deno mappings without exceeding argument 
     expect(Buffer.byteLength(text)).toBeLessThan(8 * 1024 * 1024);
     const result = runLint({
       repository: createRepositoryEvaluation(makeCtx({ readText: () => text }), codecFor),
-      pms: ['deno'],
+      targets: [{ pm: 'deno' }],
       ruleSet: [pinExactVersions],
     });
     expect(exitCodeForLint(result)).toBe(1);
@@ -86,7 +86,7 @@ describe('pin-exact-versions (deno subpaths)', () => {
           }),
           codecFor,
         ),
-        pms: ['deno'],
+        targets: [{ pm: 'deno' }],
         ruleSet: [pinExactVersions],
       });
 
@@ -107,7 +107,7 @@ describe('pin-exact-versions (deno subpaths)', () => {
         }),
         codecFor,
       ),
-      pms: ['deno'],
+      targets: [{ pm: 'deno' }],
       ruleSet: [pinExactVersions],
     });
     expect(result.findings).toStrictEqual([]);
@@ -128,7 +128,7 @@ describe('pin-exact-versions (deno subpaths)', () => {
         }),
         codecFor,
       ),
-      pms: ['deno'],
+      targets: [{ pm: 'deno' }],
       ruleSet: [pinExactVersions],
     });
     expect(exitCodeForLint(result)).toBe(1);
@@ -148,7 +148,7 @@ describe('exact save prefixes', () => {
         }),
         codecFor,
       ),
-      pms: ['aube'],
+      targets: [{ pm: 'aube' }],
       ruleSet: [pinExactVersions],
     });
     expect(pinExactVersions.bindings.aube?.file?.path).toBe('.npmrc');

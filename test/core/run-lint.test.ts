@@ -57,7 +57,7 @@ it('resolves each severity independently and leaves rule declarations unchanged'
   const adjusted = applyConfig(rules, { rules: { 'user-binding': 'info', 'user-status': 'warn' } });
   const result = runLint({
     repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
-    pms: ['npm'],
+    targets: [{ pm: 'npm' }],
     ruleSet: adjusted.rules,
     severityOverrides: adjusted.severityOverrides,
   });
@@ -88,7 +88,7 @@ it.each([
   (versionNote, message) => {
     const result = runLint({
       repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [makeRule({ ruleSeverity: 'error', versionNote })],
     });
     expect(result.findings[0]?.message).toBe(message);
