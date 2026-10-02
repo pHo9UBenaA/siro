@@ -2,20 +2,19 @@ import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { lint } from '../../src/runtime.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
-it.each(['package'] as const)(
-  'accepts the npm private publish access alias under %s policy',
-  (projectType) => {
-    const fs = createMemFileSystem({
-      'package.json': JSON.stringify({
-        name: '@scope/example',
-        packageManager: 'npm@12.0.2',
-        publishConfig: { access: 'private' },
-      }),
-    });
-    const result = lint({ cwd: asAbsPath('/repo'), fs, projectType });
-    expect(result.findings.some((finding) => finding.ruleId === 'publish-access')).toBe(false);
-  },
-);
+it('accepts the npm private publish access alias under package policy', () => {
+  const projectType = 'package';
+
+  const fs = createMemFileSystem({
+    'package.json': JSON.stringify({
+      name: '@scope/example',
+      packageManager: 'npm@12.0.2',
+      publishConfig: { access: 'private' },
+    }),
+  });
+  const result = lint({ cwd: asAbsPath('/repo'), fs, projectType });
+  expect(result.findings.some((finding) => finding.ruleId === 'publish-access')).toBe(false);
+});
 
 it.each([
   { pm: 'npm', npmrc: 'save-prefix=null', pinned: false },

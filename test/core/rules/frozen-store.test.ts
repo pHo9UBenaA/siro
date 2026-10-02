@@ -1,15 +1,13 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import { frozenStore } from '../../../src/core/rules/frozen-store.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { manualSteps } from '../../helpers/remediation.ts';
 
-const { pnpm } = frozenStore.bindings;
-assert(pnpm, 'expected pnpm binding');
-const pnpmBinding = pnpm;
+const pnpmBinding = bindingForTest(frozenStore, 'pnpm');
 
 describe('frozen-store: check states', () => {
   it('ok when frozenStore is true', () => {
-    expect.hasAssertions();
     expect(pnpmBinding.check(makeCtx(), { frozenStore: true }).state).toBe('ok');
   });
 
@@ -18,13 +16,12 @@ describe('frozen-store: check states', () => {
 
     assert(status.state === 'violation');
     expect(status.message).toContain('frozenStore');
-    const ops = manualSteps(status)!;
+    const steps = manualSteps(status);
 
-    expect(ops[0]).toContain('Populate the store');
+    expect(steps[0]).toContain('Populate the store');
   });
 
   it('violation when frozenStore is false', () => {
-    expect.hasAssertions();
     const status = pnpmBinding.check(makeCtx(), { frozenStore: false });
     assert(status.state === 'violation');
     expect(status.message).toContain('frozenStore');

@@ -44,7 +44,6 @@ const result: LintResult = {
 
 describe('json reporter contract', () => {
   it('renders one parseable document with versions, summary, and remediation', async () => {
-    expect.hasAssertions();
     expect(await render(result)).toMatchObject({
       schemaVersion: 3,
       inspection: { manifests: [], installationRoots: [] },

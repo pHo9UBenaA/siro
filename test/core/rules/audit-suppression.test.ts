@@ -1,19 +1,16 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import { auditSuppression } from '../../../src/core/rules/audit-suppression.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-const { yarn } = auditSuppression.bindings;
-assert(yarn, 'expected yarn binding');
-const yarnBinding = yarn;
+const yarnBinding = bindingForTest(auditSuppression, 'yarn');
 
 describe('audit-suppression: check states', () => {
   it('ok when neither key is present', () => {
-    expect.hasAssertions();
     expect(yarnBinding.check(makeCtx(), {}).state).toBe('ok');
   });
 
   it('ok when both suppression lists are empty', () => {
-    expect.hasAssertions();
     expect(
       yarnBinding.check(makeCtx(), { npmAuditIgnoreAdvisories: [], npmAuditExcludePackages: [] })
         .state,

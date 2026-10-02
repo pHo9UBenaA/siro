@@ -390,11 +390,16 @@ it('npm provenance remedy changes the overriding manifest leaf, preserving sibli
   const remedy = finding?.remediation;
   expect(remedy?.kind).toBe('automatic');
   if (remedy?.kind !== 'automatic') throw new Error('expected remedy');
-  for (const operation of remedy.operations) {
-    expect(operation.file).toEqual(CONFIG_FILES.packageJson);
-    expect(operation.keyPath).toEqual(['publishConfig', 'provenance']);
-    pkg.publishConfig.provenance = operation.value === true;
-  }
+  expect(remedy.operations).toEqual([
+    {
+      op: 'setKey',
+      file: CONFIG_FILES.packageJson,
+      keyPath: ['publishConfig', 'provenance'],
+      value: true,
+    },
+  ]);
+  const [provenanceOperation] = remedy.operations;
+  pkg.publishConfig.provenance = provenanceOperation.value === true;
   const rerun = inspect(
     { ...files, 'package.json': json(pkg) },
     { installationRoots: ['.'], pm: 'npm' },
@@ -407,4 +412,68 @@ it.each([null, 'true', [], {}])('rejects malformed consumed provenance %j', (pro
   expect(() => inspect({ 'package.json': json({ publishConfig: { provenance } }) })).toThrow(
     /provenance/,
   );
+});
+
+describe('Deno metadata validation', () => {
+  it.each([
+    { name: 123 },
+    { name: [] },
+    { name: {} },
+    { publish: 'false' },
+    { publish: [] },
+    { publish: { include: 3 } },
+    { publish: { include: [false] } },
+  ])('rejects malformed consumed Deno metadata before applicability: %j', (manifest) => {
+    for (const prefix of ['', 'child/']) {
+      expect(() =>
+        inspect(
+          { [`${prefix}deno.json`]: JSON.stringify(manifest) },
+          {
+            projectType: 'application',
+            config: { rules: { 'files-field': 'off' } },
+          },
+        ),
+      ).toThrow(`${prefix}deno.json`);
+    }
+  });
+  it.each([
+    {},
+    { name: null },
+    { publish: null },
+    { publish: true },
+    { publish: false },
+    { publish: { include: null, future: true } },
+    { name: '@a/b', publish: { include: ['mod.ts'] } },
+  ])('preserves legitimate nullable/boolean Deno metadata and unknown fields: %j', (manifest) => {
+    expect(() => inspect({ 'deno.json': JSON.stringify(manifest) })).not.toThrow();
+  });
+  it('does not validate excluded malformed metadata', () => {
+    expect(
+      inspect({ 'child/deno.json': '{"name":123}' }, { exclude: ['child'] }).inspection.manifests,
+    ).toEqual([]);
+  });
+});
+
+it('unknown child availability and inspection scope remain explicit', () => {
+  const fs = createMemFileSystem({
+    'package.json': '{"private":true,"packageManager":"npm@12.0.2"}',
+    'child/package.json': '{"name":"child","packageManager":"pnpm@latest"}',
+    'child/pnpm-workspace.yaml': 'strictDepBuilds: false',
+  });
+  const result = lint({ cwd: asAbsPath('/repo'), fs });
+  expect(result.inspection.installationRoots.map((root) => root.directory)).toEqual(['.']);
+  expect(result.inspection.manifests.find((m) => m.path === 'child/package.json')?.targets).toEqual(
+    [{ pm: 'pnpm' }],
+  );
+  expect(
+    result.findings.some(
+      (f) => f.directory === 'child' && f.ruleId === 'disable-lifecycle-scripts',
+    ),
+  ).toBe(false);
+  const expanded = lint({ cwd: asAbsPath('/repo'), fs, installationRoots: ['.', 'child'] });
+  expect(
+    expanded.findings.some(
+      (f) => f.directory === 'child' && f.ruleId === 'disable-lifecycle-scripts',
+    ),
+  ).toBe(true);
 });

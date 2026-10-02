@@ -1,14 +1,13 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import { blockAutoInstall } from '../../../src/core/rules/block-auto-install.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 
-const { bun } = blockAutoInstall.bindings;
-assert(bun, 'expected bun binding');
+const bun = bindingForTest(blockAutoInstall, 'bun');
 
 describe('block-auto-install: check behaviour', () => {
   it('passes when install.auto is disable', () => {
-    expect.hasAssertions();
     expect(bun.check(makeCtx(), { install: { auto: 'disable' } }).state).toBe('ok');
   });
 
@@ -34,7 +33,6 @@ describe('block-auto-install: check behaviour', () => {
   });
 
   it('flags a violation when set to force', () => {
-    expect.hasAssertions();
     const status = bun.check(makeCtx(), { install: { auto: 'force' } });
     assert(status.state === 'violation');
     expect(status.severity).toBeUndefined();

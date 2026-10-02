@@ -1,19 +1,16 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import { storeServer } from '../../../src/core/rules/store-server.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-const { pnpm } = storeServer.bindings;
-assert(pnpm, 'expected pnpm binding');
-const pnpmBinding = pnpm;
+const pnpmBinding = bindingForTest(storeServer, 'pnpm');
 
 describe('store-server: check states', () => {
   it('ok when useRunningStoreServer is absent', () => {
-    expect.hasAssertions();
     expect(pnpmBinding.check(makeCtx(), {}).state).toBe('ok');
   });
 
   it('ok when useRunningStoreServer is false', () => {
-    expect.hasAssertions();
     expect(pnpmBinding.check(makeCtx(), { useRunningStoreServer: false }).state).toBe('ok');
   });
 

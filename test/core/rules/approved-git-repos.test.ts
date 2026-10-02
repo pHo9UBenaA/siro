@@ -1,20 +1,17 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import { approvedGitRepos } from '../../../src/core/rules/approved-git-repos.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { manualSteps } from '../../helpers/remediation.ts';
 
-const { yarn } = approvedGitRepos.bindings;
-assert(yarn, 'expected yarn binding');
-const yarnBinding = yarn;
+const yarnBinding = bindingForTest(approvedGitRepos, 'yarn');
 
 describe('approved-git-repos: check states', () => {
   it('passes when approvedGitRepositories is an empty array', () => {
-    expect.hasAssertions();
     expect(yarnBinding.check(makeCtx(), { approvedGitRepositories: [] }).state).toBe('ok');
   });
 
   it('passes when approvedGitRepositories is a non-empty array', () => {
-    expect.hasAssertions();
     expect(
       yarnBinding.check(makeCtx(), {
         approvedGitRepositories: ['https://github.com/org/*'],
@@ -26,9 +23,21 @@ describe('approved-git-repos: check states', () => {
     const status = yarnBinding.check(makeCtx(), {});
 
     assert(status.state === 'violation');
-    const ops = manualSteps(status)!;
+    const steps = manualSteps(status);
 
-    const [first] = ops;
+    const [first] = steps;
     expect(first).toContain('approvedGitRepositories');
   });
+});
+
+describe('Malformed settings', () => {
+  const ctx = makeCtx();
+  it.each([{ value: [false] }, { value: ['   '] }, { value: Array(1) }])(
+    'does not accept malformed allowlists: %j',
+    ({ value }) => {
+      expect(
+        approvedGitRepos.bindings.yarn?.check(ctx, { approvedGitRepositories: value }).state,
+      ).toBe('violation');
+    },
+  );
 });

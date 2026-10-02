@@ -1,18 +1,17 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync, writeFileSync } from 'node:fs';
+import { createTempProject as fixture } from './helpers/temp-project.ts';
 import path from 'node:path';
 const bin = path.resolve(import.meta.dirname, '../dist/cli.js');
-const fixture = (files: Record<string, string>) => {
-  const root = mkdtempSync(path.join(tmpdir(), 'siro-inspection-'));
-  for (const [file, text] of Object.entries(files)) {
-    mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
-    writeFileSync(path.join(root, file), text);
-  }
-  return root;
+const run = (root: string, ...args: string[]) => {
+  const result = spawnSync(process.execPath, [bin, 'lint', root, '--json', ...args], {
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  expect(result.error).toBeUndefined();
+  expect(result.signal).toBeNull();
+  return result;
 };
-const run = (root: string, ...args: string[]) =>
-  spawnSync(process.execPath, [bin, 'lint', root, '--json', ...args], { encoding: 'utf8' });
 
 it('Deno exclude-only age fails at configured severity even on a known newer target; fallback works', () => {
   const root = fixture({

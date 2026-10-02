@@ -1,29 +1,24 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { strictReleaseAge } from '../../../src/core/rules/strict-release-age.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 
-const { aube } = strictReleaseAge.bindings;
-assert(aube, 'expected aube binding');
-const aubeBinding = aube;
+const aubeBinding = bindingForTest(strictReleaseAge, 'aube');
 
 describe('strict-release-age: check states', () => {
-  it.each<ParsedConfig>([{ minimumReleaseAgeStrict: false, paranoid: true }])(
-    'accepts paranoid despite individual settings: %j',
-    (config) => {
-      expect.hasAssertions();
-      expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
-    },
-  );
+  it('accepts paranoid despite individual settings', () => {
+    const config: ParsedConfig = { minimumReleaseAgeStrict: false, paranoid: true };
+
+    expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
+  });
 
   it('passes when minimumReleaseAgeStrict is true', () => {
-    expect.hasAssertions();
     expect(aubeBinding.check(makeCtx(), { minimumReleaseAgeStrict: true }).state).toBe('ok');
   });
 
   it('flags a violation when minimumReleaseAgeStrict is false', () => {
-    expect.hasAssertions();
     expect(aubeBinding.check(makeCtx(), { minimumReleaseAgeStrict: false }).state).toBe(
       'violation',
     );

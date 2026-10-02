@@ -1,16 +1,14 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { trustPolicy } from '../../../src/core/rules/trust-policy.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 
-const { pnpm } = trustPolicy.bindings;
-assert(pnpm, 'expected pnpm binding');
-const pnpmBinding = pnpm;
+const pnpmBinding = bindingForTest(trustPolicy, 'pnpm');
 
 describe('trust-policy: check states', () => {
   it('passes when trustPolicy is no-downgrade', () => {
-    expect.hasAssertions();
     expect(pnpmBinding.check(makeCtx(), { trustPolicy: 'no-downgrade' }).state).toBe('ok');
   });
 
@@ -36,32 +34,25 @@ describe('trust-policy: check states', () => {
     ]);
   });
 
-  it.each([true])(
-    'flags trustPolicy off even with the aube-only paranoid option %s',
-    (paranoid) => {
-      expect.hasAssertions();
-      const status = pnpmBinding.check(makeCtx(), { paranoid, trustPolicy: 'off' });
-      assert(status.state === 'violation');
-      expect(status.severity).toBeUndefined();
-    },
-  );
+  it('flags trustPolicy off even with the aube-only paranoid option enabled', () => {
+    const paranoid = true;
+
+    const status = pnpmBinding.check(makeCtx(), { paranoid, trustPolicy: 'off' });
+    assert(status.state === 'violation');
+    expect(status.severity).toBeUndefined();
+  });
 });
 
-const { aube } = trustPolicy.bindings;
-assert(aube, 'expected aube binding');
-const aubeBinding = aube;
+const aubeBinding = bindingForTest(trustPolicy, 'aube');
 
 describe('trust-policy: aube binding', () => {
-  it.each<ParsedConfig>([{ paranoid: true, trustPolicy: 'off' }])(
-    'accepts paranoid despite individual settings: %j',
-    (config) => {
-      expect.hasAssertions();
-      expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
-    },
-  );
+  it('accepts paranoid despite individual settings', () => {
+    const config: ParsedConfig = { paranoid: true, trustPolicy: 'off' };
+
+    expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
+  });
 
   it('passes when trustPolicy is no-downgrade', () => {
-    expect.hasAssertions();
     expect(aubeBinding.check(makeCtx(), { trustPolicy: 'no-downgrade' }).state).toBe('ok');
   });
 

@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { asAbsPath, lint } from '../src/index.ts';
+import { asAbsPath, ConfigError, lint } from '../src/index.ts';
 
 const cli = path.resolve(import.meta.dirname, '../dist/cli.js');
 let root: string;
@@ -79,27 +79,27 @@ it.each(
 });
 
 it.each([
-  ['package.json', 'FAKE_SECRET_NOT_JSON'],
-  ['deno.json', 'FAKE_SECRET_NOT_JSON'],
-  ['.yarnrc.yml', 'enableScripts: [FAKE_SECRET_NOT_YAML'],
-  ['bunfig.toml', '[install]\nexact = FAKE_SECRET_NOT_TOML'],
-])('does not expose parser input from %s in CLI or API diagnostics', (file, text) => {
+  ['package.json', 'FAKE_SECRET_NOT_JSON', 'npm'],
+  ['deno.json', 'FAKE_SECRET_NOT_JSON', 'npm'],
+  ['.yarnrc.yml', 'enableScripts: [FAKE_SECRET_NOT_YAML', 'yarn'],
+  ['bunfig.toml', '[install]\nexact = FAKE_SECRET_NOT_TOML', 'bun'],
+] as const)('does not expose parser input from %s in CLI or API diagnostics', (file, text, pm) => {
   writeFileSync(path.join(root, file), text);
-  const pm = file === '.yarnrc.yml' ? 'yarn' : file === 'bunfig.toml' ? 'bun' : 'npm';
   const result = run(['--no-config', '--json', '--pm', pm]);
   expect(result.status).toBe(2);
   expect(result.stdout).toBe('');
   expect(result.stderr).not.toContain('FAKE_SECRET');
   expect(result.stderr).toContain(file);
-  const inspect = () => lint({ cwd: asAbsPath(root), pm: pm as 'npm' });
-  expect(inspect).toThrow(/invalid|Invalid/);
-  let diagnostic = '';
+  let failure: unknown;
   try {
-    inspect();
+    lint({ cwd: asAbsPath(root), pm });
   } catch (error) {
-    diagnostic = String(error);
+    failure = error;
   }
-  expect(diagnostic).not.toContain('FAKE_SECRET');
+  expect(failure).toBeInstanceOf(ConfigError);
+  expect(String(failure)).toMatch(/invalid|Invalid/);
+  expect(String(failure)).toContain(file);
+  expect(String(failure)).not.toContain('FAKE_SECRET');
 });
 
 const scopeAdvice =

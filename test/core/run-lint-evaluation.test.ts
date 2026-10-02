@@ -47,7 +47,6 @@ const lint = (
 
 describe('runLint binding evaluation', () => {
   it('reports every violating rule and PM binding in stable order', () => {
-    expect.hasAssertions();
     const violation: CheckStatus = { message: 'x', state: 'violation' };
     const result = lint(
       noopCtx,
@@ -69,7 +68,6 @@ describe('runLint binding evaluation', () => {
 
 describe('runLint project selection', () => {
   it('skips a package-only custom rule for an inferred application', () => {
-    expect.hasAssertions();
     const rule: Rule = {
       ...ruleWith('package-only', ['npm'], { message: 'x', state: 'violation' }),
       projectTypes: ['package'],
@@ -83,7 +81,6 @@ describe('runLint project selection', () => {
   });
 
   it('skips a package-only custom rule for a nameless Deno application', () => {
-    expect.hasAssertions();
     const rule: Rule = {
       bindings: {
         deno: {
@@ -101,7 +98,6 @@ describe('runLint project selection', () => {
   });
 
   it('does not read deno.json to classify an unscoped Deno rule', () => {
-    expect.hasAssertions();
     const reads: string[] = [];
     const ctx: RepoContext = {
       ...noopCtx,
@@ -129,7 +125,6 @@ describe('runLint project selection', () => {
 
 describe('runLint repository checks', () => {
   it('passes an empty parsed view without invoking a codec', () => {
-    expect.hasAssertions();
     const parse = vi.fn<ConfigCodec['parse']>();
     const captured: ParsedConfig[] = [];
     const rule: Rule = {
@@ -141,10 +136,10 @@ describe('runLint repository checks', () => {
           },
         },
       },
-      description: 'glob-rule',
-      id: 'glob-rule',
+      description: 'Check repository files without a configuration file',
+      id: 'repository-check',
       severity: 'error',
-      title: 'glob-rule',
+      title: 'Repository check',
     };
 
     const result = runLint({
@@ -153,7 +148,7 @@ describe('runLint repository checks', () => {
       ruleSet: [rule],
     });
 
-    expect(result.findings.map(({ ruleId }) => ruleId)).toStrictEqual(['glob-rule']);
+    expect(result.findings.map(({ ruleId }) => ruleId)).toStrictEqual(['repository-check']);
     expect(captured).toStrictEqual([{}]);
     expect(parse).not.toHaveBeenCalled();
   });

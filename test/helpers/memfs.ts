@@ -11,18 +11,19 @@ export const createMemFileSystem = (
   const vol = Volume.fromJSON(initial, root);
   const fs = createFsFromVolume(vol);
   fs.mkdirSync(root, { recursive: true });
-  const native = (value: string) => (nodePath.sep === '\\' ? value.replaceAll('\\', '/') : value);
+  const toMemfsPath = (value: string) =>
+    nodePath.sep === '\\' ? value.replaceAll('\\', '/') : value;
   return {
     readDirectories(directory) {
       return fs
-        .readdirSync(native(directory))
+        .readdirSync(toMemfsPath(directory))
         .map(String)
-        .filter((name) => fs.lstatSync(`${native(directory)}/${name}`).isDirectory());
+        .filter((name) => fs.lstatSync(`${toMemfsPath(directory)}/${name}`).isDirectory());
     },
     exists(path) {
       // Match native file-type checks and propagate every non-ENOENT error.
       try {
-        if (!fs.statSync(native(path)).isFile())
+        if (!fs.statSync(toMemfsPath(path)).isFile())
           throw new ConfigError(`${path}: expected a regular file.`);
         return true;
       } catch (error) {
@@ -34,8 +35,7 @@ export const createMemFileSystem = (
     },
     readText(path) {
       try {
-        const content = String(fs.readFileSync(native(path), 'utf8'));
-        return content;
+        return String(fs.readFileSync(toMemfsPath(path), 'utf8'));
       } catch (error) {
         // Mirror the production FS contract: ENOENT is "file absent",
         // anything else (EACCES, EISDIR, …) must propagate so a misconfigured

@@ -1,20 +1,18 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { strictAllowScripts } from '../../../src/core/rules/strict-allow-scripts.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 
-const { npm } = strictAllowScripts.bindings;
-assert(npm, 'expected npm binding');
+const npm = bindingForTest(strictAllowScripts, 'npm');
 
 describe('strict-allow-scripts', () => {
   it('passes when strict-allow-scripts is true', () => {
-    expect.hasAssertions();
     expect(npm.check(makeCtx(), { 'strict-allow-scripts': true }).state).toBe('ok');
   });
 
   it('requires manual bypass removal even when strict-allow-scripts is true', () => {
-    expect.hasAssertions();
     const status = npm.check(makeCtx(), {
       'dangerously-allow-all-scripts': true,
       'strict-allow-scripts': true,
@@ -36,7 +34,6 @@ describe('strict-allow-scripts', () => {
       'strict-allow-scripts': true,
     },
   ])('passes when ignore-scripts blocks script execution (%j)', (config) => {
-    expect.hasAssertions();
     expect(npm.check(makeCtx(), config).state).toBe('ok');
   });
 
@@ -62,7 +59,6 @@ describe('strict-allow-scripts', () => {
   });
 
   it('flags a violation when set to false', () => {
-    expect.hasAssertions();
     const status = npm.check(makeCtx(), { 'strict-allow-scripts': false });
     assert(status.state === 'violation');
     expect(status.severity).toBeUndefined();

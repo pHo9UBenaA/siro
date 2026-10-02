@@ -4,181 +4,160 @@ import { captureIO } from './helpers/io.ts';
 const EXIT_OK = 0;
 const EXIT_USAGE = 2;
 
-const runExpectCode = (
+const runCaptured = async (
   args: readonly string[],
 ): Promise<{ code: number; out: string; err: string }> => {
   const { io, out, err } = captureIO();
-  return run(args, io).then((code) => ({ code, err: err(), out: out() }));
+  const code = await run(args, io);
+  return { code, err: err(), out: out() };
 };
 
 describe('cli', () => {
-  test('prints the version with -v (alias of --version)', () => {
-    expect.hasAssertions();
+  test('prints the version with -v (alias of --version)', async () => {
     // Short and long flags use the same output path.
-    return runExpectCode(['-v']).then(({ code, out }) => {
-      expect(code).toBe(EXIT_OK);
-      expect(out.trim()).toMatch(/^\d+\.\d+\.\d+/u);
-    });
+    const { code, out } = await runCaptured(['-v']);
+
+    expect(code).toBe(EXIT_OK);
+    expect(out.trim()).toMatch(/^\d+\.\d+\.\d+/u);
   });
 
-  test('prints usage with --help and exits 0', () => {
-    expect.hasAssertions();
-    return runExpectCode(['--help']).then(({ code, out }) => {
-      expect(code).toBe(EXIT_OK);
-      expect(out).toMatch(/USAGE\n {2}siro <command>/u);
-      expect(out).toContain('COMMANDS');
-      expect(out).toContain('EXAMPLES');
-    });
+  test('prints usage with --help and exits 0', async () => {
+    const { code, out } = await runCaptured(['--help']);
+
+    expect(code).toBe(EXIT_OK);
+    expect(out).toMatch(/USAGE\n {2}siro <command>/u);
+    expect(out).toContain('COMMANDS');
+    expect(out).toContain('EXAMPLES');
   });
 
-  test('shows the lint-specific help with `siro lint --help`', () => {
-    expect.hasAssertions();
-    return runExpectCode(['lint', '--help']).then(({ code, out }) => {
-      expect(code).toBe(EXIT_OK);
-      expect(out).toContain('siro lint —');
-      expect(out).toContain('EXIT CODES');
-    });
+  test('shows the lint-specific help with `siro lint --help`', async () => {
+    const { code, out } = await runCaptured(['lint', '--help']);
+
+    expect(code).toBe(EXIT_OK);
+    expect(out).toContain('siro lint —');
+    expect(out).toContain('EXIT CODES');
   });
 
-  test('supports clustered short help and version flags with help precedence', () => {
-    expect.hasAssertions();
-    return runExpectCode(['-hv']).then(({ code, err, out }) => {
-      expect(code).toBe(EXIT_OK);
-      expect(out).toMatch(/USAGE\n {2}siro <command>/u);
-      expect(err).toBe('');
-    });
+  test('supports clustered short help and version flags with help precedence', async () => {
+    const { code, err, out } = await runCaptured(['-hv']);
+
+    expect(code).toBe(EXIT_OK);
+    expect(out).toMatch(/USAGE\n {2}siro <command>/u);
+    expect(err).toBe('');
   });
 
-  test('does not treat repeated false help assignments as a help request', () => {
-    expect.hasAssertions();
-    return runExpectCode(['--help=false', '--help=false']).then(({ code, err, out }) => {
-      expect(code).toBe(EXIT_USAGE);
-      expect(out).toBe('');
-      expect(err).toMatch(/--help.*value/iu);
-    });
+  test('does not treat repeated false help assignments as a help request', async () => {
+    const { code, err, out } = await runCaptured(['--help=false', '--help=false']);
+
+    expect(code).toBe(EXIT_USAGE);
+    expect(out).toBe('');
+    expect(err).toMatch(/--help.*value/iu);
   });
 
-  test('treats `--help` after a value-flag as the help request, not the flag value', () => {
-    expect.hasAssertions();
+  test('treats `--help` after a value-flag as the help request, not the flag value', async () => {
     // A `-`-prefixed token is another option rather than --reporter's value.
-    return runExpectCode(['--reporter', '--help']).then(({ code, out }) => {
-      expect(code).toBe(EXIT_OK);
-      expect(out).toMatch(/USAGE\n {2}siro <command>/u);
-    });
+    const { code, out } = await runCaptured(['--reporter', '--help']);
+
+    expect(code).toBe(EXIT_OK);
+    expect(out).toMatch(/USAGE\n {2}siro <command>/u);
   });
 
-  test('treats `--version` after a value-flag as the version request, not the flag value', () => {
-    expect.hasAssertions();
+  test('treats `--version` after a value-flag as the version request, not the flag value', async () => {
     // Companion to the --help case above.
-    return runExpectCode(['--reporter', '--version']).then(({ code, out }) => {
-      expect(code).toBe(EXIT_OK);
-      expect(out.trim()).toMatch(/^\d+\.\d+\.\d+/u);
-    });
+    const { code, out } = await runCaptured(['--reporter', '--version']);
+
+    expect(code).toBe(EXIT_OK);
+    expect(out.trim()).toMatch(/^\d+\.\d+\.\d+/u);
   });
 
-  test('shows lint help for `--reporter json lint --help` (flag value is not the target)', () => {
-    expect.hasAssertions();
+  test('shows lint help for `--reporter json lint --help` (flag value is not the target)', async () => {
     // The value of a value-taking flag must not be mistaken for the command
     // positional; otherwise `json` looks like the help target and the root
     // help shows instead of the lint help.
-    return runExpectCode(['--reporter', 'json', 'lint', '--help']).then(({ code, out }) => {
-      expect(code).toBe(EXIT_OK);
-      expect(out).toContain('siro lint —');
-    });
+    const { code, out } = await runCaptured(['--reporter', 'json', 'lint', '--help']);
+
+    expect(code).toBe(EXIT_OK);
+    expect(out).toContain('siro lint —');
   });
 
-  test('prints usage and exits 2 when no subcommand is given', () => {
-    expect.hasAssertions();
-    return runExpectCode([]).then(({ code, err }) => {
-      expect(code).toBe(EXIT_USAGE);
-      expect(err).toMatch(/usage/iu);
-    });
+  test('prints usage and exits 2 when no subcommand is given', async () => {
+    const { code, err } = await runCaptured([]);
+
+    expect(code).toBe(EXIT_USAGE);
+    expect(err).toMatch(/usage/iu);
   });
 
-  test('exits 2 for an unknown subcommand', () => {
-    expect.hasAssertions();
-    return runExpectCode(['frobnicate']).then(({ code, err }) => {
-      expect(code).toBe(EXIT_USAGE);
-      expect(err).toMatch(/unknown command/iu);
-    });
+  test('exits 2 for an unknown subcommand', async () => {
+    const { code, err } = await runCaptured(['frobnicate']);
+
+    expect(code).toBe(EXIT_USAGE);
+    expect(err).toMatch(/unknown command/iu);
   });
 
-  test('exits 2 for an unknown --reporter', () => {
-    expect.hasAssertions();
-    return runExpectCode(['lint', '--reporter', 'xml']).then(({ code, err }) => {
-      expect(code).toBe(EXIT_USAGE);
-      expect(err).toMatch(/unknown reporter/iu);
-    });
+  test('exits 2 for an unknown --reporter', async () => {
+    const { code, err } = await runCaptured(['lint', '--reporter', 'xml']);
+
+    expect(code).toBe(EXIT_USAGE);
+    expect(err).toMatch(/unknown reporter/iu);
   });
 
-  test('exits 2 for an unknown --pm', () => {
-    expect.hasAssertions();
-    return runExpectCode(['lint', '--pm', 'cargo']).then(({ code, err }) => {
-      expect(code).toBe(EXIT_USAGE);
-      expect(err).toMatch(/unknown package manager/iu);
-    });
+  test('exits 2 for an unknown --pm', async () => {
+    const { code, err } = await runCaptured(['lint', '--pm', 'cargo']);
+
+    expect(code).toBe(EXIT_USAGE);
+    expect(err).toMatch(/unknown package manager/iu);
   });
 
-  test('exits 2 for an unknown --project-type', () => {
-    expect.hasAssertions();
-    return runExpectCode(['lint', '--project-type', 'service']).then(({ code, err }) => {
-      expect(code).toBe(EXIT_USAGE);
-      expect(err).toMatch(/unknown project type/iu);
-    });
+  test('exits 2 for an unknown --project-type', async () => {
+    const { code, err } = await runCaptured(['lint', '--project-type', 'service']);
+
+    expect(code).toBe(EXIT_USAGE);
+    expect(err).toMatch(/unknown project type/iu);
   });
 
-  test('exits 2 for an unknown flag (typo guard)', () => {
-    expect.hasAssertions();
-    return runExpectCode(['lint', '--repoter', 'pretty']).then(({ code, err }) => {
-      expect(code).toBe(EXIT_USAGE);
-      expect(err).toMatch(/unknown flag/iu);
-    });
+  test('exits 2 for an unknown flag (typo guard)', async () => {
+    const { code, err } = await runCaptured(['lint', '--repoter', 'pretty']);
+
+    expect(code).toBe(EXIT_USAGE);
+    expect(err).toMatch(/unknown flag/iu);
   });
 
-  test('rejects non-empty passthrough after `--` (siro wraps no tool)', () => {
-    expect.hasAssertions();
+  test('rejects non-empty passthrough after `--` (siro wraps no tool)', async () => {
     // siro takes no passthrough args — there is no wrapped tool to forward to.
     // `--` still stops flag detection (so `--version` after it is NOT a version
     // request), but a non-empty payload is a usage error rather than silently
     // dropped. This also means the version branch never fires here.
-    return runExpectCode(['lint', '--', '--version']).then(({ code, err }) => {
-      expect(code).toBe(EXIT_USAGE);
-      expect(err).not.toMatch(/^\d+\.\d+\.\d+/u);
-    });
+    const { code, err } = await runCaptured(['lint', '--', '--version']);
+
+    expect(code).toBe(EXIT_USAGE);
+    expect(err).not.toMatch(/^\d+\.\d+\.\d+/u);
   });
 
-  test('rejects combining --reporter with --json (exit 2)', () => {
-    expect.hasAssertions();
-    return runExpectCode(['lint', '--reporter', 'github', '--json']).then(({ code, err }) => {
-      expect(code).toBe(EXIT_USAGE);
-      expect(err).toMatch(/reporter|json/iu);
-    });
+  test('rejects combining --reporter with --json (exit 2)', async () => {
+    const { code, err } = await runCaptured(['lint', '--reporter', 'github', '--json']);
+
+    expect(code).toBe(EXIT_USAGE);
+    expect(err).toMatch(/reporter|json/iu);
   });
 
-  test('rejects repeated reporter selectors (exit 2)', () => {
-    expect.hasAssertions();
-    const cases = [
+  test.each(
+    [
       ['lint', '--reporter', 'json', '--reporter', 'github'],
       ['lint', '--json', '--json'],
-    ];
-    return Promise.all(
-      cases.map((args) =>
-        runExpectCode(args).then(({ code, err }) => {
-          expect(code).toBe(EXIT_USAGE);
-          expect(err).toMatch(/reporter|json/iu);
-        }),
-      ),
-    );
+    ].map((args) => ({ args })),
+  )('rejects repeated reporter selectors $args (exit 2)', async ({ args }) => {
+    const { code, err } = await runCaptured(args);
+    expect(code).toBe(EXIT_USAGE);
+    expect(err).toMatch(/reporter|json/iu);
   });
 });
 
 describe('extra positional rejection', () => {
-  it('exits 2 and names an unexpected positional', () => {
-    expect.hasAssertions();
-    return runExpectCode(['lint', '.', 'extra']).then(({ code, err }) => {
-      expect(code).toBe(EXIT_USAGE);
-      expect(err).toContain('extra');
-    });
+  it('exits 2 and names an unexpected positional', async () => {
+    const { code, err } = await runCaptured(['lint', '.', 'extra']);
+
+    expect(code).toBe(EXIT_USAGE);
+    expect(err).toContain('extra');
   });
 });
 

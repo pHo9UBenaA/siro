@@ -1,10 +1,10 @@
 import { lintCommand } from '../../src/runtime.ts';
 import { ConfigError, UsageError } from '../../src/core/contracts/errors.ts';
 import { asAbsPath } from '../../src/adapters/node-paths.ts';
-import { npmGoodFs } from '../helpers/fixtures.ts';
+import { npmPassingFs } from '../helpers/fixtures.ts';
 import { captureIO } from '../helpers/io.ts';
 
-const options = { cwd: asAbsPath('/repo'), fs: npmGoodFs(), reporter: 'json' };
+const options = { cwd: asAbsPath('/repo'), fs: npmPassingFs(), reporter: 'json' };
 
 it('rejects an invalid project type from JavaScript', async () => {
   await expect(

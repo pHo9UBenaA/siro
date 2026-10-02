@@ -1,4 +1,5 @@
-import assert from 'node:assert';
+import { bindingForTest } from '../../../helpers/rules.ts';
+
 import type { ConfigFileRef } from '../../../../src/core/contracts/config-file-ref.ts';
 import { CONFIG_FILES } from '../../../../src/core/config-files.ts';
 import type { Rule, VersionNote } from '../../../../src/core/contracts/rule.ts';
@@ -27,7 +28,7 @@ it.each([
   });
 });
 
-const vnRule = (versionNote?: VersionNote): Rule => {
+const ruleWithVersionNote = (versionNote?: VersionNote): Rule => {
   return requireConfigKey({
     bindings: {
       npm: {
@@ -47,7 +48,6 @@ const vnRule = (versionNote?: VersionNote): Rule => {
 
 describe('requireConfigKey passes spec.severity into binding', () => {
   it('copies an explicit binding severity and otherwise leaves it unset', () => {
-    expect.hasAssertions();
     const bindingSeverity = (severity?: 'info') => {
       const rule = requireConfigKey({
         bindings: {
@@ -71,14 +71,10 @@ describe('requireConfigKey passes spec.severity into binding', () => {
 });
 
 describe('versionNote metadata', () => {
-  const binding = (vn?: VersionNote) => {
-    const bd = vnRule(vn).bindings.npm;
-    assert(bd, 'expected npm binding');
-    return bd;
-  };
+  const binding = (versionNote?: VersionNote) =>
+    bindingForTest(ruleWithVersionNote(versionNote), 'npm');
 
   it('copies structured metadata without putting presentation data in the check result', () => {
-    expect.hasAssertions();
     const withMetadata = binding({ configAvailableSince: 'npm 9.0.0' });
     const check = withMetadata.check(makeCtx(), {});
     expect({

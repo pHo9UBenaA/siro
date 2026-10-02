@@ -1,17 +1,9 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync, writeFileSync } from 'node:fs';
+import { createTempProject as fixture } from './helpers/temp-project.ts';
 import path from 'node:path';
 
 const cli = path.resolve(import.meta.dirname, '../dist/cli.js');
-const fixture = (files: Record<string, string>) => {
-  const root = mkdtempSync(path.join(tmpdir(), 'siro-output-boundary-'));
-  for (const [file, content] of Object.entries(files)) {
-    mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
-    writeFileSync(path.join(root, file), content);
-  }
-  return root;
-};
 const run = (root: string, ...args: string[]) =>
   spawnSync(process.execPath, [cli, 'lint', root, ...args], {
     encoding: 'utf8',
@@ -113,6 +105,7 @@ it.each(['--json', '--help', '--version'])(
     try {
       const child = spawn(process.execPath, [cli, 'lint', root, flag], {
         stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 10_000,
       });
       let stderr = '';
       child.stderr.setEncoding('utf8').on('data', (chunk) => {

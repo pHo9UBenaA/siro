@@ -1,3 +1,6 @@
+import { asAbsPath, lint, type LintOptions } from '../../../src/index.ts';
+import { createMemFileSystem } from '../../helpers/memfs.ts';
+import { bindingForTest } from '../../helpers/rules.ts';
 import { manualSteps } from '../../helpers/remediation.ts';
 
 import assert from 'node:assert';
@@ -9,8 +12,7 @@ import { makeCtx, makePublishableCtx } from '../../helpers/ctx.ts';
 const ctxWith = (files: readonly string[]): RuleContext => makeCtx({ files });
 
 describe('commit-lockfile (npm)', () => {
-  const npmBinding = commitLockfile.bindings.npm;
-  assert(npmBinding, 'expected npm binding');
+  const npmBinding = bindingForTest(commitLockfile, 'npm');
 
   it('requires an npm lockfile and explains how to generate it', () => {
     const status = npmBinding.check(ctxWith([]), {});
@@ -19,19 +21,17 @@ describe('commit-lockfile (npm)', () => {
 
     expect(commitLockfile.severity).toBe('error');
 
-    const ops = manualSteps(status)!;
-    const firstOp = ops[0];
-    assert(firstOp, 'expected at least one fix op');
-    expect(firstOp).toContain('generate package-lock.json');
+    const steps = manualSteps(status);
+    const firstStep = steps[0];
+    assert(firstStep, 'expected at least one manual step');
+    expect(firstStep).toContain('generate package-lock.json');
   });
 
   it('passes when package-lock.json exists', () => {
-    expect.hasAssertions();
     expect(npmBinding.check(ctxWith(['package-lock.json']), {}).state).toBe('ok');
   });
 
   it('requires a supported lockfile when only the removed npm shrinkwrap exists', () => {
-    expect.hasAssertions();
     expect(npmBinding.check(ctxWith(['npm-shrinkwrap.json']), {}).state).toBe('violation');
   });
 });
@@ -51,13 +51,14 @@ describe('commit-lockfile per-PM lockfile detection', () => {
   it.each(LOCKFILE_BY_PM)(
     '$pm: ok when $lockfile exists, violation when absent',
     ({ pm, lockfile }) => {
-      expect.hasAssertions();
-      const bd = commitLockfile.bindings[pm];
-      assert(bd, `expected ${pm} binding`);
-      expect(bd.check(makePublishableCtx({ exists: (fp) => fp === lockfile }), {}).state).toBe(
-        'ok',
+      const ruleBinding = bindingForTest(commitLockfile, pm);
+
+      expect(
+        ruleBinding.check(makePublishableCtx({ exists: (fp) => fp === lockfile }), {}).state,
+      ).toBe('ok');
+      expect(ruleBinding.check(makePublishableCtx({ exists: () => false }), {}).state).toBe(
+        'violation',
       );
-      expect(bd.check(makePublishableCtx({ exists: () => false }), {}).state).toBe('violation');
     },
   );
 });
@@ -90,5 +91,30 @@ it('requires conversion of a binary Bun lockfile even when an Aube lockfile exis
   ).toMatchObject({
     state: 'violation',
     remediation: { kind: 'manual', steps: [expect.stringContaining('--save-text-lockfile')] },
+  });
+});
+
+describe('API integration', () => {
+  const inspect = (files: Record<string, string>, options: Partial<LintOptions> = {}) =>
+    lint({
+      cwd: asAbsPath('/repo'),
+      fs: createMemFileSystem(files),
+      installationRoots: [],
+      ...options,
+    });
+  it.each(['11.16.0', '12.0.0', undefined])('handles shrinkwrap honestly for npm %s', (version) => {
+    const result = inspect(
+      { 'npm-shrinkwrap.json': '{}' },
+      {
+        installationRoots: ['.'],
+        pm: 'npm',
+        ...(version ? { pmVersion: version } : {}),
+      },
+    );
+    const finding = result.findings.find((f) => f.ruleId === 'commit-lockfile');
+    expect(Boolean(finding)).toBe(version !== '11.16.0');
+    expect(finding?.message.includes('npm-shrinkwrap.json')).toBe(
+      version === '11.16.0' ? undefined : true,
+    );
   });
 });

@@ -68,7 +68,7 @@ it('snapshots array length before child toJSON hooks change it', () => {
   expect(boundedJson(input(), 1024, 128)).toBe(JSON.stringify(input(), undefined, 2));
 });
 
-it('bounds expansion of shared values and rejects cycles/deep reports', () => {
+it('bounds expansion of shared values', () => {
   const shared = { text: 'a'.repeat(100) };
   expect(() =>
     boundedJson(
@@ -77,8 +77,14 @@ it('bounds expansion of shared values and rejects cycles/deep reports', () => {
       128,
     ),
   ).toThrow(/maxOutputBytes/);
+});
+
+it('rejects circular reports', () => {
   const cycle: { next?: unknown } = {};
   cycle.next = cycle;
   expect(() => boundedJson(cycle, 1024, 128)).toThrow(/circular/);
+});
+
+it('rejects reports deeper than the configured limit', () => {
   expect(() => boundedJson({ a: { b: {} } }, 1024, 2)).toThrow(/nesting/);
 });

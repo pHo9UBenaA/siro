@@ -1,16 +1,13 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import { publishAccess } from '../../../src/core/rules/publish-access.ts';
 import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
 import { manualSteps } from '../../helpers/remediation.ts';
 
-const { npm } = publishAccess.bindings;
-if (!npm) {
-  throw new TypeError('expected npm binding');
-}
+const npm = bindingForTest(publishAccess, 'npm');
 
 describe('publish-access (npm)', () => {
   it('is N/A for private packages', () => {
-    expect.hasAssertions();
     expect(npm.check(ctx({ packageJson: { private: true } }), {}).state).toBe('na');
   });
 
@@ -19,15 +16,14 @@ describe('publish-access (npm)', () => {
 
     expect(status.state).toBe('violation');
 
-    const ops = manualSteps(status)!;
+    const steps = manualSteps(status);
 
-    const firstOp = ops[0];
-    assert(firstOp, 'expected at least one fix op');
-    expect(firstOp).toContain('publishConfig');
+    const firstStep = steps[0];
+    assert(firstStep, 'expected at least one manual step');
+    expect(firstStep).toContain('publishConfig');
   });
 
   it('passes for "public" or "restricted"', () => {
-    expect.hasAssertions();
     const passes = (access: 'public' | 'restricted'): string =>
       npm.check(ctx({ packageJson: { publishConfig: { access } } }), {}).state;
     expect(passes('public')).toBe('ok');

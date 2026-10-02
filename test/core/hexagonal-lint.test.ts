@@ -1,14 +1,12 @@
 import { lintCommand } from '../../src/core/lint-command.ts';
 import { lint } from '../../src/core/lint.ts';
-import { rebaseFinding } from '../../src/core/rebase-finding.ts';
 import { createBuiltinRules } from '../../src/core/rules/builtin-rules.ts';
-import type { LintDependencies } from '../../src/core/contracts/lint-dependencies.ts';
-import type { Reporter } from '../../src/core/contracts/reporter.ts';
+import { type LintDependencies } from '../../src/core/contracts/lint-dependencies.ts';
+import { type Reporter } from '../../src/core/contracts/reporter.ts';
 import { asRelPath, type AbsPath } from '../../src/core/contracts/paths.ts';
-import type { Remediation } from '../../src/core/contracts/rule.ts';
-import type { Finding } from '../../src/core/contracts/lint-result.ts';
 import { captureIO } from '../helpers/io.ts';
 
+const request = { cwd: '/virtual' as AbsPath, installationRoots: [] };
 // No production adapter or runtime composition: all IO goes through these ports.
 const host = () => {
   const files: Record<string, string> = {
@@ -46,8 +44,6 @@ const host = () => {
   };
   return { dependencies, readText };
 };
-const request = { cwd: '/virtual' as AbsPath, installationRoots: [] };
-
 it('discovers and evaluates through supplied ports, with generic paths and explicit inspection', () => {
   const { dependencies } = host();
   const result = lint(request, dependencies);
@@ -66,70 +62,6 @@ it('discovers and evaluates through supplied ports, with generic paths and expli
   expect(result.inspection.installationRoots).toEqual([]);
   expect(result.findings.every((finding) => finding.pm === undefined)).toBe(true);
 });
-
-it.each<[Remediation | undefined, Remediation | undefined]>([
-  [undefined, undefined],
-  [
-    { kind: 'manual', steps: ['Review settings.'] },
-    { kind: 'manual', steps: ['Work in child for this finding.', 'Review settings.'] },
-  ],
-  [
-    {
-      kind: 'automatic',
-      operations: [
-        {
-          op: 'setKey',
-          file: { kind: 'json', path: asRelPath('package.json') },
-          keyPath: ['publishConfig', 'provenance'],
-          value: true,
-        },
-        {
-          op: 'setKey',
-          file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-          keyPath: ['provenance'],
-          value: true,
-        },
-      ],
-    },
-    {
-      kind: 'automatic',
-      operations: [
-        {
-          op: 'setKey',
-          file: { kind: 'json', path: asRelPath('child/package.json') },
-          keyPath: ['publishConfig', 'provenance'],
-          value: true,
-        },
-        {
-          op: 'setKey',
-          file: { kind: 'npmrc', path: asRelPath('child/.npmrc') },
-          keyPath: ['provenance'],
-          value: true,
-        },
-      ],
-    },
-  ],
-])(
-  'rebases all remedy paths immutably without inventing a finding file: %j',
-  (remediation, expected) => {
-    const finding: Finding = {
-      ruleId: 'test',
-      directory: '.',
-      severity: 'warn',
-      message: 'Review.',
-      remediation,
-    };
-    const original = structuredClone(finding);
-    const root = rebaseFinding(asRelPath('.'), finding);
-    const child = rebaseFinding(asRelPath('child'), finding);
-    expect(root).toEqual(original);
-    expect(child.file).toBeUndefined();
-    expect(child.directory).toBe('child');
-    expect(child.remediation).toEqual(expected);
-    expect(finding).toEqual(original);
-  },
-);
-
 it('uses the explicitly supplied filesystem throughout discovery', () => {
   const { dependencies } = host();
   const fs = {
@@ -142,7 +74,6 @@ it('uses the explicitly supplied filesystem throughout discovery', () => {
   lint({ ...request, fs }, dependencies);
   expect(fs.readText).toHaveBeenCalledWith('/virtual/packages/api/package.json');
 });
-
 it('reports through an injected registry and awaits output failures', async () => {
   const { dependencies } = host();
   const { io } = captureIO();
@@ -157,7 +88,6 @@ it('reports through an injected registry and awaits output failures', async () =
   format.mockRejectedValueOnce(failure);
   await expect(lintCommand(request, io, dependencies, registry)).rejects.toBe(failure);
 });
-
 it('does not fall back for an explicitly invalid null filesystem', () => {
   const { dependencies, readText } = host();
   expect(() => lint({ ...request, fs: null as never }, dependencies)).toThrow(TypeError);

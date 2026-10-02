@@ -1,4 +1,15 @@
-import { asAbsPath, lint, lintCommand, type SiroConfig } from '../../src/index.ts';
+import {
+  CONFIG_FILES,
+  type ConfigFileRef,
+  type RuleBinding,
+  type Rule,
+  asAbsPath,
+  lint,
+  lintCommand,
+  type SiroConfig,
+} from '../../src/index.ts';
+import { npmPassingFs } from '../helpers/fixtures.ts';
+import { captureIO } from '../helpers/io.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
 const options = {
@@ -130,4 +141,121 @@ it('observes writes from legacy synchronous reporters, even if they catch a sync
       ),
     ).rejects.toBe(failure);
   }
+});
+
+it('awaits a delayed output rejection rather than resolving a clean lint command', async () => {
+  const failure = new Error('delayed output failure');
+  let reject: (error: Error) => void = () => {};
+  const write = new Promise<void>((_resolve, rejectWrite) => {
+    reject = rejectWrite;
+  });
+  // Observe immediately so the red test itself does not create an unhandled rejection.
+  void write.catch(() => {});
+  const result = lintCommand(
+    {
+      cwd: asAbsPath('/repo'),
+      fs: createMemFileSystem({}),
+      installationRoots: [],
+      reporter: 'json',
+    },
+    {
+      stdout: () => write,
+      stderr() {},
+    },
+  );
+  reject(failure);
+  await expect(result).rejects.toBe(failure);
+});
+
+describe('API integration', () => {
+  const passingOptions = { cwd: asAbsPath('/repo'), fs: npmPassingFs() };
+  const rule = (
+    id: string,
+    check: RuleBinding['check'] = () => ({ state: 'violation', message: 'custom violation' }),
+    file: ConfigFileRef = CONFIG_FILES.npmrc,
+  ): Rule => ({
+    id,
+    title: id,
+    description: id,
+    severity: 'error',
+    bindings: { npm: { file, check } },
+  });
+  it('propagates reporter rejection even after partial output', async () => {
+    const failure = new Error('Output failed');
+    const { io, out } = captureIO();
+    await expect(
+      lintCommand(
+        {
+          ...passingOptions,
+          reporter: {
+            name: 'partial',
+            async format(_result, targetIO) {
+              targetIO.stdout('partial');
+              await Promise.resolve();
+              throw failure;
+            },
+          },
+        },
+        io,
+      ),
+    ).rejects.toBe(failure);
+    expect(out()).toContain('partial');
+  });
+  it('propagates a reporter IO failure without reclassifying it', async () => {
+    const failure = new Error('Broken output stream');
+    await expect(
+      lintCommand(
+        { ...passingOptions, reporter: 'json' },
+        {
+          stdout() {
+            throw failure;
+          },
+          stderr() {},
+        },
+      ),
+    ).rejects.toBe(failure);
+  });
+  it('waits for asynchronous reporting before returning the lint exit code', async () => {
+    const { io, out } = captureIO();
+    let release!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let settled = false;
+    const command = lintCommand(
+      {
+        ...passingOptions,
+        reporter: 'async',
+        config: {
+          customRules: [rule('custom')],
+          reporters: [
+            {
+              name: 'async',
+              async format(result, targetIO) {
+                expect(result.findings).toContainEqual(
+                  expect.objectContaining({ ruleId: 'custom' }),
+                );
+                await ready;
+                await targetIO.stdout('reported');
+              },
+            },
+          ],
+        },
+      },
+      io,
+    ).then((code) => {
+      settled = true;
+      return code;
+    });
+    try {
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      expect(out()).toBe('');
+    } finally {
+      release();
+      await command;
+    }
+    expect(await command).toBe(1);
+    expect(out()).toContain('reported');
+  });
 });

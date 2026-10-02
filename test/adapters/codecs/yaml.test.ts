@@ -1,10 +1,10 @@
+import { ConfigParseError } from '../../../src/core/contracts/errors.ts';
 import { yamlCodec } from '../../../src/adapters/codecs/yaml.ts';
 
 const MINIMUM_RELEASE_AGE_MINUTES = 1440;
 
 describe('yamlCodec.parse', () => {
   it('treats an empty or comment-only YAML document as an empty mapping', () => {
-    expect.hasAssertions();
     expect(yamlCodec.parse('   \n')).toStrictEqual({});
     expect(yamlCodec.parse('# workspace boundary\n')).toStrictEqual({});
   });
@@ -14,7 +14,6 @@ describe('yamlCodec.parse', () => {
   });
 
   it('rejects an alias bomb instead of expanding it unbounded', () => {
-    expect.hasAssertions();
     // A `pnpm-workspace.yaml` on a fork PR can be attacker-controlled. The
     // codec must keep the library's billion-laughs guard (maxAliasCount) so a
     // few KB of nested anchors can't blow up into an OOM during a CI lint.
@@ -37,12 +36,10 @@ describe('yamlCodec.parse', () => {
   });
 
   it('rejects a malformed document', () => {
-    expect.hasAssertions();
-    expect(() => yamlCodec.parse('enableScripts: [')).toThrow(/./u);
+    expect(() => yamlCodec.parse('enableScripts: [')).toThrow(ConfigParseError);
   });
 
   it('preserves nested sequences without treating their entries as root keys', () => {
-    expect.hasAssertions();
     const text = [
       '# pnpm settings',
       'minimumReleaseAge: 1440',

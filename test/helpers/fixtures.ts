@@ -1,7 +1,8 @@
 import type { FileSystem } from '../../src/core/contracts/file-system.ts';
 import { createMemFileSystem } from './memfs.ts';
 
-export const npmGoodFs = (): FileSystem =>
+/** Passes the default error threshold; advisory findings can remain. */
+export const npmPassingFs = (): FileSystem =>
   createMemFileSystem({
     '.npmrc': [
       'ignore-scripts=true',

@@ -8,8 +8,7 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 
 describe('project type selection', () => {
-  it('evaluates publish-only rules when a private package is explicitly a package project', () => {
-    expect.hasAssertions();
+  it('evaluates publish-only rules when a private package is explicitly a package project', async () => {
     const fs = createMemFileSystem({
       'package-lock.json': '{}',
       'package.json': JSON.stringify({
@@ -20,20 +19,19 @@ describe('project type selection', () => {
     });
     const { io, out } = captureIO();
 
-    return lintCommand(
+    await lintCommand(
       { cwd: asAbsPath('/repo'), fs, projectType: 'package', reporter: 'json' },
       io,
-    ).then(() => {
-      const result: { findings: { ruleId: string }[] } = JSON.parse(out());
-      const ids = result.findings.map((finding) => finding.ruleId);
-      expect(ids).toStrictEqual(
-        expect.arrayContaining(['files-field', 'provenance', 'publish-access']),
-      );
-    });
+    );
+
+    const result: { findings: { ruleId: string }[] } = JSON.parse(out());
+    const ids = result.findings.map((finding) => finding.ruleId);
+    expect(ids).toStrictEqual(
+      expect.arrayContaining(['files-field', 'provenance', 'publish-access']),
+    );
   });
 
-  it('uses projectType from siro.config when the caller does not select one', () => {
-    expect.hasAssertions();
+  it('uses projectType from siro.config when the caller does not select one', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'siro-project-type-'));
     writeFileSync(
       path.join(dir, 'package.json'),
@@ -46,21 +44,20 @@ describe('project type selection', () => {
     );
     const { io, out } = captureIO();
 
-    return run(['lint', dir, '--reporter', 'json'], io)
-      .then(() => {
-        const result: { findings: { ruleId: string }[] } = JSON.parse(out());
-        const ids = result.findings.map((finding) => finding.ruleId);
-        expect(ids).toStrictEqual(
-          expect.arrayContaining(['files-field', 'provenance', 'publish-access']),
-        );
-      })
-      .finally(() => {
-        rmSync(dir, { force: true, recursive: true });
-      });
+    try {
+      await run(['lint', dir, '--reporter', 'json'], io);
+
+      const result: { findings: { ruleId: string }[] } = JSON.parse(out());
+      const ids = result.findings.map((finding) => finding.ruleId);
+      expect(ids).toStrictEqual(
+        expect.arrayContaining(['files-field', 'provenance', 'publish-access']),
+      );
+    } finally {
+      rmSync(dir, { force: true, recursive: true });
+    }
   });
 
-  it('lets an explicit application projectType override package config', () => {
-    expect.hasAssertions();
+  it('lets an explicit application projectType override package config', async () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'siro-project-type-precedence-'));
     writeFileSync(
       path.join(dir, 'package.json'),
@@ -73,16 +70,16 @@ describe('project type selection', () => {
     );
     const { io, out } = captureIO();
 
-    return run(['lint', dir, '--project-type', 'application', '--reporter', 'json'], io)
-      .then(() => {
-        const result: { findings: { ruleId: string }[] } = JSON.parse(out());
-        const packageRules = new Set(['files-field', 'provenance', 'publish-access']);
-        expect(result.findings.filter((finding) => packageRules.has(finding.ruleId))).toStrictEqual(
-          [],
-        );
-      })
-      .finally(() => {
-        rmSync(dir, { force: true, recursive: true });
-      });
+    try {
+      await run(['lint', dir, '--project-type', 'application', '--reporter', 'json'], io);
+
+      const result: { findings: { ruleId: string }[] } = JSON.parse(out());
+      const packageRules = new Set(['files-field', 'provenance', 'publish-access']);
+      expect(result.findings.filter((finding) => packageRules.has(finding.ruleId))).toStrictEqual(
+        [],
+      );
+    } finally {
+      rmSync(dir, { force: true, recursive: true });
+    }
   });
 });

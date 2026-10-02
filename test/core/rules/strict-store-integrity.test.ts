@@ -1,19 +1,17 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { strictStoreIntegrity } from '../../../src/core/rules/strict-store-integrity.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 
-const { aube } = strictStoreIntegrity.bindings;
-assert(aube, 'expected aube binding');
-const aubeBinding = aube;
+const aubeBinding = bindingForTest(strictStoreIntegrity, 'aube');
 
 describe('strict-store-integrity: check states', () => {
   it.each<ParsedConfig>([
     { paranoid: true, verifyStoreIntegrity: false },
     { strictStoreIntegrity: true, verifyStoreIntegrity: false },
   ])('requires manual verification restoration despite strict settings: %j', (config) => {
-    expect.hasAssertions();
     expect(aubeBinding.check(makeCtx(), config)).toMatchObject({
       actual: false,
       expected: true,
@@ -25,29 +23,23 @@ describe('strict-store-integrity: check states', () => {
     });
   });
 
-  it.each<ParsedConfig>([{ paranoid: true, strictStoreIntegrity: false }])(
-    'accepts paranoid despite individual settings: %j',
-    (config) => {
-      expect.hasAssertions();
-      expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
-    },
-  );
+  it('accepts paranoid despite individual settings', () => {
+    const config: ParsedConfig = { paranoid: true, strictStoreIntegrity: false };
 
-  it.each<ParsedConfig>([{ strictStoreIntegrity: true }])(
-    'passes when strictStoreIntegrity is true and verification remains enabled: %j',
-    (config) => {
-      expect.hasAssertions();
-      expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
-    },
-  );
+    expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
+  });
 
-  it.each<ParsedConfig>([{ strictStoreIntegrity: false, verifyStoreIntegrity: true }])(
-    'flags a violation when strictStoreIntegrity is false: %j',
-    (config) => {
-      expect.hasAssertions();
-      expect(aubeBinding.check(makeCtx(), config).state).toBe('violation');
-    },
-  );
+  it('passes when strictStoreIntegrity is true and verification remains enabled', () => {
+    const config: ParsedConfig = { strictStoreIntegrity: true };
+
+    expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
+  });
+
+  it('flags a violation when strictStoreIntegrity is false', () => {
+    const config: ParsedConfig = { strictStoreIntegrity: false, verifyStoreIntegrity: true };
+
+    expect(aubeBinding.check(makeCtx(), config).state).toBe('violation');
+  });
 });
 
 describe('strict-store-integrity: scope, metadata, and fix', () => {

@@ -1,21 +1,18 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { advisoryCheck } from '../../../src/core/rules/advisory-check.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 
-const { aube } = advisoryCheck.bindings;
-assert(aube, 'expected aube binding');
-const aubeBinding = aube;
+const aubeBinding = bindingForTest(advisoryCheck, 'aube');
 
 describe('advisory-check: check states', () => {
-  it.each<ParsedConfig>([{ advisoryCheck: 'off', paranoid: true }])(
-    'accepts paranoid despite individual settings: %j',
-    (config) => {
-      expect.hasAssertions();
-      expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
-    },
-  );
+  it('accepts paranoid despite individual settings', () => {
+    const config: ParsedConfig = { advisoryCheck: 'off', paranoid: true };
+
+    expect(aubeBinding.check(makeCtx(), config).state).toBe('ok');
+  });
 
   it.each(['on', 'required'])('accepts advisoryCheck=%s', (value) => {
     expect(aubeBinding.check(makeCtx(), { advisoryCheck: value }).state).toBe('ok');

@@ -1,16 +1,15 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import { enforceStrictSsl } from '../../../src/core/rules/enforce-strict-ssl.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations, manualSteps } from '../../helpers/remediation.ts';
 
-const npmBinding = enforceStrictSsl.bindings.npm;
-assert(npmBinding, 'expected npm binding');
-const yarnBinding = enforceStrictSsl.bindings.yarn;
-assert(yarnBinding, 'expected yarn binding');
+const npmBinding = bindingForTest(enforceStrictSsl, 'npm');
+
+const yarnBinding = bindingForTest(enforceStrictSsl, 'yarn');
 
 describe('enforce-strict-ssl (npm)', () => {
   it('passes when strict-ssl is true', () => {
-    expect.hasAssertions();
     expect(npmBinding.check(makeCtx(), { 'strict-ssl': true }).state).toBe('ok');
   });
 
@@ -37,7 +36,6 @@ describe('enforce-strict-ssl (npm)', () => {
   });
 
   it('flags a violation when set to false', () => {
-    expect.hasAssertions();
     const status = npmBinding.check(makeCtx(), { 'strict-ssl': false });
     assert(status.state === 'violation');
     expect(status.severity).toBeUndefined();
@@ -48,13 +46,11 @@ describe('enforce-strict-ssl (yarn) — check states', () => {
   it.each([{}, { unsafeHttpWhitelist: [] }])(
     'accepts strict TLS without HTTP exceptions: %j',
     (config) => {
-      expect.hasAssertions();
       expect(yarnBinding.check(makeCtx(), { enableStrictSsl: true, ...config }).state).toBe('ok');
     },
   );
 
   it('flags a violation when enableStrictSsl is false', () => {
-    expect.hasAssertions();
     const status = yarnBinding.check(makeCtx(), { enableStrictSsl: false });
     assert(status.state === 'violation');
     expect(status.severity).toBeUndefined();
@@ -63,7 +59,6 @@ describe('enforce-strict-ssl (yarn) — check states', () => {
   });
 
   it('flags a violation when enableStrictSsl is a string', () => {
-    expect.hasAssertions();
     expect(yarnBinding.check(makeCtx(), { enableStrictSsl: 'false' }).state).toBe('violation');
   });
 
@@ -89,26 +84,22 @@ describe('enforce-strict-ssl (yarn) — check states', () => {
 
 describe('enforce-strict-ssl (yarn) — whitelist and fix', () => {
   it('flags a violation with manualSteps when unsafeHttpWhitelist is non-empty', () => {
-    expect.hasAssertions();
     const status = yarnBinding.check(makeCtx(), {
       enableStrictSsl: true,
       unsafeHttpWhitelist: ['internal.example.com'],
     });
     assert(status.state === 'violation');
-    expect(manualSteps(status)).toBeDefined();
-
-    assert(manualSteps(status), 'expected manualSteps');
-    expect(manualSteps(status)![0]).toMatch(/unsafeHttpWhitelist/u);
+    const steps = manualSteps(status);
+    expect(steps[0]).toMatch(/unsafeHttpWhitelist/u);
   });
 
   it('requires both HTTP exception removal and TLS restoration', () => {
-    expect.hasAssertions();
     const status = yarnBinding.check(makeCtx(), {
       enableStrictSsl: false,
       unsafeHttpWhitelist: ['example.com'],
     });
     assert(status.state === 'violation');
     expect(status.remediation).toMatchObject({ kind: 'manual' });
-    expect(manualSteps(status)![0]).toMatch(/unsafeHttpWhitelist.*enableStrictSsl/u);
+    expect(manualSteps(status)[0]).toMatch(/unsafeHttpWhitelist.*enableStrictSsl/u);
   });
 });

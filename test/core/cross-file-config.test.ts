@@ -1,3 +1,13 @@
+import path from 'node:path';
+import {
+  asAbsPath,
+  asRelPath,
+  lint,
+  type FileSystem,
+  type LintOptions,
+  type ConfigFileRef,
+  type RuleBinding,
+} from '../../src/index.ts';
 import { CONFIG_FILES } from '../../src/core/config-files.ts';
 import { getByPath } from '../../src/core/contracts/config-value.ts';
 import type { Rule } from '../../src/core/contracts/rule.ts';
@@ -84,4 +94,106 @@ it('propagates a parse failure from an additional configuration file', () => {
       ruleSet: [rule],
     }),
   ).toThrow(/deno.json/u);
+});
+
+describe('API integration', () => {
+  const rule = (
+    id: string,
+    check: RuleBinding['check'] = () => ({ state: 'violation', message: 'custom violation' }),
+    file: ConfigFileRef = CONFIG_FILES.npmrc,
+  ): Rule => ({
+    id,
+    title: id,
+    description: id,
+    severity: 'error',
+    bindings: { npm: { file, check } },
+  });
+  it.each(['package.json', './package.json'])(
+    'gives manifest metadata and rule config the same package.json source via %s',
+    (rulePath) => {
+      let reads = 0;
+      let extraReads = 0;
+      const manifest = path.join('/repo', 'package.json');
+      const fs: FileSystem = {
+        readDirectories: () => [],
+        exists: () => false,
+        readText: (file) => {
+          if (file === path.join('/repo', 'extra.txt')) return String(++extraReads);
+          if (file !== manifest) return undefined;
+          reads++;
+          return JSON.stringify({ private: reads > 1 });
+        },
+      };
+      const seen: unknown[] = [];
+      const snapshotOptions: LintOptions = {
+        cwd: asAbsPath('/repo'),
+        pm: 'npm' as const,
+        fs,
+        config: {
+          customRules: [
+            rule(
+              'package-snapshot',
+              (ctx, config) => {
+                seen.push([
+                  ctx.packageJson?.private,
+                  config.private,
+                  ctx.readText(asRelPath('extra.txt')),
+                  ctx.readText(asRelPath('./extra.txt')),
+                ]);
+                return { state: 'ok' };
+              },
+              { ...CONFIG_FILES.packageJson, path: asRelPath(rulePath) },
+            ),
+          ],
+        },
+      };
+      lint(snapshotOptions);
+      expect(seen).toEqual([[false, false, '1', '1']]);
+      expect(reads).toBe(1);
+      expect(extraReads).toBe(1);
+      lint(snapshotOptions);
+      expect(seen).toEqual([
+        [false, false, '1', '1'],
+        [true, true, '2', '2'],
+      ]);
+      expect(reads).toBe(2);
+      expect(extraReads).toBe(2);
+    },
+  );
+  it('keeps an absent manifest absent within a scan and re-reads it on the next scan', () => {
+    const manifest = path.join('/repo', 'package.json');
+    let reads = 0;
+    const seen: unknown[] = [];
+    const request: LintOptions = {
+      cwd: asAbsPath('/repo'),
+      pm: 'npm',
+      installationRoots: [],
+      fs: {
+        readDirectories: () => [],
+        exists: () => false,
+        readText: (file) => (file === manifest && ++reads > 1 ? '{"private":true}' : undefined),
+      },
+      config: {
+        customRules: [
+          rule(
+            'absent-manifest',
+            (ctx, config) => {
+              seen.push([ctx.packageJson?.private, config.private]);
+              return { state: 'ok' };
+            },
+            CONFIG_FILES.packageJson,
+          ),
+        ],
+      },
+    };
+    lint(request);
+    expect(seen).toEqual([[undefined, undefined]]);
+    expect(reads).toBe(1);
+    lint(request);
+    expect(seen).toEqual([
+      [undefined, undefined],
+      [true, true],
+    ]);
+    expect(reads).toBe(2);
+  });
 });

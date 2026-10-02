@@ -76,7 +76,9 @@ it.each([
   ).toThrow("Rule 'invalid-remedy' returned an invalid check result.");
 });
 
-it.each(['nested/../../outside'])('rejects external write targets: %s', (path) => {
+it('rejects a write target that traverses outside the repository', () => {
+  const path = 'nested/../../outside';
+
   const rule: Rule = {
     id: 'invalid-target',
     title: 'Invalid target',

@@ -1,15 +1,13 @@
+import { bindingForTest } from '../../helpers/rules.ts';
 import assert from 'node:assert';
 import { paranoidMode } from '../../../src/core/rules/paranoid-mode.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 
-const { aube } = paranoidMode.bindings;
-assert(aube, 'expected aube binding');
-const aubeBinding = aube;
+const aubeBinding = bindingForTest(paranoidMode, 'aube');
 
 describe('paranoid-mode: check states', () => {
   it('passes when paranoid is true', () => {
-    expect.hasAssertions();
     expect(aubeBinding.check(makeCtx(), { paranoid: true }).state).toBe('ok');
   });
 
@@ -31,7 +29,6 @@ describe('paranoid-mode: check states', () => {
   });
 
   it('flags a violation when paranoid is false', () => {
-    expect.hasAssertions();
     expect(aubeBinding.check(makeCtx(), { paranoid: false }).state).toBe('violation');
   });
 });
