@@ -27,11 +27,10 @@ it('does not expose OIDC to install/build/verification and transfers one exact a
     with?: Record<string, string>;
   }[];
   expect(steps.some((step) => step.uses?.startsWith('actions/checkout'))).toBe(false);
-  expect(steps.map((step) => step.run ?? '').join('\n')).not.toMatch(
-    /pnpm|scripts\/|npm install|npm run|npm pack/,
-  );
-  expect(steps.map((step) => step.run ?? '').join('\n')).toContain('sha256sum --check --strict');
-  expect(steps.map((step) => step.run ?? '').join('\n')).toContain('npm stage publish');
+  const publishCommands = steps.map((step) => step.run ?? '').join('\n');
+  expect(publishCommands).not.toMatch(/pnpm|scripts\/|npm install|npm run|npm pack/);
+  expect(publishCommands).toContain('sha256sum --check --strict');
+  expect(publishCommands).toContain('npm stage publish');
   expect(
     steps.find((step) => step.uses?.startsWith('actions/download-artifact'))?.with?.[
       'artifact-ids'

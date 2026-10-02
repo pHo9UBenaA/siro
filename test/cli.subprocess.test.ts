@@ -202,7 +202,15 @@ describe('CLI binary — error handling', () => {
         );
         writeFileSync(
           path.join(dir, 'siro.config.ts'),
-          `export default { reporters: [{ name: 'boom', ${modifier}format(_result, io) { io.stdout('partial output'); throw new Error('boom from reporter'); } }] };\n`,
+          `export default {
+            reporters: [{
+              name: 'boom',
+              ${modifier}format(_result, io) {
+                io.stdout('partial output');
+                throw new Error('boom from reporter');
+              },
+            }],
+          };`,
         );
         const result = spawnBin(['lint', '--reporter', 'boom', dir]);
         expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(

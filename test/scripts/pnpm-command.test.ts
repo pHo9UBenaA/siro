@@ -11,6 +11,7 @@ it.each(['linux', 'darwin', 'win32'] as const)(
     });
   },
 );
+
 it('does not mistake npm for pnpm or launch a Windows cmd shim directly', () => {
   for (const entry of ['', path.resolve('npm-cli.js'), path.resolve('pnpm.cmd')])
     expect(() => pnpmCommand(['audit'], 'win32', entry)).toThrow(/through pnpm/);

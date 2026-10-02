@@ -120,6 +120,9 @@ async function verifyReporterCompletion() {
     { stdout() {}, stderr() {} },
   );
   check(reported, 'lintCommand awaits asynchronous reporter completion');
+}
+
+async function verifyReporterFailure() {
   const failure = new Error('reporter failure');
   let caught: unknown;
   let partial = '';
@@ -220,10 +223,8 @@ async function verifyJsonReport(result: LintResult) {
     { cwd: asAbsPath('/virtual') },
   );
   const report = JSON.parse(output);
-  check(
-    report.schemaVersion === 3 && report.siroVersion === version,
-    'JSON identifies schema and installed version',
-  );
+  check(report.schemaVersion === 3, 'JSON identifies schema version 3');
+  check(report.siroVersion === version, 'JSON identifies the installed package version');
   check(
     JSON.stringify(report.inspection) === JSON.stringify(result.inspection),
     'JSON preserves inspection scope',
@@ -232,6 +233,9 @@ async function verifyJsonReport(result: LintResult) {
     JSON.stringify(report.findings) === JSON.stringify(result.findings),
     'JSON preserves findings',
   );
+}
+
+async function verifyJsonEscaping(result: LintResult) {
   const marker = '##[error]literal\u202e';
   let encoded = '';
   await jsonReporter.format(
@@ -376,8 +380,10 @@ async function verifyGroupedResults() {
 verifyLimits();
 verifySynchronousApi();
 await verifyReporterCompletion();
+await verifyReporterFailure();
 const result = verifyInspection();
 await verifyJsonReport(result);
+await verifyJsonEscaping(result);
 await verifyGitHubReport(result);
 await verifyOutputFailure();
 verifyPublicBuilder();

@@ -4,17 +4,37 @@ import { createTempProject as fixture } from './helpers/temp-project.ts';
 import path from 'node:path';
 
 const cli = path.resolve(import.meta.dirname, '../dist/cli.js');
-const run = (root: string, ...args: string[]) =>
-  spawnSync(process.execPath, [cli, 'lint', root, ...args], {
+const run = (root: string, ...args: string[]) => {
+  const result = spawnSync(process.execPath, [cli, 'lint', root, ...args], {
     encoding: 'utf8',
     timeout: 10_000,
     env: { ...process.env, NO_COLOR: '1' },
   });
+  expect(result.error).toBeUndefined();
+  expect(result.signal).toBeNull();
+  return result;
+};
 
 it.each([
   "export default Promise.reject(new Error('rejected config'));",
-  "export default { installationRoots:[], customRules:[{id:'async', title:'t', description:'d', severity:'error', bindings:{npm:{async check(){throw new Error('rejected check')}}}}] };",
-  "export default { installationRoots:[], customRules:[{id:'async', title:'t', description:'d', severity:'error', bindings:{npm:{check(){return Promise.reject(new Error('rejected check'))}}}}] };",
+  `export default {
+    installationRoots: [],
+    customRules: [{
+      id: 'async', title: 'Async', description: 'Async check', severity: 'error',
+      bindings: { npm: {
+        async check() { throw new Error('rejected check'); },
+      } },
+    }],
+  };`,
+  `export default {
+    installationRoots: [],
+    customRules: [{
+      id: 'async', title: 'Async', description: 'Async check', severity: 'error',
+      bindings: { npm: {
+        check() { return Promise.reject(new Error('rejected check')); },
+      } },
+    }],
+  };`,
 ])('rejects unsupported async extensions without a later unhandled rejection', (config) => {
   const root = fixture({ 'siro.config.mjs': config });
   try {
@@ -35,10 +55,15 @@ it('reports oversized grouped results as exit 2 without partial JSON', () => {
         installationRoots: [],
         customRules: [{
           id: 'many', title: 'Many', description: 'Many findings', severity: 'info',
-          bindings: { npm: { check() {
-            return { state: 'violations', violations: Array.from({ length: 150_000 },
-              () => ({ state: 'violation', message: 'finding' })) };
-          } } },
+          bindings: { npm: {
+            check() {
+              return {
+                state: 'violations',
+                violations: Array.from({ length: 150_000 },
+                  () => ({ state: 'violation', message: 'finding' })),
+              };
+            },
+          } },
         }],
       };
     `,
@@ -66,7 +91,9 @@ it('serializes legacy command openers safely while retaining JSON values', () =>
     expect(json.status).toBe(0);
     expect(json.stdout).not.toContain('##[');
     expect(JSON.parse(json.stdout).inspection.manifests[0].path).toBe(`${name}/package.json`);
-    expect(run(root).stdout).not.toContain('##[');
+    const pretty = run(root);
+    expect(pretty.status).toBe(0);
+    expect(pretty.stdout).not.toContain('##[');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -107,19 +134,27 @@ it.each(['--json', '--help', '--version'])(
         stdio: ['ignore', 'pipe', 'pipe'],
         timeout: 10_000,
       });
-      let stderr = '';
-      child.stderr.setEncoding('utf8').on('data', (chunk) => {
-        stderr += chunk;
-      });
-      child.stdout.destroy();
-      const code = await new Promise<number | null>((resolve, reject) => {
-        child.on('error', reject);
-        child.on('close', resolve);
-      });
-      expect({ code, unhandled: stderr.includes("Unhandled 'error' event") }).toEqual({
-        code: 70,
-        unhandled: false,
-      });
+      try {
+        let stderr = '';
+        child.stderr.setEncoding('utf8').on('data', (chunk) => {
+          stderr += chunk;
+        });
+        child.stdout.destroy();
+        const completion = await new Promise<{
+          code: number | null;
+          signal: NodeJS.Signals | null;
+        }>((resolve, reject) => {
+          child.on('error', reject);
+          child.on('close', (code, signal) => resolve({ code, signal }));
+        });
+        expect({ ...completion, stderr }).toMatchObject({
+          code: 70,
+          signal: null,
+          stderr: expect.not.stringContaining("Unhandled 'error' event"),
+        });
+      } finally {
+        if (child.exitCode === null && child.signalCode === null) child.kill();
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

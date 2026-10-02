@@ -19,18 +19,24 @@ beforeEach(() => {
   cpSync(path.resolve(import.meta.dirname, 'fixtures/npm-good'), root, { recursive: true });
 });
 afterEach(() => rmSync(root, { recursive: true, force: true }));
-const run = (args: string[] = [], command = 'lint') =>
-  spawnSync(process.execPath, [cli, command, root, ...args], {
+const run = (args: string[] = [], command = 'lint') => {
+  const result = spawnSync(process.execPath, [cli, command, root, ...args], {
     encoding: 'utf8',
     timeout: 5000,
     maxBuffer: 1024 * 1024,
   });
+  expect(result.error).toBeUndefined();
+  expect(result.signal).toBeNull();
+  return result;
+};
 
 it.each(['ts', 'mjs', 'js'])('does not evaluate %s config with --no-config', (extension) => {
   const marker = path.join(root, 'marker');
   writeFileSync(
     path.join(root, `siro.config.${extension}`),
-    `import {writeFileSync} from 'node:fs'; writeFileSync(${JSON.stringify(marker)}, 'ran'); throw new Error('untrusted');`,
+    `import { writeFileSync } from 'node:fs';
+    writeFileSync(${JSON.stringify(marker)}, 'ran');
+    throw new Error('untrusted');`,
   );
   const result = run(['--no-config', '--json'], 'check');
   expect(result.error).toBeUndefined();
@@ -43,7 +49,12 @@ it('ignores a non-file config and ignores its exclusions/rules/reporters entirel
   mkdirSync(path.join(root, 'siro.config.ts'));
   writeFileSync(
     path.join(root, 'siro.config.mjs'),
-    "export default {installationRoots:[], exclude:['child'], rules:{'files-field':'off'}, reporters:[{name:'json',format(){throw new Error('ran')}}]};",
+    `export default {
+      installationRoots: [],
+      exclude: ['child'],
+      rules: { 'files-field': 'off' },
+      reporters: [{ name: 'json', format() { throw new Error('ran'); } }],
+    };`,
   );
   mkdirSync(path.join(root, 'child'));
   writeFileSync(path.join(root, 'child/package.json'), '{"name":"child"}');
@@ -59,7 +70,9 @@ it('validates explicit PM versions before executing trusted config', () => {
   const marker = path.join(root, 'marker');
   writeFileSync(
     path.join(root, 'siro.config.mjs'),
-    `import {writeFileSync} from 'node:fs'; writeFileSync(${JSON.stringify(marker)}, 'ran'); export default {};`,
+    `import { writeFileSync } from 'node:fs';
+    writeFileSync(${JSON.stringify(marker)}, 'ran');
+    export default {};`,
   );
   expect(run(['--pm', 'npm', '--pm-version', 'invalid']).status).toBe(2);
   expect(existsSync(marker)).toBe(false);
@@ -158,9 +171,11 @@ it('encodes hostile filenames without injecting additional workflow commands', (
     ),
   ).toBe(true);
   const pretty = run(['--no-config']);
+  expect(pretty.status).toBe(0);
   expect(pretty.stdout).not.toMatch(/^\s*::/mu);
   expect(pretty.stdout).not.toContain('\u202e');
   const github = run(['--no-config', '--reporter', 'github']);
+  expect(github.status).toBe(0);
   const lines = github.stdout.trim().split('\n');
   expect(lines).toHaveLength(JSON.parse(json.stdout).findings.length);
   for (const line of lines) expect(line).toMatch(/^::(?:error|warning|notice) .*title=[\w-]+::/u);

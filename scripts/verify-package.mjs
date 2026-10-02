@@ -222,7 +222,12 @@ function verifyFailureExits(runCli, installedBin) {
   runCli(['--invalid-option'], { expectedStatus: 2 });
   writeFileSync(
     join(consumer, 'good/siro.config.mjs'),
-    "export default { reporters: [{ name: 'crash', format() { throw new Error('Package verification crash probe'); } }] };\n",
+    `export default {
+      reporters: [{
+        name: 'crash',
+        format() { throw new Error('Package verification crash probe'); },
+      }],
+    };`,
   );
   runCli(['lint', 'good', '--reporter', 'crash'], { expectedStatus: 70 });
   writeFileSync(

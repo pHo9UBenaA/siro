@@ -26,7 +26,14 @@ describe('loadConfig — loading', () => {
   it('loads siro.config.mjs and exposes the user config', async () => {
     writeFileSync(
       path.join(configDirectory, 'siro.config.mjs'),
-      "export default { pms: ['npm'], rules: { provenance: 'off', custom: 'info' }, customRules: [{id:'custom',title:'Custom',description:'Custom',severity:'warn',bindings:{}}], reporters:[{name:'noop',format:()=>{}}] };\n",
+      `export default {
+        pms: ['npm'],
+        rules: { provenance: 'off', custom: 'info' },
+        customRules: [{
+          id: 'custom', title: 'Custom', description: 'Custom', severity: 'warn', bindings: {},
+        }],
+        reporters: [{ name: 'noop', format() {} }],
+      };`,
     );
     const config = await loadConfig(configDirectory);
 
@@ -160,7 +167,11 @@ describe('loadConfig — ts config', () => {
   it('loads siro.config.ts with erasable TS syntax', async () => {
     writeFileSync(
       path.join(configDirectory, 'siro.config.ts'),
-      "const rule: string = 'provenance';\nexport default { pms: ['npm'] as const, rules: { [rule]: 'off' } };\n",
+      `const rule: string = 'provenance';
+      export default {
+        pms: ['npm'] as const,
+        rules: { [rule]: 'off' },
+      };`,
     );
     const config = await loadConfig(configDirectory);
 
@@ -185,7 +196,7 @@ describe('loadConfig root dictionary', () => {
   it('accepts a null-prototype root', async () => {
     writeFileSync(
       path.join(configDirectory, 'siro.config.mjs'),
-      "export default Object.assign(Object.create(null),{pms:['npm']});",
+      "export default Object.assign(Object.create(null), { pms: ['npm'] });",
     );
     expect(await loadConfig(configDirectory)).toEqual({ pms: ['npm'] });
   });
