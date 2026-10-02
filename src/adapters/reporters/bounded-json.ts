@@ -41,22 +41,22 @@ export const boundedJson = (input: unknown, maxBytes: number, maxDepth: number):
     if (activeContainers.has(value)) throw new TypeError('Cannot serialize a circular report.');
     if (depth > maxDepth) throw new TypeError('Report nesting exceeds the configured depth.');
     activeContainers.add(value);
-    const array = Array.isArray(value);
-    emit(array ? '[' : '{');
+    const isArray = Array.isArray(value);
+    emit(isArray ? '[' : '{');
     let emittedEntryCount = 0;
     const serializeEntry = (key: string, raw: unknown) => {
       const child = normalizeJsonValue(raw, key);
-      if (!array && isOmittedJsonValue(child)) return;
+      if (!isArray && isOmittedJsonValue(child)) return;
       const separator = emittedEntryCount === 0 ? '\n' : ',\n';
       emit(`${separator}${'  '.repeat(depth)}`);
       emittedEntryCount += 1;
-      if (!array) {
+      if (!isArray) {
         emit(JSON.stringify(key));
         emit(': ');
       }
       serialize(isOmittedJsonValue(child) ? null : child, depth + 1);
     };
-    if (array) {
+    if (isArray) {
       const length = value.length;
       for (let index = 0; index < length; index++) serializeEntry(String(index), value[index]);
     } else {
@@ -64,7 +64,7 @@ export const boundedJson = (input: unknown, maxBytes: number, maxDepth: number):
         serializeEntry(key, (value as Record<string, unknown>)[key]);
     }
     if (emittedEntryCount) emit(`\n${'  '.repeat(depth - 1)}`);
-    emit(array ? ']' : '}');
+    emit(isArray ? ']' : '}');
     activeContainers.delete(value);
   };
   serialize(normalizeJsonValue(input, ''), 1);

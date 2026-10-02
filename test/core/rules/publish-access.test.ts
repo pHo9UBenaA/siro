@@ -17,10 +17,7 @@ describe('publish-access (npm)', () => {
 
     expect(status.state).toBe('violation');
 
-    const steps = manualSteps(status);
-
-    const firstStep = steps[0];
-    expect(firstStep).toContain('publishConfig');
+    expect(manualSteps(status)[0]).toContain('publishConfig');
   });
 
   it('passes for "public" or "restricted"', () => {
@@ -41,8 +38,6 @@ describe('publish-access (npm)', () => {
 });
 
 it('accepts the npm private publish access alias under package policy', () => {
-  const projectType = 'package';
-
   const fs = createMemFileSystem({
     'package.json': JSON.stringify({
       name: '@scope/example',
@@ -50,6 +45,6 @@ it('accepts the npm private publish access alias under package policy', () => {
       publishConfig: { access: 'private' },
     }),
   });
-  const result = lint({ cwd: asAbsPath('/repo'), fs, projectType });
-  expect(result.findings.some((finding) => finding.ruleId === 'publish-access')).toBe(false);
+  const result = lint({ cwd: asAbsPath('/repo'), fs, projectType: 'package' });
+  expect(result.findings).not.toContainEqual(expect.objectContaining({ ruleId: 'publish-access' }));
 });

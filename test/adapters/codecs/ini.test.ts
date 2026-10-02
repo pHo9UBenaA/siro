@@ -19,8 +19,7 @@ describe('iniCodec.parse', () => {
     ].join('\n');
     const config = iniCodec.parse(text);
     expect(config['ignore-scripts']).toBe(true);
-    const MIN_RELEASE_AGE_DAYS = 7;
-    expect(config['min-release-age']).toBe(MIN_RELEASE_AGE_DAYS);
+    expect(config['min-release-age']).toBe(7);
     expect(config['save-prefix']).toBe('');
     expect(config.flags).toEqual(['text', true, 7]);
   });

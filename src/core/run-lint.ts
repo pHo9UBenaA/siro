@@ -27,21 +27,18 @@ const resolveBindingProjectType = (
 };
 
 /** Select applicable PM bindings; response handling is shared with manifest checks. */
-export const runLint = (opts: RunLintOptions): Pick<LintResult, 'findings'> => {
-  const { repository, targets, ruleSet, severityOverrides } = opts;
+export const runLint = (options: RunLintOptions): Pick<LintResult, 'findings'> => {
+  const { repository, targets, ruleSet, severityOverrides } = options;
   const findings: Finding[] = [];
   for (const rule of ruleSet) {
     for (const target of targets) {
       const { pm } = target;
       const binding = rule.bindings[pm];
-      if (
-        !binding ||
-        (rule.projectTypes &&
-          !rule.projectTypes.includes(
-            resolveBindingProjectType(repository.ctx, pm, repository.parseConfig),
-          ))
-      )
-        continue;
+      if (!binding) continue;
+      if (rule.projectTypes) {
+        const projectType = resolveBindingProjectType(repository.ctx, pm, repository.parseConfig);
+        if (!rule.projectTypes.includes(projectType)) continue;
+      }
       const evaluated = evaluateBinding(repository, rule, binding, severityOverrides, target);
       for (const finding of evaluated) findings.push(finding);
     }

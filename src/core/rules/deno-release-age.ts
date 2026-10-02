@@ -53,14 +53,13 @@ export const isActiveDenoReleaseAge = (
   if (!DENO_DATE.test(value) && !DENO_TIMESTAMP.test(value) && !DENO_OFFSET_TIMESTAMP.test(value))
     return false;
 
-  const date = value.slice(0, 10);
-  const midnight = new Date(`${date}T00:00:00Z`);
+  const calendarDate = value.slice(0, 10);
+  const midnight = new Date(`${calendarDate}T00:00:00Z`);
   // Chrono accepts leap seconds; JavaScript Date does not. Normalize only that second.
-  const leapSecond = LEAP_SECOND.test(value);
-  const timestampMs = parse(value.replace(LEAP_SECOND, ':59')) + (leapSecond ? 1000 : 0);
-  return (
-    !Number.isNaN(midnight.valueOf()) &&
-    midnight.toISOString().slice(0, 10) === date &&
-    timestampMs < nowMs
-  );
+  const hasLeapSecond = LEAP_SECOND.test(value);
+  const timestampMs = parse(value.replace(LEAP_SECOND, ':59')) + (hasLeapSecond ? 1000 : 0);
+  // Date normalizes impossible dates (e.g. February 30); Deno rejects them.
+  const hasValidCalendarDate =
+    !Number.isNaN(midnight.valueOf()) && midnight.toISOString().slice(0, 10) === calendarDate;
+  return hasValidCalendarDate && timestampMs < nowMs;
 };

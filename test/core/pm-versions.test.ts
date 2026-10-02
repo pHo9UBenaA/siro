@@ -33,7 +33,9 @@ it('reports a configured npm security setting that predates its introduction', (
     }),
   ]);
   expect(unsupported(result)[0]?.message).toContain('11.10.0');
-  expect(result.findings.some((finding) => finding.ruleId === 'minimum-release-age')).toBe(false);
+  expect(result.findings).not.toContainEqual(
+    expect.objectContaining({ ruleId: 'minimum-release-age' }),
+  );
 });
 
 it('reports Deno .npmrc release age before Deno 2.8.1 support', () => {

@@ -86,7 +86,10 @@ export const discover = (
       pending.push(child);
     }
   }
-  return directories.sort((a, b) =>
-    a.directory < b.directory ? -1 : a.directory > b.directory ? 1 : 0,
-  );
+  // Compare code units, not host locales, so inspection order is portable.
+  return directories.sort((left, right) => {
+    if (left.directory < right.directory) return -1;
+    if (left.directory > right.directory) return 1;
+    return 0;
+  });
 };

@@ -35,9 +35,7 @@ describe('trust-policy: check states', () => {
   });
 
   it('flags trustPolicy off even with the aube-only paranoid option enabled', () => {
-    const paranoid = true;
-
-    const status = pnpmBinding.check(makeCtx(), { paranoid, trustPolicy: 'off' });
+    const status = pnpmBinding.check(makeCtx(), { paranoid: true, trustPolicy: 'off' });
     assert(status.state === 'violation');
     expect(status.severity).toBeUndefined();
   });

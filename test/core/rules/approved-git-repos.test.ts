@@ -23,10 +23,7 @@ describe('approved-git-repos: check states', () => {
     const status = yarnBinding.check(makeCtx(), {});
 
     assert(status.state === 'violation');
-    const steps = manualSteps(status);
-
-    const [first] = steps;
-    expect(first).toContain('approvedGitRepositories');
+    expect(manualSteps(status)[0]).toContain('approvedGitRepositories');
   });
 });
 

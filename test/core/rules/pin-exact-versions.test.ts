@@ -314,5 +314,8 @@ it.each([
 ] as const)('evaluates $pm pinning from the file: $npmrc', ({ pm, npmrc, pinned }) => {
   const fs = createMemFileSystem({ '.npmrc': npmrc });
   const result = lint({ cwd: asAbsPath('/repo'), fs, pm });
-  expect(result.findings.some((finding) => finding.ruleId === 'pin-exact-versions')).toBe(!pinned);
+  const pinningFindings = result.findings.filter(
+    (finding) => finding.ruleId === 'pin-exact-versions',
+  );
+  expect(pinningFindings).toHaveLength(pinned ? 0 : 1);
 });

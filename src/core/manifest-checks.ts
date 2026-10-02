@@ -58,21 +58,23 @@ export const checkManifest = (
         severityOverrides: overrides,
       }).findings;
       for (const finding of unsupported) findings.push(finding);
-    } else if (Object.hasOwn(selectManifestBinding, rule.id)) {
-      const binding = selectManifestBinding[rule.id as ManifestRuleId](file, repository, targets);
-      if (binding === 'use-pm-bindings') {
-        const evaluated = runLint({
-          repository,
-          targets,
-          ruleSet: [rule],
-          severityOverrides: overrides,
-        }).findings;
-        for (const finding of evaluated) findings.push(finding);
-      } else if (binding) {
-        for (const finding of evaluateBinding(repository, rule, binding, overrides))
-          findings.push(finding);
-      }
+      continue;
     }
+    if (!Object.hasOwn(selectManifestBinding, rule.id)) continue;
+    const binding = selectManifestBinding[rule.id as ManifestRuleId](file, repository, targets);
+    if (binding === undefined) continue;
+    if (binding === 'use-pm-bindings') {
+      const evaluated = runLint({
+        repository,
+        targets,
+        ruleSet: [rule],
+        severityOverrides: overrides,
+      }).findings;
+      for (const finding of evaluated) findings.push(finding);
+      continue;
+    }
+    for (const finding of evaluateBinding(repository, rule, binding, overrides))
+      findings.push(finding);
   }
   return findings;
 };

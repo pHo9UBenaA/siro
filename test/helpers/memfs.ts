@@ -8,8 +8,8 @@ export const createMemFileSystem = (
   initial: Readonly<Record<string, string>>,
   root = '/repo',
 ): FileSystem => {
-  const vol = Volume.fromJSON(initial, root);
-  const fs = createFsFromVolume(vol);
+  const volume = Volume.fromJSON(initial, root);
+  const fs = createFsFromVolume(volume);
   fs.mkdirSync(root, { recursive: true });
   const toMemfsPath = (value: string) =>
     nodePath.sep === '\\' ? value.replaceAll('\\', '/') : value;
@@ -37,9 +37,7 @@ export const createMemFileSystem = (
       try {
         return String(fs.readFileSync(toMemfsPath(path), 'utf8'));
       } catch (error) {
-        // Mirror the production FS contract: ENOENT is "file absent",
-        // anything else (EACCES, EISDIR, …) must propagate so a misconfigured
-        // memfs surfaces as a test failure instead of a silent miss.
+        // Only ENOENT means absence; unreadable files must fail like native reads.
         if (isNodeError(error) && error.code === 'ENOENT') {
           return;
         }

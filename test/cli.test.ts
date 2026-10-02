@@ -14,7 +14,6 @@ const runCaptured = async (
 
 describe('cli', () => {
   test('prints the version with -v (alias of --version)', async () => {
-    // Short and long flags use the same output path.
     const { code, out } = await runCaptured(['-v']);
 
     expect(code).toBe(EXIT_OK);
@@ -63,7 +62,6 @@ describe('cli', () => {
   });
 
   test('treats `--version` after a value-flag as the version request, not the flag value', async () => {
-    // Companion to the --help case above.
     const { code, out } = await runCaptured(['--reporter', '--version']);
 
     expect(code).toBe(EXIT_OK);
@@ -71,9 +69,6 @@ describe('cli', () => {
   });
 
   test('shows lint help for `--reporter json lint --help` (flag value is not the target)', async () => {
-    // The value of a value-taking flag must not be mistaken for the command
-    // positional; otherwise `json` looks like the help target and the root
-    // help shows instead of the lint help.
     const { code, out } = await runCaptured(['--reporter', 'json', 'lint', '--help']);
 
     expect(code).toBe(EXIT_OK);
@@ -123,10 +118,6 @@ describe('cli', () => {
   });
 
   test('rejects non-empty passthrough after `--` (siro wraps no tool)', async () => {
-    // siro takes no passthrough args — there is no wrapped tool to forward to.
-    // `--` still stops flag detection (so `--version` after it is NOT a version
-    // request), but a non-empty payload is a usage error rather than silently
-    // dropped. This also means the version branch never fires here.
     const { code, err } = await runCaptured(['lint', '--', '--version']);
 
     expect(code).toBe(EXIT_USAGE);

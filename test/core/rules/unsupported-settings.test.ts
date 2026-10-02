@@ -42,7 +42,9 @@ it.each([false, null])('checks presence even when the configured value is %s', (
       'pnpm-workspace.yaml': JSON.stringify({ minimumReleaseAge: value }),
     }),
   });
-  expect(result.findings.some((finding) => finding.ruleId === 'unsupported-settings')).toBe(true);
+  expect(result.findings).toContainEqual(
+    expect.objectContaining({ ruleId: 'unsupported-settings' }),
+  );
 });
 
 it('does not reinterpret a supported alternative or an unlisted key', () => {
@@ -71,7 +73,9 @@ it.each(['deno', 'aube'] satisfies PM[])('does not invent introduction history f
       'aube-workspace.yaml': 'minimumReleaseAge: 4320',
     }),
   });
-  expect(result.findings.some((finding) => finding.ruleId === 'unsupported-settings')).toBe(false);
+  expect(result.findings).not.toContainEqual(
+    expect.objectContaining({ ruleId: 'unsupported-settings' }),
+  );
 });
 
 it('keeps every unsupported key with its local manifest or installation file', () => {

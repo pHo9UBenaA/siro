@@ -404,13 +404,16 @@ describe('Deno configuration precedence', () => {
       '.npmrc': 'min-release-age=3',
     };
     const result = inspectDeno(files);
-    expect(result.findings.some((f) => f.ruleId === 'commit-lockfile')).toBe(false);
-    expect(result.findings.some((f) => f.ruleId === 'minimum-release-age')).toBe(true);
+    expect(result.findings).not.toContainEqual(
+      expect.objectContaining({ ruleId: 'commit-lockfile' }),
+    );
+    const ageFinding = expect.objectContaining({ ruleId: 'minimum-release-age' });
+    expect(result.findings).toContainEqual(ageFinding);
     const fallback = inspectDeno({
       ...files,
       'deno.json': '{"lock":"locks/custom.lock","minimumDependencyAge":{}}',
     });
-    expect(fallback.findings.some((f) => f.ruleId === 'minimum-release-age')).toBe(false);
+    expect(fallback.findings).not.toContainEqual(ageFinding);
   });
 });
 

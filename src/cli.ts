@@ -76,10 +76,10 @@ export const runMain = async (argv: readonly string[]): Promise<void> => {
     process.exitCode = await run(argv);
   } catch (error) {
     // Keep unexpected failures distinct from the exit-1 "findings found" result.
-    const errStr = error instanceof Error ? (error.stack ?? error.message) : String(error);
+    const diagnostic = error instanceof Error ? (error.stack ?? error.message) : String(error);
     process.exitCode = EXIT_CRASH;
     try {
-      await nodeIO.stderr(safeText(errStr));
+      await nodeIO.stderr(safeText(diagnostic));
     } catch {
       // A broken diagnostic sink cannot report its own failure. Keep exit 70;
       // do not recurse or leave another stream error/rejection unobserved.

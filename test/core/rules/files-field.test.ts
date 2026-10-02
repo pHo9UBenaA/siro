@@ -22,10 +22,7 @@ describe('files-field (npm)', () => {
 
     expect(filesField.severity).toBe('info');
 
-    const steps = manualSteps(status);
-
-    const firstStep = steps[0];
-    expect(firstStep).toContain('npm pack --dry-run');
+    expect(manualSteps(status)[0]).toContain('npm pack --dry-run');
   });
 
   it('passes when a non-empty files allow-list is present', () => {
@@ -37,9 +34,6 @@ describe('files-field (deno)', () => {
   const denoBinding = bindingForTest(filesField, 'deno');
 
   it('is N/A when deno.json has no `name` (deno is not publishable without one)', () => {
-    // A nameless deno.json cannot be published to JSR. Surfacing a
-    // `publish.include` finding for an internal/CLI-only deno repo is
-    // noise — mirror the package.json binding's `isPublishable` guard.
     expect(denoBinding.check(ctxWith(), {}).state).toBe('na');
     expect(denoBinding.check(ctxWith(), { name: '   ' }).state).toBe('na');
   });

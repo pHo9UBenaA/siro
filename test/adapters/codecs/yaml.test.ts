@@ -14,11 +14,9 @@ describe('yamlCodec.parse', () => {
   });
 
   it('rejects an alias bomb instead of expanding it unbounded', () => {
-    // A `pnpm-workspace.yaml` on a fork PR can be attacker-controlled. The
-    // codec must keep the library's billion-laughs guard (maxAliasCount) so a
-    // few KB of nested anchors can't blow up into an OOM during a CI lint.
-    const refs = Array.from({ length: 200 }, (_unused, idx) => `k${idx}: *a`).join('\n');
-    expect(() => yamlCodec.parse(`base: &a value\n${refs}`)).toThrow(/excessive alias count/iu);
+    // Keep the parser's alias-expansion guard for attacker-controlled repository YAML.
+    const aliases = Array.from({ length: 200 }, (_, index) => `k${index}: *a`).join('\n');
+    expect(() => yamlCodec.parse(`base: &a value\n${aliases}`)).toThrow(/excessive alias count/iu);
   });
 
   it.each(['root: &self { child: *self }', 'root: &self [*self]'])(

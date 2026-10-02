@@ -20,9 +20,7 @@ describe('commit-lockfile (npm)', () => {
 
     expect(commitLockfile.severity).toBe('error');
 
-    const steps = manualSteps(status);
-    const firstStep = steps[0];
-    expect(firstStep).toContain('generate package-lock.json');
+    expect(manualSteps(status)[0]).toContain('generate package-lock.json');
   });
 
   it('passes when package-lock.json exists', () => {

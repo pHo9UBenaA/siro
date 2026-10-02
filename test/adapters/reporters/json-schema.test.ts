@@ -16,7 +16,7 @@ const result: LintResult = {
   findings: [
     {
       directory: '.',
-      actual: void 0,
+      actual: undefined,
       expected: true,
       file: '.npmrc',
       remediation: {

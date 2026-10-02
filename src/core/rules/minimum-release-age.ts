@@ -180,9 +180,9 @@ const createDenoBinding = (time: DateTime): RuleBinding => ({
       expected: 'P3D',
       message: `Set minimumDependencyAge (e.g. "P3D" for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in deno.json.`,
     };
-    const objectAge = isPlainRecord(actual);
+    const isAgeObject = isPlainRecord(actual);
     if (
-      objectAge &&
+      isAgeObject &&
       (Object.keys(actual).some((key) => key !== 'age' && key !== 'exclude') ||
         (actual.exclude !== undefined && !isNonBlankStringArray(actual.exclude)))
     ) {
@@ -196,7 +196,7 @@ const createDenoBinding = (time: DateTime): RuleBinding => ({
         },
       };
     }
-    const age = objectAge ? actual.age : actual;
+    const age = isAgeObject ? actual.age : actual;
     if (age == null) {
       const npmrcConfig = ctx.readConfig(npmrc);
       const npmrcAge = getByPath(npmrcConfig, ['min-release-age']);
@@ -228,7 +228,7 @@ const createDenoBinding = (time: DateTime): RuleBinding => ({
         {
           file: denoJson,
           op: 'setKey',
-          keyPath: objectAge ? ['minimumDependencyAge', 'age'] : ['minimumDependencyAge'],
+          keyPath: isAgeObject ? ['minimumDependencyAge', 'age'] : ['minimumDependencyAge'],
           value: 'P3D',
         },
       ]),

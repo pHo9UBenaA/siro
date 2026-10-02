@@ -19,10 +19,7 @@ describe(detectPMs, () => {
     expect(detectPMs(ctx([]))).toStrictEqual([]);
   });
 
-  // aube reuses other PMs' lockfile shapes (pnpm-lock.yaml, package-lock.json, ...)
-  // when one already exists in the repo, so those filenames must NOT trigger an
-  // aube false-positive on a pnpm/yarn/npm/bun repo that has never touched aube.
-  // https://aube.en.dev/package-manager/lockfiles
+  // Reused lockfiles satisfy Aube policy but are not evidence that the project uses Aube.
   it("does not flag aube when only another PM's lockfile is present", () => {
     expect(detectPMs(ctx(['pnpm-lock.yaml']))).toStrictEqual(['pnpm']);
     expect(detectPMs(ctx(['package-lock.json']))).toStrictEqual(['npm']);
@@ -35,9 +32,6 @@ describe(detectPMs, () => {
   });
 
   it('detects npm from npm-shrinkwrap.json alone', () => {
-    // npm-shrinkwrap.json is a legitimate npm-only artifact (published, unlike
-    // package-lock.json). A repo with only a shrinkwrap and no packageManager
-    // field must still resolve to npm rather than "no PM detected" (exit 2).
     expect(detectPMs(ctx(['npm-shrinkwrap.json']))).toStrictEqual(['npm']);
   });
 

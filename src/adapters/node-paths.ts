@@ -25,8 +25,12 @@ export const nodePaths: RepositoryPaths = {
       throw new ConfigError(`Invalid repository-relative path: ${String(relative)}`);
     }
     const resolved = path.join(root, relative);
-    const within = path.relative(root, resolved);
-    if (within === '..' || within.startsWith(`..${path.sep}`) || path.isAbsolute(within))
+    const relativeToRoot = path.relative(root, resolved);
+    if (
+      relativeToRoot === '..' ||
+      relativeToRoot.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(relativeToRoot)
+    )
       throw new ConfigError('Path escapes repository root.');
     return asAbsPath(resolved);
   },

@@ -50,14 +50,12 @@ describe('disable-lifecycle-scripts (pnpm): check states', () => {
   it('emits a full-severity violation when strictDepBuilds is explicitly false', () => {
     const status = pnpmBinding.check(ctx, { strictDepBuilds: false });
     expect(status).toMatchObject({ actual: false, expected: true, state: 'violation' });
-    // No documentedDefault demotion: an explicit `false` is the user
-    // weakening the gate, not relying on the pnpm 11 default.
     assert(status.state === 'violation');
     expect(status.severity).toBeUndefined();
   });
 });
 
-describe('disable-lifecycle-scripts (pnpm): bypass and fix', () => {
+describe('disable-lifecycle-scripts (pnpm): bypass remediation', () => {
   const ctx = makeCtx();
   const pnpmBinding = bindingForTest(disableLifecycleScripts, 'pnpm');
 
@@ -137,7 +135,7 @@ describe('disable-lifecycle-scripts (aube)', () => {
     expect(ruleBinding.check(ctx(), { ...config, paranoid: true }).state).toBe('ok');
   });
 
-  it('fix sets both jailBuilds and strictDepBuilds', () => {
+  it('proposes jailBuilds and strictDepBuilds in their separate configuration files', () => {
     const ruleBinding = bindingForTest(disableLifecycleScripts, 'aube');
 
     expect(ruleBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });

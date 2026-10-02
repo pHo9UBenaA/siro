@@ -10,10 +10,9 @@ it('TLS warnings and failure thresholds are distinct from finding correctness', 
       'strict-ssl=false\nignore-scripts=true\nsave-exact=true\nmin-release-age=3\nallow-git=none\nallow-remote=none',
   });
   const result = lint({ cwd: asAbsPath('/repo'), pm: 'npm', fs });
-  expect(result.findings.find((f) => f.ruleId === 'enforce-strict-ssl')).toMatchObject({
-    severity: 'warn',
-    actual: false,
-  });
+  expect(result.findings).toContainEqual(
+    expect.objectContaining({ ruleId: 'enforce-strict-ssl', severity: 'warn', actual: false }),
+  );
   const request = {
     cwd: asAbsPath('/repo'),
     pm: 'npm' as const,

@@ -63,7 +63,7 @@ it('ignores a non-file config and ignores its exclusions/rules/reporters entirel
   const report = JSON.parse(result.stdout);
   expect(report.inspection.manifests).toHaveLength(2);
   expect(report.inspection.installationRoots).toHaveLength(1);
-  expect(report.findings.some((f: { ruleId: string }) => f.ruleId === 'files-field')).toBe(true);
+  expect(report.findings).toContainEqual(expect.objectContaining({ ruleId: 'files-field' }));
 });
 
 it('validates explicit PM versions before executing trusted config', () => {
@@ -165,11 +165,9 @@ it('encodes hostile filenames without injecting additional workflow commands', (
   const json = run(['--no-config', '--json']);
   expect(json.status).toBe(0);
   expect(json.stdout).not.toContain('##[');
-  expect(
-    JSON.parse(json.stdout).inspection.manifests.some(
-      (m: { path: string }) => m.path === `${directory}/package.json`,
-    ),
-  ).toBe(true);
+  expect(JSON.parse(json.stdout).inspection.manifests).toContainEqual(
+    expect.objectContaining({ path: `${directory}/package.json` }),
+  );
   const pretty = run(['--no-config']);
   expect(pretty.status).toBe(0);
   expect(pretty.stdout).not.toMatch(/^\s*::/mu);

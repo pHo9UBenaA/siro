@@ -154,7 +154,7 @@ it('explicit roots can have no manifest and use a local explicit PM/version', ()
   expect(result.inspection.installationRoots).toEqual([
     { directory: 'tool', targets: [{ pm: 'npm', version: '12.0.2' }] },
   ]);
-  expect(result.findings.some((f) => f.directory === 'tool')).toBe(true);
+  expect(result.findings).toContainEqual(expect.objectContaining({ directory: 'tool' }));
 });
 
 it.each(['fixtures', 'fixtures/**', '**/fixtures/**'])(
@@ -469,15 +469,11 @@ it('unknown child availability and inspection scope remain explicit', () => {
   expect(result.inspection.manifests.find((m) => m.path === 'child/package.json')?.targets).toEqual(
     [{ pm: 'pnpm' }],
   );
-  expect(
-    result.findings.some(
-      (f) => f.directory === 'child' && f.ruleId === 'disable-lifecycle-scripts',
-    ),
-  ).toBe(false);
+  const childScriptFinding = expect.objectContaining({
+    directory: 'child',
+    ruleId: 'disable-lifecycle-scripts',
+  });
+  expect(result.findings).not.toContainEqual(childScriptFinding);
   const expanded = lint({ cwd: asAbsPath('/repo'), fs, installationRoots: ['.', 'child'] });
-  expect(
-    expanded.findings.some(
-      (f) => f.directory === 'child' && f.ruleId === 'disable-lifecycle-scripts',
-    ),
-  ).toBe(true);
+  expect(expanded.findings).toContainEqual(childScriptFinding);
 });

@@ -253,7 +253,7 @@ function verifyFailureExits(runCli, installedBin) {
   assert.ifError(invalidInput.error);
   assert.equal(invalidInput.status, 2);
   assert.equal(invalidInput.stdout, '');
-  assert.ok(!invalidInput.stderr.includes('FAKE_SECRET'));
+  assert.doesNotMatch(invalidInput.stderr, /FAKE_SECRET/);
 }
 
 try {

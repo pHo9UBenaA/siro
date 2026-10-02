@@ -54,7 +54,7 @@ describe('deno bindings target deno.json', () => {
   const ctx = makeCtx();
 
   it.each([{}, { lock: {} }])(
-    'frozen-lockfile requires lock.frozen=true and fixes %j',
+    'requires lock.frozen=true and proposes a scalar write for %j',
     (config) => {
       const ruleBinding = bindingForTest(frozenLockfile, 'deno');
 
@@ -71,12 +71,11 @@ describe('deno bindings target deno.json', () => {
     },
   );
 
-  it('frozen-lockfile flags a string lock as manual (will not clobber it)', () => {
+  it('requires manual review instead of overwriting a string lockfile path', () => {
     const ruleBinding = bindingForTest(frozenLockfile, 'deno');
 
-    const res = ruleBinding.check(ctx, { lock: 'custom.lock' });
-    expect(res).toMatchObject({ state: 'violation' });
-    assert(res.state === 'violation', 'expected violation');
-    expect(manualSteps(res).length).toBeGreaterThan(0);
+    const status = ruleBinding.check(ctx, { lock: 'custom.lock' });
+    expect(status).toMatchObject({ state: 'violation' });
+    expect(manualSteps(status).length).toBeGreaterThan(0);
   });
 });

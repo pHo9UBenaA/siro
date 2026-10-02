@@ -176,13 +176,11 @@ it('explicitly skips only an absent optional OSV executable', () => {
 });
 
 it('fails on OSV permission denial', () => {
-  const code = 'EACCES';
-
   expect(
     run(output(cleanPnpm), {
       status: null,
       stdout: '',
-      error: { code, message: 'scanner failure' },
+      error: { code: 'EACCES', message: 'scanner failure' },
     }).status,
   ).toBe(2);
 });

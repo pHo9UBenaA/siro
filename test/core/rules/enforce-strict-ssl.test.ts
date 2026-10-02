@@ -82,8 +82,8 @@ describe('enforce-strict-ssl (yarn) — check states', () => {
   });
 });
 
-describe('enforce-strict-ssl (yarn) — whitelist and fix', () => {
-  it('flags a violation with manualSteps when unsafeHttpWhitelist is non-empty', () => {
+describe('enforce-strict-ssl (yarn) — HTTP exception remediation', () => {
+  it('requires manual review when unsafeHttpWhitelist is non-empty', () => {
     const status = yarnBinding.check(makeCtx(), {
       enableStrictSsl: true,
       unsafeHttpWhitelist: ['internal.example.com'],

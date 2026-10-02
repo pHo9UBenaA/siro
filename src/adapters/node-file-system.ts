@@ -19,15 +19,15 @@ import { isNodeError } from './node-errors.ts';
 /** Root ancestors are canonicalized; selected cwd and all below-root components must not be links. */
 const createStrictPathChecker = (root: AbsPath) => {
   // A trailing separator makes lstat follow a directory link on POSIX.
-  const selected = path.resolve(root);
-  if (lstatSync(selected).isSymbolicLink())
+  const selectedRoot = path.resolve(root);
+  if (lstatSync(selectedRoot).isSymbolicLink())
     throw new ConfigError('Strict filesystem rejects a symlink cwd.');
-  const canonical = realpathSync(selected);
+  const canonicalRoot = realpathSync(selectedRoot);
   return (file: AbsPath) => {
     const relative = path.relative(root, file);
     if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))
       throw new ConfigError('Strict filesystem path escapes cwd.');
-    let current = canonical;
+    let current = canonicalRoot;
     for (const component of relative.split(path.sep).filter(Boolean)) {
       current = path.join(current, component);
       if (lstatSync(current).isSymbolicLink())
@@ -58,7 +58,8 @@ export const createNodeFileSystem = (
       const names: string[] = [];
       try {
         for (let entry = stream.readSync(); entry !== null; entry = stream.readSync()) {
-          checkLimit('maxEntries', ++directoryEntryCount, limits);
+          directoryEntryCount += 1;
+          checkLimit('maxEntries', directoryEntryCount, limits);
           if (entry.isDirectory()) names.push(entry.name);
         }
       } finally {

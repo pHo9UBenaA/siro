@@ -16,7 +16,7 @@ describe('checksum-verification: check states', () => {
   });
 });
 
-describe('checksum-verification: scope, metadata, and fix', () => {
+describe('checksum-verification: remediation', () => {
   it('reports the missing setting with its severity, scope and remediation', () => {
     const status = yarnBinding.check(makeCtx(), {});
     assert(status.state === 'violation');
