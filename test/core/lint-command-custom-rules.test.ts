@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { runInNewContext } from 'node:vm';
 import {
   asAbsPath,
   asRelPath,
@@ -154,6 +155,52 @@ it('reports grouped custom findings and aggregates their final severities', asyn
     { message: 'info', severity: 'info' },
   ]);
   expect(result.summary).toEqual({ error: 1, warn: 1, info: 1 });
+});
+
+it('preserves a custom actual value returned by toJSON across realms', async () => {
+  const { io, out } = captureIO();
+  const actual = { toJSON: () => runInNewContext('new Number(7)') };
+  expect(
+    await lintCommand(
+      {
+        ...options,
+        installationRoots: [],
+        reporter: 'json',
+        config: {
+          customRules: [
+            rule('json-value', () => ({ state: 'violation', message: 'probe', actual })),
+          ],
+        },
+      },
+      io,
+    ),
+  ).toBe(1);
+  const result: LintResult = JSON.parse(out());
+  expect(result.findings.find((finding) => finding.ruleId === 'json-value')?.actual).toBe(7);
+});
+
+it('rejects non-serializable custom actual values without a successful JSON report', async () => {
+  const { io, out } = captureIO();
+  await expect(
+    lintCommand(
+      {
+        ...options,
+        installationRoots: [],
+        reporter: 'json',
+        config: {
+          customRules: [
+            rule('json-value', () => ({
+              state: 'violation',
+              message: 'probe',
+              actual: Object(1n),
+            })),
+          ],
+        },
+      },
+      io,
+    ),
+  ).rejects.toBeInstanceOf(TypeError);
+  expect(out()).toBe('');
 });
 
 it.each(['constructor', '__proto__', 'ordinary'])(

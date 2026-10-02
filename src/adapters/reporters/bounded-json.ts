@@ -1,3 +1,4 @@
+import { types } from 'node:util';
 import { outputBudget } from '../../core/contracts/scan-limits.ts';
 import { safeJsonText } from '../safe-text.ts';
 
@@ -19,16 +20,19 @@ export const boundedJson = (input: unknown, maxBytes: number, maxDepth: number):
   const normalize = (value: unknown, key: string): unknown => {
     if (
       value !== null &&
-      typeof value === 'object' &&
-      'toJSON' in value &&
-      typeof value.toJSON === 'function'
-    )
-      return value.toJSON(key);
-    if (value instanceof Number || value instanceof String || value instanceof Boolean)
-      return value.valueOf();
+      (typeof value === 'object' || typeof value === 'function' || typeof value === 'bigint')
+    ) {
+      const toJSON = (value as { toJSON?: unknown }).toJSON;
+      if (typeof toJSON === 'function') value = Reflect.apply(toJSON, value, [key]);
+    }
+    if (types.isNumberObject(value)) return +value;
+    if (types.isStringObject(value)) return `${value}`;
+    if (types.isBooleanObject(value)) return Boolean.prototype.valueOf.call(value);
+    if (types.isBigIntObject(value)) return BigInt.prototype.valueOf.call(value);
     return value;
   };
   const serialize = (value: unknown, depth: number): void => {
+    if (typeof value === 'bigint') throw new TypeError('Do not know how to serialize a BigInt');
     if (value === null || typeof value !== 'object') {
       emit(JSON.stringify(value) ?? 'null');
       return;
@@ -50,7 +54,8 @@ export const boundedJson = (input: unknown, maxBytes: number, maxDepth: number):
       serialize(omitted(child) ? null : child, depth + 1);
     };
     if (array) {
-      for (let index = 0; index < value.length; index++) entry(String(index), value[index]);
+      const length = value.length;
+      for (let index = 0; index < length; index++) entry(String(index), value[index]);
     } else {
       for (const key of Object.keys(value)) entry(key, (value as Record<string, unknown>)[key]);
     }
