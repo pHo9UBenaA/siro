@@ -41,7 +41,7 @@ describe('createRepoContext — packageJson parsing', () => {
 
   it('accepts a package.json that begins with a UTF-8 BOM', () => {
     const fs = createMemFileSystem({
-      'package.json': `﻿${JSON.stringify({ name: 'bom-pkg', version: '1.0.0' })}`,
+      'package.json': `\uFEFF${JSON.stringify({ name: 'bom-pkg', version: '1.0.0' })}`,
     });
     const ctx = createRepoContext(asAbsPath('/repo'), fs);
     expect(ctx.packageJson).toMatchObject({ name: 'bom-pkg' });

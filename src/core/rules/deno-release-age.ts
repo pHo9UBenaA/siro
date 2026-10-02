@@ -20,7 +20,7 @@ const DENO_TIMESTAMP =
 // Alternate form: optional seconds, ±HHMM or ±HH:MM, uppercase T, no fraction.
 const DENO_OFFSET_TIMESTAMP =
   /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::(?:[0-5]\d|60))?[+-](?:[01]\d|2[0-3]):?[0-5]\d$/u;
-const DENO_DURATION_TOKEN = /(\d+)(?:\.(\d+))?([WDHMS])/giu;
+const DENO_DURATION_TOKEN = /(?<integer>\d+)(?:\.(?<fraction>\d+))?(?<unit>[WDHMS])/giu;
 const LEAP_SECOND = /:60(?=\.|Z|z|[+-])/u;
 
 const isActiveDurationSeconds = (seconds: number, nowMs: number): boolean =>
@@ -28,7 +28,8 @@ const isActiveDurationSeconds = (seconds: number, nowMs: number): boolean =>
 
 const durationSeconds = (value: string): number => {
   let seconds = 0;
-  for (const [, integer, fraction, unit] of value.matchAll(DENO_DURATION_TOKEN)) {
+  for (const token of value.matchAll(DENO_DURATION_TOKEN)) {
+    const { integer, fraction, unit } = token.groups!;
     // Sub-nanosecond fractional seconds are truncated by Deno.
     const fractionDigits = (fraction ?? '').slice(0, 9) || '0';
     const amount = Number(integer) + Number(`0.${fractionDigits}`);

@@ -1,4 +1,5 @@
 import type { DateTime } from '../contracts/date-time.ts';
+import type { RuleContext } from '../contracts/repo-context.ts';
 import { guardRemediationAvailability } from './remediation-availability.ts';
 import { isActiveDenoReleaseAge } from './deno-release-age.ts';
 import { getByPath } from '../contracts/config-value.ts';
@@ -98,7 +99,7 @@ const checkNpmBefore = (
   actual: unknown,
   nowMs: number,
   time: DateTime,
-  pmVersion: string | undefined,
+  ctx: Pick<RuleContext, 'pmVersion'>,
 ): { readonly state: 'ok' } | ViolationStatus => {
   if (
     (typeof actual === 'string' || typeof actual === 'number') &&
@@ -108,7 +109,7 @@ const checkNpmBefore = (
   }
   const alternative = guardRemediationAvailability(
     'npm',
-    pmVersion,
+    ctx.pmVersion,
     {
       kind: 'manual',
       steps: [
@@ -140,7 +141,7 @@ const createNpmBinding = (time: DateTime): RuleBinding => ({
     const nowMs = time.now();
     // npm gives an explicit before priority over min-release-age in the same source.
     if (Object.hasOwn(config, 'before')) {
-      return checkNpmBefore(config.before, nowMs, time, ctx.pmVersion);
+      return checkNpmBefore(config.before, nowMs, time, ctx);
     }
     const actual = getByPath(config, ['min-release-age']);
     const ageDays = typeof actual === 'number' || typeof actual === 'string' ? Number(actual) : NaN;

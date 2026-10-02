@@ -131,12 +131,12 @@ describe('Scan read snapshots', () => {
             rule(
               'package-snapshot',
               (ctx, config) => {
-                seen.push([
-                  ctx.packageJson?.private,
-                  config.private,
-                  ctx.readText(asRelPath('extra.txt')),
-                  ctx.readText(asRelPath('./extra.txt')),
-                ]);
+                seen.push({
+                  manifestPrivate: ctx.packageJson?.private,
+                  configPrivate: config.private,
+                  extraText: ctx.readText(asRelPath('extra.txt')),
+                  aliasedExtraText: ctx.readText(asRelPath('./extra.txt')),
+                });
                 return { state: 'ok' };
               },
               { ...CONFIG_FILES.packageJson, path: asRelPath(rulePath) },
@@ -145,13 +145,19 @@ describe('Scan read snapshots', () => {
         },
       };
       lint(snapshotOptions);
-      expect(seen).toEqual([[false, false, '1', '1']]);
+      const firstSnapshot = {
+        manifestPrivate: false,
+        configPrivate: false,
+        extraText: '1',
+        aliasedExtraText: '1',
+      };
+      expect(seen).toEqual([firstSnapshot]);
       expect(reads).toBe(1);
       expect(extraReads).toBe(1);
       lint(snapshotOptions);
       expect(seen).toEqual([
-        [false, false, '1', '1'],
-        [true, true, '2', '2'],
+        firstSnapshot,
+        { manifestPrivate: true, configPrivate: true, extraText: '2', aliasedExtraText: '2' },
       ]);
       expect(reads).toBe(2);
       expect(extraReads).toBe(2);
@@ -180,7 +186,10 @@ describe('Scan read snapshots', () => {
           rule(
             'absent-manifest',
             (ctx, config) => {
-              seen.push([ctx.packageJson?.private, config.private]);
+              seen.push({
+                manifestPrivate: ctx.packageJson?.private,
+                configPrivate: config.private,
+              });
               return { state: 'ok' };
             },
             CONFIG_FILES.packageJson,
@@ -189,12 +198,12 @@ describe('Scan read snapshots', () => {
       },
     };
     lint(request);
-    expect(seen).toEqual([[undefined, undefined]]);
+    expect(seen).toEqual([{ manifestPrivate: undefined, configPrivate: undefined }]);
     expect(reads).toBe(1);
     lint(request);
     expect(seen).toEqual([
-      [undefined, undefined],
-      [true, true],
+      { manifestPrivate: undefined, configPrivate: undefined },
+      { manifestPrivate: true, configPrivate: true },
     ]);
     expect(reads).toBe(2);
   });
