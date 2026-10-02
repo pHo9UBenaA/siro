@@ -30,10 +30,10 @@ const makeRule = (opts: {
   };
   return {
     bindings: { npm: binding },
-    description: 'd',
-    id: 'synthetic-d1',
+    description: 'Exercise severity precedence and display metadata.',
+    id: 'severity-probe',
     severity: opts.ruleSeverity,
-    title: 't',
+    title: 'Severity probe',
   };
 };
 

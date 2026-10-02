@@ -1,9 +1,8 @@
-import assert from 'node:assert';
 import { makeCtx, makePublishableCtx } from '../../helpers/ctx.ts';
 import { manualSteps, automaticOperations } from '../../helpers/remediation.ts';
 import { type ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { frozenLockfile } from '../../../src/core/rules/frozen-lockfile.ts';
-import { bindingForTest } from '../../helpers/rules.ts';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 
 describe('frozen-lockfile (aube)', () => {
   const ctx = makePublishableCtx;
@@ -35,7 +34,7 @@ describe('frozen-lockfile (bun)', () => {
     expect(ruleBinding.check(ctx(), { install: { frozen: true } }).state).toBe('violation');
     expect(ruleBinding.check(ctx(), { install: { frozenLockfile: true } }).state).toBe('ok');
     const missing = ruleBinding.check(ctx(), {});
-    assert(missing.state === 'violation');
+    assertCheckState(missing, 'violation');
     expect(missing.severity).toBeUndefined();
     expect(frozenLockfile.severity).toBe('warn');
     expect(Object.keys(frozenLockfile.bindings).sort()).toEqual([
@@ -60,8 +59,7 @@ describe('deno bindings target deno.json', () => {
 
       expect(ruleBinding.file).toStrictEqual({ kind: 'json', path: 'deno.json' });
       const result = ruleBinding.check(ctx, config);
-      expect(result.state).toBe('violation');
-      assert(result.state === 'violation');
+      assertCheckState(result, 'violation');
       expect(result.severity).toBeUndefined();
       expect(ruleBinding.check(ctx, { lock: { frozen: true } }).state).toBe('ok');
       expect(automaticOperations(result)[0]).toMatchObject({

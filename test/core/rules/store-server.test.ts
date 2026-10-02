@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import { storeServer } from '../../../src/core/rules/store-server.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
@@ -16,7 +15,7 @@ describe('store-server: check states', () => {
 
   it('reports configured useRunningStoreServer for manual review', () => {
     const status = pnpmBinding.check(makeCtx(), { useRunningStoreServer: true });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.message).toContain('useRunningStoreServer');
 
     expect(status.remediation).toMatchObject({ kind: 'manual', steps: expect.any(Array) });

@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import { checksumVerification } from '../../../src/core/rules/checksum-verification.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
@@ -19,7 +18,7 @@ describe('checksum-verification: check states', () => {
 describe('checksum-verification: remediation', () => {
   it('reports the missing setting with its severity, scope and remediation', () => {
     const status = yarnBinding.check(makeCtx(), {});
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBe('info');
 
     const ops = automaticOperations(status);

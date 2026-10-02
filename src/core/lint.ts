@@ -202,25 +202,27 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
   };
 };
 
-const selectInstallationRules = (ruleSet: readonly Rule[], item: DirectoryEvaluation): Rule[] =>
-  ruleSet.flatMap((rule): Rule[] => {
+const selectInstallationRules = (ruleSet: readonly Rule[], item: DirectoryEvaluation): Rule[] => {
+  const selected: Rule[] = [];
+  for (const rule of ruleSet) {
     const scope = scopeOf(rule.id);
-    if (
-      (scope === 'installation' && item.isInstallationRoot) ||
-      (scope === 'custom' && item.directory === '.')
-    )
-      return [rule];
-    if (scope === 'split' && item.isInstallationRoot)
-      return [
-        {
-          ...rule,
-          bindings: createUnsupportedSettings(
-            (file) => file !== 'package.json' && file !== 'deno.json',
-          ).bindings,
-        },
-      ];
-    return [];
-  });
+    if (scope === 'custom') {
+      if (item.directory === '.') selected.push(rule);
+      continue;
+    }
+    if (!item.isInstallationRoot) continue;
+    if (scope === 'installation') selected.push(rule);
+    if (scope === 'split') {
+      selected.push({
+        ...rule,
+        bindings: createUnsupportedSettings(
+          (file) => file !== 'package.json' && file !== 'deno.json',
+        ).bindings,
+      });
+    }
+  }
+  return selected;
+};
 
 export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
   const { directories, ruleSet, severityOverrides, limits } = evaluation;

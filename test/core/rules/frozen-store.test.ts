@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import { frozenStore } from '../../../src/core/rules/frozen-store.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { manualSteps } from '../../helpers/remediation.ts';
@@ -14,7 +13,7 @@ describe('frozen-store: check states', () => {
   it('requests store population before enabling a missing frozenStore', () => {
     const status = pnpmBinding.check(makeCtx(), {});
 
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.message).toContain('frozenStore');
     const steps = manualSteps(status);
 
@@ -23,7 +22,7 @@ describe('frozen-store: check states', () => {
 
   it('violation when frozenStore is false', () => {
     const status = pnpmBinding.check(makeCtx(), { frozenStore: false });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.message).toContain('frozenStore');
   });
 });

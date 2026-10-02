@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import { namedRegistries } from '../../../src/core/rules/named-registries.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
@@ -18,7 +17,7 @@ describe('named-registries: check states', () => {
     const status = pnpmBinding.check(makeCtx(), {
       namedRegistries: { github: 'https://npm.pkg.github.com' },
     });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.message).toContain('namedRegistries');
     expect(status.message).toContain('pnpm-workspace.yaml');
 

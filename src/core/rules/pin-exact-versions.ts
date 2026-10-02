@@ -55,12 +55,11 @@ const collectUnpinnedInlineImports = (config: ParsedConfig): string[] => {
   const imports = getByPath(config, ['imports']);
   const offenders = imports == null ? [] : collectUnpinnedImports(imports, 'imports');
   const scopes = getByPath(config, ['scopes']);
-  if (scopes != null) {
-    if (!isPlainRecord(scopes)) throw new ConfigError('deno.json: scopes must be an object.');
-    for (const [scope, mapping] of Object.entries(scopes)) {
-      for (const offender of collectUnpinnedImports(mapping, `scopes[${JSON.stringify(scope)}]`))
-        offenders.push(offender);
-    }
+  if (scopes == null) return offenders;
+  if (!isPlainRecord(scopes)) throw new ConfigError('deno.json: scopes must be an object.');
+  for (const [scope, mapping] of Object.entries(scopes)) {
+    for (const offender of collectUnpinnedImports(mapping, `scopes[${JSON.stringify(scope)}]`))
+      offenders.push(offender);
   }
   return offenders;
 };

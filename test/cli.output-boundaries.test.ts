@@ -16,26 +16,35 @@ const run = (root: string, ...args: string[]) => {
 };
 
 it.each([
-  "export default Promise.reject(new Error('rejected config'));",
-  `export default {
-    installationRoots: [],
-    customRules: [{
-      id: 'async', title: 'Async', description: 'Async check', severity: 'error',
-      bindings: { npm: {
-        async check() { throw new Error('rejected check'); },
-      } },
-    }],
-  };`,
-  `export default {
-    installationRoots: [],
-    customRules: [{
-      id: 'async', title: 'Async', description: 'Async check', severity: 'error',
-      bindings: { npm: {
-        check() { return Promise.reject(new Error('rejected check')); },
-      } },
-    }],
-  };`,
-])('rejects unsupported async extensions without a later unhandled rejection', (config) => {
+  {
+    name: 'rejected config Promise',
+    config: "export default Promise.reject(new Error('rejected config'));",
+  },
+  {
+    name: 'throwing async check',
+    config: `export default {
+      installationRoots: [],
+      customRules: [{
+        id: 'async', title: 'Async', description: 'Async check', severity: 'error',
+        bindings: { npm: {
+          async check() { throw new Error('rejected check'); },
+        } },
+      }],
+    };`,
+  },
+  {
+    name: 'check returning a rejected Promise',
+    config: `export default {
+      installationRoots: [],
+      customRules: [{
+        id: 'async', title: 'Async', description: 'Async check', severity: 'error',
+        bindings: { npm: {
+          check() { return Promise.reject(new Error('rejected check')); },
+        } },
+      }],
+    };`,
+  },
+])('rejects a $name without a later unhandled rejection', ({ config }) => {
   const root = fixture({ 'siro.config.mjs': config });
   try {
     const result = run(root, '--pm', 'npm', '--json');

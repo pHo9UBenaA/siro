@@ -10,19 +10,22 @@ const options = {
   pm: 'npm' as const,
 };
 const asyncValues = [
-  () => Promise.resolve({ state: 'ok' }),
-  () => Promise.reject(new Error('rejected')),
-  () => ({
-    then(_resolve: unknown, reject: (error: Error) => void) {
-      reject(new Error('thenable rejected'));
-    },
-  }),
+  { name: 'resolved Promise', create: () => Promise.resolve({ state: 'ok' }) },
+  { name: 'rejected Promise', create: () => Promise.reject(new Error('rejected')) },
+  {
+    name: 'rejecting thenable',
+    create: () => ({
+      then(_resolve: unknown, reject: (error: Error) => void) {
+        reject(new Error('thenable rejected'));
+      },
+    }),
+  },
 ];
 
 it.each(asyncValues)(
-  'rejects submitted async values without process-wide rejection handlers',
-  async (value) => {
-    expect(() => lint({ ...options, config: value() as unknown as SiroConfig })).toThrow(
+  'rejects a $name without process-wide rejection handlers',
+  async ({ create }) => {
+    expect(() => lint({ ...options, config: create() as unknown as SiroConfig })).toThrow(
       /synchronous/,
     );
     expect(() =>
@@ -32,10 +35,10 @@ it.each(asyncValues)(
           customRules: [
             {
               id: 'async-probe',
-              title: 't',
-              description: 'd',
+              title: 'Async probe',
+              description: 'Return an unsupported async check result.',
               severity: 'error',
-              bindings: { npm: { check: () => value() as never } },
+              bindings: { npm: { check: () => create() as never } },
             },
           ],
         },

@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { strictAllowScripts } from '../../../src/core/rules/strict-allow-scripts.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
@@ -40,7 +39,7 @@ describe('strict-allow-scripts', () => {
   it('reports the missing setting with its severity, scope and remediation', () => {
     const status = npm.check(makeCtx(), {});
 
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
     expect(Object.keys(strictAllowScripts.bindings).sort()).toEqual(['npm']);
 
@@ -60,7 +59,7 @@ describe('strict-allow-scripts', () => {
 
   it('flags a violation when set to false', () => {
     const status = npm.check(makeCtx(), { 'strict-allow-scripts': false });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
   });
 });

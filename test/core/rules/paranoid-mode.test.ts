@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import { paranoidMode } from '../../../src/core/rules/paranoid-mode.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
@@ -14,7 +13,7 @@ describe('paranoid-mode: check states', () => {
   it('proposes paranoid in aube-workspace.yaml when absent', () => {
     const status = aubeBinding.check(makeCtx(), {});
 
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.message).toContain('paranoid');
 
     const ops = automaticOperations(status);

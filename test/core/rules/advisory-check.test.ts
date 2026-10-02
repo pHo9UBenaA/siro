@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { advisoryCheck } from '../../../src/core/rules/advisory-check.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
@@ -32,7 +31,7 @@ describe('advisory-check: remediation', () => {
         value: 'on',
       },
     ]);
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.message).toContain('advisoryCheck');
   });
 });

@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { trustPolicy } from '../../../src/core/rules/trust-policy.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
@@ -15,7 +14,7 @@ describe('trust-policy: check states', () => {
   it('requires and proposes pnpm trust policy with its supported scope', () => {
     const status = pnpmBinding.check(makeCtx(), {});
 
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
 
     expect(trustPolicy.severity).toBe('warn');
@@ -36,7 +35,7 @@ describe('trust-policy: check states', () => {
 
   it('flags trustPolicy off even with the aube-only paranoid option enabled', () => {
     const status = pnpmBinding.check(makeCtx(), { paranoid: true, trustPolicy: 'off' });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
   });
 });

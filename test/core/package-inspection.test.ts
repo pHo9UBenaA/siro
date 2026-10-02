@@ -300,14 +300,20 @@ it.each([
   expect(out()).toBe('');
 });
 
-it.each([undefined, 'not-array', ['..'], ['.'], [''], ['a/b'], [null], Array(1)])(
-  'rejects missing or malformed enumeration: %j',
-  (names) => {
-    const fs = createMemFileSystem({});
-    fs.readDirectories = names === undefined ? (undefined as never) : () => names as never;
-    expect(() => inspect({}, { fs })).toThrow(/FileSystem.readDirectories/);
-  },
-);
+it.each([
+  { name: 'missing method', names: undefined },
+  { name: 'non-array response', names: 'not-array' },
+  { name: 'parent component', names: ['..'] },
+  { name: 'current directory component', names: ['.'] },
+  { name: 'empty component', names: [''] },
+  { name: 'multiple components', names: ['a/b'] },
+  { name: 'non-string component', names: [null] },
+  { name: 'sparse response', names: Array(1) },
+])('rejects enumeration with a $name', ({ names }) => {
+  const fs = createMemFileSystem({});
+  fs.readDirectories = names === undefined ? (undefined as never) : () => names as never;
+  expect(() => inspect({}, { fs })).toThrow(/FileSystem.readDirectories/);
+});
 
 it.each([null, undefined])(
   'rejects invalid enumeration results as configuration errors without output: %s',
@@ -339,8 +345,8 @@ it('custom rules run only at cwd, and all-off custom rules do not require a PM',
   const roots: string[] = [];
   const custom = {
     id: 'custom',
-    title: 't',
-    description: 'd',
+    title: 'Custom scope probe',
+    description: 'Observe which repository contexts run custom rules.',
     severity: 'warn' as const,
     bindings: {
       npm: {

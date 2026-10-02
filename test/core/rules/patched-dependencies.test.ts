@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import { patchedDependencies } from '../../../src/core/rules/patched-dependencies.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
@@ -18,7 +17,7 @@ describe('patched-dependencies: check states', () => {
     const status = pnpmBinding.check(makeCtx(), {
       patchedDependencies: { 'express@4.18.2': 'patches/express.patch' },
     });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.message).toContain('patchedDependencies');
     expect(status.message).toContain('pnpm-workspace.yaml');
 

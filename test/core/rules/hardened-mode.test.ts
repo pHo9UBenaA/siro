@@ -1,8 +1,7 @@
-import assert from 'node:assert';
 import { hardenedMode } from '../../../src/core/rules/hardened-mode.ts';
 import { makePublishableCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
-import { bindingForTest } from '../../helpers/rules.ts';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 
 describe('hardened-mode (yarn)', () => {
   const ctx = makePublishableCtx;
@@ -16,7 +15,7 @@ describe('hardened-mode (yarn)', () => {
     const missing = ruleBinding.check(ctx(), {});
     expect(ruleBinding.check(ctx(), { enableHardenedMode: true }).state).toBe('ok');
     const explicitFalse = ruleBinding.check(ctx(), { enableHardenedMode: false });
-    assert(explicitFalse.state === 'violation');
+    assertCheckState(explicitFalse, 'violation');
     expect(explicitFalse.severity).toBeUndefined();
 
     const setKey = automaticOperations(missing)[0];

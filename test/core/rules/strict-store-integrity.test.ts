@@ -1,5 +1,4 @@
 import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { strictStoreIntegrity } from '../../../src/core/rules/strict-store-integrity.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
@@ -45,7 +44,6 @@ describe('strict-store-integrity: check states', () => {
 describe('strict-store-integrity: remediation', () => {
   it('proposes strictStoreIntegrity in aube-workspace.yaml', () => {
     const status = aubeBinding.check(makeCtx(), {});
-    assert(status.state === 'violation');
     const ops = automaticOperations(status);
     expect(ops).toStrictEqual([
       {

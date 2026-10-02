@@ -16,7 +16,7 @@ export interface InstallationRoot {
   readonly pmVersion?: string;
 }
 
-const denseArray = (value: unknown, name: string): unknown[] => {
+const requireDenseArray = (value: unknown, name: string): unknown[] => {
   if (!Array.isArray(value)) throw new ConfigError(`${name} must be a dense array.`);
   for (let index = 0; index < value.length; index += 1) {
     if (!Object.hasOwn(value, index)) throw new ConfigError(`${name} must be a dense array.`);
@@ -52,7 +52,7 @@ const normalizeScopePath = (value: unknown, name: 'exclude' | 'installationRoots
 };
 
 export const parseExcludes = (value: unknown): string[] => {
-  const patterns = denseArray(value, 'exclude').map((input) => {
+  const patterns = requireDenseArray(value, 'exclude').map((input) => {
     const pattern = normalizeScopePath(input, 'exclude');
     if (pattern === '.' || pattern.startsWith('!'))
       throw new ConfigError('exclude cannot exclude cwd (.) or re-include with leading !.');
@@ -63,7 +63,7 @@ export const parseExcludes = (value: unknown): string[] => {
 
 export const parseInstallationRoots = (value: unknown): InstallationRoot[] => {
   const roots = new Map<string, InstallationRoot>();
-  for (const input of denseArray(value, 'installationRoots')) {
+  for (const input of requireDenseArray(value, 'installationRoots')) {
     if (
       typeof input !== 'string' &&
       (!isPlainRecord(input) ||

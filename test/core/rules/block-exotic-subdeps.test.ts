@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { blockExoticSubdeps } from '../../../src/core/rules/block-exotic-subdeps.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
@@ -12,9 +11,9 @@ describe('block-exotic-subdeps', () => {
     expect(pnpm.check(makeCtx(), { blockExoticSubdeps: true }).state).toBe('ok');
   });
 
-  it('flags a warn violation when explicitly set to false', () => {
+  it('leaves explicit false at the rule severity', () => {
     const status = pnpm.check(makeCtx(), { blockExoticSubdeps: false });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
   });
 
@@ -61,9 +60,9 @@ describe('block-exotic-subdeps (aube)', () => {
     ]);
   });
 
-  it('flags a warn violation when explicitly set to false', () => {
+  it('leaves explicit false at the rule severity', () => {
     const status = aube.check(makeCtx(), { blockExoticSubdeps: false });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
   });
 });
@@ -84,7 +83,7 @@ describe('block-exotic-subdeps (npm)', () => {
     { 'allow-git': 'root', 'allow-remote': 'all' },
   ])('keeps full severity when either URL restriction is explicitly unsafe (%j)', (config) => {
     const status = npm.check(makeCtx(), config);
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
   });
 
@@ -92,8 +91,8 @@ describe('block-exotic-subdeps (npm)', () => {
     'keeps unset URL restrictions at full severity when npm 12 is unverified (%j)',
     (config) => {
       const status = npm.check(makeCtx(), config);
-      expect(status).toMatchObject({ expected: 'none', state: 'violation' });
-      assert(status.state === 'violation');
+      assertCheckState(status, 'violation');
+      expect(status.expected).toBe('none');
       expect(status.severity).toBeUndefined();
     },
   );

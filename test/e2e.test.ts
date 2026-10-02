@@ -1,4 +1,3 @@
-import assert from 'node:assert';
 import { rmSync } from 'node:fs';
 import path from 'node:path';
 import { run } from '../src/cli.ts';
@@ -39,8 +38,7 @@ it('applies warn and off rule overrides from the same config', async () => {
     await run(['lint', '--reporter', 'json', root], io);
     const parsed: { findings: { ruleId: string; severity: string }[] } = JSON.parse(out());
     const finding = parsed.findings.find((entry) => entry.ruleId === 'pin-exact-versions');
-    assert(finding, 'expected a pin-exact-versions finding');
-    expect(finding.severity).toBe('warn');
+    expect(finding).toMatchObject({ ruleId: 'pin-exact-versions', severity: 'warn' });
     expect(parsed.findings.map((entry) => entry.ruleId)).not.toContain('provenance');
   } finally {
     rmSync(root, { force: true, recursive: true });

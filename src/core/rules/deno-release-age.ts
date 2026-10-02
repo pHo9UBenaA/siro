@@ -23,7 +23,7 @@ const DENO_OFFSET_TIMESTAMP =
 const DENO_DURATION_TOKEN = /(\d+)(?:\.(\d+))?([WDHMS])/giu;
 const LEAP_SECOND = /:60(?=\.|Z|z|[+-])/u;
 
-const isPositiveDenoSeconds = (seconds: number, nowMs: number): boolean =>
+const isActiveDurationSeconds = (seconds: number, nowMs: number): boolean =>
   seconds > 0 && Number.isFinite(seconds) && nowMs - seconds * 1000 >= DENO_MIN_TIMESTAMP_MS;
 
 const durationSeconds = (value: string): number => {
@@ -43,13 +43,13 @@ export const isActiveDenoReleaseAge = (
   parse: DateTime['parse'],
 ): boolean => {
   if (typeof value === 'number')
-    return Number.isSafeInteger(value) && isPositiveDenoSeconds(value * 60, nowMs);
+    return Number.isSafeInteger(value) && isActiveDurationSeconds(value * 60, nowMs);
   if (typeof value !== 'string') return false;
   if (/^\d+$/u.test(value)) {
     const minutes = Number(value);
-    return Number.isSafeInteger(minutes) && isPositiveDenoSeconds(minutes * 60, nowMs);
+    return Number.isSafeInteger(minutes) && isActiveDurationSeconds(minutes * 60, nowMs);
   }
-  if (DENO_DURATION.test(value)) return isPositiveDenoSeconds(durationSeconds(value), nowMs);
+  if (DENO_DURATION.test(value)) return isActiveDurationSeconds(durationSeconds(value), nowMs);
   if (!DENO_DATE.test(value) && !DENO_TIMESTAMP.test(value) && !DENO_OFFSET_TIMESTAMP.test(value))
     return false;
 

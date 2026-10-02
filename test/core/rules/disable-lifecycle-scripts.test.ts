@@ -1,8 +1,7 @@
-import assert from 'node:assert';
 import { parsePackageJson } from '../../../src/core/contracts/package-json.ts';
 import { type ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { makePublishableCtx, makeCtx } from '../../helpers/ctx.ts';
-import { bindingForTest } from '../../helpers/rules.ts';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import { disableLifecycleScripts } from '../../../src/core/rules/disable-lifecycle-scripts.ts';
 import { automaticOperations, manualSteps } from '../../helpers/remediation.ts';
 
@@ -50,7 +49,7 @@ describe('disable-lifecycle-scripts (pnpm): check states', () => {
   it('emits a full-severity violation when strictDepBuilds is explicitly false', () => {
     const status = pnpmBinding.check(ctx, { strictDepBuilds: false });
     expect(status).toMatchObject({ actual: false, expected: true, state: 'violation' });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
   });
 });
@@ -69,7 +68,7 @@ describe('disable-lifecycle-scripts (pnpm): bypass remediation', () => {
       expected: false,
       state: 'violation',
     });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     const steps = manualSteps(status);
     expect(steps[0]).toMatch(/dangerouslyAllowAllBuilds/u);
     expect(status.message).toMatch(/dangerouslyAllowAllBuilds/u);
@@ -140,7 +139,7 @@ describe('disable-lifecycle-scripts (aube)', () => {
 
     expect(ruleBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
     const status = ruleBinding.check(ctx(), {});
-    assert(status.state === 'violations');
+    assertCheckState(status, 'violations');
     expect(status.violations.map((item) => item.file)).toEqual(['aube-workspace.yaml', '.npmrc']);
     const ops = status.violations.flatMap((item) => automaticOperations(item));
     const aubeFile = { kind: 'yaml', path: 'aube-workspace.yaml' };
@@ -181,7 +180,7 @@ describe('disable-lifecycle-scripts (aube)', () => {
     const status = bindingForTest(disableLifecycleScripts, 'aube').check(ctx(), {
       jailBuilds: { nested: true },
     });
-    assert(status.state === 'violations');
+    assertCheckState(status, 'violations');
     expect(status.violations.map((item) => [item.file, item.remediation?.kind])).toEqual([
       ['aube-workspace.yaml', 'manual'],
       ['.npmrc', 'automatic'],

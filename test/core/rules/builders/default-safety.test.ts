@@ -14,8 +14,8 @@ type DefaultOptions = Pick<
 const checkDefault = (options: DefaultOptions) => {
   const rule = requireConfigKey({
     id: 'default-predicate',
-    title: 't',
-    description: 'd',
+    title: 'Default predicate',
+    description: 'Check safe defaults with a positive release-age predicate.',
     severity: 'error',
     bindings: {
       npm: {

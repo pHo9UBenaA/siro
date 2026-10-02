@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../../helpers/rules.ts';
 import { codecFor } from '../../../../src/adapters/codecs/store.ts';
 import { asRelPath } from '../../../../src/core/contracts/paths.ts';
 import type { Rule, VersionNote } from '../../../../src/core/contracts/rule.ts';
@@ -19,15 +18,15 @@ const buildRule = (opts: {
       npm: {
         ...opts,
         file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-        keyPath: ['ky'],
-        message: 'pin it',
+        keyPath: ['enabled'],
+        message: 'Enable the policy explicitly.',
         value: true,
       },
     },
-    description: 'd',
+    description: 'Require an enabled policy with a documented default.',
     id: 'documented-default',
     severity: 'error',
-    title: 't',
+    title: 'Documented default',
   });
 
 describe('documented defaults', () => {
@@ -85,8 +84,8 @@ describe('documented defaults', () => {
       'npm',
     );
 
-    const status = binding.check(makeCtx(), { ky: false });
-    assert(status.state === 'violation');
+    const status = binding.check(makeCtx(), { enabled: false });
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
   });
 
@@ -96,6 +95,6 @@ describe('documented defaults', () => {
       'npm',
     );
 
-    expect(binding.check(makeCtx(), { ky: true }).state).toBe('ok');
+    expect(binding.check(makeCtx(), { enabled: true }).state).toBe('ok');
   });
 });

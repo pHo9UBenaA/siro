@@ -1,5 +1,4 @@
 import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { strictReleaseAge } from '../../../src/core/rules/strict-release-age.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
@@ -28,7 +27,6 @@ describe('strict-release-age: check states', () => {
 describe('strict-release-age: remediation', () => {
   it('proposes minimumReleaseAgeStrict in aube-workspace.yaml', () => {
     const status = aubeBinding.check(makeCtx(), {});
-    assert(status.state === 'violation');
     const ops = automaticOperations(status);
     expect(ops).toStrictEqual([
       {

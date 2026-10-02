@@ -1,11 +1,10 @@
-import assert from 'node:assert';
 import { type Rule } from '../../../src/core/contracts/rule.ts';
 import { type PM } from '../../../src/core/contracts/pms.ts';
 import { blockExoticSubdeps } from '../../../src/core/rules/block-exotic-subdeps.ts';
 import { disableLifecycleScripts } from '../../../src/core/rules/disable-lifecycle-scripts.ts';
 import { frozenLockfile } from '../../../src/core/rules/frozen-lockfile.ts';
 import { hardenedMode } from '../../../src/core/rules/hardened-mode.ts';
-import { bindingForTest, minimumReleaseAge } from '../../helpers/rules.ts';
+import { assertCheckState, bindingForTest, minimumReleaseAge } from '../../helpers/rules.ts';
 import { makeCtx, makePublishableCtx } from '../../helpers/ctx.ts';
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
 import { runLint } from '../../../src/core/run-lint.ts';
@@ -33,7 +32,7 @@ describe('unverified package-manager defaults', () => {
       const binding = bindingForTest(rule, pm);
 
       const status = binding.check(makeCtx(), {});
-      assert(status.state === 'violation');
+      assertCheckState(status, 'violation');
       expect(status.severity).toBeUndefined();
     },
   );

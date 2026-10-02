@@ -1,5 +1,4 @@
-import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import { auditSuppression } from '../../../src/core/rules/audit-suppression.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
@@ -22,7 +21,7 @@ describe('audit-suppression: check states', () => {
       npmAuditExcludePackages: ['lodash'],
       npmAuditIgnoreAdvisories: ['1234567'],
     });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.message).toContain('npmAuditIgnoreAdvisories');
     expect(status.message).toContain('npmAuditExcludePackages');
 

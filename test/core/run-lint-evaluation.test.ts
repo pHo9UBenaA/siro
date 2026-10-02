@@ -202,19 +202,22 @@ it('expands independent violations with fallback paths, values, per-result sever
 });
 
 it.each([
-  [],
-  [{ state: 'ok' }],
-  [{ state: 'violations', violations: [] }],
-  Array(1),
-  [
-    { state: 'violation', message: 'valid' },
-    { state: 'violation', message: 42 },
-  ],
-])('rejects an invalid violation group without a partial result: %j', (violations) => {
+  { name: 'empty group', violations: [] },
+  { name: 'ok member', violations: [{ state: 'ok' }] },
+  { name: 'nested group', violations: [{ state: 'violations', violations: [] }] },
+  { name: 'sparse group', violations: Array(1) },
+  {
+    name: 'invalid member after a valid member',
+    violations: [
+      { state: 'violation', message: 'valid' },
+      { state: 'violation', message: 42 },
+    ],
+  },
+])('rejects an invalid $name without a partial result', ({ violations }) => {
   const rule = ruleWith('invalid-group', ['npm'], {
     state: 'violations',
     violations,
-  } as CheckStatus);
+  } as unknown as CheckStatus);
   expect(() => lint(noopCtx, [rule], ['npm'])).toThrow('invalid check result');
 });
 

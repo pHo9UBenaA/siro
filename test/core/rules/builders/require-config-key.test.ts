@@ -33,16 +33,16 @@ const ruleWithVersionNote = (versionNote?: VersionNote): Rule => {
     bindings: {
       npm: {
         file: npmrc,
-        keyPath: ['k'],
+        keyPath: ['enabled'],
         message: 'Pin the key explicitly.',
         value: true,
         versionNote,
       },
     },
-    description: 'd',
+    description: 'Carry display metadata without changing the check result.',
     id: 'version-note',
     severity: 'error',
-    title: 't',
+    title: 'Version note',
   });
 };
 
@@ -53,16 +53,16 @@ describe('requireConfigKey passes spec.severity into binding', () => {
         bindings: {
           npm: {
             file: npmrc,
-            keyPath: ['x'],
-            message: 'm',
+            keyPath: ['enabled'],
+            message: 'Enable the policy.',
             severity,
             value: true,
           },
         },
-        description: 'd',
-        id: 'test-d1',
+        description: 'Preserve the optional binding severity.',
+        id: 'binding-severity',
         severity: 'error',
-        title: 't',
+        title: 'Binding severity',
       });
       return bindingForTest(rule, 'npm').severity;
     };
