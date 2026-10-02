@@ -176,6 +176,12 @@ reporter calls use defaults, or supplied `context.limits`. Limits do not sandbox
 trusted extensions or impose a hard CPU timeout. Isolate synchronous API work in a
 subprocess/container when hard time/memory bounds are needed.
 
+When aggregate budgets are exceeded, reduce the scan scope; scan independent projects
+separately where possible. Changing the target directory can change configuration
+and root-level checks, so splitting a shared workspace is not equivalent to checking
+it as a whole. Individual file-size and configuration-depth overflows instead require
+smaller files or simpler nesting.
+
 Do not modify inputs during a scan; a consistent filesystem snapshot is not guaranteed.
 
 ## Target PM versions

@@ -38,8 +38,15 @@ export const resolveScanLimits = (input?: Partial<ScanLimits>): ScanLimits => {
   return limits;
 };
 
+const SCAN_SCOPE_ADVICE =
+  'Reduce the scan scope. If the target contains independent projects, scan each project directory separately.';
+
 export const checkLimit = (name: keyof ScanLimits, value: number, limits: ScanLimits): void => {
-  if (value > limits[name]) throw new ConfigError(`Inspection exceeds ${name} (${limits[name]}).`);
+  if (value > limits[name]) {
+    const advice =
+      name === 'maxFileBytes' ? 'Reduce the size of the input file.' : SCAN_SCOPE_ADVICE;
+    throw new ConfigError(`Inspection exceeds ${name} (${limits[name]}). ${advice}`);
+  }
 };
 
 /** Counts UTF-8 without allocating another copy of a potentially large input. */
@@ -67,7 +74,9 @@ export const checkConfigDepth = (value: unknown, maxDepth: number): void => {
     if (active.has(item.value))
       throw new ConfigError('Configuration contains a circular reference.');
     if (item.depth > maxDepth)
-      throw new ConfigError(`Configuration exceeds maxConfigDepth (${maxDepth}).`);
+      throw new ConfigError(
+        `Configuration exceeds maxConfigDepth (${maxDepth}). Simplify the nesting of the configuration.`,
+      );
     if ((seen.get(item.value) ?? 0) >= item.depth) continue;
     seen.set(item.value, item.depth);
     active.add(item.value);
@@ -82,6 +91,7 @@ export const outputBudget = (maxBytes: number) => {
   let bytes = 0;
   return (text: string): void => {
     bytes += utf8Bytes(text);
-    if (bytes > maxBytes) throw new SiroError(`Output exceeds maxOutputBytes (${maxBytes}).`, 70);
+    if (bytes > maxBytes)
+      throw new SiroError(`Output exceeds maxOutputBytes (${maxBytes}). ${SCAN_SCOPE_ADVICE}`, 70);
   };
 };

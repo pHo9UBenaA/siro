@@ -102,14 +102,44 @@ it.each([
   expect(diagnostic).not.toContain('FAKE_SECRET');
 });
 
-it('fails closed on small file/output limits through the real CLI', () => {
-  const input = run(['--no-config', '--max-file-bytes', '8', '--json']);
-  expect(input.status).toBe(2);
-  expect(input.stdout).toBe('');
-  const output = run(['--no-config', '--max-output-bytes', '8', '--json']);
-  expect(output.status).toBe(70);
-  expect(output.stdout).toBe('');
-});
+const scopeAdvice =
+  'Reduce the scan scope. If the target contains independent projects, scan each project directory separately.';
+
+it.each([
+  [
+    '--max-file-bytes',
+    'Inspection exceeds maxFileBytes (1).',
+    'Reduce the size of the input file.',
+    2,
+  ],
+  ['--max-total-bytes', 'Inspection exceeds maxTotalBytes (1).', scopeAdvice, 2],
+  ['--max-entries', 'Inspection exceeds maxEntries (1).', scopeAdvice, 2],
+  ['--max-directories', 'Inspection exceeds maxDirectories (1).', scopeAdvice, 2],
+  ['--max-directory-depth', 'Inspection exceeds maxDirectoryDepth (1).', scopeAdvice, 2],
+  [
+    '--max-config-depth',
+    'Configuration exceeds maxConfigDepth (1).',
+    'Simplify the nesting of the configuration.',
+    2,
+  ],
+  ['--max-findings', 'Inspection exceeds maxFindings (1).', scopeAdvice, 2],
+  ['--max-output-bytes', 'Output exceeds maxOutputBytes (1).', scopeAdvice, 70],
+] as const)(
+  'explains how to address %s without emitting a partial JSON report',
+  (flag, message, advice, code) => {
+    writeFileSync(
+      path.join(root, 'package.json'),
+      '{"name":"public","packageManager":"npm@12.0.2","unknown":{"nested":{}}}',
+    );
+    mkdirSync(path.join(root, 'a/b'), { recursive: true });
+    writeFileSync(path.join(root, 'a/b/package.json'), '{}');
+    const result = run(['--no-config', flag, '1', '--json']);
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(code);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe(`${message} ${advice}\n`);
+  },
+);
 
 it('encodes hostile filenames without injecting additional workflow commands', (context) => {
   if (process.platform === 'win32') {
