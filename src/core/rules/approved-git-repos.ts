@@ -29,7 +29,6 @@ const yarnBinding: RuleBinding = {
   },
   docs: 'https://yarnpkg.com/configuration/yarnrc#approvedGitRepositories',
   file: yarnrc,
-
   versionNote: { configAvailableSince: 'yarn 4.14.0' },
 };
 

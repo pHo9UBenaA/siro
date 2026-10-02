@@ -31,7 +31,6 @@ const pnpmBinding: RuleBinding = {
   },
   docs: 'https://pnpm.io/settings/store#frozenstore',
   file: pnpmWorkspace,
-
   versionNote: { configAvailableSince: 'pnpm 11.7.0' },
 };
 

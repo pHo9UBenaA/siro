@@ -160,6 +160,13 @@ const createNpmBinding = (time: DateTime): RuleBinding => ({
   },
 });
 
+const denoAgeViolation = (actual: unknown): ViolationStatus => ({
+  state: 'violation',
+  actual,
+  expected: 'P3D',
+  message: `Set minimumDependencyAge (e.g. "P3D" for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in deno.json.`,
+});
+
 const createDenoBinding = (time: DateTime): RuleBinding => ({
   file: denoJson,
   docs: 'https://docs.deno.com/runtime/reference/deno_json/',
@@ -170,12 +177,6 @@ const createDenoBinding = (time: DateTime): RuleBinding => ({
   check(ctx, config) {
     const actual = getByPath(config, ['minimumDependencyAge']);
     const nowMs = time.now();
-    const violation: ViolationStatus = {
-      state: 'violation',
-      actual,
-      expected: 'P3D',
-      message: `Set minimumDependencyAge (e.g. "P3D" for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in deno.json.`,
-    };
     const isAgeObject = isPlainRecord(actual);
     if (
       isAgeObject &&
@@ -183,7 +184,7 @@ const createDenoBinding = (time: DateTime): RuleBinding => ({
         (actual.exclude !== undefined && !isNonBlankStringArray(actual.exclude)))
     ) {
       return {
-        ...violation,
+        ...denoAgeViolation(actual),
         remediation: {
           kind: 'manual',
           steps: [
@@ -219,7 +220,7 @@ const createDenoBinding = (time: DateTime): RuleBinding => ({
     }
     if (isActiveDenoReleaseAge(age, nowMs, time.parse)) return { state: 'ok' };
     return {
-      ...violation,
+      ...denoAgeViolation(actual),
       remediation: proposeChanges(config, [
         {
           file: denoJson,

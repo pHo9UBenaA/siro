@@ -36,7 +36,9 @@ it('discovers every manifest independently of PM declarations, names, privacy, v
   expect(first.summary).toEqual({ error: 0, warn: 0, info: 10 });
   expect(packageFindings(first).map((f) => f.file)).toContain('deno.json');
   expect(packageFindings(first).map((f) => f.file)).not.toContain('package.json');
-  expect(packageFindings(first).every((f) => f.pm === undefined)).toBe(true);
+  for (const finding of packageFindings(first)) {
+    expect({ file: finding.file, pm: finding.pm }).toMatchObject({ pm: undefined });
+  }
   expect(packageFindings(inspect(files, { projectType: 'application' }))).toEqual([]);
 });
 
@@ -49,10 +51,12 @@ it('keeps discovery separate from local installation policy and rebases every au
   const first = inspect(files, { installationRoots: ['.'] });
   expect(first.inspection.installationRoots.map((r) => r.directory)).toEqual(['.']);
   expect(
-    first.findings
-      .filter((f) => f.directory === 'child')
-      .every((f) => ['files-field', 'publish-access'].includes(f.ruleId)),
-  ).toBe(true);
+    first.findings.filter(
+      (finding) =>
+        finding.directory === 'child' &&
+        !['files-field', 'publish-access'].includes(finding.ruleId),
+    ),
+  ).toEqual([]);
   const result = inspect(files, {
     installationRoots: ['.', 'child'],
     pm: 'pnpm',

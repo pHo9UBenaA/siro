@@ -108,7 +108,10 @@ it.each([
     });
     expect(status).toMatchObject({ state: 'violation', actual: true, expected: false, message });
     const steps = manualSteps(status);
-    expect(steps.join(' ').includes('strictDepBuilds requires pnpm >=10.6.0')).toBe(needsUpgrade);
+    const upgradeRequirement = 'strictDepBuilds requires pnpm >=10.6.0';
+    const withUpgrade = expect.stringContaining(upgradeRequirement);
+    const withoutUpgrade = expect.not.stringContaining(upgradeRequirement);
+    expect(steps.join(' ')).toEqual(needsUpgrade ? withUpgrade : withoutUpgrade);
     expect(steps.join(' ')).toContain('dangerouslyAllowAllBuilds');
   },
 );

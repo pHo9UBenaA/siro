@@ -74,7 +74,6 @@ const denoBinding: RuleBinding = {
   },
   docs: 'https://docs.deno.com/runtime/reference/cli/add/',
   file: denoJson,
-
   versionNote: { configAvailableSince: 'deno 1.30.0' },
 };
 

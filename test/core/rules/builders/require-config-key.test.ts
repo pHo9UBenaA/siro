@@ -1,5 +1,4 @@
 import { bindingForTest } from '../../../helpers/rules.ts';
-
 import type { ConfigFileRef } from '../../../../src/core/contracts/config-file-ref.ts';
 import { CONFIG_FILES } from '../../../../src/core/config-files.ts';
 import type { Rule, VersionNote } from '../../../../src/core/contracts/rule.ts';

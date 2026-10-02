@@ -1,5 +1,4 @@
 import { bindingForTest } from '../../helpers/rules.ts';
-
 import { dependencyOverrides } from '../../../src/core/rules/dependency-overrides.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 

@@ -138,7 +138,9 @@ it.each([
   vi.stubEnv('FORCE_COLOR', forceColor);
   const { io, out } = captureIO();
   await prettyReporter.format(result, io, context);
-  expect(out().includes('\u001b[')).toBe(colored);
+  const withColor = expect.stringContaining('\u001b[');
+  const withoutColor = expect.not.stringContaining('\u001b[');
+  expect(out()).toEqual(colored ? withColor : withoutColor);
 });
 
 it('prints the finding, documentation and summary', async () => {

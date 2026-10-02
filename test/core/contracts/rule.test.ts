@@ -9,7 +9,6 @@ const validRule = {
     npm: {
       check: () => ({ state: 'ok' }),
       file: { kind: 'npmrc', path: '.npmrc' },
-
       versionNote: { note: 'display only' },
     },
   },

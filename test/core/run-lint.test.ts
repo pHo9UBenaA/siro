@@ -24,7 +24,6 @@ const makeRule = (opts: {
       state: 'violation',
     }),
     file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-
     severity: opts.bindingSeverity,
     versionNote: opts.versionNote,
   };

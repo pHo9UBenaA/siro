@@ -104,17 +104,22 @@ it('keeps every unsupported key with its local manifest or installation file', (
     'child/package.json',
     'package.json',
   ]);
-  expect(findings.every((item) => item.remediation?.kind === 'manual')).toBe(true);
+  expect(findings.map((finding) => finding.remediation?.kind)).toEqual([
+    'manual',
+    'manual',
+    'manual',
+  ]);
   const npmrc = findings.find((item) => item.file === '.npmrc');
   expect(npmrc?.message).toContain('provenance');
   expect(npmrc?.message).toContain('min-release-age');
   expect(npmrc?.message).not.toContain('package.json#');
   expect(
-    findings
-      .filter((item) => item.file !== '.npmrc')
-      .every((item) => item.message.includes('publishConfig.provenance')),
-  ).toBe(true);
-  expect(findings.every((item) => item.severity === 'warn')).toBe(true);
+    findings.filter((finding) => finding.file !== '.npmrc').map((finding) => finding.message),
+  ).toEqual([
+    expect.stringContaining('publishConfig.provenance'),
+    expect.stringContaining('publishConfig.provenance'),
+  ]);
+  expect(findings.map((finding) => finding.severity)).toEqual(['warn', 'warn', 'warn']);
   expect(result.summary.warn).toBe(
     result.findings.filter((item) => item.severity === 'warn').length,
   );

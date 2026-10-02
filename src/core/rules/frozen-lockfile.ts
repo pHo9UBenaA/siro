@@ -17,7 +17,6 @@ const aubeBinding: RuleBinding = {
     };
   },
   docs: 'https://github.com/aubepkg/aube/blob/main/docs/cli/ci.md',
-
   severity: 'info',
 };
 

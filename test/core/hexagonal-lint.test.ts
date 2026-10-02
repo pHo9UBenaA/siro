@@ -64,7 +64,7 @@ it('discovers and evaluates through supplied ports, with generic paths and expli
     }),
   ]);
   expect(result.inspection.installationRoots).toEqual([]);
-  expect(result.findings.every((finding) => finding.pm === undefined)).toBe(true);
+  expect(result.findings.map((finding) => finding.pm)).toEqual([undefined, undefined]);
 });
 
 it('uses the explicitly supplied filesystem throughout discovery', () => {

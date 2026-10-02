@@ -30,7 +30,6 @@ const npmBinding: RuleBinding = {
   },
   docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#allow-git',
   file: npmrc,
-
   versionNote: { defaultSafeSince: 'npm 12.0.0' },
 };
 

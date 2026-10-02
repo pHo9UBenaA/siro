@@ -27,16 +27,15 @@ export const githubReporter: Reporter<'github'> = {
     );
     for (const finding of result.findings) {
       // Findings identify files, not source spans.
-      let file = '';
-      if (finding.file) {
-        file = `file=${escapeProp(path.resolve(context.cwd, finding.file))},`;
-      }
+      const fileProperty = finding.file
+        ? `file=${escapeProp(path.resolve(context.cwd, finding.file))},`
+        : '';
       // Documentation belongs in the body; the protocol has no URL property.
       let body = `[${finding.pm ?? 'package'}] ${finding.directory}: ${finding.message}`;
       if (finding.docs) {
         body += ` (${finding.docs})`;
       }
-      const line = `::${COMMAND[finding.severity]} ${file}title=${escapeProp(finding.ruleId)}::${escapeData(body)}`;
+      const line = `::${COMMAND[finding.severity]} ${fileProperty}title=${escapeProp(finding.ruleId)}::${escapeData(body)}`;
       consume(`${line}\n`);
       await io.stdout(line);
     }

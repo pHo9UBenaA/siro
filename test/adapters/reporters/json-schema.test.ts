@@ -30,7 +30,6 @@ const result: LintResult = {
           },
         ],
       },
-
       message: 'Set `save-exact=true` in .npmrc.',
       pm: 'npm',
       ruleId: 'pin-exact-versions',

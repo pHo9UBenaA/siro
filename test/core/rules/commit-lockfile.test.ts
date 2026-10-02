@@ -2,7 +2,6 @@ import { asAbsPath, lint, type LintOptions } from '../../../src/index.ts';
 import { createMemFileSystem } from '../../helpers/memfs.ts';
 import { bindingForTest } from '../../helpers/rules.ts';
 import { manualSteps } from '../../helpers/remediation.ts';
-
 import type { PM } from '../../../src/core/contracts/pms.ts';
 import type { RuleContext } from '../../../src/core/contracts/repo-context.ts';
 import { commitLockfile } from '../../../src/core/rules/commit-lockfile.ts';

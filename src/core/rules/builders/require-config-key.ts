@@ -99,7 +99,6 @@ const buildBinding = (
   },
   docs: spec.docs,
   file: spec.file,
-
   severity: spec.severity,
   versionNote: spec.versionNote,
 });

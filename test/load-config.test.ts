@@ -2,7 +2,6 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { loadConfig } from '../src/load-config.ts';
 import { asAbsPath } from '../src/adapters/node-paths.ts';
 import { type AbsPath } from '../src/core/contracts/paths.ts';
-
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 

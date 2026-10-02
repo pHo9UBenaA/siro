@@ -90,7 +90,6 @@ const pnpmBinding: RuleBinding = {
   },
   docs: pnpmStrictDepBuildsDocs,
   file: pnpmWorkspace,
-
   versionNote: pnpmVersionNote,
 };
 
@@ -157,7 +156,6 @@ const bunBinding: RuleBinding = {
   },
   docs: 'https://bun.com/docs/pm/lifecycle',
   file: bunfig,
-
   severity: 'info',
   versionNote: { configAvailableSince: 'bun 1.2.0' },
 };
