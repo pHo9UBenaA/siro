@@ -17,7 +17,7 @@ import type { FileSystem } from '../core/contracts/file-system.ts';
 import { isNodeError } from './node-errors.ts';
 
 /** Root ancestors are canonicalized; selected cwd and all below-root components must not be links. */
-const strictPaths = (root: AbsPath) => {
+const createStrictPathChecker = (root: AbsPath) => {
   // A trailing separator makes lstat follow a directory link on POSIX.
   const selected = path.resolve(root);
   if (lstatSync(selected).isSymbolicLink())
@@ -41,10 +41,11 @@ export const createNodeFileSystem = (
   limits: ScanLimits = DEFAULT_SCAN_LIMITS,
   strictRoot?: AbsPath,
 ): FileSystem => {
-  const checkPath = strictRoot === undefined ? () => {} : strictPaths(strictRoot);
-  let totalBytes = 0;
-  let entries = 0;
-  const regularFile = (file: AbsPath) => {
+  const checkPath = strictRoot === undefined ? () => {} : createStrictPathChecker(strictRoot);
+  const READ_CHUNK_BYTES = 64 * 1024;
+  let totalBytesRead = 0;
+  let directoryEntryCount = 0;
+  const statRegularFile = (file: AbsPath) => {
     checkPath(file);
     const stat = statSync(file);
     if (!stat.isFile()) throw new ConfigError(`${file}: expected a regular file.`);
@@ -57,7 +58,7 @@ export const createNodeFileSystem = (
       const names: string[] = [];
       try {
         for (let entry = stream.readSync(); entry !== null; entry = stream.readSync()) {
-          checkLimit('maxEntries', ++entries, limits);
+          checkLimit('maxEntries', ++directoryEntryCount, limits);
           if (entry.isDirectory()) names.push(entry.name);
         }
       } finally {
@@ -67,7 +68,7 @@ export const createNodeFileSystem = (
     },
     exists(file) {
       try {
-        regularFile(file);
+        statRegularFile(file);
         return true;
       } catch (error) {
         if (isNodeError(error) && error.code === 'ENOENT') return false;
@@ -77,9 +78,9 @@ export const createNodeFileSystem = (
     readText(file) {
       let fd: number | undefined;
       try {
-        const stat = regularFile(file);
+        const stat = statRegularFile(file);
         checkLimit('maxFileBytes', stat.size, limits);
-        checkLimit('maxTotalBytes', totalBytes + stat.size, limits);
+        checkLimit('maxTotalBytes', totalBytesRead + stat.size, limits);
         // NONBLOCK avoids waiting on a FIFO substituted after stat; NOFOLLOW protects the
         // final component where supported. Ancestor replacement still needs a sandbox.
         fd = openSync(
@@ -90,24 +91,25 @@ export const createNodeFileSystem = (
         );
         if (!fstatSync(fd).isFile()) throw new ConfigError(`${file}: expected a regular file.`);
         const chunks: Buffer[] = [];
-        let size = 0;
+        let fileBytesRead = 0;
         for (;;) {
+          // Read one byte past the remaining budget to detect growth after stat.
           const buffer = Buffer.allocUnsafe(
             Math.min(
-              64 * 1024,
-              limits.maxFileBytes - size + 1,
-              limits.maxTotalBytes - totalBytes + 1,
+              READ_CHUNK_BYTES,
+              limits.maxFileBytes - fileBytesRead + 1,
+              limits.maxTotalBytes - totalBytesRead + 1,
             ),
           );
-          const read = readSync(fd, buffer);
-          if (read === 0) break;
-          size += read;
-          totalBytes += read;
-          checkLimit('maxFileBytes', size, limits);
-          checkLimit('maxTotalBytes', totalBytes, limits);
-          chunks.push(buffer.subarray(0, read));
+          const bytesRead = readSync(fd, buffer);
+          if (bytesRead === 0) break;
+          fileBytesRead += bytesRead;
+          totalBytesRead += bytesRead;
+          checkLimit('maxFileBytes', fileBytesRead, limits);
+          checkLimit('maxTotalBytes', totalBytesRead, limits);
+          chunks.push(buffer.subarray(0, bytesRead));
         }
-        return Buffer.concat(chunks, size).toString('utf8');
+        return Buffer.concat(chunks, fileBytesRead).toString('utf8');
       } catch (error) {
         if (isNodeError(error) && error.code === 'ENOENT') return;
         throw error;

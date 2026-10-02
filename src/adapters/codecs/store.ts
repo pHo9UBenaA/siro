@@ -21,12 +21,10 @@ export const createCodecFor =
   (limits: ScanLimits): CodecFor =>
   (kind) => ({
     parse(text) {
-      const parsed =
-        kind === 'json'
-          ? toParsedConfig(parseJson(text, limits.maxConfigDepth))
-          : kind === 'yaml'
-            ? parseYaml(text, limits.maxConfigDepth)
-            : CODECS[kind].parse(text);
+      let parsed;
+      if (kind === 'json') parsed = toParsedConfig(parseJson(text, limits.maxConfigDepth));
+      else if (kind === 'yaml') parsed = parseYaml(text, limits.maxConfigDepth);
+      else parsed = CODECS[kind].parse(text);
       checkConfigDepth(parsed, limits.maxConfigDepth);
       return parsed;
     },
