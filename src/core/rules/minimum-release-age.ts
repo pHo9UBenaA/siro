@@ -94,6 +94,44 @@ const baseRule = requireConfigKey({
   title: 'Set a minimum release age',
 });
 
+const checkNpmBefore = (
+  actual: unknown,
+  nowMs: number,
+  time: DateTime,
+  pmVersion: string | undefined,
+): { readonly state: 'ok' } | ViolationStatus => {
+  if (
+    (typeof actual === 'string' || typeof actual === 'number') &&
+    time.parse(String(actual)) < nowMs
+  ) {
+    return { state: 'ok' };
+  }
+  const alternative = guardRemediationAvailability(
+    'npm',
+    pmVersion,
+    {
+      kind: 'manual',
+      steps: [
+        `Alternatively, remove before and set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days.`,
+      ],
+    },
+    [{ file: npmrc, keyPath: ['min-release-age'] }],
+  );
+  return {
+    state: 'violation',
+    actual,
+    expected: 'a date in the past',
+    message: 'Use a valid past before cutoff, or remove before and set min-release-age.',
+    remediation: {
+      kind: 'manual',
+      steps: [
+        'In .npmrc, set before to a valid past date. A future or disabled before overrides min-release-age in this file.',
+        ...(alternative?.steps ?? []),
+      ],
+    },
+  };
+};
+
 const createNpmBinding = (time: DateTime): RuleBinding => ({
   file: npmrc,
   docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#min-release-age',
@@ -102,37 +140,7 @@ const createNpmBinding = (time: DateTime): RuleBinding => ({
     const nowMs = time.now();
     // npm gives an explicit before priority over min-release-age in the same source.
     if (Object.hasOwn(config, 'before')) {
-      const actual = config.before;
-      if (
-        (typeof actual === 'string' || typeof actual === 'number') &&
-        time.parse(String(actual)) < nowMs
-      ) {
-        return { state: 'ok' };
-      }
-      const alternative = guardRemediationAvailability(
-        'npm',
-        ctx.pmVersion,
-        {
-          kind: 'manual',
-          steps: [
-            `Alternatively, remove before and set min-release-age to ~${RECOMMENDED_RELEASE_AGE_DAYS} days.`,
-          ],
-        },
-        [{ file: npmrc, keyPath: ['min-release-age'] }],
-      );
-      return {
-        state: 'violation',
-        actual,
-        expected: 'a date in the past',
-        message: 'Use a valid past before cutoff, or remove before and set min-release-age.',
-        remediation: {
-          kind: 'manual',
-          steps: [
-            'In .npmrc, set before to a valid past date. A future or disabled before overrides min-release-age in this file.',
-            ...(alternative?.steps ?? []),
-          ],
-        },
-      };
+      return checkNpmBefore(config.before, nowMs, time, ctx.pmVersion);
     }
     const actual = getByPath(config, ['min-release-age']);
     const ageDays = typeof actual === 'number' || typeof actual === 'string' ? Number(actual) : NaN;

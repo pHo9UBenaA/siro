@@ -54,10 +54,8 @@ describe('lint command — flags', () => {
     const parsed: { findings: { ruleId: string }[] } = JSON.parse(out());
     const publishOnly = new Set(['files-field', 'provenance', 'publish-access']);
     const ids = parsed.findings.map((finding) => finding.ruleId);
-    expect({
-      keepsSharedRules: ids.includes('disable-lifecycle-scripts'),
-      publishOnly: ids.filter((id) => publishOnly.has(id)),
-    }).toStrictEqual({ keepsSharedRules: true, publishOnly: [] });
+    expect(ids).toContain('disable-lifecycle-scripts');
+    expect(ids.filter((id) => publishOnly.has(id))).toStrictEqual([]);
   });
 
   it('fails on warnings when --severity warn is set', async () => {

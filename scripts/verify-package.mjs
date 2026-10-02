@@ -145,23 +145,7 @@ function verifyInstalledCli(installedBin) {
   const literalTarget = 'fixture & literal';
   cpSync(join(consumer, 'good'), join(consumer, literalTarget), { recursive: true });
   assert.deepEqual(JSON.parse(runCli(['lint', literalTarget, '--json'])), report);
-  // Exercise the installed executable against an actual unwritable output fd.
-  const outputFile = join(consumer, 'readonly-output');
-  writeFileSync(outputFile, '');
-  const readOnly = openSync(outputFile, 'r');
-  try {
-    const failedOutput = spawnSync(process.execPath, [installedBin, 'lint', 'good', '--json'], {
-      cwd: consumer,
-      encoding: 'utf8',
-      stdio: ['ignore', readOnly, 'pipe'],
-      timeout: 10_000,
-    });
-    assert.ifError(failedOutput.error);
-    assert.equal(failedOutput.status, 70, failedOutput.stderr);
-    assert.match(failedOutput.stderr, /Output failed/);
-  } finally {
-    closeSync(readOnly);
-  }
+  verifyUnwritableOutput(installedBin);
   const versionReport = JSON.parse(
     runCli(['lint', 'good', '--pm', 'npm', '--pm-version', '11.9.0', '--json'], {
       expectedStatus: 1,
@@ -173,6 +157,26 @@ function verifyInstalledCli(installedBin) {
   runCli(['lint', 'bad'], { expectedStatus: 1 });
   verifyInspectionScope(runCli);
   verifyFailureExits(runCli, installedBin);
+}
+
+// Exercise the installed executable against an actual unwritable output fd.
+function verifyUnwritableOutput(installedBin) {
+  const outputFile = join(consumer, 'readonly-output');
+  writeFileSync(outputFile, '');
+  const readOnlyOutputFd = openSync(outputFile, 'r');
+  try {
+    const failedOutput = spawnSync(process.execPath, [installedBin, 'lint', 'good', '--json'], {
+      cwd: consumer,
+      encoding: 'utf8',
+      stdio: ['ignore', readOnlyOutputFd, 'pipe'],
+      timeout: 10_000,
+    });
+    assert.ifError(failedOutput.error);
+    assert.equal(failedOutput.status, 70, failedOutput.stderr);
+    assert.match(failedOutput.stderr, /Output failed/);
+  } finally {
+    closeSync(readOnlyOutputFd);
+  }
 }
 
 function verifyInspectionScope(runCli) {
