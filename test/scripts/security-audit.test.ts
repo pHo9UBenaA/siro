@@ -89,8 +89,9 @@ it('reports both completed clean audits and runs the installed OSV scanner direc
   expect(result.status).toBe(0);
   expect(result.stdout).toContain('No vulnerabilities found by pnpm audit.');
   expect(result.stdout).toContain('No vulnerabilities found by osv-scanner.');
+  const auditCommand = pnpmCommand(['audit', '--json']);
   expect(result.commands).toEqual([
-    [pnpmCommand(['audit', '--json']).command, ...pnpmCommand(['audit', '--json']).args],
+    [auditCommand.command, ...auditCommand.args],
     ['osv-scanner', 'scan', 'source', '--format', 'json', '--recursive', '.'],
   ]);
 });
@@ -174,7 +175,9 @@ it('explicitly skips only an absent optional OSV executable', () => {
   expect(result.commands).toHaveLength(2);
 });
 
-it.each(['EACCES'])('fails on OSV spawn error %s', (code) => {
+it('fails on OSV permission denial', () => {
+  const code = 'EACCES';
+
   expect(
     run(output(cleanPnpm), {
       status: null,

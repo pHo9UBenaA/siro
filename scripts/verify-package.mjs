@@ -25,7 +25,7 @@ assert.ok(
   cliArgs.length === 0 || (cliArgs.length === 1 && !cliArgs[0].startsWith('-')) || output,
   'Usage: pnpm test:package [package.tgz | --output package.tgz]',
 );
-let tarball = cliArgs.length === 1 ? resolve(cliArgs[0]) : undefined;
+const inputTarball = cliArgs.length === 1 ? resolve(cliArgs[0]) : undefined;
 // Exercise literal native paths throughout packing, installation and CLI launches.
 const consumer = mkdtempSync(join(tmpdir(), 'siro-consumer & spaces-'));
 const processOptions = {
@@ -35,7 +35,7 @@ const processOptions = {
   env: { ...process.env, NODE_PATH: '', NODE_OPTIONS: '' },
 };
 
-function run(command, args, cwd = consumer, status = 0) {
+function run(command, args, { cwd = consumer, expectedStatus = 0 } = {}) {
   if (command === 'pnpm') {
     ({ command, args } = pnpmCommand(args));
   }
@@ -44,7 +44,7 @@ function run(command, args, cwd = consumer, status = 0) {
   assert.equal(result.signal, null, `${command} terminated by ${result.signal}`);
   assert.equal(
     result.status,
-    status,
+    expectedStatus,
     `${command} ${args.join(' ')}\n${result.stdout}\n${result.stderr}`,
   );
   return result.stdout;
@@ -66,13 +66,14 @@ function installedShimVersion() {
   return result.stdout;
 }
 
-try {
-  if (!tarball) {
-    run('pnpm', ['pack', '--pack-destination', consumer], root);
-    const archives = readdirSync(consumer).filter((file) => file.endsWith('.tgz'));
-    assert.equal(archives.length, 1, 'Packing must produce exactly one tarball');
-    tarball = join(consumer, archives[0]);
-  }
+function packTarball() {
+  run('pnpm', ['pack', '--pack-destination', consumer], { cwd: root });
+  const archives = readdirSync(consumer).filter((file) => file.endsWith('.tgz'));
+  assert.equal(archives.length, 1, 'Packing must produce exactly one tarball');
+  return join(consumer, archives[0]);
+}
+
+function installPackage(tarball) {
   const files = run('tar', ['-tzf', tarball]).trim().split(/\r?\n/u);
   for (const file of files) {
     assert.match(
@@ -102,11 +103,10 @@ try {
   );
   assert.equal(installed.name, manifest.name);
   assert.equal(installed.version, manifest.version);
-  const installedBin = join(consumer, 'node_modules', manifest.name, installed.bin.siro);
-  // All variable CLI arguments stay literal Node argv, including on Windows.
-  const runCli = (args, cwd = consumer, status = 0) =>
-    run(process.execPath, [installedBin, ...args], cwd, status);
+  return { files, installedBin: join(consumer, 'node_modules', manifest.name, installed.bin.siro) };
+}
 
+function verifyInstalledApi() {
   cpSync(join(root, 'test/package/consumer.mts'), join(consumer, 'consumer.mts'));
   writeFileSync(
     join(consumer, 'tsconfig.json'),
@@ -129,7 +129,11 @@ try {
     'tsconfig.json',
   ]);
   run(process.execPath, ['consumer.mts']);
+}
 
+function verifyInstalledCli(installedBin) {
+  // All variable CLI arguments stay literal Node argv, including on Windows.
+  const runCli = (args, options) => run(process.execPath, [installedBin, ...args], options);
   // Use the installed executable link, including its shebang and package bin mapping.
   assert.equal(installedShimVersion().trim(), manifest.version);
   cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'good'), { recursive: true });
@@ -159,12 +163,19 @@ try {
     closeSync(readOnly);
   }
   const versionReport = JSON.parse(
-    runCli(['lint', 'good', '--pm', 'npm', '--pm-version', '11.9.0', '--json'], consumer, 1),
+    runCli(['lint', 'good', '--pm', 'npm', '--pm-version', '11.9.0', '--json'], {
+      expectedStatus: 1,
+    }),
   );
   assert.ok(versionReport.findings.some((finding) => finding.ruleId === 'unsupported-settings'));
   runCli(['lint', 'good', '--pm', 'npm', '--pm-version', '11.10.0']);
-  runCli(['lint', 'good', '--pm-version', '11.10.0'], consumer, 2);
-  runCli(['lint', 'bad'], consumer, 1);
+  runCli(['lint', 'good', '--pm-version', '11.10.0'], { expectedStatus: 2 });
+  runCli(['lint', 'bad'], { expectedStatus: 1 });
+  verifyInspectionScope(runCli);
+  verifyFailureExits(runCli, installedBin);
+}
+
+function verifyInspectionScope(runCli) {
   cpSync(join(root, 'test/fixtures/npm-good'), join(consumer, 'workspace'), { recursive: true });
   const workspaceManifest = JSON.parse(
     readFileSync(join(consumer, 'workspace/package.json'), 'utf8'),
@@ -180,21 +191,20 @@ try {
     "export default { rules: { 'files-field': 'error' } };\n",
   );
   runCli(['lint', 'workspace', '--exclude', 'child']);
-  runCli(['lint', 'workspace', '--workspaces'], consumer, 2);
-  const workspaceReport = JSON.parse(runCli(['lint', 'workspace', '--json'], consumer, 1));
+  runCli(['lint', 'workspace', '--workspaces'], { expectedStatus: 2 });
+  const workspaceReport = JSON.parse(
+    runCli(['lint', 'workspace', '--json'], { expectedStatus: 1 }),
+  );
   assert.ok(
     workspaceReport.findings.some(
       (finding) => finding.ruleId === 'files-field' && finding.file === 'child/package.json',
     ),
   );
-  const installedScope = JSON.parse(
-    runCli(
-      ['lint', 'workspace', '--installation-root', '.', '--installation-root', 'child', '--json'],
-      consumer,
-      2,
-    ) || 'null',
+  const failedScopeOutput = runCli(
+    ['lint', 'workspace', '--installation-root', '.', '--installation-root', 'child', '--json'],
+    { expectedStatus: 2 },
   );
-  assert.equal(installedScope, null, 'Unknown child PM must fail without a success document');
+  assert.equal(failedScopeOutput, '', 'Unknown child PM must fail without a success document');
   writeFileSync(
     join(consumer, 'workspace/child/package.json'),
     '{"name":"child","packageManager":"npm@12.0.2"}',
@@ -202,17 +212,19 @@ try {
   const expandedScope = JSON.parse(
     runCli(
       ['lint', 'workspace', '--installation-root', '.', '--installation-root', 'child', '--json'],
-      consumer,
-      1,
+      { expectedStatus: 1 },
     ),
   );
   assert.equal(expandedScope.inspection.installationRoots.length, 2);
-  runCli(['--invalid-option'], consumer, 2);
+}
+
+function verifyFailureExits(runCli, installedBin) {
+  runCli(['--invalid-option'], { expectedStatus: 2 });
   writeFileSync(
     join(consumer, 'good/siro.config.mjs'),
     "export default { reporters: [{ name: 'crash', format() { throw new Error('Package verification crash probe'); } }] };\n",
   );
-  runCli(['lint', 'good', '--reporter', 'crash'], consumer, 70);
+  runCli(['lint', 'good', '--reporter', 'crash'], { expectedStatus: 70 });
   writeFileSync(
     join(consumer, 'good/siro.config.mjs'),
     "throw new Error('Untrusted config must not execute');\n",
@@ -223,8 +235,10 @@ try {
     3,
   );
   runCli(['check', 'good', '--no-config']);
-  runCli(['lint', 'good', '--no-config', '--max-file-bytes', '8', '--json'], consumer, 2);
-  runCli(['lint', 'good', '--no-config', '--max-output-bytes', '8', '--json'], consumer, 70);
+  runCli(['lint', 'good', '--no-config', '--max-file-bytes', '8', '--json'], { expectedStatus: 2 });
+  runCli(['lint', 'good', '--no-config', '--max-output-bytes', '8', '--json'], {
+    expectedStatus: 70,
+  });
   writeFileSync(join(consumer, 'good/package.json'), 'FAKE_SECRET_INVALID_JSON');
   const invalidInput = spawnSync(
     process.execPath,
@@ -235,6 +249,13 @@ try {
   assert.equal(invalidInput.status, 2);
   assert.equal(invalidInput.stdout, '');
   assert.ok(!invalidInput.stderr.includes('FAKE_SECRET'));
+}
+
+try {
+  const tarball = inputTarball ?? packTarball();
+  const { files, installedBin } = installPackage(tarball);
+  verifyInstalledApi();
+  verifyInstalledCli(installedBin);
   // Retain the verified bytes for publication without packing a second time.
   if (output) copyFileSync(tarball, output);
   console.log(

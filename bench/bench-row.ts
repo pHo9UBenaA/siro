@@ -4,7 +4,9 @@ export interface BenchRow {
   readonly fixture: string;
   readonly opsPerSec: number;
   readonly msPerOp: number;
+  /** Latency standard deviation in milliseconds. */
   readonly sd: number;
+  /** 99th percentile latency in milliseconds. */
   readonly p99: number;
   readonly samples: number;
 }

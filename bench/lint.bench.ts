@@ -1,9 +1,8 @@
 import { Bench } from 'tinybench';
 import { extractBenchRows, printBench } from './bench-row.ts';
 import { fixtures } from './fixtures.ts';
-import { asAbsPath } from '../src/adapters/node-paths.ts';
+import { asAbsPath, lintCommand } from '../src/index.ts';
 import { createMemFileSystem } from '../test/helpers/memfs.ts';
-import { lintCommand } from '../src/runtime.ts';
 
 const bench = new Bench({ time: 500, warmupTime: 100 });
 const discardOutput = { stderr() {}, stdout() {} };

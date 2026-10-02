@@ -72,7 +72,7 @@ const parseOsv = (value) => {
 
 // Exit 0: completed clean checks; 1: findings; 2: incomplete/invalid audit.
 // Only ENOENT for the optional OSV executable is a skip, never a successful scan.
-const audit = (label, command, args, parse, optional = false) => {
+const audit = (label, command, args, parse, { optional = false } = {}) => {
   console.log(`## ${label}`);
   const result = spawnSync(command, args, {
     encoding: 'utf8',
@@ -120,6 +120,6 @@ const osvStatus = audit(
   'osv-scanner',
   ['scan', 'source', '--format', 'json', '--recursive', '.'],
   parseOsv,
-  true,
+  { optional: true },
 );
 process.exitCode = Math.max(pnpmStatus, osvStatus);
