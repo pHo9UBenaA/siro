@@ -31,12 +31,13 @@ describe('provenance (npm)', () => {
         : { state: 'ok' },
     );
   });
+
   it('is N/A for private or nameless packages', () => {
     expect(npm.check(ctxWith({ name: 'x', private: true }), {}).state).toBe('na');
     expect(npm.check(ctxWith(), {}).state).toBe('na');
   });
 
-  it('warns when a publishable package has no provenance', () => {
+  it('reports a violation when a publishable package has no provenance', () => {
     expect(npm.check(ctxWith({ name: 'x' }), {}).state).toBe('violation');
   });
 
@@ -45,23 +46,21 @@ describe('provenance (npm)', () => {
   });
 });
 
-describe('bun policy', () => {
+describe('provenance (bun)', () => {
   const ctx = makePublishableCtx;
 
-  describe('provenance rule', () => {
-    it('tells bun users to publish via `bunx npm publish` because `bun publish` does not emit attestations yet', () => {
-      const ruleBinding = bindingForTest(provenance, 'bun');
+  it('tells bun users to publish via `bunx npm publish` because `bun publish` does not emit attestations yet', () => {
+    const ruleBinding = bindingForTest(provenance, 'bun');
 
-      expect(ruleBinding.file).toStrictEqual({ kind: 'npmrc', path: '.npmrc' });
-      expect(ruleBinding.check(ctx(), {})).toMatchObject({
-        message: expect.stringMatching(/bunx npm publish/u),
-        state: 'violation',
-      });
+    expect(ruleBinding.file).toStrictEqual({ kind: 'npmrc', path: '.npmrc' });
+    expect(ruleBinding.check(ctx(), {})).toMatchObject({
+      message: expect.stringMatching(/bunx npm publish/u),
+      state: 'violation',
     });
   });
 });
 
-describe('pnpm policy', () => {
+describe('provenance (pnpm)', () => {
   const ctx = makePublishableCtx;
 
   it('provenance binds to .npmrc for pnpm (shared with npm)', () => {
@@ -75,7 +74,7 @@ describe('pnpm policy', () => {
   });
 });
 
-describe('yarn policy', () => {
+describe('provenance (yarn)', () => {
   const ctx = makePublishableCtx;
 
   it('provenance uses npmPublishProvenance and is gated on publishability', () => {

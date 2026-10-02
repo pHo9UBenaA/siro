@@ -1,5 +1,4 @@
-import assert from 'node:assert';
-import { type PM, asAbsPath, lint, type LintOptions } from '../../../src/index.ts';
+import { asAbsPath, lint, type LintOptions } from '../../../src/index.ts';
 import { createMemFileSystem } from '../../helpers/memfs.ts';
 import { makePublishableCtx, makeCtx } from '../../helpers/ctx.ts';
 import { codecFor } from '../../../src/adapters/codecs/store.ts';
@@ -89,11 +88,13 @@ describe('minimum-release-age (npm)', () => {
     });
     const config = codecFor('npmrc').parse(`min-release-age=3\nbefore=${before}\n`);
     const result = bindingForTest(rule, 'npm').check(ctx, config);
-    const remediation = {
+    const expectedRemediation = {
       kind: 'manual',
       steps: expect.arrayContaining([expect.stringContaining('before')]),
     };
-    expect(result).toMatchObject(state === 'violation' ? { state, remediation } : { state });
+    const expected =
+      state === 'violation' ? { state, remediation: expectedRemediation } : { state };
+    expect(result).toMatchObject(expected);
   });
 
   it('requires manual review of a before array', () => {
@@ -272,50 +273,44 @@ describe('Deno release-age formats from the official parser', () => {
   });
 });
 
-describe('aube policy', () => {
+describe('minimum-release-age (aube)', () => {
   const ctx = makePublishableCtx;
 
-  describe('minimum-release-age', () => {
-    it('reports the Aube default as info and proposes an explicit three-day cooldown', () => {
-      const ruleBinding = bindingForTest(minimumReleaseAge, 'aube');
+  it('reports the Aube default as info and proposes an explicit three-day cooldown', () => {
+    const ruleBinding = bindingForTest(minimumReleaseAge, 'aube');
 
-      expect(ruleBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
-      const status = ruleBinding.check(ctx(), {});
-      expect(status).toMatchObject({ state: 'violation', severity: 'info' });
-      const regression = ruleBinding.check(ctx(), { minimumReleaseAge: 0 });
-      expect(regression).toMatchObject({ state: 'violation' });
-      expect(regression).not.toHaveProperty('severity');
-      expect(ruleBinding.check(ctx(), { minimumReleaseAge: 1440 }).state).toBe('ok');
+    expect(ruleBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
+    const status = ruleBinding.check(ctx(), {});
+    expect(status).toMatchObject({ state: 'violation', severity: 'info' });
+    const regression = ruleBinding.check(ctx(), { minimumReleaseAge: 0 });
+    expect(regression).toMatchObject({ state: 'violation' });
+    expect(regression).not.toHaveProperty('severity');
+    expect(ruleBinding.check(ctx(), { minimumReleaseAge: 1440 }).state).toBe('ok');
 
-      const setKey = automaticOperations(status)[0];
-      assert(setKey, 'expected setKey op');
-      expect(setKey).toMatchObject({
-        keyPath: ['minimumReleaseAge'],
-        value: 4320,
-      });
+    const setKey = automaticOperations(status)[0];
+    expect(setKey).toMatchObject({
+      keyPath: ['minimumReleaseAge'],
+      value: 4320,
     });
   });
 });
 
-describe('bun policy', () => {
+describe('minimum-release-age (bun)', () => {
   const ctx = makePublishableCtx;
 
-  describe('minimum-release-age', () => {
-    it('minimum-release-age writes install.minimumReleaseAge (3 days in seconds)', () => {
-      const ruleBinding = bindingForTest(minimumReleaseAge, 'bun');
+  it('minimum-release-age writes install.minimumReleaseAge (3 days in seconds)', () => {
+    const ruleBinding = bindingForTest(minimumReleaseAge, 'bun');
 
-      expect(ruleBinding.check(ctx(), { install: { minimumReleaseAge: 259200 } }).state).toBe('ok');
-      const setKey = automaticOperations(ruleBinding.check(ctx(), {}))[0];
-      assert(setKey, 'expected setKey op');
-      expect(setKey).toMatchObject({
-        keyPath: ['install', 'minimumReleaseAge'],
-        value: 259200,
-      });
+    expect(ruleBinding.check(ctx(), { install: { minimumReleaseAge: 259200 } }).state).toBe('ok');
+    const setKey = automaticOperations(ruleBinding.check(ctx(), {}))[0];
+    expect(setKey).toMatchObject({
+      keyPath: ['install', 'minimumReleaseAge'],
+      value: 259200,
     });
   });
 });
 
-describe('pnpm policy', () => {
+describe('minimum-release-age (pnpm)', () => {
   const ctx = makePublishableCtx;
 
   it('checks minimumReleaseAge (3 days in minutes)', () => {
@@ -324,7 +319,6 @@ describe('pnpm policy', () => {
     expect(ruleBinding.check(ctx(), {}).state).toBe('violation');
     expect(ruleBinding.check(ctx(), { minimumReleaseAge: 1440 }).state).toBe('ok');
     const setKey = automaticOperations(ruleBinding.check(ctx(), {}))[0];
-    assert(setKey, 'expected setKey op');
     expect(setKey).toMatchObject({
       keyPath: ['minimumReleaseAge'],
       value: 4320,
@@ -332,7 +326,7 @@ describe('pnpm policy', () => {
   });
 });
 
-describe('yarn policy', () => {
+describe('minimum-release-age (yarn)', () => {
   const ctx = makePublishableCtx;
 
   it.each([
@@ -351,12 +345,12 @@ describe('yarn policy', () => {
     const ruleBinding = bindingForTest(minimumReleaseAge, 'yarn');
     expect(ruleBinding.check(ctx(), { npmMinimalAgeGate }).state).toBe(state);
   });
+
   it('checks npmMinimalAgeGate', () => {
     const ruleBinding = bindingForTest(minimumReleaseAge, 'yarn');
 
     expect(ruleBinding.check(ctx(), { npmMinimalAgeGate: 1440 }).state).toBe('ok');
     const setKey = automaticOperations(ruleBinding.check(ctx(), {}))[0];
-    assert(setKey, 'expected setKey op');
     expect(setKey).toMatchObject({
       keyPath: ['npmMinimalAgeGate'],
       value: 4320,
@@ -364,7 +358,7 @@ describe('yarn policy', () => {
   });
 });
 
-describe('API integration', () => {
+describe('Deno .npmrc days and deno.json minutes', () => {
   const inspect = (files: Record<string, string>, options: Partial<LintOptions> = {}) =>
     lint({
       cwd: asAbsPath('/repo'),
@@ -372,44 +366,47 @@ describe('API integration', () => {
       installationRoots: [],
       ...options,
     });
-  it.each([3, 100_000_000, Number.MAX_SAFE_INTEGER])(
-    'uses the same cutoff bounds for Deno days/minutes: %s',
-    (days) => {
-      const options = { installationRoots: ['.'], pm: 'deno' as const, pmVersion: '2.8.1' };
-      const base = { 'deno.json': '{"lock":{"frozen":true}}', 'deno.lock': '{}' };
-      const fallback = inspect({ ...base, '.npmrc': `min-release-age=${days}` }, options);
-      const explicit = inspect(
-        { ...base, 'deno.json': JSON.stringify({ minimumDependencyAge: days * 1440 }) },
-        options,
-      );
-      const violation = (r: ReturnType<typeof lint>) =>
-        r.findings.some((f) => f.ruleId === 'minimum-release-age');
-      expect(violation(fallback)).toBe(violation(explicit));
-      expect(violation(fallback)).toBe(days !== 3);
-    },
-  );
+
+  it.each([
+    { days: 3, violationExpected: false },
+    { days: 100_000_000, violationExpected: true },
+    { days: Number.MAX_SAFE_INTEGER, violationExpected: true },
+  ])('uses the same cutoff bounds for Deno days/minutes: $days', ({ days, violationExpected }) => {
+    const options = { installationRoots: ['.'], pm: 'deno' as const, pmVersion: '2.8.1' };
+    const base = { 'deno.json': '{"lock":{"frozen":true}}', 'deno.lock': '{}' };
+    const fallback = inspect({ ...base, '.npmrc': `min-release-age=${days}` }, options);
+    const explicit = inspect(
+      { ...base, 'deno.json': JSON.stringify({ minimumDependencyAge: days * 1440 }) },
+      options,
+    );
+    const violation = (r: ReturnType<typeof lint>) =>
+      r.findings.some((f) => f.ruleId === 'minimum-release-age');
+    expect(violation(fallback)).toBe(violation(explicit));
+    expect(violation(fallback)).toBe(violationExpected);
+  });
 });
 
-describe('API integration', () => {
-  const inspect = (pm: PM, files: Record<string, string>) =>
+describe('Deno configuration precedence', () => {
+  const inspectDeno = (files: Record<string, string>) =>
     lint({
       cwd: asAbsPath('/repo'),
-      pm,
+      pm: 'deno',
       fs: createMemFileSystem({
         'package.json': '{"private":true}',
         ...files,
       }),
     });
+
   it('Deno honors a configured lockfile and explicit inactive age cannot be rescued by fallback', () => {
     const files = {
       'deno.json': '{"lock":"locks/custom.lock","minimumDependencyAge":{"age":0}}',
       'locks/custom.lock': '',
       '.npmrc': 'min-release-age=3',
     };
-    const result = inspect('deno', files);
+    const result = inspectDeno(files);
     expect(result.findings.some((f) => f.ruleId === 'commit-lockfile')).toBe(false);
     expect(result.findings.some((f) => f.ruleId === 'minimum-release-age')).toBe(true);
-    const fallback = inspect('deno', {
+    const fallback = inspectDeno({
       ...files,
       'deno.json': '{"lock":"locks/custom.lock","minimumDependencyAge":{}}',
     });
@@ -419,6 +416,7 @@ describe('API integration', () => {
 
 describe('Malformed settings', () => {
   const ctx = makeCtx();
+
   it.each(['pnpm', 'deno', 'yarn'] as const)(
     '%s does not treat an infinite release age as configured protection',
     (pm) => {
@@ -427,15 +425,36 @@ describe('Malformed settings', () => {
         pnpm: { minimumReleaseAge: Infinity },
         yarn: { npmMinimalAgeGate: Infinity },
       };
-      expect(minimumReleaseAge.bindings[pm]?.check(ctx, configs[pm]).state).toBe('violation');
+      expect(bindingForTest(minimumReleaseAge, pm).check(ctx, configs[pm]).state).toBe('violation');
     },
   );
+
   it.each([{ age: { age: 'P3D' } }, { exclude: [false] }, new Date()])(
     'does not accept a malformed Deno age object: %j',
     (value) => {
-      expect(
-        minimumReleaseAge.bindings.deno?.check(ctx, { minimumDependencyAge: value }).state,
-      ).toBe('violation');
+      expect(deno.check(ctx, { minimumDependencyAge: value }).state).toBe('violation');
     },
   );
+});
+
+it('clears an overriding before finding only after the proposed manual correction', () => {
+  const original = 'min-release-age=3\nbefore=2999-01-01\n';
+  const check = (npmrc: string) =>
+    lint({
+      cwd: asAbsPath('/repo'),
+      fs: createMemFileSystem({ '.npmrc': npmrc }),
+      pm: 'npm',
+    }).findings.filter((finding) => finding.ruleId === 'minimum-release-age');
+  expect(check(original)).toMatchObject([
+    {
+      severity: 'warn',
+      remediation: {
+        kind: 'manual',
+        steps: expect.arrayContaining([expect.stringContaining('remove before')]),
+      },
+    },
+  ]);
+  expect(check(original.replace('min-release-age=3', 'min-release-age=7'))).toHaveLength(1);
+  expect(check(original.replace('before=2999-01-01\n', ''))).toStrictEqual([]);
+  expect(check('before=2020-01-01\n')).toStrictEqual([]);
 });

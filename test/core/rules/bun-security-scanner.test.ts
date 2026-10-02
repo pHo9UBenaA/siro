@@ -20,10 +20,12 @@ describe('bun-security-scanner', () => {
 
 describe('Malformed settings', () => {
   const ctx = makeCtx();
+
   it('does not treat whitespace as a configured Bun scanner', () => {
     expect(
-      bunSecurityScanner.bindings.bun?.check(ctx, { install: { security: { scanner: '  ' } } })
-        .state,
+      bunBinding.check(ctx, {
+        install: { security: { scanner: '  ' } },
+      }).state,
     ).toBe('violation');
   });
 });

@@ -11,7 +11,7 @@ describe('paranoid-mode: check states', () => {
     expect(aubeBinding.check(makeCtx(), { paranoid: true }).state).toBe('ok');
   });
 
-  it('reports the missing setting with its severity, scope and remediation', () => {
+  it('proposes paranoid in aube-workspace.yaml when absent', () => {
     const status = aubeBinding.check(makeCtx(), {});
 
     assert(status.state === 'violation');

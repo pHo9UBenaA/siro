@@ -42,8 +42,8 @@ describe('strict-store-integrity: check states', () => {
   });
 });
 
-describe('strict-store-integrity: scope, metadata, and fix', () => {
-  it('reports the missing setting with its severity, scope and remediation', () => {
+describe('strict-store-integrity: remediation', () => {
+  it('proposes strictStoreIntegrity in aube-workspace.yaml', () => {
     const status = aubeBinding.check(makeCtx(), {});
     assert(status.state === 'violation');
     const ops = automaticOperations(status);

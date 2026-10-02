@@ -5,58 +5,54 @@ import { type ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { frozenLockfile } from '../../../src/core/rules/frozen-lockfile.ts';
 import { bindingForTest } from '../../helpers/rules.ts';
 
-describe('aube policy', () => {
+describe('frozen-lockfile (aube)', () => {
   const ctx = makePublishableCtx;
 
-  describe('frozen-lockfile', () => {
-    it.each<ParsedConfig>([{}, { preferFrozenLockfile: false }, { preferFrozenLockfile: true }])(
-      'advises command-level enforcement regardless of the lockfile preference: %j',
-      (config) => {
-        const ruleBinding = bindingForTest(frozenLockfile, 'aube');
+  it.each<ParsedConfig>([{}, { preferFrozenLockfile: false }, { preferFrozenLockfile: true }])(
+    'advises command-level enforcement regardless of the lockfile preference: %j',
+    (config) => {
+      const ruleBinding = bindingForTest(frozenLockfile, 'aube');
 
-        expect(ruleBinding.severity).toBe('info');
-        expect(ruleBinding.check(ctx(), config)).toMatchObject({
-          state: 'violation',
-          remediation: {
-            kind: 'manual',
-            steps: [expect.stringMatching(/aube ci.*aube install --frozen-lockfile/u)],
-          },
-        });
-      },
-    );
-  });
+      expect(ruleBinding.severity).toBe('info');
+      expect(ruleBinding.check(ctx(), config)).toMatchObject({
+        state: 'violation',
+        remediation: {
+          kind: 'manual',
+          steps: [expect.stringMatching(/aube ci.*aube install --frozen-lockfile/u)],
+        },
+      });
+    },
+  );
 });
 
-describe('bun policy', () => {
+describe('frozen-lockfile (bun)', () => {
   const ctx = makePublishableCtx;
 
-  describe('frozen-lockfile', () => {
-    it('frozen-lockfile requires install.frozenLockfile=true (not install.frozen)', () => {
-      const ruleBinding = bindingForTest(frozenLockfile, 'bun');
+  it('frozen-lockfile requires install.frozenLockfile=true (not install.frozen)', () => {
+    const ruleBinding = bindingForTest(frozenLockfile, 'bun');
 
-      expect(ruleBinding.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
-      expect(ruleBinding.check(ctx(), { install: { frozen: true } }).state).toBe('violation');
-      expect(ruleBinding.check(ctx(), { install: { frozenLockfile: true } }).state).toBe('ok');
-      const missing = ruleBinding.check(ctx(), {});
-      assert(missing.state === 'violation');
-      expect(missing.severity).toBeUndefined();
-      expect(frozenLockfile.severity).toBe('warn');
-      expect(Object.keys(frozenLockfile.bindings).sort()).toEqual([
-        'aube',
-        'bun',
-        'deno',
-        'pnpm',
-        'yarn',
-      ]);
-      const setKey = automaticOperations(missing)[0];
-      assert(setKey, 'expected setKey op');
-      expect(setKey).toMatchObject({ keyPath: ['install', 'frozenLockfile'], value: true });
-    });
+    expect(ruleBinding.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
+    expect(ruleBinding.check(ctx(), { install: { frozen: true } }).state).toBe('violation');
+    expect(ruleBinding.check(ctx(), { install: { frozenLockfile: true } }).state).toBe('ok');
+    const missing = ruleBinding.check(ctx(), {});
+    assert(missing.state === 'violation');
+    expect(missing.severity).toBeUndefined();
+    expect(frozenLockfile.severity).toBe('warn');
+    expect(Object.keys(frozenLockfile.bindings).sort()).toEqual([
+      'aube',
+      'bun',
+      'deno',
+      'pnpm',
+      'yarn',
+    ]);
+    const setKey = automaticOperations(missing)[0];
+    expect(setKey).toMatchObject({ keyPath: ['install', 'frozenLockfile'], value: true });
   });
 });
 
 describe('deno bindings target deno.json', () => {
   const ctx = makeCtx();
+
   it.each([{}, { lock: {} }])(
     'frozen-lockfile requires lock.frozen=true and fixes %j',
     (config) => {
@@ -74,6 +70,7 @@ describe('deno bindings target deno.json', () => {
       });
     },
   );
+
   it('frozen-lockfile flags a string lock as manual (will not clobber it)', () => {
     const ruleBinding = bindingForTest(frozenLockfile, 'deno');
 

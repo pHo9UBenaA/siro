@@ -15,7 +15,6 @@ describe('disable-lifecycle-scripts (npm)', () => {
 
     expect(status.state).toBe('violation');
 
-    expect(npmBinding).toBeDefined();
     expect(npmBinding.file).toStrictEqual({ kind: 'npmrc', path: '.npmrc' });
 
     const ops = automaticOperations(status);
@@ -62,9 +61,7 @@ describe('disable-lifecycle-scripts (pnpm): bypass and fix', () => {
   const ctx = makeCtx();
   const pnpmBinding = bindingForTest(disableLifecycleScripts, 'pnpm');
 
-  it('emits a full-severity violation with manualSteps when dangerouslyAllowAllBuilds: true', () => {
-    // The bypass dominates strictDepBuilds, so even when strictDepBuilds is
-    // also true the binding must flag the bypass and tell the fixer it cannot
+  it('requires manual removal of a bypass even when strictDepBuilds is true', () => {
     const status = pnpmBinding.check(ctx, {
       dangerouslyAllowAllBuilds: true,
       strictDepBuilds: true,
@@ -108,7 +105,7 @@ it.each([
 ] as const)(
   'keeps lifecycle bypass guidance valid for pnpm %s',
   (pmVersion, message, needsUpgrade) => {
-    const status = disableLifecycleScripts.bindings.pnpm!.check(makeCtx({ pmVersion }), {
+    const status = bindingForTest(disableLifecycleScripts, 'pnpm').check(makeCtx({ pmVersion }), {
       dangerouslyAllowAllBuilds: true,
       strictDepBuilds: false,
     });
@@ -121,7 +118,7 @@ it.each([
 
 it('accepts pnpm ignoreScripts even when approval settings would otherwise allow builds', () => {
   expect(
-    disableLifecycleScripts.bindings.pnpm?.check(makeCtx(), {
+    bindingForTest(disableLifecycleScripts, 'pnpm').check(makeCtx(), {
       ignoreScripts: true,
       strictDepBuilds: false,
       dangerouslyAllowAllBuilds: true,
@@ -129,36 +126,35 @@ it('accepts pnpm ignoreScripts even when approval settings would otherwise allow
   ).toEqual({ state: 'ok' });
 });
 
-describe('aube policy', () => {
+describe('disable-lifecycle-scripts (aube)', () => {
   const ctx = makePublishableCtx;
 
-  describe('disable-lifecycle-scripts', () => {
-    it('accepts paranoid despite individual settings', () => {
-      const config: ParsedConfig = { jailBuilds: false, strictDepBuilds: false };
+  it('accepts paranoid despite individual settings', () => {
+    const config: ParsedConfig = { jailBuilds: false, strictDepBuilds: false };
 
-      const ruleBinding = bindingForTest(disableLifecycleScripts, 'aube');
+    const ruleBinding = bindingForTest(disableLifecycleScripts, 'aube');
 
-      expect(ruleBinding.check(ctx(), { ...config, paranoid: true }).state).toBe('ok');
-    });
-    it('fix sets both jailBuilds and strictDepBuilds', () => {
-      const ruleBinding = bindingForTest(disableLifecycleScripts, 'aube');
+    expect(ruleBinding.check(ctx(), { ...config, paranoid: true }).state).toBe('ok');
+  });
 
-      expect(ruleBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
-      const status = ruleBinding.check(ctx(), {});
-      assert(status.state === 'violations');
-      expect(status.violations.map((item) => item.file)).toEqual(['aube-workspace.yaml', '.npmrc']);
-      const ops = status.violations.flatMap((item) => automaticOperations(item));
-      const aubeFile = { kind: 'yaml', path: 'aube-workspace.yaml' };
-      expect(ops).toStrictEqual([
-        { file: aubeFile, keyPath: ['jailBuilds'], op: 'setKey', value: true },
-        {
-          file: { kind: 'npmrc', path: '.npmrc' },
-          keyPath: ['strictDepBuilds'],
-          op: 'setKey',
-          value: true,
-        },
-      ]);
-    });
+  it('fix sets both jailBuilds and strictDepBuilds', () => {
+    const ruleBinding = bindingForTest(disableLifecycleScripts, 'aube');
+
+    expect(ruleBinding.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
+    const status = ruleBinding.check(ctx(), {});
+    assert(status.state === 'violations');
+    expect(status.violations.map((item) => item.file)).toEqual(['aube-workspace.yaml', '.npmrc']);
+    const ops = status.violations.flatMap((item) => automaticOperations(item));
+    const aubeFile = { kind: 'yaml', path: 'aube-workspace.yaml' };
+    expect(ops).toStrictEqual([
+      { file: aubeFile, keyPath: ['jailBuilds'], op: 'setKey', value: true },
+      {
+        file: { kind: 'npmrc', path: '.npmrc' },
+        keyPath: ['strictDepBuilds'],
+        op: 'setKey',
+        value: true,
+      },
+    ]);
   });
 
   it.each([
@@ -167,7 +163,7 @@ describe('aube policy', () => {
   ] as const)(
     'proposes only the independently missing Aube control: %j %j',
     (yaml, npm, file, key) => {
-      const status = disableLifecycleScripts.bindings.aube!.check(
+      const status = bindingForTest(disableLifecycleScripts, 'aube').check(
         ctx({ readConfig: () => npm }),
         yaml,
       );
@@ -182,8 +178,9 @@ describe('aube policy', () => {
       ]);
     },
   );
+
   it('keeps the independent Aube proposal automatic when the other file needs manual repair', () => {
-    const status = disableLifecycleScripts.bindings.aube!.check(ctx(), {
+    const status = bindingForTest(disableLifecycleScripts, 'aube').check(ctx(), {
       jailBuilds: { nested: true },
     });
     assert(status.state === 'violations');
@@ -194,8 +191,9 @@ describe('aube policy', () => {
   });
 });
 
-describe('bun policy', () => {
+describe('disable-lifecycle-scripts (bun)', () => {
   const ctx = makePublishableCtx;
+
   it('reports missing Bun script policy with opt-out guidance and a proposal', () => {
     const ruleBinding = bindingForTest(disableLifecycleScripts, 'bun');
 
@@ -216,7 +214,9 @@ describe('bun policy', () => {
       state: 'violation',
     });
   });
+
   const ctxWithPackageJson = (pkg: unknown) => makeCtx({ packageJson: parsePackageJson(pkg) });
+
   describe('disable-lifecycle-scripts × bun: trustedDependencies opt-out', () => {
     const bun = bindingForTest(disableLifecycleScripts, 'bun');
 
@@ -224,10 +224,12 @@ describe('bun policy', () => {
       const context = ctxWithPackageJson({ name: 'x', trustedDependencies: [] });
       expect(bun.check(context, {})).toStrictEqual({ state: 'ok' });
     });
+
     it('still flags a non-empty trustedDependencies list when ignoreScripts is unset', () => {
       const context = ctxWithPackageJson({ name: 'x', trustedDependencies: ['esbuild'] });
       expect(bun.check(context, {}).state).toBe('violation');
     });
+
     it('accepts install.ignoreScripts = true regardless of package.json', () => {
       const context = ctxWithPackageJson({ name: 'x', trustedDependencies: ['esbuild'] });
       expect(bun.check(context, { install: { ignoreScripts: true } })).toStrictEqual({
@@ -237,7 +239,7 @@ describe('bun policy', () => {
   });
 });
 
-describe('yarn policy', () => {
+describe('disable-lifecycle-scripts (yarn)', () => {
   const ctx = makePublishableCtx;
 
   it('requires enableScripts: false', () => {

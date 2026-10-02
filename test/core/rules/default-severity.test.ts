@@ -39,8 +39,9 @@ describe('unverified package-manager defaults', () => {
   );
 });
 
-describe('aube policy', () => {
+describe('default-severity (aube)', () => {
   const ctx = makePublishableCtx;
+
   it('uses the documented advisory and trust defaults without downgrading explicit opt-outs', () => {
     for (const [source, severity] of [
       ['', 'info'],

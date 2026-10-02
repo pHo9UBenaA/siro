@@ -19,8 +19,8 @@ describe('advisory-check: check states', () => {
   });
 });
 
-describe('advisory-check: scope, metadata, and fix', () => {
-  it('reports the missing setting with its severity, scope and remediation', () => {
+describe('advisory-check: remediation', () => {
+  it('proposes an explicit advisoryCheck setting in aube-workspace.yaml', () => {
     const status = aubeBinding.check(makeCtx(), {});
 
     const ops = automaticOperations(status);

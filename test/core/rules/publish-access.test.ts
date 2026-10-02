@@ -1,5 +1,6 @@
+import { asAbsPath, lint } from '../../../src/index.ts';
+import { createMemFileSystem } from '../../helpers/memfs.ts';
 import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
 import { publishAccess } from '../../../src/core/rules/publish-access.ts';
 import { makePublishableCtx as ctx } from '../../helpers/ctx.ts';
 import { manualSteps } from '../../helpers/remediation.ts';
@@ -19,7 +20,6 @@ describe('publish-access (npm)', () => {
     const steps = manualSteps(status);
 
     const firstStep = steps[0];
-    assert(firstStep, 'expected at least one manual step');
     expect(firstStep).toContain('publishConfig');
   });
 
@@ -34,6 +34,22 @@ describe('publish-access (npm)', () => {
     const packageJson = { name: '@scope/example', publishConfig: { access: 'private' as const } };
     expect(npm.check(ctx({ packageJson }), {}).state).toBe('ok');
     expect(npm.check(ctx({ packageJson, projectType: 'application' }), {}).state).toBe('na');
-    expect(publishAccess.bindings.yarn?.check(ctx({ packageJson }), {}).state).toBe('violation');
+    expect(bindingForTest(publishAccess, 'yarn').check(ctx({ packageJson }), {}).state).toBe(
+      'violation',
+    );
   });
+});
+
+it('accepts the npm private publish access alias under package policy', () => {
+  const projectType = 'package';
+
+  const fs = createMemFileSystem({
+    'package.json': JSON.stringify({
+      name: '@scope/example',
+      packageManager: 'npm@12.0.2',
+      publishConfig: { access: 'private' },
+    }),
+  });
+  const result = lint({ cwd: asAbsPath('/repo'), fs, projectType });
+  expect(result.findings.some((finding) => finding.ruleId === 'publish-access')).toBe(false);
 });

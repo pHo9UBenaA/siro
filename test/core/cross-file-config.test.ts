@@ -96,18 +96,15 @@ it('propagates a parse failure from an additional configuration file', () => {
   ).toThrow(/deno.json/u);
 });
 
-describe('API integration', () => {
-  const rule = (
-    id: string,
-    check: RuleBinding['check'] = () => ({ state: 'violation', message: 'custom violation' }),
-    file: ConfigFileRef = CONFIG_FILES.npmrc,
-  ): Rule => ({
+describe('Scan read snapshots', () => {
+  const rule = (id: string, check: RuleBinding['check'], file: ConfigFileRef): Rule => ({
     id,
     title: id,
     description: id,
     severity: 'error',
     bindings: { npm: { file, check } },
   });
+
   it.each(['package.json', './package.json'])(
     'gives manifest metadata and rule config the same package.json source via %s',
     (rulePath) => {
@@ -160,6 +157,7 @@ describe('API integration', () => {
       expect(extraReads).toBe(2);
     },
   );
+
   it('keeps an absent manifest absent within a scan and re-reads it on the next scan', () => {
     const manifest = path.join('/repo', 'package.json');
     let reads = 0;
@@ -171,7 +169,11 @@ describe('API integration', () => {
       fs: {
         readDirectories: () => [],
         exists: () => false,
-        readText: (file) => (file === manifest && ++reads > 1 ? '{"private":true}' : undefined),
+        readText(file) {
+          if (file !== manifest) return undefined;
+          reads += 1;
+          return reads > 1 ? '{"private":true}' : undefined;
+        },
       },
       config: {
         customRules: [

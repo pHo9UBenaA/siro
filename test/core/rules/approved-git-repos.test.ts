@@ -19,7 +19,7 @@ describe('approved-git-repos: check states', () => {
     ).toBe('ok');
   });
 
-  it('reports the missing setting with its severity, scope and remediation', () => {
+  it('requests manual selection of an approvedGitRepositories allowlist', () => {
     const status = yarnBinding.check(makeCtx(), {});
 
     assert(status.state === 'violation');
@@ -32,12 +32,11 @@ describe('approved-git-repos: check states', () => {
 
 describe('Malformed settings', () => {
   const ctx = makeCtx();
+
   it.each([{ value: [false] }, { value: ['   '] }, { value: Array(1) }])(
     'does not accept malformed allowlists: %j',
     ({ value }) => {
-      expect(
-        approvedGitRepos.bindings.yarn?.check(ctx, { approvedGitRepositories: value }).state,
-      ).toBe('violation');
+      expect(yarnBinding.check(ctx, { approvedGitRepositories: value }).state).toBe('violation');
     },
   );
 });

@@ -6,12 +6,12 @@ import {
 import { makeCtx } from '../../../helpers/ctx.ts';
 import { bindingForTest } from '../../../helpers/rules.ts';
 
-const checkDefault = (
-  options: Pick<
-    RequireConfigKeySpec,
-    'defaultSafety' | 'documentedDefault' | 'defaultSatisfiedSeverity' | 'versionNote'
-  >,
-) => {
+type DefaultOptions = Pick<
+  RequireConfigKeySpec,
+  'defaultSafety' | 'documentedDefault' | 'defaultSatisfiedSeverity' | 'versionNote'
+>;
+
+const checkDefault = (options: DefaultOptions) => {
   const rule = requireConfigKey({
     id: 'default-predicate',
     title: 't',
@@ -31,23 +31,34 @@ const checkDefault = (
   return bindingForTest(rule, 'npm').check(makeCtx(), {});
 };
 
-it.each([
-  { safety: undefined, defaultValue: 3, severity: undefined, state: 'violation' },
-  { safety: 'conditional', defaultValue: 3, severity: undefined, state: 'violation' },
-  { safety: 'unconditional', defaultValue: 3, severity: 'info', state: 'violation' },
-  { safety: 'unconditional', defaultValue: 0, severity: undefined, state: 'violation' },
-  { safety: 'unconditional', defaultValue: 3, satisfied: 'off', severity: undefined, state: 'ok' },
-] as const)(
+it.each<
+  DefaultOptions & {
+    expectedState: 'violation' | 'ok';
+    expectedSeverity?: RequireConfigKeySpec['severity'];
+  }
+>([
+  { documentedDefault: 3, expectedState: 'violation' },
+  { defaultSafety: 'conditional', documentedDefault: 3, expectedState: 'violation' },
+  {
+    defaultSafety: 'unconditional',
+    documentedDefault: 3,
+    expectedState: 'violation',
+    expectedSeverity: 'info',
+  },
+  { defaultSafety: 'unconditional', documentedDefault: 0, expectedState: 'violation' },
+  {
+    defaultSafety: 'unconditional',
+    documentedDefault: 3,
+    defaultSatisfiedSeverity: 'off',
+    expectedState: 'ok',
+  },
+])(
   'uses explicit safety and the accept predicate: %j',
-  ({ safety, defaultValue, severity, state, ...options }) => {
-    const status = checkDefault({
-      defaultSafety: safety,
-      documentedDefault: defaultValue,
-      defaultSatisfiedSeverity: 'satisfied' in options ? options.satisfied : undefined,
-    });
-    expect(status.state).toBe(state);
+  ({ expectedState, expectedSeverity, ...options }) => {
+    const status = checkDefault(options);
+    expect(status.state).toBe(expectedState);
     const actualSeverity = status.state === 'violation' ? status.severity : undefined;
-    expect(actualSeverity).toBe(severity);
+    expect(actualSeverity).toBe(expectedSeverity);
   },
 );
 

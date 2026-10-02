@@ -1,13 +1,4 @@
-import {
-  CONFIG_FILES,
-  type ConfigFileRef,
-  type RuleBinding,
-  type Rule,
-  asAbsPath,
-  lint,
-  lintCommand,
-  type SiroConfig,
-} from '../../src/index.ts';
+import { asAbsPath, lint, lintCommand, type SiroConfig } from '../../src/index.ts';
 import { npmPassingFs } from '../helpers/fixtures.ts';
 import { captureIO } from '../helpers/io.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
@@ -27,6 +18,7 @@ const asyncValues = [
     },
   }),
 ];
+
 it.each(asyncValues)(
   'rejects submitted async values without process-wide rejection handlers',
   async (value) => {
@@ -167,19 +159,9 @@ it('awaits a delayed output rejection rather than resolving a clean lint command
   await expect(result).rejects.toBe(failure);
 });
 
-describe('API integration', () => {
+describe('Reporter completion and failures', () => {
   const passingOptions = { cwd: asAbsPath('/repo'), fs: npmPassingFs() };
-  const rule = (
-    id: string,
-    check: RuleBinding['check'] = () => ({ state: 'violation', message: 'custom violation' }),
-    file: ConfigFileRef = CONFIG_FILES.npmrc,
-  ): Rule => ({
-    id,
-    title: id,
-    description: id,
-    severity: 'error',
-    bindings: { npm: { file, check } },
-  });
+
   it('propagates reporter rejection even after partial output', async () => {
     const failure = new Error('Output failed');
     const { io, out } = captureIO();
@@ -201,6 +183,7 @@ describe('API integration', () => {
     ).rejects.toBe(failure);
     expect(out()).toContain('partial');
   });
+
   it('propagates a reporter IO failure without reclassifying it', async () => {
     const failure = new Error('Broken output stream');
     await expect(
@@ -215,6 +198,7 @@ describe('API integration', () => {
       ),
     ).rejects.toBe(failure);
   });
+
   it('waits for asynchronous reporting before returning the lint exit code', async () => {
     const { io, out } = captureIO();
     let release!: () => void;
@@ -227,7 +211,17 @@ describe('API integration', () => {
         ...passingOptions,
         reporter: 'async',
         config: {
-          customRules: [rule('custom')],
+          customRules: [
+            {
+              id: 'custom',
+              title: 'Custom',
+              description: 'Makes the command fail',
+              severity: 'error',
+              bindings: {
+                npm: { check: () => ({ state: 'violation', message: 'custom violation' }) },
+              },
+            },
+          ],
           reporters: [
             {
               name: 'async',

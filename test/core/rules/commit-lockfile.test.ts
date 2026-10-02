@@ -3,7 +3,6 @@ import { createMemFileSystem } from '../../helpers/memfs.ts';
 import { bindingForTest } from '../../helpers/rules.ts';
 import { manualSteps } from '../../helpers/remediation.ts';
 
-import assert from 'node:assert';
 import type { PM } from '../../../src/core/contracts/pms.ts';
 import type { RuleContext } from '../../../src/core/contracts/repo-context.ts';
 import { commitLockfile } from '../../../src/core/rules/commit-lockfile.ts';
@@ -23,7 +22,6 @@ describe('commit-lockfile (npm)', () => {
 
     const steps = manualSteps(status);
     const firstStep = steps[0];
-    assert(firstStep, 'expected at least one manual step');
     expect(firstStep).toContain('generate package-lock.json');
   });
 
@@ -76,25 +74,28 @@ it.each([
   { lock: { frozen: 'yes' }, files: ['deno.lock'], state: 'violation' },
 ])('checks the Deno lockfile selected by configuration: %j', ({ lock, files, state }) => {
   const ctx = makeCtx({ files });
-  expect(commitLockfile.bindings.deno?.check(ctx, { lock }).state).toBe(state);
+  expect(bindingForTest(commitLockfile, 'deno').check(ctx, { lock }).state).toBe(state);
 });
 
 it.each(['bun.lockb', 'deno.lock'])('does not treat %s as a reusable Aube lockfile', (file) => {
-  expect(commitLockfile.bindings.aube?.check(makeCtx({ files: [file] }), {}).state).toBe(
+  expect(bindingForTest(commitLockfile, 'aube').check(makeCtx({ files: [file] }), {}).state).toBe(
     'violation',
   );
 });
 
 it('requires conversion of a binary Bun lockfile even when an Aube lockfile exists', () => {
   expect(
-    commitLockfile.bindings.aube?.check(makeCtx({ files: ['aube-lock.yaml', 'bun.lockb'] }), {}),
+    bindingForTest(commitLockfile, 'aube').check(
+      makeCtx({ files: ['aube-lock.yaml', 'bun.lockb'] }),
+      {},
+    ),
   ).toMatchObject({
     state: 'violation',
     remediation: { kind: 'manual', steps: [expect.stringContaining('--save-text-lockfile')] },
   });
 });
 
-describe('API integration', () => {
+describe('npm shrinkwrap target versions', () => {
   const inspect = (files: Record<string, string>, options: Partial<LintOptions> = {}) =>
     lint({
       cwd: asAbsPath('/repo'),
@@ -102,19 +103,27 @@ describe('API integration', () => {
       installationRoots: [],
       ...options,
     });
-  it.each(['11.16.0', '12.0.0', undefined])('handles shrinkwrap honestly for npm %s', (version) => {
-    const result = inspect(
-      { 'npm-shrinkwrap.json': '{}' },
-      {
-        installationRoots: ['.'],
-        pm: 'npm',
-        ...(version ? { pmVersion: version } : {}),
-      },
-    );
-    const finding = result.findings.find((f) => f.ruleId === 'commit-lockfile');
-    expect(Boolean(finding)).toBe(version !== '11.16.0');
-    expect(finding?.message.includes('npm-shrinkwrap.json')).toBe(
-      version === '11.16.0' ? undefined : true,
-    );
-  });
+
+  it.each([
+    { version: '11.16.0', requiresMigration: false },
+    { version: '12.0.0', requiresMigration: true },
+    { version: undefined, requiresMigration: true },
+  ])(
+    'requires shrinkwrap migration=$requiresMigration for npm $version',
+    ({ version, requiresMigration }) => {
+      const result = inspect(
+        { 'npm-shrinkwrap.json': '{}' },
+        {
+          installationRoots: ['.'],
+          pm: 'npm',
+          ...(version ? { pmVersion: version } : {}),
+        },
+      );
+      const finding = result.findings.find((f) => f.ruleId === 'commit-lockfile');
+      const migrationFinding = expect.objectContaining({
+        message: expect.stringContaining('npm-shrinkwrap.json'),
+      });
+      expect(finding).toEqual(requiresMigration ? migrationFinding : undefined);
+    },
+  );
 });

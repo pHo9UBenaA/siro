@@ -1,4 +1,3 @@
-import assert from 'node:assert';
 import { asAbsPath, lint, type LintOptions } from '../../../src/index.ts';
 import { createMemFileSystem } from '../../helpers/memfs.ts';
 import { manualSteps, automaticOperations } from '../../helpers/remediation.ts';
@@ -135,7 +134,9 @@ describe('pin-exact-versions (deno subpaths)', () => {
 
 describe('exact save prefixes', () => {
   it('accepts pnpm explicit equality pins', () => {
-    expect(pinExactVersions.bindings.pnpm?.check(makeCtx(), { savePrefix: '=' }).state).toBe('ok');
+    expect(
+      bindingForTest(pinExactVersions, 'pnpm').check(makeCtx(), { savePrefix: '=' }).state,
+    ).toBe('ok');
   });
 
   it('reads Aube save-prefix from .npmrc', () => {
@@ -149,7 +150,7 @@ describe('exact save prefixes', () => {
       targets: [{ pm: 'aube' }],
       ruleSet: [pinExactVersions],
     });
-    expect(pinExactVersions.bindings.aube?.file?.path).toBe('.npmrc');
+    expect(bindingForTest(pinExactVersions, 'aube').file?.path).toBe('.npmrc');
     expect(result.findings).toStrictEqual([]);
   });
 });
@@ -160,32 +161,31 @@ it.each([
   [{ 'save-prefix': '', savePrefix: '^' }, 'violation'],
   [{ 'save-prefix': '^', savePrefix: '' }, 'violation'],
 ])('requires unambiguous Aube prefix settings: %j', (config, state) => {
-  expect(pinExactVersions.bindings.aube?.check(makeCtx(), config).state).toBe(state);
+  expect(bindingForTest(pinExactVersions, 'aube').check(makeCtx(), config).state).toBe(state);
 });
 
-describe('bun policy', () => {
+describe('pin-exact-versions (bun)', () => {
   const ctx = makePublishableCtx;
 
-  describe('pin-exact-versions', () => {
-    it('pin-exact-versions requires [install] exact=true', () => {
-      const ruleBinding = bindingForTest(pinExactVersions, 'bun');
+  it('pin-exact-versions requires [install] exact=true', () => {
+    const ruleBinding = bindingForTest(pinExactVersions, 'bun');
 
-      expect(ruleBinding.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
-      expect(ruleBinding.check(ctx(), {}).state).toBe('violation');
-      expect(ruleBinding.check(ctx(), { install: { exact: true } }).state).toBe('ok');
-      const setKey = automaticOperations(ruleBinding.check(ctx(), {}))[0];
-      assert(setKey, 'expected setKey op');
-      expect(setKey).toMatchObject({ keyPath: ['install', 'exact'], value: true });
-    });
+    expect(ruleBinding.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
+    expect(ruleBinding.check(ctx(), {}).state).toBe('violation');
+    expect(ruleBinding.check(ctx(), { install: { exact: true } }).state).toBe('ok');
+    const setKey = automaticOperations(ruleBinding.check(ctx(), {}))[0];
+    expect(setKey).toMatchObject({ keyPath: ['install', 'exact'], value: true });
   });
 });
 
-describe('pin-exact-versions × deno — ok: simple cases', () => {
+describe('pin-exact-versions (deno)', () => {
   const ctx = makeCtx();
   const ruleBinding = bindingForTest(pinExactVersions, 'deno');
+
   it('ok when no imports key is present', () => {
     expect(ruleBinding.check(ctx, {}).state).toBe('ok');
   });
+
   it('ok when all jsr/npm imports are exact', () => {
     const config = {
       imports: {
@@ -195,6 +195,7 @@ describe('pin-exact-versions × deno — ok: simple cases', () => {
     };
     expect(ruleBinding.check(ctx, config).state).toBe('ok');
   });
+
   it('leaves URLs, relative paths and bare aliases outside the registry policy', () => {
     const config = {
       imports: {
@@ -205,10 +206,7 @@ describe('pin-exact-versions × deno — ok: simple cases', () => {
     };
     expect(ruleBinding.check(ctx, config).state).toBe('ok');
   });
-});
-describe('pin-exact-versions × deno — single-specifier violations', () => {
-  const ctx = makeCtx();
-  const ruleBinding = bindingForTest(pinExactVersions, 'deno');
+
   it('reports unpinned npm and jsr imports with manual guidance', () => {
     const config = {
       imports: { '@std/path': 'jsr:@std/path@^1.0.0', react: 'npm:react@^18.2.0' },
@@ -223,10 +221,7 @@ describe('pin-exact-versions × deno — single-specifier violations', () => {
       state: 'violation',
     });
   });
-});
-describe('pin-exact-versions × deno — aggregation and truncation', () => {
-  const ctx = makeCtx();
-  const ruleBinding = bindingForTest(pinExactVersions, 'deno');
+
   it('reports the total and truncates the sample when more than 3 imports are unpinned', () => {
     const config = {
       imports: {
@@ -244,7 +239,7 @@ describe('pin-exact-versions × deno — aggregation and truncation', () => {
   });
 });
 
-describe('pnpm policy', () => {
+describe('pin-exact-versions (pnpm)', () => {
   const ctx = makePublishableCtx;
 
   it('requires savePrefix empty', () => {
@@ -255,7 +250,7 @@ describe('pnpm policy', () => {
   });
 });
 
-describe('yarn policy', () => {
+describe('pin-exact-versions (yarn)', () => {
   const ctx = makePublishableCtx;
 
   it('requires defaultSemverRangePrefix empty', () => {
@@ -266,7 +261,7 @@ describe('yarn policy', () => {
   });
 });
 
-describe('API integration', () => {
+describe('Deno manifest integration', () => {
   const inspect = (files: Record<string, string>, options: Partial<LintOptions> = {}) =>
     lint({
       cwd: asAbsPath('/repo'),
@@ -274,6 +269,7 @@ describe('API integration', () => {
       installationRoots: [],
       ...options,
     });
+
   it('checks registry ranges in every inline Deno scope and identifies their locations', () => {
     const result = inspect(
       {
@@ -292,6 +288,7 @@ describe('API integration', () => {
     expect(finding?.message).toContain('./first/');
     expect(finding?.message).toContain('./second/');
   });
+
   it.each([{ imports: [] }, { imports: { x: 3 } }, { scopes: [] }, { scopes: { './x/': false } }])(
     'does not call malformed import maps pinned: %j',
     (config) => {
@@ -300,4 +297,22 @@ describe('API integration', () => {
       ).toThrow(/deno.json/);
     },
   );
+});
+
+it.each([
+  { pm: 'npm', npmrc: 'save-prefix=null', pinned: false },
+  { pm: 'npm', npmrc: 'save-prefix="null"', pinned: false },
+  { pm: 'npm', npmrc: 'save-prefix=', pinned: true },
+  { pm: 'npm', npmrc: 'save-prefix=""', pinned: true },
+  { pm: 'npm', npmrc: 'save-prefix==', pinned: true },
+  { pm: 'npm', npmrc: '', pinned: false },
+  { pm: 'npm', npmrc: 'save-prefix=null\nsave-exact=true', pinned: true },
+  { pm: 'aube', npmrc: 'save-prefix=null', pinned: false },
+  { pm: 'aube', npmrc: 'savePrefix=null', pinned: false },
+  { pm: 'aube', npmrc: 'save-prefix=', pinned: true },
+  { pm: 'aube', npmrc: 'save-prefix=\nsavePrefix=null', pinned: false },
+] as const)('evaluates $pm pinning from the file: $npmrc', ({ pm, npmrc, pinned }) => {
+  const fs = createMemFileSystem({ '.npmrc': npmrc });
+  const result = lint({ cwd: asAbsPath('/repo'), fs, pm });
+  expect(result.findings.some((finding) => finding.ruleId === 'pin-exact-versions')).toBe(!pinned);
 });

@@ -83,6 +83,7 @@ describe('createRepoContext — readText and exists', () => {
       }),
     ).toThrow(failure);
   });
+
   it('resolves readText / exists relative to the root', () => {
     const fs = createMemFileSystem({
       '.npmrc': 'ignore-scripts=true\n',

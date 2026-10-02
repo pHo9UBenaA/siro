@@ -4,7 +4,7 @@ import { makePublishableCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 import { bindingForTest } from '../../helpers/rules.ts';
 
-describe('yarn policy', () => {
+describe('hardened-mode (yarn)', () => {
   const ctx = makePublishableCtx;
 
   it('requires and proposes enableHardenedMode on Yarn', () => {
@@ -20,7 +20,6 @@ describe('yarn policy', () => {
     expect(explicitFalse.severity).toBeUndefined();
 
     const setKey = automaticOperations(missing)[0];
-    assert(setKey, 'expected setKey op');
     expect(setKey).toMatchObject({ keyPath: ['enableHardenedMode'], value: true });
   });
 });

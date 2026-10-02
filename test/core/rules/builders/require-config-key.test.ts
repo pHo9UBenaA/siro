@@ -22,7 +22,7 @@ it.each([
       npm: { file: npmrc, keyPath: ['min-release-age'], value: 3, message: 'Set an age.' },
     },
   });
-  expect(rule.bindings.npm?.check(makeCtx({ pmVersion }), {})).toMatchObject({
+  expect(bindingForTest(rule, 'npm').check(makeCtx({ pmVersion }), {})).toMatchObject({
     state: 'violation',
     remediation: { kind },
   });
@@ -64,7 +64,7 @@ describe('requireConfigKey passes spec.severity into binding', () => {
         severity: 'error',
         title: 't',
       });
-      return rule.bindings.npm?.severity;
+      return bindingForTest(rule, 'npm').severity;
     };
     expect([bindingSeverity('info'), bindingSeverity()]).toStrictEqual(['info', undefined]);
   });

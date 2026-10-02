@@ -44,6 +44,7 @@ const host = () => {
   };
   return { dependencies, readText };
 };
+
 it('discovers and evaluates through supplied ports, with generic paths and explicit inspection', () => {
   const { dependencies } = host();
   const result = lint(request, dependencies);
@@ -62,6 +63,7 @@ it('discovers and evaluates through supplied ports, with generic paths and expli
   expect(result.inspection.installationRoots).toEqual([]);
   expect(result.findings.every((finding) => finding.pm === undefined)).toBe(true);
 });
+
 it('uses the explicitly supplied filesystem throughout discovery', () => {
   const { dependencies } = host();
   const fs = {
@@ -74,6 +76,7 @@ it('uses the explicitly supplied filesystem throughout discovery', () => {
   lint({ ...request, fs }, dependencies);
   expect(fs.readText).toHaveBeenCalledWith('/virtual/packages/api/package.json');
 });
+
 it('reports through an injected registry and awaits output failures', async () => {
   const { dependencies } = host();
   const { io } = captureIO();
@@ -88,6 +91,7 @@ it('reports through an injected registry and awaits output failures', async () =
   format.mockRejectedValueOnce(failure);
   await expect(lintCommand(request, io, dependencies, registry)).rejects.toBe(failure);
 });
+
 it('does not fall back for an explicitly invalid null filesystem', () => {
   const { dependencies, readText } = host();
   expect(() => lint({ ...request, fs: null as never }, dependencies)).toThrow(TypeError);

@@ -174,7 +174,7 @@ it('reports Aube install-command guidance without reading workspace configuratio
   ]);
 });
 
-it('expands independent violations with fallback paths, metadata and severity overrides', () => {
+it('expands independent violations with fallback paths, values, per-result severity and remediation', () => {
   const rule = ruleWith('multiple', ['npm'], {
     state: 'violations',
     violations: [
@@ -200,6 +200,7 @@ it('expands independent violations with fallback paths, metadata and severity ov
   ]);
   expect(result.findings[0]?.remediation).toBeUndefined();
 });
+
 it.each([
   [],
   [{ state: 'ok' }],

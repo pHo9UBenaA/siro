@@ -2,9 +2,13 @@ import { bindingForTest } from '../../helpers/rules.ts';
 
 import { dependencyOverrides } from '../../../src/core/rules/dependency-overrides.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
+
 it.each([{}, { overrides: {} }])('accepts no dependency overrides: %j', (config) => {
-  expect(dependencyOverrides.bindings.pnpm?.check(makeCtx(), config)).toEqual({ state: 'ok' });
+  expect(bindingForTest(dependencyOverrides, 'pnpm').check(makeCtx(), config)).toEqual({
+    state: 'ok',
+  });
 });
+
 it.each([
   ['pnpm', 'pnpm-workspace.yaml'],
   ['aube', 'aube-workspace.yaml'],

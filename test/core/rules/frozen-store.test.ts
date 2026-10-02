@@ -11,7 +11,7 @@ describe('frozen-store: check states', () => {
     expect(pnpmBinding.check(makeCtx(), { frozenStore: true }).state).toBe('ok');
   });
 
-  it('reports the missing setting with its severity, scope and remediation', () => {
+  it('requests store population before enabling a missing frozenStore', () => {
     const status = pnpmBinding.check(makeCtx(), {});
 
     assert(status.state === 'violation');

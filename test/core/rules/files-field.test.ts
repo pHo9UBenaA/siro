@@ -1,5 +1,4 @@
 import { bindingForTest } from '../../helpers/rules.ts';
-import assert from 'node:assert';
 import type { RuleContext } from '../../../src/core/contracts/repo-context.ts';
 import { filesField } from '../../../src/core/rules/files-field.ts';
 import type { PackageJson } from '../../../src/core/contracts/package-json.ts';
@@ -26,7 +25,6 @@ describe('files-field (npm)', () => {
     const steps = manualSteps(status);
 
     const firstStep = steps[0];
-    assert(firstStep, 'expected at least one manual step');
     expect(firstStep).toContain('npm pack --dry-run');
   });
 
@@ -75,12 +73,15 @@ it.each(['pnpm', 'yarn', 'bun', 'aube'] as const)(
 
 describe('Malformed settings', () => {
   const ctx = makeCtx();
+
   it.each([{ value: [false] }, { value: ['   '] }, { value: Array(1) }])(
     'does not accept malformed allowlists: %j',
     ({ value }) => {
       expect(
-        filesField.bindings.deno?.check(ctx, { name: '@scope/pkg', publish: { include: value } })
-          .state,
+        bindingForTest(filesField, 'deno').check(ctx, {
+          name: '@scope/pkg',
+          publish: { include: value },
+        }).state,
       ).toBe('violation');
     },
   );

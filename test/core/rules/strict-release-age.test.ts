@@ -25,8 +25,8 @@ describe('strict-release-age: check states', () => {
   });
 });
 
-describe('strict-release-age: scope, metadata, and fix', () => {
-  it('reports the missing setting with its severity, scope and remediation', () => {
+describe('strict-release-age: remediation', () => {
+  it('proposes minimumReleaseAgeStrict in aube-workspace.yaml', () => {
     const status = aubeBinding.check(makeCtx(), {});
     assert(status.state === 'violation');
     const ops = automaticOperations(status);

@@ -6,9 +6,7 @@ import { applyConfig } from '../../src/core/apply-config.ts';
 import { asRelPath } from '../../src/core/contracts/paths.ts';
 import { makeCtx } from '../helpers/ctx.ts';
 
-// runLint calls parseConfigFile before invoking each binding's `check`. Tests
-// here use synthetic bindings whose `check` ignores `config`, so any codec
-// that never throws is acceptable.
+// These synthetic bindings test severity and display metadata, not config parsing.
 const stubCodecFor: CodecFor = (): ConfigCodec => ({
   parse: (): Record<string, never> => ({}),
 });

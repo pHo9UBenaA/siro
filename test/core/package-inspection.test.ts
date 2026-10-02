@@ -369,10 +369,12 @@ it('shares successful manifest reads within a run but not across calls', () => {
   });
   const read = fs.readText;
   let count = 0;
-  fs.readText = (file) =>
-    file.endsWith('package.json') && ++count > 1
-      ? '{"private":true,"packageManager":"npm@12.0.2"}'
-      : read(file);
+  fs.readText = (file) => {
+    if (!file.endsWith('package.json')) return read(file);
+    count += 1;
+    if (count > 1) return '{"private":true,"packageManager":"npm@12.0.2"}';
+    return read(file);
+  };
   const result = inspect({}, { fs, installationRoots: ['.'] });
   expect(count).toBe(1);
   expect(
@@ -436,6 +438,7 @@ describe('Deno metadata validation', () => {
       ).toThrow(`${prefix}deno.json`);
     }
   });
+
   it.each([
     {},
     { name: null },
@@ -447,6 +450,7 @@ describe('Deno metadata validation', () => {
   ])('preserves legitimate nullable/boolean Deno metadata and unknown fields: %j', (manifest) => {
     expect(() => inspect({ 'deno.json': JSON.stringify(manifest) })).not.toThrow();
   });
+
   it('does not validate excluded malformed metadata', () => {
     expect(
       inspect({ 'child/deno.json': '{"name":123}' }, { exclude: ['child'] }).inspection.manifests,

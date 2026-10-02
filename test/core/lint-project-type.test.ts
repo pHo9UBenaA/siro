@@ -3,9 +3,8 @@ import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { captureIO } from '../helpers/io.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 import { lintCommand } from '../../src/runtime.ts';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
+import { createTempProject } from '../helpers/temp-project.ts';
 
 describe('project type selection', () => {
   it('evaluates publish-only rules when a private package is explicitly a package project', async () => {
@@ -32,16 +31,15 @@ describe('project type selection', () => {
   });
 
   it('uses projectType from siro.config when the caller does not select one', async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'siro-project-type-'));
-    writeFileSync(
-      path.join(dir, 'package.json'),
-      JSON.stringify({ name: 'configured-package', packageManager: 'npm@10.9.0', private: true }),
-    );
-    writeFileSync(path.join(dir, 'package-lock.json'), '{}');
-    writeFileSync(
-      path.join(dir, 'siro.config.mjs'),
-      "export default { projectType: 'package' };\n",
-    );
+    const dir = createTempProject({
+      'package.json': JSON.stringify({
+        name: 'configured-package',
+        packageManager: 'npm@10.9.0',
+        private: true,
+      }),
+      'package-lock.json': '{}',
+      'siro.config.mjs': "export default { projectType: 'package' };\n",
+    });
     const { io, out } = captureIO();
 
     try {
@@ -58,16 +56,11 @@ describe('project type selection', () => {
   });
 
   it('lets an explicit application projectType override package config', async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'siro-project-type-precedence-'));
-    writeFileSync(
-      path.join(dir, 'package.json'),
-      JSON.stringify({ name: 'configured-package', packageManager: 'npm@10.9.0' }),
-    );
-    writeFileSync(path.join(dir, 'package-lock.json'), '{}');
-    writeFileSync(
-      path.join(dir, 'siro.config.mjs'),
-      "export default { projectType: 'package' };\n",
-    );
+    const dir = createTempProject({
+      'package.json': JSON.stringify({ name: 'configured-package', packageManager: 'npm@10.9.0' }),
+      'package-lock.json': '{}',
+      'siro.config.mjs': "export default { projectType: 'package' };\n",
+    });
     const { io, out } = captureIO();
 
     try {

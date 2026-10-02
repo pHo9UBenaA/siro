@@ -13,14 +13,15 @@ describe(wrapCodecError, () => {
   });
 
   it('re-throws an existing ConfigError unchanged so a nested wrap does not double-prefix', () => {
-    // Without the instanceof guard, a ConfigError already framed as
-    // `inner.toml: ...` would be re-wrapped into `outer.toml: inner.toml: ...`
-    // by every layer that calls wrapCodecError, garbling the path prefix.
     const original = new ConfigError('inner.toml: original');
-    expect(() =>
+    let caught: unknown;
+    try {
       wrapCodecError('outer.toml', () => {
         throw original;
-      }),
-    ).toThrow(original);
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBe(original);
   });
 });
