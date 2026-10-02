@@ -33,6 +33,7 @@ it('discovers every manifest independently of PM declarations, names, privacy, v
   });
   expect(first.inspection).toEqual(second.inspection);
   expect(first.inspection.manifests).toHaveLength(7);
+  expect(first.summary).toEqual({ error: 0, warn: 0, info: 10 });
   expect(packageFindings(first).map((f) => f.file)).toContain('deno.json');
   expect(packageFindings(first).map((f) => f.file)).not.toContain('package.json');
   expect(packageFindings(first).every((f) => f.pm === undefined)).toBe(true);
@@ -308,6 +309,19 @@ it.each([undefined, 'not-array', ['..'], ['.'], [''], ['a/b'], [null], Array(1)]
   },
 );
 
+it.each([null, undefined])(
+  'rejects invalid enumeration results as configuration errors without output: %s',
+  async (names) => {
+    const fs = createMemFileSystem({});
+    fs.readDirectories = () => names as never;
+    const { io, out } = captureIO();
+    await expect(
+      lintCommand({ cwd: asAbsPath('/repo'), fs, installationRoots: [], reporter: 'json' }, io),
+    ).rejects.toMatchObject({ name: 'ConfigError', exitCode: 2 });
+    expect(out()).toBe('');
+  },
+);
+
 it('propagates enumeration/read errors, never emits successful partial results', async () => {
   const failure = new Error('EACCES selected');
   const fs = createMemFileSystem({ 'child/package.json': '{}' });
@@ -371,7 +385,9 @@ it('npm provenance remedy changes the overriding manifest leaf, preserving sibli
   const pkg = { name: 'pkg', publishConfig: { access: 'public', provenance: false } };
   const files = { 'package.json': json(pkg), '.npmrc': 'provenance=true' };
   const result = inspect(files, { installationRoots: ['.'], pm: 'npm', pmVersion: '12.0.2' });
-  const remedy = result.findings.find((f) => f.ruleId === 'provenance')?.remediation;
+  const finding = result.findings.find((f) => f.ruleId === 'provenance');
+  expect(finding).toMatchObject({ file: 'package.json', actual: false });
+  const remedy = finding?.remediation;
   expect(remedy?.kind).toBe('automatic');
   if (remedy?.kind !== 'automatic') throw new Error('expected remedy');
   for (const operation of remedy.operations) {

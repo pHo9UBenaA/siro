@@ -198,7 +198,6 @@ it('expands independent violations with fallback paths, metadata and severity ov
       remediation: { kind: 'manual', steps: ['Review second file'] },
     },
   ]);
-  expect(result.summary).toMatchObject({ error: 1, warn: 0, info: 1 });
   expect(result.findings[0]?.remediation).toBeUndefined();
 });
 it.each([
@@ -263,5 +262,4 @@ it('guards each grouped remediation and applies an override to every entry', () 
   });
   expect(result.findings.map((item) => item.remediation?.kind)).toEqual(['manual', 'automatic']);
   expect(result.findings.map((item) => item.severity)).toEqual(['info', 'info']);
-  expect(result.summary).toEqual({ error: 0, warn: 0, info: 2 });
 });

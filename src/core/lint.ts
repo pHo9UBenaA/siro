@@ -24,10 +24,16 @@ import {
 import { createUnsupportedSettings } from './rules/unsupported-settings.ts';
 import { checkManifest, manifestProjectType } from './manifest-checks.ts';
 import { rebaseFinding } from './rebase-finding.ts';
+import { boundedFileSystem } from './bounded-file-system.ts';
+import { checkLimit, resolveScanLimits, type ScanLimits } from './contracts/scan-limits.ts';
 
 export interface LintOptions {
   readonly cwd: AbsPath;
   readonly fs?: FileSystem;
+  /** Caller-controlled finite budgets; omitted values use DEFAULT_SCAN_LIMITS. */
+  readonly limits?: Partial<ScanLimits>;
+  /** Reject file/path symlinks in the native adapter; not an atomic containment sandbox. */
+  readonly rejectSymlinks?: boolean;
   /** Applies only to cwd, never to discovered children or additional installation roots. */
   readonly pm?: PM;
   readonly pmVersion?: string;
@@ -47,6 +53,7 @@ interface LintEvaluation {
   readonly directories: readonly DirectoryEvaluation[];
   readonly ruleSet: readonly Rule[];
   readonly severityOverrides: ReadonlyMap<string, Severity>;
+  readonly limits: ScanLimits;
 }
 interface PreparedLint {
   readonly evaluation: LintEvaluation;
@@ -79,7 +86,13 @@ const validateLintOptions = (
 export const prepareLint = (options: LintOptions, dependencies: LintDependencies): PreparedLint => {
   validateLintOptions(options, dependencies.paths);
   const config = options.config === undefined ? undefined : parseConfig(options.config);
-  const fs = options.fs === undefined ? dependencies.fileSystem : options.fs;
+  const limits = resolveScanLimits(options.limits);
+  const sourceFs = options.fs === undefined ? dependencies.fileSystem : options.fs;
+  if (typeof sourceFs.readDirectories !== 'function')
+    throw new ConfigError(
+      'FileSystem.readDirectories is required for package discovery; no native filesystem fallback is used.',
+    );
+  const fs = boundedFileSystem(sourceFs, limits);
   const excluded = dependencies.compileExclusions(
     parseExcludes(options.exclude !== undefined ? options.exclude : (config?.exclude ?? [])),
   );
@@ -96,6 +109,7 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
     excluded,
     options.projectType ?? config?.projectType,
     dependencies,
+    limits,
   );
   for (const entry of installations) {
     if (!discovered.some((item) => item.directory === entry.path))
@@ -151,13 +165,14 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
       directories,
       ruleSet: configured.rules,
       severityOverrides: configured.severityOverrides,
+      limits,
     },
     reporters: config?.reporters ?? [],
   };
 };
 
 export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
-  const { directories, ruleSet, severityOverrides } = evaluation;
+  const { directories, ruleSet, severityOverrides, limits } = evaluation;
   const findings: Finding[] = [];
   const manifests: Inspection['manifests'][number][] = [];
   const installationRoots: Inspection['installationRoots'][number][] = [];
@@ -209,7 +224,8 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
     }
     // Stable user-facing rule order is independent of traversal/read order.
     local.sort((a, b) => (ruleOrder.get(a.ruleId) ?? 0) - (ruleOrder.get(b.ruleId) ?? 0));
-    findings.push(...local.map((finding) => rebaseFinding(directory, finding)));
+    checkLimit('maxFindings', findings.length + local.length, limits);
+    for (const finding of local) findings.push(rebaseFinding(directory, finding));
   }
   const summary = { error: 0, warn: 0, info: 0 };
   for (const finding of findings) summary[finding.severity] += 1;

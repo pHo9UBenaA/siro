@@ -79,7 +79,6 @@ export default {
 npx @pho9ubenaa/siro lint . --installation-root . --installation-root tools/standalone
 ```
 
-- `exclude` defaults to `[]`; `installationRoots` defaults to `['.']`.
 - API arrays replace their config values. Repeated CLI `--exclude` or
   `--installation-root` values likewise replace the corresponding config array.
 - Naming a child does not automatically retain `.`. `installationRoots: []`
@@ -124,6 +123,64 @@ objects; empty YAML is accepted, but empty JSON is invalid. Consumed manifest
 fields are type-checked even when publication checks are disabled; unknown fields
 are not whole-schema validated. Lockfile checks establish file presence, not git
 tracking, content validity or freshness.
+
+PM configuration is parsed lazily, only when selected checks consume it. Missing
+optional PM configuration is evaluated as empty configuration; missing lockfiles
+normally produce policy findings, not parse errors. Empty YAML/TOML/INI is accepted.
+Non-selected PM files and disabled checks are not a whole-repository syntax audit.
+Parser diagnostics omit input excerpts; observed finding values are not redacted.
+
+### Strict filesystem and scan budgets
+
+For a data-only inspection, use:
+
+```sh
+npx @pho9ubenaa/siro lint --no-config --strict-filesystem
+```
+
+`--strict-filesystem` (`rejectSymlinks: true` in the API) rejects a symlink selected
+as cwd and file/path symlinks below cwd, including dangling links. System ancestors
+of cwd are canonicalized; directory symlinks remain untraversed. The option applies
+to native data reads, not executable config or extension code. Combine it with
+`--no-config` for untrusted checkouts. Injected filesystems are trusted code and
+cannot use this option. Neither this check nor lexical path validation is an atomic
+containment guarantee: ancestor replacement races, hard links, and hostile concurrent
+processes still require an isolated snapshot/sandbox.
+
+Each inspection has finite caller-controlled budgets. They are not config keys:
+
+| API `limits` key / CLI flag                   | Default                                   |
+| --------------------------------------------- | ----------------------------------------- |
+| `maxFileBytes` / `--max-file-bytes`           | 8 MiB (8388608)                           |
+| `maxTotalBytes` / `--max-total-bytes`         | 64 MiB (67108864)                         |
+| `maxEntries` / `--max-entries`                | 100000                                    |
+| `maxDirectories` / `--max-directories`        | 10000                                     |
+| `maxDirectoryDepth` / `--max-directory-depth` | 128 (cwd depth 0)                         |
+| `maxConfigDepth` / `--max-config-depth`       | 128 (mapping/array root depth 1)          |
+| `maxFindings` / `--max-findings`              | 50000 before severity filtering           |
+| `maxOutputBytes` / `--max-output-bytes`       | 32 MiB (33554432), including line endings |
+
+All overrides must be positive safe integers. Defaults are exported as
+`DEFAULT_SCAN_LIMITS`; API callers can provide a partial `limits` object.
+Native reads bound actual bytes before/during reading, and enumeration counts all
+entries in visited directories, including files and skipped directory names.
+Injected IO is checked after returning data and counts returned child directories;
+siro cannot bound allocations made inside a supplied IO function. Decoded UTF-8 text
+is also byte-checked. Budgets apply per scan; config depth includes unconsumed
+manifest fields without whole-schema validation.
+
+Input/evaluation overflow aborts with exit 2, without a partial success document.
+Output overflow is exit 70; JSON is bounded before writing, while GitHub output may
+already contain annotations. No findings are silently truncated. Direct built-in
+reporter calls use defaults, or supplied `context.limits`. Limits do not sandbox
+trusted extensions or impose a hard CPU timeout. Isolate synchronous API work in a
+subprocess/container when hard time/memory bounds are needed.
+
+When aggregate budgets are exceeded, reduce the scan scope; scan independent projects
+separately where possible. Changing the target directory can change configuration
+and root-level checks, so splitting a shared workspace is not equivalent to checking
+it as a whole. Individual file-size and configuration-depth overflows instead require
+smaller files or simpler nesting.
 
 Do not modify inputs during a scan; a consistent filesystem snapshot is not guaranteed.
 
@@ -173,7 +230,11 @@ npm provenance, Deno release-age fallback and npm shrinkwrap compatibility.
 The CLI loads cwd's first existing `siro.config.ts`, `.mjs`, or `.js`, in that
 order. It does not search parents or load child/additional-root executable configs.
 Config runs with the caller's privileges; see the [threat model](threat-model.md).
-TypeScript must use Node-supported erasable syntax.
+TypeScript must use Node-supported erasable syntax. This default is automatic
+execution, not an opt-in or sandbox. `--no-config` skips config filename probing and
+import entirely, discarding its rule overrides, reporters, exclusions, installation
+roots, PM/version declarations and project type. CLI options and built-in defaults
+still apply; unknown custom reporter names fail rather than falling back.
 
 Unknown keys, unknown/duplicate rule IDs and malformed extensions are errors.
 Config exports and check results must be synchronous objects, not Promises or
@@ -242,7 +303,9 @@ User rule overrides take precedence over result, binding and rule severity.
 By default all findings are displayed but only errors fail. `--severity` changes
 both thresholds. Summary counts displayed findings; filtering does not change
 `inspection`. A reporter cannot change the already computed findings exit code,
-but reporting failures reject the command.
+but reporting failures reject the command. For example, `enforce-strict-ssl` is warn-level
+by default: use `--severity warn` to make detected TLS policy violations fail CI.
+Rule severities and command thresholds are not vulnerability severity ratings.
 
 Built-in reporters are `pretty`, `json` and `github`; registered reporters may
 replace them by name. Reporters receive `format(result, io, { cwd })` and must be
@@ -255,7 +318,9 @@ returning. `lintCommand` waits for its reporter and supplied-IO writes. Output
 failure rejects the API and exits the CLI with `70`, not the findings exit `1`.
 
 `check` aliases `lint`. Value options must be nonempty; only `--exclude` and
-`--installation-root` repeat. Boolean flags take no values or `--no-` variants.
+`--installation-root` repeat. Boolean flags take no values. `--no-config` is an
+explicit option, not support for arbitrary `--no-` variants; it and
+`--strict-filesystem` cannot be repeated.
 Help takes priority over version, and version over linting. Arguments after `--`
 are rejected. Run `npx @pho9ubenaa/siro lint --help` for CLI syntax.
 

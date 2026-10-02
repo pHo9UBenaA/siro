@@ -49,3 +49,4 @@ export { type AbsPath, asRelPath, type RelPath } from './core/contracts/paths.ts
 export { version } from './version.ts';
 export { asAbsPath } from './adapters/node-paths.ts';
 export type { ConfigFileRef } from './core/contracts/config-file-ref.ts';
+export { DEFAULT_SCAN_LIMITS, type ScanLimits } from './core/contracts/scan-limits.ts';

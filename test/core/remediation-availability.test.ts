@@ -108,9 +108,11 @@ it('removes a future pnpm bypass without re-proposing existing gating', () => {
     }),
   });
   const finding = result.findings.find((item) => item.ruleId === 'disable-lifecycle-scripts');
+  expect(finding).toMatchObject({ severity: 'error', remediation: { kind: 'manual' } });
   const steps = finding?.remediation?.kind === 'manual' ? finding.remediation.steps : [];
   expect(steps).toHaveLength(1);
   expect(steps[0]).toContain('Remove `dangerouslyAllowAllBuilds: true`');
+  expect(finding?.message).toContain('future-version bypass');
   expect(finding?.message).toContain('after an upgrade');
 });
 
@@ -124,6 +126,7 @@ it('treats the pnpm bypass as active from 10.9 onward', () => {
     }),
   });
   const finding = result.findings.find((item) => item.ruleId === 'disable-lifecycle-scripts');
+  expect(finding).toMatchObject({ severity: 'error', remediation: { kind: 'manual' } });
   expect(finding?.remediation?.steps).toHaveLength(1);
   expect(finding?.remediation?.steps?.[0]).toContain('strictDepBuilds: true` alone has no effect');
   expect(finding?.message).toContain('bypasses strictDepBuilds');

@@ -4,10 +4,16 @@ import { lint as evaluate, type LintOptions } from './core/lint.ts';
 import { lintCommand as report, type LintCommandOptions } from './core/lint-command.ts';
 import type { LintDependencies } from './core/contracts/lint-dependencies.ts';
 import type { IO } from './core/contracts/io.ts';
-import { nodeFileSystem } from './adapters/node-file-system.ts';
+import {
+  createNodeFileSystem,
+  nodeFileSystem,
+  assertDirectory,
+} from './adapters/node-file-system.ts';
+import { resolveScanLimits } from './core/contracts/scan-limits.ts';
+import { UsageError } from './core/contracts/errors.ts';
 import { nodePaths } from './adapters/node-paths.ts';
 import { createRepoContext } from './adapters/repo-context.ts';
-import { codecFor } from './adapters/codecs/store.ts';
+import { createCodecFor } from './adapters/codecs/store.ts';
 import { DEFAULT_REPORTER_NAME, createRegistry } from './adapters/reporters/registry.ts';
 
 /** Read time at evaluation, never at module initialization. */
@@ -16,20 +22,40 @@ export const rules = createBuiltinRules({
   parse: (value) => Date.parse(value),
 });
 
-const dependencies: LintDependencies = {
-  rules,
-  fileSystem: nodeFileSystem,
-  paths: nodePaths,
-  createRepoContext,
-  codecFor,
-  compileExclusions,
+const dependenciesFor = (options: LintOptions): LintDependencies => {
+  if (!options || !nodePaths.isAbsolute(options.cwd))
+    throw new UsageError('cwd must be an absolute filesystem path.');
+  const limits = resolveScanLimits(options.limits);
+  if (options.rejectSymlinks !== undefined && typeof options.rejectSymlinks !== 'boolean')
+    throw new UsageError('rejectSymlinks must be a boolean.');
+  const native = options.fs === undefined || options.fs === nodeFileSystem;
+  if (options.rejectSymlinks && !native)
+    throw new UsageError(
+      'rejectSymlinks requires the native filesystem; an injected FileSystem is trusted code.',
+    );
+  if (native) assertDirectory(options.cwd);
+  return {
+    rules,
+    fileSystem: native
+      ? createNodeFileSystem(limits, options.rejectSymlinks ? options.cwd : undefined)
+      : options.fs!,
+    paths: nodePaths,
+    createRepoContext: (root, fs, projectType) =>
+      createRepoContext(root, fs, projectType, limits.maxConfigDepth),
+    codecFor: createCodecFor(limits),
+    compileExclusions,
+  };
 };
+// Explicit use of the public nodeFileSystem still receives fresh per-scan native budgets.
+const nativeOptions = (options: LintOptions): LintOptions =>
+  options?.fs === nodeFileSystem ? { ...options, fs: undefined } : options;
 
 /** Public Node API: callers can replace the filesystem without assembling the application. */
-export const lint = (options: LintOptions) => evaluate(options, dependencies);
+export const lint = (options: LintOptions) =>
+  evaluate(nativeOptions(options), dependenciesFor(options));
 
-export const lintCommand = (options: LintCommandOptions, io: IO): Promise<number> =>
-  report(options, io, dependencies, {
+export const lintCommand = async (options: LintCommandOptions, io: IO): Promise<number> =>
+  report(nativeOptions(options), io, dependenciesFor(options), {
     defaultName: DEFAULT_REPORTER_NAME,
     createRegistry,
   });

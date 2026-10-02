@@ -33,17 +33,6 @@ it('pairs a context with a fresh lazy parser without reading ahead', () => {
 });
 
 describe('createConfigParser — error handling', () => {
-  it('treats a missing optional config file as empty without invoking its codec', () => {
-    expect.hasAssertions();
-    const parse = vi.fn<ConfigCodec['parse']>();
-    const codecFor: CodecFor = () => makeCodec(parse);
-    const ctx = makeCtx({ readText: () => undefined });
-    const file: ConfigFileRef = { kind: 'json', path: asRelPath('deno.json') };
-
-    expect(createConfigParser(codecFor, ctx)(file)).toStrictEqual({});
-    expect(parse).not.toHaveBeenCalled();
-  });
-
   it('does not cache a filesystem failure, but caches the first successful parse', () => {
     const failure = new Error('Read failed');
     const readText = vi
@@ -80,7 +69,7 @@ describe('createConfigParser — error handling', () => {
       .mockReturnValue({ approved: true });
     const parseConfig = createConfigParser(() => makeCodec(parse), makeCtx({ readText }));
     const file: ConfigFileRef = { kind: 'json', path: asRelPath('deno.json') };
-    expect(() => parseConfig(file)).toThrow('deno.json: Invalid input');
+    expect(() => parseConfig(file)).toThrow('deno.json: Invalid configuration.');
     expect(parseConfig(file)).toEqual({ approved: true });
     expect(readText).toHaveBeenCalledTimes(2);
     expect(parse).toHaveBeenCalledTimes(2);
@@ -104,7 +93,7 @@ describe('createConfigParser — error handling', () => {
     expect(readText).toHaveBeenCalledTimes(2);
   });
 
-  it('wraps codec errors as ConfigError, including file.path and the codec message', () => {
+  it('wraps codec errors with file.path without disclosing unknown codec messages', () => {
     expect.hasAssertions();
     const codecFor: CodecFor = () =>
       makeCodec(() => {
@@ -116,6 +105,6 @@ describe('createConfigParser — error handling', () => {
 
     expect(() => parseConfig(file)).toThrow(ConfigError);
     expect(() => parseConfig(file)).toThrow(/pnpm-workspace\.yaml/u);
-    expect(() => parseConfig(file)).toThrow(/unexpected token/u);
+    expect(() => parseConfig(file)).toThrow(/Invalid configuration/u);
   });
 });

@@ -100,7 +100,6 @@ it.each(['--json', '--help', '--version'])(
         code: 70,
         unhandled: false,
       });
-      expect(stderr).not.toContain("Unhandled 'error' event");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

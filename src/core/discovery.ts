@@ -4,6 +4,12 @@ import type { AbsPath, RelPath } from './contracts/paths.ts';
 import { asRelPath } from './contracts/paths.ts';
 import type { ProjectType } from './contracts/project-type.ts';
 import { ConfigError } from './contracts/errors.ts';
+import {
+  checkConfigDepth,
+  checkLimit,
+  DEFAULT_SCAN_LIMITS,
+  type ScanLimits,
+} from './contracts/scan-limits.ts';
 import { CONFIG_FILES } from './config-files.ts';
 import { validateDenoMetadata } from './contracts/deno-json.ts';
 import { createRepositoryEvaluation, type RepositoryEvaluation } from './parse-config-file.ts';
@@ -21,16 +27,15 @@ export const discover = (
   excluded: (directory: string) => boolean,
   projectType: ProjectType | undefined,
   dependencies: LintDependencies,
+  limits: ScanLimits = DEFAULT_SCAN_LIMITS,
 ): DiscoveredDirectory[] => {
-  if (typeof fs.readDirectories !== 'function')
-    throw new ConfigError(
-      'FileSystem.readDirectories is required for package discovery; no native filesystem fallback is used.',
-    );
   const { paths, createRepoContext, codecFor } = dependencies;
   const pending = [asRelPath('.')];
   const directories: DiscoveredDirectory[] = [];
   while (pending.length) {
     const directory = pending.pop()!;
+    checkLimit('maxDirectories', directories.length + pending.length + 1, limits);
+    checkLimit('maxDirectoryDepth', directory === '.' ? 0 : directory.split('/').length, limits);
     const absolute = paths.resolve(cwd, directory);
     let repository: RepositoryEvaluation;
     const manifests: ('package.json' | 'deno.json')[] = [];
@@ -38,8 +43,10 @@ export const discover = (
       repository = createRepositoryEvaluation(
         createRepoContext(absolute, fs, projectType),
         codecFor,
+        limits.maxConfigDepth,
       );
       const { ctx, parseConfig } = repository;
+      checkConfigDepth(ctx.packageJson, limits.maxConfigDepth);
       if (ctx.packageJson !== undefined) manifests.push('package.json');
       if (ctx.readText(CONFIG_FILES.denoJson.path) !== undefined) {
         validateDenoMetadata(parseConfig(CONFIG_FILES.denoJson));
@@ -70,6 +77,8 @@ export const discover = (
         children.has(child)
       )
         continue;
+      checkLimit('maxDirectoryDepth', child.split('/').length, limits);
+      checkLimit('maxDirectories', directories.length + pending.length + 1, limits);
       children.add(child);
       pending.push(child);
     }

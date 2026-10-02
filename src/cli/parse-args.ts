@@ -8,6 +8,12 @@ import type { PM, Severity } from '../core/contracts/pms.ts';
 import type { ProjectType } from '../core/contracts/project-type.ts';
 import { DEFAULT_REPORTER_NAME, JSON_REPORTER_NAME } from '../adapters/reporters/registry.ts';
 import { parsePmFlag, parseProjectTypeFlag, parseSeverityFlag } from './parsers.ts';
+import {
+  DEFAULT_SCAN_LIMITS,
+  resolveScanLimits,
+  type ScanLimits,
+} from '../core/contracts/scan-limits.ts';
+import { isStableVersion } from '../core/pm-versions.ts';
 
 export type ParsedCommand =
   | { kind: 'help'; target?: CommandName }
@@ -23,8 +29,17 @@ export type ParsedCommand =
       projectType?: ProjectType;
       reporter: string;
       severity?: Severity;
+      noConfig?: boolean;
+      rejectSymlinks?: boolean;
+      limits?: Partial<ScanLimits>;
     };
 
+const LIMIT_FLAGS = new Map(
+  Object.keys(DEFAULT_SCAN_LIMITS).map((key) => [
+    key.replace(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`),
+    key as keyof ScanLimits,
+  ]),
+);
 const REPEATABLE_FLAGS = new Set(['exclude', 'installation-root']);
 const VALUE_FLAGS = new Set([
   'pm',
@@ -33,8 +48,9 @@ const VALUE_FLAGS = new Set([
   'reporter',
   'severity',
   ...REPEATABLE_FLAGS,
+  ...LIMIT_FLAGS.keys(),
 ]);
-const BOOLEAN_FLAGS = new Set(['help', 'version', 'json']);
+const BOOLEAN_FLAGS = new Set(['help', 'version', 'json', 'no-config', 'strict-filesystem']);
 
 export const parseCommand = (argv: readonly string[]): ParsedCommand => {
   // Tokenize first so a missing option value cannot consume a following --help.
@@ -64,8 +80,11 @@ export const parseCommand = (argv: readonly string[]): ParsedCommand => {
       if (token.value !== undefined) {
         error ??= `Flag ${token.rawName} does not accept a value.`;
       } else {
-        if (token.name === 'json' && flags.has('json'))
-          error ??= '--json must be specified only once.';
+        if (
+          ['json', 'no-config', 'strict-filesystem'].includes(token.name) &&
+          flags.has(token.name)
+        )
+          error ??= `${token.rawName} must be specified only once.`;
         flags.set(token.name, true);
       }
     } else if (VALUE_FLAGS.has(token.name)) {
@@ -114,15 +133,31 @@ export const parseCommand = (argv: readonly string[]): ParsedCommand => {
   }
   const reporter = flags.get('reporter');
   const pmVersion = flags.get('pm-version');
+  const pm = parsePmFlag(flags.get('pm'));
+  if (pmVersion !== undefined && (!pm || !isStableVersion(pmVersion)))
+    throw new UsageError('--pm-version requires --pm and an exact stable version.');
+  const limits: Partial<Record<keyof ScanLimits, number>> = {};
+  for (const [flag, key] of LIMIT_FLAGS) {
+    const value = flags.get(flag);
+    if (value !== undefined) {
+      if (typeof value !== 'string' || !/^\d+$/u.test(value))
+        throw new UsageError(`${flag} must be a positive safe integer.`);
+      limits[key] = Number(value);
+    }
+  }
+  resolveScanLimits(limits);
   return {
     kind: 'lint',
     cwd: asAbsPath(path.resolve(cwd ?? process.cwd())),
-    pm: parsePmFlag(flags.get('pm')),
+    pm,
     pmVersion: typeof pmVersion === 'string' ? pmVersion : undefined,
     exclude: repeated.get('exclude'),
     installationRoots: repeated.get('installation-root'),
     projectType: parseProjectTypeFlag(flags.get('project-type')),
     severity: parseSeverityFlag(flags.get('severity')),
+    ...(flags.has('no-config') ? { noConfig: true } : {}),
+    ...(flags.has('strict-filesystem') ? { rejectSymlinks: true } : {}),
+    ...(Object.keys(limits).length ? { limits } : {}),
     reporter:
       typeof reporter === 'string'
         ? reporter

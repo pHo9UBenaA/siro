@@ -68,7 +68,6 @@ it('resolves each severity independently and leaves rule declarations unchanged'
     { ruleId: 'user-binding', severity: 'info' },
     { ruleId: 'user-status', severity: 'warn' },
   ]);
-  expect(result.summary).toEqual({ error: 1, warn: 1, info: 3 });
   expect(
     rules.map((rule) => ({ rule: rule.severity, binding: rule.bindings.npm?.severity })),
   ).toEqual(original);

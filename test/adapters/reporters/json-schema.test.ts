@@ -1,18 +1,14 @@
 import { asRelPath } from '../../../src/core/contracts/paths.ts';
-import type { IO } from '../../../src/core/contracts/io.ts';
+import { captureIO } from '../../helpers/io.ts';
 import type { LintResult } from '../../../src/core/contracts/lint-result.ts';
 import { jsonReporter } from '../../../src/adapters/reporters/json.ts';
 import { version } from '../../../src/version.ts';
 import { asAbsPath } from '../../../src/index.ts';
 
 const render = async (result: LintResult): Promise<unknown> => {
-  const lines: string[] = [];
-  const io: IO = {
-    stderr: (): undefined => void 0,
-    stdout: (line) => lines.push(line),
-  };
+  const { io, out } = captureIO();
   await jsonReporter.format(result, io, { cwd: asAbsPath(process.cwd()) });
-  return JSON.parse(lines.join('\n'));
+  return JSON.parse(out());
 };
 
 const result: LintResult = {

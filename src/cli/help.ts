@@ -10,6 +10,10 @@ const SEVERITIES_LIST = SEVERITIES.join('|');
 
 const FLAG_LINES = {
   json: '  --json               Shortcut for --reporter json',
+  safety:
+    '  --no-config          Do not probe or execute repository siro.config.*\n  --strict-filesystem  Reject symlink input paths (not a containment sandbox)',
+  limits:
+    '  --max-file-bytes <n>  Bound each input file (default 8388608)\n  --max-total-bytes <n>  Bound all input reads (default 67108864)\n  --max-entries <n>     Bound native directory entries (default 100000)\n  --max-directories <n> Bound discovered directories (default 10000)\n  --max-directory-depth <n> Bound discovery depth (default 128)\n  --max-config-depth <n> Bound configuration nesting (default 128)\n  --max-findings <n>    Bound unfiltered findings (default 50000)\n  --max-output-bytes <n> Bound report output (default 33554432)',
   pm: `  --pm <name>          Target a specific package manager (${PMS_LIST})`,
   pmVersion: '  --pm-version <x.y.z>  Target an exact stable PM version (requires --pm)',
   inspection:
@@ -37,12 +41,15 @@ const HELP_ROOT = [
   '  --help               Show help for siro or a command',
   '',
   'LINT FLAGS',
+  FLAG_LINES.safety,
+  FLAG_LINES.limits,
   FLAG_LINES.reporter,
   FLAG_LINES.json,
   FLAG_LINES.severity,
   '',
   'EXAMPLES',
   '  $ siro lint                         # report violations in cwd',
+  '  $ siro lint --no-config --strict-filesystem  # data-only inspection',
   '  $ siro lint --reporter github       # GitHub Actions annotations',
   '  $ siro lint --severity warn         # also fail on warnings',
   '',
@@ -60,6 +67,8 @@ const HELP_LINT = [
   '  siro check [path] [flags]        (alias)',
   '',
   'FLAGS',
+  FLAG_LINES.safety,
+  FLAG_LINES.limits,
   FLAG_LINES.pm,
   FLAG_LINES.pmVersion,
   FLAG_LINES.inspection,
@@ -72,10 +81,11 @@ const HELP_LINT = [
   '  0  No findings at or above the active threshold',
   '  1  Findings at or above the threshold (default: error)',
   '  2  Usage error (bad flag, broken siro.config.ts, unreadable path, …)',
-  '  70 Uncaught exception (a siro bug, or a reporter / custom rule that threw)',
+  '  70 Output failure/limit, or unexpected exception (including trusted extensions)',
   '',
   'EXAMPLES',
   '  $ siro lint                         # default: pretty reporter, fail on errors',
+  '  $ siro lint --no-config --strict-filesystem  # data-only inspection',
   '  $ siro lint --reporter github       # GitHub Actions annotations',
   '  $ siro lint --severity warn         # tighten the gate',
 ].join('\n');

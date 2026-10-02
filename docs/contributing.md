@@ -8,7 +8,7 @@ git config core.hooksPath .githooks
 pnpm verify
 ```
 
-Pre-commit checks types and formatting/lint; pre-push and CI run `verify`.
+Pre-commit checks types, formatting/lint and tests; pre-push and CI run `verify`.
 Hooks check the working tree, not a separate partially staged tree.
 
 | Command             | Purpose                                                          |
@@ -62,3 +62,15 @@ To verify an existing artifact, run `pnpm test:package /absolute/path/package.tg
 To retain a verified artifact, use
 `pnpm test:package --output /absolute/path/package.tgz`. Verification never publishes;
 the publication workflow stages the verified tarball without repacking it.
+
+## Release controls
+
+Prepare releases on `release/v<x.y.z>` with Conventional Commits. Merge reviewed
+changes into protected main before tagging `v<x.y.z>`; the tag must match the
+package version. The [publish workflow](../.github/workflows/publish.yaml) verifies
+and stages the package. Staging is separate from approval and public availability.
+
+Before publishing, protect main and `v*` tags, configure the `npm-publish` environment
+with required reviewers and tag restrictions, and match the npm trusted publisher
+binding to this repository, `publish.yaml` and environment. Local tests cannot verify
+these remote settings. Do not use publishing authority for test probes.

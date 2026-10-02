@@ -22,24 +22,22 @@ it.each([
   const filtered = filterBySeverity(result, threshold);
   expect(filtered.findings.map((finding) => finding.ruleId)).toEqual(ids);
   expect(filtered.summary).toEqual(summary);
-  expect(filtered.inspection).toBe(result.inspection);
+  expect(filtered.inspection).toEqual(result.inspection);
 });
 
 it.each([
-  { findings: result.findings, summary: result.summary, threshold: 'error', exit: 1 },
-  { findings: [], summary: { error: 0, warn: 0, info: 0 }, threshold: undefined, exit: 0 },
+  { findings: result.findings, threshold: 'error', exit: 1 },
+  { findings: [], threshold: undefined, exit: 0 },
   {
     findings: [result.findings[1]!],
-    summary: { error: 0, warn: 1, info: 0 },
     threshold: 'warn',
     exit: 1,
   },
   {
     findings: [result.findings[1]!],
-    summary: { error: 0, warn: 1, info: 0 },
     threshold: 'error',
     exit: 0,
   },
-] as const)('returns $exit for $summary at $threshold', ({ findings, threshold, exit }) => {
+] as const)('returns $exit at threshold $threshold', ({ findings, threshold, exit }) => {
   expect(exitCodeForLint({ findings }, threshold)).toBe(exit);
 });

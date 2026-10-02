@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { runInNewContext } from 'node:vm';
 import {
   asAbsPath,
   asRelPath,
@@ -11,6 +12,8 @@ import {
   type LintOptions,
   type LintResult,
   type CheckStatus,
+  type ConfigFileRef,
+  type RuleBinding,
   type Rule,
   type Reporter,
   type SiroConfig,
@@ -20,13 +23,14 @@ import { captureIO } from '../helpers/io.ts';
 
 const rule = (
   id: string,
-  check: () => CheckStatus = () => ({ state: 'violation', message: 'custom violation' }),
+  check: RuleBinding['check'] = () => ({ state: 'violation', message: 'custom violation' }),
+  file: ConfigFileRef = CONFIG_FILES.npmrc,
 ): Rule => ({
   id,
   title: id,
   description: id,
   severity: 'error',
-  bindings: { npm: { file: { kind: 'npmrc', path: asRelPath('.npmrc') }, check } },
+  bindings: { npm: { file, check } },
 });
 const options = { cwd: asAbsPath('/repo'), fs: npmGoodFs() };
 
@@ -34,11 +38,13 @@ it.each(['package.json', './package.json'])(
   'gives manifest metadata and rule config the same package.json source via %s',
   (rulePath) => {
     let reads = 0;
+    let extraReads = 0;
     const manifest = path.join('/repo', 'package.json');
     const fs: FileSystem = {
       readDirectories: () => [],
       exists: () => false,
       readText: (file) => {
+        if (file === path.join('/repo', 'extra.txt')) return String(++extraReads);
         if (file !== manifest) return undefined;
         reads++;
         return JSON.stringify({ private: reads > 1 });
@@ -51,45 +57,150 @@ it.each(['package.json', './package.json'])(
       fs,
       config: {
         customRules: [
-          {
-            ...rule('package-snapshot'),
-            bindings: {
-              npm: {
-                file: { ...CONFIG_FILES.packageJson, path: asRelPath(rulePath) },
-                check: (ctx, config) => {
-                  seen.push([ctx.packageJson?.private, config.private]);
-                  return { state: 'ok' };
-                },
-              },
+          rule(
+            'package-snapshot',
+            (ctx, config) => {
+              seen.push([
+                ctx.packageJson?.private,
+                config.private,
+                ctx.readText(asRelPath('extra.txt')),
+                ctx.readText(asRelPath('./extra.txt')),
+              ]);
+              return { state: 'ok' };
             },
-          },
+            { ...CONFIG_FILES.packageJson, path: asRelPath(rulePath) },
+          ),
         ],
       },
     };
     lint(snapshotOptions);
-    expect(seen).toEqual([[false, false]]);
+    expect(seen).toEqual([[false, false, '1', '1']]);
     expect(reads).toBe(1);
+    expect(extraReads).toBe(1);
     lint(snapshotOptions);
     expect(seen).toEqual([
-      [false, false],
-      [true, true],
+      [false, false, '1', '1'],
+      [true, true, '2', '2'],
     ]);
     expect(reads).toBe(2);
+    expect(extraReads).toBe(2);
   },
 );
 
-it('reports custom rules from explicit configuration', async () => {
+it('keeps an absent manifest absent within a scan and re-reads it on the next scan', () => {
+  const manifest = path.join('/repo', 'package.json');
+  let reads = 0;
+  const seen: unknown[] = [];
+  const request: LintOptions = {
+    cwd: asAbsPath('/repo'),
+    pm: 'npm',
+    installationRoots: [],
+    fs: {
+      readDirectories: () => [],
+      exists: () => false,
+      readText: (file) => (file === manifest && ++reads > 1 ? '{"private":true}' : undefined),
+    },
+    config: {
+      customRules: [
+        rule(
+          'absent-manifest',
+          (ctx, config) => {
+            seen.push([ctx.packageJson?.private, config.private]);
+            return { state: 'ok' };
+          },
+          CONFIG_FILES.packageJson,
+        ),
+      ],
+    },
+  };
+  lint(request);
+  expect(seen).toEqual([[undefined, undefined]]);
+  expect(reads).toBe(1);
+  lint(request);
+  expect(seen).toEqual([
+    [undefined, undefined],
+    [true, true],
+  ]);
+  expect(reads).toBe(2);
+});
+
+it('reports grouped custom findings and aggregates their final severities', async () => {
   const { io, out } = captureIO();
   expect(
     await lintCommand(
-      { ...options, config: { customRules: [rule('custom')] }, reporter: 'json' },
+      {
+        ...options,
+        installationRoots: [],
+        config: {
+          customRules: [
+            rule('custom', () => ({
+              state: 'violations',
+              violations: [
+                { state: 'violation', message: 'error' },
+                { state: 'violation', message: 'warn', severity: 'warn' },
+                { state: 'violation', message: 'info', severity: 'info' },
+              ],
+            })),
+          ],
+        },
+        reporter: 'json',
+      },
       io,
     ),
   ).toBe(1);
   const result: LintResult = JSON.parse(out());
   expect(result.findings.filter((f) => f.ruleId === 'custom')).toMatchObject([
-    { message: 'custom violation', severity: 'error' },
+    { message: 'error', severity: 'error' },
+    { message: 'warn', severity: 'warn' },
+    { message: 'info', severity: 'info' },
   ]);
+  expect(result.summary).toEqual({ error: 1, warn: 1, info: 1 });
+});
+
+it('preserves a custom actual value returned by toJSON across realms', async () => {
+  const { io, out } = captureIO();
+  const actual = { toJSON: () => runInNewContext('new Number(7)') };
+  expect(
+    await lintCommand(
+      {
+        ...options,
+        installationRoots: [],
+        reporter: 'json',
+        config: {
+          customRules: [
+            rule('json-value', () => ({ state: 'violation', message: 'probe', actual })),
+          ],
+        },
+      },
+      io,
+    ),
+  ).toBe(1);
+  const result: LintResult = JSON.parse(out());
+  expect(result.findings.find((finding) => finding.ruleId === 'json-value')?.actual).toBe(7);
+});
+
+it('rejects non-serializable custom actual values without a successful JSON report', async () => {
+  const { io, out } = captureIO();
+  await expect(
+    lintCommand(
+      {
+        ...options,
+        installationRoots: [],
+        reporter: 'json',
+        config: {
+          customRules: [
+            rule('json-value', () => ({
+              state: 'violation',
+              message: 'probe',
+              actual: Object(1n),
+            })),
+          ],
+        },
+      },
+      io,
+    ),
+  ).rejects.toBeInstanceOf(TypeError);
+  expect(out()).toBe('');
 });
 
 it.each(['constructor', '__proto__', 'ordinary'])(

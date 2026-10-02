@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.6.1] — 2026-10-02
+
+- Add `--no-config` to skip executable repository configuration, and
+  `--strict-filesystem` / API `rejectSymlinks` to reject native input-path symlinks.
+  Defaults retain automatic config and symlink resolution; neither option is a sandbox.
+- Add finite scan/output budgets, caller overrides (`limits`, CLI `--max-*`) and
+  `DEFAULT_SCAN_LIMITS` / `ScanLimits` exports. Oversized/deep inputs now fail with
+  exit 2; output overflow exits 70 rather than producing a truncated success report.
+- Omit source excerpts from JSON/YAML/TOML syntax diagnostics. Observed finding
+  values are not secret-redacted.
+- Fix argument-limit failures when inspecting large Deno scoped import mappings.
+- Update locked transitive dependencies to brace-expansion 5.0.12, markdown-it 14.3.1
+  and fast-uri 3.1.8 for upstream security fixes.
+- Correct first-run safety examples to use `npx` without a global install.
+- Separate build/verification from OIDC staging of the verified artifact, with
+  release identity, digest and main-ancestry checks.
+
+Node requirements, direct dependency versions and decoded JSON schema 3 remain unchanged.
+
 ## [0.6.0] — 2026-09-29
 
 ### Breaking changes and inspection scope

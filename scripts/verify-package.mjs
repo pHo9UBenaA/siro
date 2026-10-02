@@ -213,6 +213,28 @@ try {
     "export default { reporters: [{ name: 'crash', format() { throw new Error('Package verification crash probe'); } }] };\n",
   );
   runCli(['lint', 'good', '--reporter', 'crash'], consumer, 70);
+  writeFileSync(
+    join(consumer, 'good/siro.config.mjs'),
+    "throw new Error('Untrusted config must not execute');\n",
+  );
+  assert.equal(
+    JSON.parse(runCli(['lint', 'good', '--no-config', '--strict-filesystem', '--json']))
+      .schemaVersion,
+    3,
+  );
+  runCli(['check', 'good', '--no-config']);
+  runCli(['lint', 'good', '--no-config', '--max-file-bytes', '8', '--json'], consumer, 2);
+  runCli(['lint', 'good', '--no-config', '--max-output-bytes', '8', '--json'], consumer, 70);
+  writeFileSync(join(consumer, 'good/package.json'), 'FAKE_SECRET_INVALID_JSON');
+  const invalidInput = spawnSync(
+    process.execPath,
+    [installedBin, 'lint', 'good', '--no-config', '--json'],
+    { ...processOptions, cwd: consumer },
+  );
+  assert.ifError(invalidInput.error);
+  assert.equal(invalidInput.status, 2);
+  assert.equal(invalidInput.stdout, '');
+  assert.ok(!invalidInput.stderr.includes('FAKE_SECRET'));
   // Retain the verified bytes for publication without packing a second time.
   if (output) copyFileSync(tarball, output);
   console.log(
