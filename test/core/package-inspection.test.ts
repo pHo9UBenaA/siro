@@ -309,6 +309,19 @@ it.each([undefined, 'not-array', ['..'], ['.'], [''], ['a/b'], [null], Array(1)]
   },
 );
 
+it.each([null, undefined])(
+  'rejects invalid enumeration results as configuration errors without output: %s',
+  async (names) => {
+    const fs = createMemFileSystem({});
+    fs.readDirectories = () => names as never;
+    const { io, out } = captureIO();
+    await expect(
+      lintCommand({ cwd: asAbsPath('/repo'), fs, installationRoots: [], reporter: 'json' }, io),
+    ).rejects.toMatchObject({ name: 'ConfigError', exitCode: 2 });
+    expect(out()).toBe('');
+  },
+);
+
 it('propagates enumeration/read errors, never emits successful partial results', async () => {
   const failure = new Error('EACCES selected');
   const fs = createMemFileSystem({ 'child/package.json': '{}' });

@@ -24,8 +24,11 @@ export const boundedFileSystem = (fs: FileSystem, limits: ScanLimits): FileSyste
     },
     readDirectories(path) {
       const names = fs.readDirectories(path);
-      entries += names.length;
-      checkLimit('maxEntries', entries, limits);
+      // Discovery owns response validation; do not dereference malformed results here.
+      if (Array.isArray(names)) {
+        entries += names.length;
+        checkLimit('maxEntries', entries, limits);
+      }
       return names;
     },
   };
