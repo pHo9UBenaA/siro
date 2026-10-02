@@ -47,16 +47,18 @@ export const guardRemediationAvailability = (
     (setting) =>
       `${setting.file.path}#${setting.keyPath.join('.')} requires ${pm} >=${setting.since}`,
   );
+  const stepsAfterUpgrade =
+    remediation.kind === 'manual'
+      ? remediation.steps
+      : remediation.operations.map(
+          (operation) =>
+            `After upgrading, set ${operation.file.path}#${operation.keyPath.join('.')} to ${JSON.stringify(operation.value)}.`,
+        );
   return {
     kind: 'manual',
     steps: [
       `Target ${pm} ${version} does not support this proposal: ${requirements.join('; ')}. Verify and upgrade the target before applying the steps below, or choose a supported security control. Removing a setting alone does not provide its protection.`,
-      ...(remediation.kind === 'manual'
-        ? remediation.steps
-        : remediation.operations.map(
-            (operation) =>
-              `After upgrading, set ${operation.file.path}#${operation.keyPath.join('.')} to ${JSON.stringify(operation.value)}.`,
-          )),
+      ...stepsAfterUpgrade,
     ],
   };
 };

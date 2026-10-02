@@ -95,13 +95,14 @@ export const createNodeFileSystem = (
         let fileBytesRead = 0;
         for (;;) {
           // Read one byte past the remaining budget to detect growth after stat.
-          const buffer = Buffer.allocUnsafe(
-            Math.min(
-              READ_CHUNK_BYTES,
-              limits.maxFileBytes - fileBytesRead + 1,
-              limits.maxTotalBytes - totalBytesRead + 1,
-            ),
+          const remainingFileBytes = limits.maxFileBytes - fileBytesRead;
+          const remainingTotalBytes = limits.maxTotalBytes - totalBytesRead;
+          const nextReadBytes = Math.min(
+            READ_CHUNK_BYTES,
+            remainingFileBytes + 1,
+            remainingTotalBytes + 1,
           );
+          const buffer = Buffer.allocUnsafe(nextReadBytes);
           const bytesRead = readSync(fd, buffer);
           if (bytesRead === 0) break;
           fileBytesRead += bytesRead;

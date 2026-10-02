@@ -9,28 +9,37 @@ const ctxWith = (packageJson?: PackageJson): RuleContext => makeCtx({ packageJso
 const npm = bindingForTest(provenance, 'npm');
 
 describe('provenance (npm)', () => {
-  it.each([true, false])('prefers an own manifest override over npmrc=%s', (value) => {
-    const ctx = ctxWith({ name: 'x', publishConfig: { provenance: !value, access: 'public' } });
-    expect(npm.check(ctx, { provenance: value })).toMatchObject(
-      value
-        ? {
-            state: 'violation',
-            file: 'package.json',
-            actual: false,
-            remediation: {
-              kind: 'automatic',
-              operations: [
-                {
-                  file: { path: 'package.json' },
-                  keyPath: ['publishConfig', 'provenance'],
-                  value: true,
-                },
-              ],
-            },
-          }
-        : { state: 'ok' },
-    );
-  });
+  it.each([
+    { npmrcProvenance: true, manifestProvenance: false, state: 'violation' },
+    { npmrcProvenance: false, manifestProvenance: true, state: 'ok' },
+  ] as const)(
+    'prefers manifest=$manifestProvenance over npmrc=$npmrcProvenance',
+    ({ npmrcProvenance, manifestProvenance, state }) => {
+      const ctx = ctxWith({
+        name: 'x',
+        publishConfig: { provenance: manifestProvenance, access: 'public' },
+      });
+      expect(npm.check(ctx, { provenance: npmrcProvenance })).toMatchObject(
+        state === 'violation'
+          ? {
+              state: 'violation',
+              file: 'package.json',
+              actual: false,
+              remediation: {
+                kind: 'automatic',
+                operations: [
+                  {
+                    file: { path: 'package.json' },
+                    keyPath: ['publishConfig', 'provenance'],
+                    value: true,
+                  },
+                ],
+              },
+            }
+          : { state: 'ok' },
+      );
+    },
+  );
 
   it('is N/A for private or nameless packages', () => {
     expect(npm.check(ctxWith({ name: 'x', private: true }), {}).state).toBe('na');

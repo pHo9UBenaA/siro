@@ -373,10 +373,11 @@ describe('Deno .npmrc days and deno.json minutes', () => {
       { ...base, 'deno.json': JSON.stringify({ minimumDependencyAge: days * 1440 }) },
       options,
     );
-    const violation = (r: ReturnType<typeof lint>) =>
-      r.findings.some((f) => f.ruleId === 'minimum-release-age');
-    expect(violation(fallback)).toBe(violation(explicit));
-    expect(violation(fallback)).toBe(violationExpected);
+    const releaseAgeFindings = (result: ReturnType<typeof lint>) =>
+      result.findings.filter((finding) => finding.ruleId === 'minimum-release-age');
+    const expectedFindingCount = violationExpected ? 1 : 0;
+    expect(releaseAgeFindings(fallback)).toHaveLength(expectedFindingCount);
+    expect(releaseAgeFindings(explicit)).toHaveLength(expectedFindingCount);
   });
 });
 

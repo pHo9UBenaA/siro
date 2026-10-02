@@ -268,7 +268,7 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
     }
     // Stable user-facing rule order is independent of traversal/read order.
     directoryFindings.sort(
-      (a, b) => (ruleOrder.get(a.ruleId) ?? 0) - (ruleOrder.get(b.ruleId) ?? 0),
+      (left, right) => (ruleOrder.get(left.ruleId) ?? 0) - (ruleOrder.get(right.ruleId) ?? 0),
     );
     checkLimit('maxFindings', findings.length + directoryFindings.length, limits);
     for (const finding of directoryFindings) findings.push(rebaseFinding(directory, finding));
