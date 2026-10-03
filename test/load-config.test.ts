@@ -1,20 +1,12 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
+import { createTestProject } from './helpers/temp-project.ts';
 import { loadConfig } from '../src/load-config.ts';
 import { asAbsPath } from '../src/adapters/node-paths.ts';
-import { type AbsPath } from '../src/core/contracts/paths.ts';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
-
-let configDirectory: AbsPath;
-beforeEach(() => {
-  configDirectory = asAbsPath(mkdtempSync(path.join(tmpdir(), 'siro-config-')));
-});
-afterEach(() => {
-  rmSync(configDirectory, { force: true, recursive: true });
-});
 
 describe('loadConfig — no config', () => {
   it('returns undefined when no config file exists', async () => {
+    const configDirectory = asAbsPath(createTestProject({}));
     const config = await loadConfig(configDirectory);
 
     expect(config).toBeUndefined();
@@ -23,6 +15,7 @@ describe('loadConfig — no config', () => {
 
 describe('loadConfig — loading', () => {
   it('loads siro.config.mjs and exposes the user config', async () => {
+    const configDirectory = asAbsPath(createTestProject({}));
     writeFileSync(
       path.join(configDirectory, 'siro.config.mjs'),
       `export default {
@@ -45,6 +38,7 @@ describe('loadConfig — loading', () => {
   });
 
   it('defers unknown-rule-id checks so the loader does not pre-judge programmatic customRules', async () => {
+    const configDirectory = asAbsPath(createTestProject({}));
     writeFileSync(
       path.join(configDirectory, 'siro.config.mjs'),
       "export default { rules: { 'no-such-rule': 'warn' } };\n",
@@ -55,6 +49,7 @@ describe('loadConfig — loading', () => {
   });
 
   it('retains prototype-named own settings in a null-prototype dictionary', async () => {
+    const configDirectory = asAbsPath(createTestProject({}));
     writeFileSync(
       path.join(configDirectory, 'siro.config.mjs'),
       `export default {
@@ -77,6 +72,7 @@ describe('loadConfig — loading', () => {
 
 describe('loadConfig — export shape validation', () => {
   it('wraps a module-evaluation error as ConfigError naming the offending file', () => {
+    const configDirectory = asAbsPath(createTestProject({}));
     writeFileSync(
       path.join(configDirectory, 'siro.config.mjs'),
       "throw new Error('boom from user config');\n",
@@ -90,6 +86,7 @@ describe('loadConfig — export shape validation', () => {
 
 describe('loadConfig — schema validation', () => {
   it('rejects an unknown top-level config key (typo guard)', async () => {
+    const configDirectory = asAbsPath(createTestProject({}));
     writeFileSync(
       path.join(configDirectory, 'siro.config.mjs'),
       "export default { rule: { provenance: 'off' } };\n",
@@ -103,6 +100,7 @@ describe('loadConfig — schema validation', () => {
   it.each(['provenance', 'constructor', '__proto__'])(
     'rejects an invalid own severity for %s with its config path',
     (id) => {
+      const configDirectory = asAbsPath(createTestProject({}));
       writeFileSync(
         path.join(configDirectory, 'siro.config.mjs'),
         `export default { rules: { [${JSON.stringify(id)}]: 'fatal' } };\n`,
@@ -117,6 +115,7 @@ describe('loadConfig — schema validation', () => {
 
 describe('loadConfig — reporters', () => {
   it('rejects a config reporter that is missing its format function', async () => {
+    const configDirectory = asAbsPath(createTestProject({}));
     writeFileSync(
       path.join(configDirectory, 'siro.config.mjs'),
       "export default { reporters: [{ name: 'broken' }] };\n",
@@ -139,6 +138,7 @@ describe.each(['root', 'rules'] as const)('loadConfig — %s container contract'
   it.each(nonRecordContainers)(
     'rejects a %s instead of silently loading empty settings',
     async (_name, expression) => {
+      const configDirectory = asAbsPath(createTestProject({}));
       const candidate = location === 'root' ? expression : `{ rules: ${expression} }`;
       writeFileSync(
         path.join(configDirectory, 'siro.config.mjs'),
@@ -154,6 +154,7 @@ describe.each(['root', 'rules'] as const)('loadConfig — %s container contract'
 
 describe('loadConfig — fresh reload', () => {
   it('reads a same-process config rewrite on the next call', async () => {
+    const configDirectory = asAbsPath(createTestProject({}));
     const file = path.join(configDirectory, 'siro.config.mjs');
     writeFileSync(file, "export default { pms: ['npm'] };\n");
     expect(await loadConfig(configDirectory)).toStrictEqual({ pms: ['npm'] });
@@ -164,6 +165,7 @@ describe('loadConfig — fresh reload', () => {
 
 describe('loadConfig — ts config', () => {
   it('loads siro.config.ts with erasable TS syntax', async () => {
+    const configDirectory = asAbsPath(createTestProject({}));
     writeFileSync(
       path.join(configDirectory, 'siro.config.ts'),
       `const rule: string = 'provenance';
@@ -180,6 +182,7 @@ describe('loadConfig — ts config', () => {
 
 describe('loadConfig — ts config on a runtime without type stripping', () => {
   it('rejects siro.config.ts with an actionable ConfigError', () => {
+    const configDirectory = asAbsPath(createTestProject({}));
     writeFileSync(
       path.join(configDirectory, 'siro.config.ts'),
       "export default { pms: ['npm'] };\n",
@@ -193,6 +196,7 @@ describe('loadConfig — ts config on a runtime without type stripping', () => {
 
 describe('loadConfig root dictionary', () => {
   it('accepts a null-prototype root', async () => {
+    const configDirectory = asAbsPath(createTestProject({}));
     writeFileSync(
       path.join(configDirectory, 'siro.config.mjs'),
       "export default Object.assign(Object.create(null), { pms: ['npm'] });",
@@ -203,6 +207,7 @@ describe('loadConfig root dictionary', () => {
 
 describe('loadConfig package managers', () => {
   it.each([{ pms: ['rubygems'] }, { pms: [] }])('rejects invalid pms $pms', async ({ pms }) => {
+    const configDirectory = asAbsPath(createTestProject({}));
     writeFileSync(
       path.join(configDirectory, 'siro.config.mjs'),
       'export default ' + JSON.stringify({ pms }) + ';',

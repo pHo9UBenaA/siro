@@ -1,6 +1,14 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { onTestFinished } from 'vitest';
+
+/** A test-local project, removed even when the test fails or is skipped after setup. */
+export const createTestProject = (files: Readonly<Record<string, string>>): string => {
+  const root = createTempProject(files);
+  onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+  return root;
+};
 
 /** Caller owns cleanup after successful setup; failed setup never leaves a partial project. */
 export const createTempProject = (files: Readonly<Record<string, string>>): string => {

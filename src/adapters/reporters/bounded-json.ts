@@ -45,13 +45,13 @@ export const boundedJson = (input: unknown, maxBytes: number, maxDepth: number):
     activeContainers.add(value);
     const isArray = Array.isArray(value);
     emit(isArray ? '[' : '{');
-    let emittedEntryCount = 0;
+    let hasEntries = false;
     const serializeEntry = (key: string, raw: unknown) => {
       const child = normalizeJsonValue(raw, key);
       if (!isArray && isOmittedJsonValue(child)) return;
-      const separator = emittedEntryCount === 0 ? '\n' : ',\n';
+      const separator = hasEntries ? ',\n' : '\n';
       emit(`${separator}${'  '.repeat(depth)}`);
-      emittedEntryCount += 1;
+      hasEntries = true;
       if (!isArray) {
         emit(JSON.stringify(key));
         emit(': ');
@@ -64,7 +64,7 @@ export const boundedJson = (input: unknown, maxBytes: number, maxDepth: number):
     } else {
       for (const key of Object.keys(value)) serializeEntry(key, Reflect.get(value, key));
     }
-    if (emittedEntryCount) emit(`\n${'  '.repeat(depth - 1)}`);
+    if (hasEntries) emit(`\n${'  '.repeat(depth - 1)}`);
     emit(isArray ? ']' : '}');
     activeContainers.delete(value);
   };

@@ -21,6 +21,9 @@
     "suspicious": "error"
   },
   "rules": {
+    "prefer-const": "error",
+    "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
+    "typescript/no-non-null-assertion": "error",
     "typescript/no-explicit-any": "error",
     "vitest/valid-title": "off"
   }
