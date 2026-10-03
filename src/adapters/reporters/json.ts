@@ -11,6 +11,8 @@ import { DEFAULT_SCAN_LIMITS } from '../../core/contracts/scan-limits.ts';
  * breaking shape change and update that doc in the same commit.
  */
 const SCHEMA_VERSION = 3;
+// Allow the report envelope around a value at the maximum input configuration depth.
+const REPORT_ENVELOPE_DEPTH = 16;
 
 export const jsonReporter: Reporter<'json'> = {
   async format(result: LintResult, io: IO, context): Promise<void> {
@@ -24,7 +26,8 @@ export const jsonReporter: Reporter<'json'> = {
           inspection: result.inspection,
         },
         context.limits?.maxOutputBytes ?? DEFAULT_SCAN_LIMITS.maxOutputBytes,
-        (context.limits?.maxConfigDepth ?? DEFAULT_SCAN_LIMITS.maxConfigDepth) + 16,
+        (context.limits?.maxConfigDepth ?? DEFAULT_SCAN_LIMITS.maxConfigDepth) +
+          REPORT_ENVELOPE_DEPTH,
       ),
     );
   },

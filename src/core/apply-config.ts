@@ -9,28 +9,31 @@ export interface AppliedConfig {
 }
 
 /** Select active rules and keep user severity choices as explicit runtime data. */
-export const applyConfig = (base: readonly Rule[], config?: SiroConfig): AppliedConfig => {
-  const merged = [...base, ...(config?.customRules ?? [])];
-  const known = new Set<string>();
-  const duplicates = new Set<string>();
-  for (const rule of merged) {
-    if (known.has(rule.id)) duplicates.add(rule.id);
-    known.add(rule.id);
+export const applyConfig = (baseRules: readonly Rule[], config?: SiroConfig): AppliedConfig => {
+  const mergedRules = [...baseRules, ...(config?.customRules ?? [])];
+  const knownRuleIds = new Set<string>();
+  const duplicateRuleIds = new Set<string>();
+  for (const rule of mergedRules) {
+    if (knownRuleIds.has(rule.id)) duplicateRuleIds.add(rule.id);
+    knownRuleIds.add(rule.id);
   }
-  if (duplicates.size > 0) {
+  if (duplicateRuleIds.size > 0) {
     throw new ConfigError(
-      `Duplicate rule ids: ${[...duplicates].map((id) => `'${id}'`).join(', ')}`,
+      `Duplicate rule ids: ${Array.from(duplicateRuleIds, (id) => `'${id}'`).join(', ')}`,
     );
   }
-  const unknown = Object.keys(config?.rules ?? {}).filter((id) => !known.has(id));
-  if (unknown.length > 0) {
-    throw new ConfigError(`Unknown rule ids: ${unknown.map((id) => `'${id}'`).join(', ')}`);
+  const unknownRuleLabels: string[] = [];
+  for (const id of Object.keys(config?.rules ?? {})) {
+    if (!knownRuleIds.has(id)) unknownRuleLabels.push(`'${id}'`);
+  }
+  if (unknownRuleLabels.length > 0) {
+    throw new ConfigError(`Unknown rule ids: ${unknownRuleLabels.join(', ')}`);
   }
   const activeRules: Rule[] = [];
   const severityOverrides = new Map<string, Severity>();
   const overrides = config?.rules;
 
-  for (const rule of merged) {
+  for (const rule of mergedRules) {
     const override =
       overrides && Object.hasOwn(overrides, rule.id) ? overrides[rule.id] : undefined;
     if (override === 'off') {

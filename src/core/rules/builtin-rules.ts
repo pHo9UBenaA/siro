@@ -1,3 +1,4 @@
+import { isOwnKey } from '../contracts/records.ts';
 import type { DateTime } from '../contracts/date-time.ts';
 import type { Rule } from '../contracts/rule.ts';
 import { advisoryCheck } from './advisory-check.ts';
@@ -100,4 +101,4 @@ export type ManifestRuleId = {
 }[keyof typeof builtinScope];
 
 export const scopeOf = (id: string): 'installation' | 'manifest' | 'split' | 'custom' =>
-  Object.hasOwn(builtinScope, id) ? builtinScope[id as BuiltinRuleId] : 'custom';
+  isOwnKey(builtinScope, id) ? builtinScope[id] : 'custom';

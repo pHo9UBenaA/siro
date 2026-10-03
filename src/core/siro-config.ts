@@ -26,7 +26,7 @@ export interface SiroConfig {
   /** Exact stable target versions; does not select managers or inspect installed binaries. */
   readonly pmVersions?: Readonly<Partial<Record<PM, string>>>;
   readonly projectType?: ProjectType;
-  // `string & {}` keeps autocompletion for BuiltinRuleId while still
+  // The empty-record intersection keeps autocompletion for BuiltinRuleId while still
   // permitting arbitrary keys from customRules.
   readonly rules?: Readonly<
     Partial<Record<BuiltinRuleId | (string & Record<never, never>), RuleSetting>>

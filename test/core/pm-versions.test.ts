@@ -33,7 +33,9 @@ it('reports a configured npm security setting that predates its introduction', (
     }),
   ]);
   expect(unsupported(result)[0]?.message).toContain('11.10.0');
-  expect(result.findings.some((finding) => finding.ruleId === 'minimum-release-age')).toBe(false);
+  expect(result.findings).not.toContainEqual(
+    expect.objectContaining({ ruleId: 'minimum-release-age' }),
+  );
 });
 
 it('reports Deno .npmrc release age before Deno 2.8.1 support', () => {
@@ -84,9 +86,9 @@ it('requires a manager for an explicit version', () => {
 it.each(['^11.10.0', '11.10.0-rc.1', 'v11.10.0', ' 11.10.0', 11, null])(
   'rejects an ambiguous explicit target: %s',
   (pmVersion) => {
-    expect(() => evaluate('npm@11.9.0', { pm: 'npm', pmVersion } as Partial<LintOptions>)).toThrow(
-      UsageError,
-    );
+    expect(() =>
+      Reflect.apply(evaluate, undefined, ['npm@11.9.0', { pm: 'npm', pmVersion }]),
+    ).toThrow(UsageError);
   },
 );
 
@@ -102,7 +104,7 @@ it('does not let a version map select managers or bypass its validation', () => 
     Object.create({ npm: '1.0.0' }),
   ]) {
     expect(() =>
-      evaluate('npm@11.10.0', { config: { pmVersions } } as Partial<LintOptions>),
+      Reflect.apply(evaluate, undefined, ['npm@11.10.0', { config: { pmVersions } }]),
     ).toThrow(ConfigError);
   }
 });

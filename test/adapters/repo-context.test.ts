@@ -1,4 +1,3 @@
-import assert from 'node:assert';
 import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { createRepoContext } from '../../src/adapters/repo-context.ts';
 import { asRelPath } from '../../src/core/contracts/paths.ts';
@@ -23,38 +22,32 @@ describe('createRepoContext — packageJson parsing', () => {
   });
 
   it('returns packageJson: undefined when no package.json is present', () => {
-    expect.hasAssertions();
     const fs = createMemFileSystem({});
     const ctx = createRepoContext(asAbsPath('/repo'), fs);
     expect(ctx.packageJson).toBeUndefined();
   });
 
   it('exposes a parsed package.json when the file is valid JSON', () => {
-    expect.hasAssertions();
     const fs = createMemFileSystem({
       'package.json': JSON.stringify({ files: ['dist'], name: 'demo', version: '1.0.0' }),
     });
     const ctx = createRepoContext(asAbsPath('/repo'), fs);
-    const pkg = ctx.packageJson;
-    assert(pkg, 'expected packageJson');
-    expect(pkg.name).toBe('demo');
-    expect(pkg.version).toBe('1.0.0');
-    expect(pkg.files).toStrictEqual(['dist']);
+    expect(ctx.packageJson).toMatchObject({
+      name: 'demo',
+      version: '1.0.0',
+      files: ['dist'],
+    });
   });
 
   it('accepts a package.json that begins with a UTF-8 BOM', () => {
-    expect.hasAssertions();
     const fs = createMemFileSystem({
-      'package.json': `﻿${JSON.stringify({ name: 'bom-pkg', version: '1.0.0' })}`,
+      'package.json': `\uFEFF${JSON.stringify({ name: 'bom-pkg', version: '1.0.0' })}`,
     });
     const ctx = createRepoContext(asAbsPath('/repo'), fs);
-    const pkg = ctx.packageJson;
-    assert(pkg, 'expected packageJson');
-    expect(pkg.name).toBe('bom-pkg');
+    expect(ctx.packageJson).toMatchObject({ name: 'bom-pkg' });
   });
 
   it('throws ConfigError naming package.json when the file is not valid JSON', () => {
-    expect.hasAssertions();
     const fs = createMemFileSystem({
       'package.json': '{ not valid json',
     });
@@ -87,8 +80,8 @@ describe('createRepoContext — readText and exists', () => {
       }),
     ).toThrow(failure);
   });
+
   it('resolves readText / exists relative to the root', () => {
-    expect.hasAssertions();
     const fs = createMemFileSystem({
       '.npmrc': 'ignore-scripts=true\n',
       'package.json': JSON.stringify({ name: 'demo' }),
@@ -99,7 +92,6 @@ describe('createRepoContext — readText and exists', () => {
   });
 
   it('returns undefined from readText when the relative path does not exist', () => {
-    expect.hasAssertions();
     const fs = createMemFileSystem({});
     const ctx = createRepoContext(asAbsPath('/repo'), fs);
     expect(ctx.readText(asRelPath('.npmrc'))).toBeUndefined();

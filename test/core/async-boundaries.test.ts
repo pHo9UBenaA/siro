@@ -1,47 +1,115 @@
-import { asAbsPath, lint, lintCommand, type SiroConfig } from '../../src/index.ts';
+import { asAbsPath, lint, lintCommand, type LintOptions } from '../../src/index.ts';
+import { npmPassingFs } from '../helpers/fixtures.ts';
+import { captureIO } from '../helpers/io.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 
 const options = {
   cwd: asAbsPath('/repo'),
   fs: createMemFileSystem({}),
   installationRoots: [],
-  pm: 'npm' as const,
-};
+  pm: 'npm',
+} satisfies LintOptions;
 const asyncValues = [
-  () => Promise.resolve({ state: 'ok' }),
-  () => Promise.reject(new Error('rejected')),
-  () => ({
-    then(_resolve: unknown, reject: (error: Error) => void) {
-      reject(new Error('thenable rejected'));
-    },
-  }),
+  { name: 'resolved Promise', create: () => Promise.resolve({ state: 'ok' }) },
+  { name: 'rejected Promise', create: () => Promise.reject(new Error('rejected')) },
+  {
+    name: 'rejecting thenable',
+    create: () => ({
+      then(_resolve: unknown, reject: (error: Error) => void) {
+        reject(new Error('thenable rejected'));
+      },
+    }),
+  },
 ];
+
 it.each(asyncValues)(
-  'rejects submitted async values without process-wide rejection handlers',
-  async (value) => {
-    expect(() => lint({ ...options, config: value() as unknown as SiroConfig })).toThrow(
+  'rejects a $name without process-wide rejection handlers',
+  async ({ create }) => {
+    // Runtime validation also protects untyped JavaScript callers.
+    expect(() => Reflect.apply(lint, undefined, [{ ...options, config: create() }])).toThrow(
       /synchronous/,
     );
     expect(() =>
-      lint({
-        ...options,
-        config: {
-          customRules: [
-            {
-              id: 'async-probe',
-              title: 't',
-              description: 'd',
-              severity: 'error',
-              bindings: { npm: { check: () => value() as never } },
-            },
-          ],
+      Reflect.apply(lint, undefined, [
+        {
+          ...options,
+          config: {
+            customRules: [
+              {
+                id: 'async-probe',
+                title: 'Async probe',
+                description: 'Return an unsupported async check result.',
+                severity: 'error',
+                bindings: { npm: { check: create } },
+              },
+            ],
+          },
         },
-      }),
+      ]),
     ).toThrow(/async-probe.*synchronous/);
     // Vitest itself detects any escaped unhandled rejection after this turn.
     await new Promise<void>((resolve) => setImmediate(resolve));
   },
 );
+
+it.each([undefined, null, new Error('sink failure')])(
+  'preserves thrown sink values including %s',
+  async (failure) => {
+    await expect(
+      lintCommand(
+        {
+          ...options,
+          reporter: {
+            name: 'swallowing',
+            format(_result, io) {
+              try {
+                io.stdout('message');
+              } catch {
+                /* Deliberately swallowed. */
+              }
+            },
+          },
+        },
+        {
+          stdout() {
+            throw failure;
+          },
+          stderr() {},
+        },
+      ),
+    ).rejects.toBe(failure);
+  },
+);
+
+it('awaits pending writes but gives a reporter failure precedence over a sink failure', async () => {
+  const reporterFailure = new Error('reporter failure');
+  const onWriteRejected = vi.fn<() => void>();
+  await expect(
+    lintCommand(
+      {
+        ...options,
+        reporter: {
+          name: 'failing',
+          format(_result, io) {
+            io.stdout('message');
+            throw reporterFailure;
+          },
+        },
+      },
+      {
+        stdout: () =>
+          new Promise<void>((_resolve, reject) =>
+            setImmediate(() => {
+              onWriteRejected();
+              reject(new Error('sink failure'));
+            }),
+          ),
+        stderr() {},
+      },
+    ),
+  ).rejects.toBe(reporterFailure);
+  expect(onWriteRejected).toHaveBeenCalledOnce();
+});
 
 it('observes writes from legacy synchronous reporters, even if they catch a synchronous sink failure', async () => {
   const failure = new Error('output failed');
@@ -71,4 +139,114 @@ it('observes writes from legacy synchronous reporters, even if they catch a sync
       ),
     ).rejects.toBe(failure);
   }
+});
+
+it('awaits a delayed output rejection rather than resolving a clean lint command', async () => {
+  const failure = new Error('delayed output failure');
+  const { promise: write, reject } = Promise.withResolvers<void>();
+  // Observe immediately so the red test itself does not create an unhandled rejection.
+  void write.catch(() => {});
+  const result = lintCommand(
+    {
+      cwd: asAbsPath('/repo'),
+      fs: createMemFileSystem({}),
+      installationRoots: [],
+      reporter: 'json',
+    },
+    {
+      stdout: () => write,
+      stderr() {},
+    },
+  );
+  reject(failure);
+  await expect(result).rejects.toBe(failure);
+});
+
+describe('Reporter completion and failures', () => {
+  const passingOptions = { cwd: asAbsPath('/repo'), fs: npmPassingFs() };
+
+  it('propagates reporter rejection even after partial output', async () => {
+    const failure = new Error('Output failed');
+    const { io, out } = captureIO();
+    await expect(
+      lintCommand(
+        {
+          ...passingOptions,
+          reporter: {
+            name: 'partial',
+            async format(_result, targetIO) {
+              targetIO.stdout('partial');
+              await Promise.resolve();
+              throw failure;
+            },
+          },
+        },
+        io,
+      ),
+    ).rejects.toBe(failure);
+    expect(out()).toContain('partial');
+  });
+
+  it('propagates a reporter IO failure without reclassifying it', async () => {
+    const failure = new Error('Broken output stream');
+    await expect(
+      lintCommand(
+        { ...passingOptions, reporter: 'json' },
+        {
+          stdout() {
+            throw failure;
+          },
+          stderr() {},
+        },
+      ),
+    ).rejects.toBe(failure);
+  });
+
+  it('waits for asynchronous reporting before returning the lint exit code', async () => {
+    const { io, out } = captureIO();
+    const { promise: ready, resolve: release } = Promise.withResolvers<void>();
+    const onCommandCompleted = vi.fn<(code: number) => number>((code) => code);
+    const command = lintCommand(
+      {
+        ...passingOptions,
+        reporter: 'async',
+        config: {
+          customRules: [
+            {
+              id: 'custom',
+              title: 'Custom',
+              description: 'Makes the command fail',
+              severity: 'error',
+              bindings: {
+                npm: { check: () => ({ state: 'violation', message: 'custom violation' }) },
+              },
+            },
+          ],
+          reporters: [
+            {
+              name: 'async',
+              async format(result, targetIO) {
+                expect(result.findings).toContainEqual(
+                  expect.objectContaining({ ruleId: 'custom' }),
+                );
+                await ready;
+                await targetIO.stdout('reported');
+              },
+            },
+          ],
+        },
+      },
+      io,
+    ).then(onCommandCompleted);
+    try {
+      await Promise.resolve();
+      expect(onCommandCompleted).not.toHaveBeenCalled();
+      expect(out()).toBe('');
+    } finally {
+      release();
+      await command;
+    }
+    expect(await command).toBe(1);
+    expect(out()).toContain('reported');
+  });
 });

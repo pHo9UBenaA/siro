@@ -1,7 +1,7 @@
 import { codecFor } from '../../src/adapters/codecs/store.ts';
 import { runLint } from '../../src/core/run-lint.ts';
 import { createRepositoryEvaluation } from '../../src/core/parse-config-file.ts';
-import type { Rule } from '../../src/core/contracts/rule.ts';
+import type { Rule, CheckStatus, Remediation } from '../../src/core/contracts/rule.ts';
 import { asRelPath } from '../../src/core/contracts/paths.ts';
 import { makeCtx } from '../helpers/ctx.ts';
 
@@ -9,8 +9,8 @@ it('carries the remediation chosen by the check without a second callback', () =
   const remediation = {
     kind: 'manual',
     steps: ['Remove the bypass before enabling approval.'],
-  } as const;
-  const check = vi.fn<() => import('../../src/core/contracts/rule.ts').CheckStatus>(() => ({
+  } satisfies Remediation;
+  const check = vi.fn<() => CheckStatus>(() => ({
     state: 'violation',
     message: 'Approval is bypassed',
     remediation,
@@ -24,7 +24,7 @@ it('carries the remediation chosen by the check without a second callback', () =
   };
   const result = runLint({
     repository: createRepositoryEvaluation(makeCtx(), codecFor),
-    pms: ['npm'],
+    targets: [{ pm: 'npm' }],
     ruleSet: [rule],
   });
   expect(result.findings[0]).toMatchObject({ remediation });
@@ -55,7 +55,7 @@ it.each([
   { kind: 'manual', steps: [42] },
   { kind: 'manual', steps: ['manual'], operations: [operation] },
 ])('rejects invalid or ambiguous remediation: %j', (remediation) => {
-  const rule: Rule = {
+  const rule = {
     id: 'invalid-remedy',
     title: 'Invalid',
     description: 'Invalid',
@@ -63,44 +63,49 @@ it.each([
     bindings: {
       npm: {
         file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-        check: () => ({ state: 'violation', message: 'Invalid remedy', remediation }) as never,
+        check: () => ({ state: 'violation', message: 'Invalid remedy', remediation }),
       },
     },
   };
   expect(() =>
-    runLint({
-      repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
-      ruleSet: [rule],
-    }),
+    Reflect.apply(runLint, undefined, [
+      {
+        repository: createRepositoryEvaluation(makeCtx(), codecFor),
+        targets: [{ pm: 'npm' }],
+        ruleSet: [rule],
+      },
+    ]),
   ).toThrow("Rule 'invalid-remedy' returned an invalid check result.");
 });
 
-it.each(['nested/../../outside'])('rejects external write targets: %s', (path) => {
-  const rule: Rule = {
+it('rejects a write target that traverses outside the repository', () => {
+  const path = 'nested/../../outside';
+
+  const rule = {
     id: 'invalid-target',
     title: 'Invalid target',
     description: 'Invalid target',
     severity: 'error',
     bindings: {
       npm: {
-        check: () =>
-          ({
-            state: 'violation',
-            message: 'x',
-            remediation: {
-              kind: 'automatic',
-              operations: [{ ...operation, file: { kind: 'npmrc', path } }],
-            },
-          }) as never,
+        check: () => ({
+          state: 'violation',
+          message: 'x',
+          remediation: {
+            kind: 'automatic',
+            operations: [{ ...operation, file: { kind: 'npmrc', path } }],
+          },
+        }),
       },
     },
   };
   expect(() =>
-    runLint({
-      repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
-      ruleSet: [rule],
-    }),
+    Reflect.apply(runLint, undefined, [
+      {
+        repository: createRepositoryEvaluation(makeCtx(), codecFor),
+        targets: [{ pm: 'npm' }],
+        ruleSet: [rule],
+      },
+    ]),
   ).toThrow(/invalid check result/u);
 });

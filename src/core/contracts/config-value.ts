@@ -22,12 +22,7 @@ export type ConfigReadValue = unknown;
 export const getByPath = (config: ParsedConfig, keyPath: KeyPath): ConfigReadValue => {
   let current: unknown = config;
   for (const key of keyPath) {
-    if (!isPlainRecord(current)) {
-      return;
-    }
-    if (!Object.hasOwn(current, key)) {
-      return;
-    }
+    if (!isPlainRecord(current) || !Object.hasOwn(current, key)) return undefined;
     current = current[key];
   }
   return current;

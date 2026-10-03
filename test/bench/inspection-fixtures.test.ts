@@ -14,8 +14,11 @@ it.each(fixtures)('measures the declared real input scope: $name', (fixture) => 
 
 it('covers recursive packages, independent installations and exclusions, not only config size', () => {
   expect(
-    fixtures.some((f) => f.expectedScope.manifests > 1 && f.expectedScope.installationRoots === 0),
+    fixtures.some(
+      (fixture) =>
+        fixture.expectedScope.manifests > 1 && fixture.expectedScope.installationRoots === 0,
+    ),
   ).toBe(true);
-  expect(fixtures.some((f) => f.expectedScope.installationRoots > 1)).toBe(true);
-  expect(fixtures.some((f) => f.options?.exclude?.length)).toBe(true);
+  expect(fixtures.some((fixture) => fixture.expectedScope.installationRoots > 1)).toBe(true);
+  expect(fixtures.some((fixture) => fixture.options?.exclude?.length)).toBe(true);
 });

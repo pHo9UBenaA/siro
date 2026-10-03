@@ -38,11 +38,15 @@ const lint = (
   ctx: RepoContext,
   ruleSet: readonly Rule[],
   pms: readonly ('npm' | 'pnpm' | 'yarn' | 'deno')[],
-) => runLint({ repository: createRepositoryEvaluation(ctx, noopCodecFor), pms, ruleSet });
+) =>
+  runLint({
+    repository: createRepositoryEvaluation(ctx, noopCodecFor),
+    targets: pms.map((pm) => ({ pm })),
+    ruleSet,
+  });
 
 describe('runLint binding evaluation', () => {
   it('reports every violating rule and PM binding in stable order', () => {
-    expect.hasAssertions();
     const violation: CheckStatus = { message: 'x', state: 'violation' };
     const result = lint(
       noopCtx,
@@ -64,7 +68,6 @@ describe('runLint binding evaluation', () => {
 
 describe('runLint project selection', () => {
   it('skips a package-only custom rule for an inferred application', () => {
-    expect.hasAssertions();
     const rule: Rule = {
       ...ruleWith('package-only', ['npm'], { message: 'x', state: 'violation' }),
       projectTypes: ['package'],
@@ -78,7 +81,6 @@ describe('runLint project selection', () => {
   });
 
   it('skips a package-only custom rule for a nameless Deno application', () => {
-    expect.hasAssertions();
     const rule: Rule = {
       bindings: {
         deno: {
@@ -96,7 +98,6 @@ describe('runLint project selection', () => {
   });
 
   it('does not read deno.json to classify an unscoped Deno rule', () => {
-    expect.hasAssertions();
     const reads: string[] = [];
     const ctx: RepoContext = {
       ...noopCtx,
@@ -124,7 +125,6 @@ describe('runLint project selection', () => {
 
 describe('runLint repository checks', () => {
   it('passes an empty parsed view without invoking a codec', () => {
-    expect.hasAssertions();
     const parse = vi.fn<ConfigCodec['parse']>();
     const captured: ParsedConfig[] = [];
     const rule: Rule = {
@@ -136,19 +136,19 @@ describe('runLint repository checks', () => {
           },
         },
       },
-      description: 'glob-rule',
-      id: 'glob-rule',
+      description: 'Check repository files without a configuration file',
+      id: 'repository-check',
       severity: 'error',
-      title: 'glob-rule',
+      title: 'Repository check',
     };
 
     const result = runLint({
       repository: createRepositoryEvaluation(noopCtx, () => ({ parse })),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [rule],
     });
 
-    expect(result.findings.map(({ ruleId }) => ruleId)).toStrictEqual(['glob-rule']);
+    expect(result.findings.map(({ ruleId }) => ruleId)).toStrictEqual(['repository-check']);
     expect(captured).toStrictEqual([{}]);
     expect(parse).not.toHaveBeenCalled();
   });
@@ -166,7 +166,7 @@ it('reports Aube install-command guidance without reading workspace configuratio
       },
       noopCodecFor,
     ),
-    pms: ['aube'],
+    targets: [{ pm: 'aube' }],
     ruleSet: [frozenLockfile],
   });
   expect(result.findings).toMatchObject([
@@ -174,7 +174,7 @@ it('reports Aube install-command guidance without reading workspace configuratio
   ]);
 });
 
-it('expands independent violations with fallback paths, metadata and severity overrides', () => {
+it('expands independent violations with fallback paths, values, per-result severity and remediation', () => {
   const rule = ruleWith('multiple', ['npm'], {
     state: 'violations',
     violations: [
@@ -200,21 +200,27 @@ it('expands independent violations with fallback paths, metadata and severity ov
   ]);
   expect(result.findings[0]?.remediation).toBeUndefined();
 });
+
 it.each([
-  [],
-  [{ state: 'ok' }],
-  [{ state: 'violations', violations: [] }],
-  Array(1),
-  [
-    { state: 'violation', message: 'valid' },
-    { state: 'violation', message: 42 },
-  ],
-])('rejects an invalid violation group without a partial result: %j', (violations) => {
-  const rule = ruleWith('invalid-group', ['npm'], {
-    state: 'violations',
-    violations,
-  } as CheckStatus);
-  expect(() => lint(noopCtx, [rule], ['npm'])).toThrow('invalid check result');
+  { name: 'empty group', violations: [] },
+  { name: 'ok member', violations: [{ state: 'ok' }] },
+  { name: 'nested group', violations: [{ state: 'violations', violations: [] }] },
+  { name: 'sparse group', violations: Array(1) },
+  {
+    name: 'invalid member after a valid member',
+    violations: [
+      { state: 'violation', message: 'valid' },
+      { state: 'violation', message: 42 },
+    ],
+  },
+])('rejects an invalid $name without a partial result', ({ violations }) => {
+  const invalidRule = {
+    ...ruleWith('invalid-group', ['npm'], { state: 'ok' }),
+    bindings: { npm: { check: () => ({ state: 'violations', violations }) } },
+  };
+  expect(() => Reflect.apply(lint, undefined, [noopCtx, [invalidRule], ['npm']])).toThrow(
+    'invalid check result',
+  );
 });
 
 it('guards each grouped remediation and applies an override to every entry', () => {
@@ -255,8 +261,7 @@ it('guards each grouped remediation and applies an override to every entry', () 
   });
   const result = runLint({
     repository: createRepositoryEvaluation(noopCtx, noopCodecFor),
-    pms: ['npm'],
-    pmVersions: { npm: '11.9.0' },
+    targets: [{ pm: 'npm', version: '11.9.0' }],
     ruleSet: [rule],
     severityOverrides: new Map([['guarded-group', 'info']]),
   });

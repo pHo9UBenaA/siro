@@ -1,12 +1,13 @@
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { object, parse, string } from 'valibot';
+
 const EXIT_SUCCESS = 0;
 const EXIT_FAILURE = 1;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { object, parse, string } from 'valibot';
 
 const parseJsonOutput = (
   stdout: string,
@@ -29,10 +30,14 @@ const packageManifest = parse(
 const DIST_BIN = path.resolve(REPO_ROOT, packageManifest.bin.siro);
 
 const spawnBin = (args: readonly string[]) => {
-  if (process.platform === 'win32') {
-    return spawnSync(process.execPath, [DIST_BIN, ...args], { encoding: 'utf8' });
-  }
-  return spawnSync(DIST_BIN, args, { encoding: 'utf8' });
+  const options = { encoding: 'utf8' as const, timeout: 30_000 };
+  const result =
+    process.platform === 'win32'
+      ? spawnSync(process.execPath, [DIST_BIN, ...args], options)
+      : spawnSync(DIST_BIN, args, options);
+  expect(result.error).toBeUndefined();
+  expect(result.signal).toBeNull();
+  return result;
 };
 
 it('reports selected JSONC-only manifests with exit 2, regardless of Deno workspace declarations', () => {
@@ -189,7 +194,6 @@ describe('CLI binary — error handling', () => {
   test.each(['', 'async '])(
     'exits 70 after partial output when a %sconfig reporter throws',
     (modifier) => {
-      expect.hasAssertions();
       const dir = mkdtempSync(path.join(tmpdir(), 'siro-boom-'));
       try {
         writeFileSync(
@@ -198,7 +202,15 @@ describe('CLI binary — error handling', () => {
         );
         writeFileSync(
           path.join(dir, 'siro.config.ts'),
-          `export default { reporters: [{ name: 'boom', ${modifier}format(_result, io) { io.stdout('partial output'); throw new Error('boom from reporter'); } }] };\n`,
+          `export default {
+            reporters: [{
+              name: 'boom',
+              ${modifier}format(_result, io) {
+                io.stdout('partial output');
+                throw new Error('boom from reporter');
+              },
+            }],
+          };`,
         );
         const result = spawnBin(['lint', '--reporter', 'boom', dir]);
         expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(

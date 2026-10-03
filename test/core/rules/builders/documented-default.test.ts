@@ -1,4 +1,4 @@
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../../helpers/rules.ts';
 import { codecFor } from '../../../../src/adapters/codecs/store.ts';
 import { asRelPath } from '../../../../src/core/contracts/paths.ts';
 import type { Rule, VersionNote } from '../../../../src/core/contracts/rule.ts';
@@ -7,7 +7,7 @@ import { requireConfigKey } from '../../../../src/core/rules/builders/require-co
 import { runLint } from '../../../../src/core/run-lint.ts';
 import { createRepositoryEvaluation } from '../../../../src/core/parse-config-file.ts';
 
-const buildRule = (opts: {
+const buildRule = (options: {
   documentedDefault?: boolean;
   defaultSatisfiedSeverity?: 'error' | 'warn' | 'info' | 'off';
   defaultSafety?: 'unconditional' | 'conditional';
@@ -16,26 +16,25 @@ const buildRule = (opts: {
   requireConfigKey({
     bindings: {
       npm: {
-        ...opts,
+        ...options,
         file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-        keyPath: ['ky'],
-        message: 'pin it',
+        keyPath: ['enabled'],
+        message: 'Enable the policy explicitly.',
         value: true,
-        defaultSafety: opts.defaultSafety ?? 'unconditional',
       },
     },
-    description: 'd',
+    description: 'Require an enabled policy with a documented default.',
     id: 'documented-default',
     severity: 'error',
-    title: 't',
+    title: 'Documented default',
   });
 
 describe('documented defaults', () => {
   it('reports an omitted setting as info when the unconditional default satisfies it', () => {
     const result = runLint({
       repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
-      ruleSet: [buildRule({ documentedDefault: true })],
+      targets: [{ pm: 'npm' }],
+      ruleSet: [buildRule({ documentedDefault: true, defaultSafety: 'unconditional' })],
     });
     expect(result.findings).toMatchObject([{ severity: 'info' }]);
   });
@@ -43,8 +42,14 @@ describe('documented defaults', () => {
   it('omits the finding when the satisfied default severity is off', () => {
     const result = runLint({
       repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
-      ruleSet: [buildRule({ defaultSatisfiedSeverity: 'off', documentedDefault: true })],
+      targets: [{ pm: 'npm' }],
+      ruleSet: [
+        buildRule({
+          defaultSatisfiedSeverity: 'off',
+          documentedDefault: true,
+          defaultSafety: 'unconditional',
+        }),
+      ],
     });
     expect(result.findings).toEqual([]);
   });
@@ -52,8 +57,8 @@ describe('documented defaults', () => {
   it('keeps rule severity when the default does not satisfy the setting', () => {
     const result = runLint({
       repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
-      ruleSet: [buildRule({ documentedDefault: false })],
+      targets: [{ pm: 'npm' }],
+      ruleSet: [buildRule({ documentedDefault: false, defaultSafety: 'unconditional' })],
     });
     expect(result.findings).toMatchObject([{ severity: 'error' }]);
   });
@@ -61,7 +66,7 @@ describe('documented defaults', () => {
   it('does not downgrade a conditional default when the version is unknown', () => {
     const result = runLint({
       repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [
         buildRule({
           documentedDefault: true,
@@ -74,16 +79,22 @@ describe('documented defaults', () => {
   });
 
   it('does not downgrade an explicitly weak setting', () => {
-    const binding = buildRule({ documentedDefault: true }).bindings.npm;
-    assert(binding);
-    const status = binding.check(makeCtx(), { ky: false });
-    assert(status.state === 'violation');
+    const binding = bindingForTest(
+      buildRule({ documentedDefault: true, defaultSafety: 'unconditional' }),
+      'npm',
+    );
+
+    const status = binding.check(makeCtx(), { enabled: false });
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
   });
 
   it('accepts an explicitly strong setting', () => {
-    const binding = buildRule({ documentedDefault: true }).bindings.npm;
-    assert(binding);
-    expect(binding.check(makeCtx(), { ky: true }).state).toBe('ok');
+    const binding = bindingForTest(
+      buildRule({ documentedDefault: true, defaultSafety: 'unconditional' }),
+      'npm',
+    );
+
+    expect(binding.check(makeCtx(), { enabled: true }).state).toBe('ok');
   });
 });

@@ -42,7 +42,9 @@ it.each([false, null])('checks presence even when the configured value is %s', (
       'pnpm-workspace.yaml': JSON.stringify({ minimumReleaseAge: value }),
     }),
   });
-  expect(result.findings.some((finding) => finding.ruleId === 'unsupported-settings')).toBe(true);
+  expect(result.findings).toContainEqual(
+    expect.objectContaining({ ruleId: 'unsupported-settings' }),
+  );
 });
 
 it('does not reinterpret a supported alternative or an unlisted key', () => {
@@ -71,7 +73,9 @@ it.each(['deno', 'aube'] satisfies PM[])('does not invent introduction history f
       'aube-workspace.yaml': 'minimumReleaseAge: 4320',
     }),
   });
-  expect(result.findings.some((finding) => finding.ruleId === 'unsupported-settings')).toBe(false);
+  expect(result.findings).not.toContainEqual(
+    expect.objectContaining({ ruleId: 'unsupported-settings' }),
+  );
 });
 
 it('keeps every unsupported key with its local manifest or installation file', () => {
@@ -100,17 +104,22 @@ it('keeps every unsupported key with its local manifest or installation file', (
     'child/package.json',
     'package.json',
   ]);
-  expect(findings.every((item) => item.remediation?.kind === 'manual')).toBe(true);
+  expect(findings.map((finding) => finding.remediation?.kind)).toEqual([
+    'manual',
+    'manual',
+    'manual',
+  ]);
   const npmrc = findings.find((item) => item.file === '.npmrc');
   expect(npmrc?.message).toContain('provenance');
   expect(npmrc?.message).toContain('min-release-age');
   expect(npmrc?.message).not.toContain('package.json#');
   expect(
-    findings
-      .filter((item) => item.file !== '.npmrc')
-      .every((item) => item.message.includes('publishConfig.provenance')),
-  ).toBe(true);
-  expect(findings.every((item) => item.severity === 'warn')).toBe(true);
+    findings.filter((finding) => finding.file !== '.npmrc').map((finding) => finding.message),
+  ).toEqual([
+    expect.stringContaining('publishConfig.provenance'),
+    expect.stringContaining('publishConfig.provenance'),
+  ]);
+  expect(findings.map((finding) => finding.severity)).toEqual(['warn', 'warn', 'warn']);
   expect(result.summary.warn).toBe(
     result.findings.filter((item) => item.severity === 'warn').length,
   );

@@ -4,26 +4,30 @@ import type { RepoContext } from './contracts/repo-context.ts';
 import { asRelPath } from './contracts/paths.ts';
 
 // Reused lockfiles do not identify their consuming manager. Owned signals must be unique.
-const registerSignals = (signals: readonly string[], pm: PM, owner: Map<string, PM>): void => {
+const registerSignals = (
+  signals: readonly string[],
+  pm: PM,
+  ownersByFile: Map<string, PM>,
+): void => {
   for (const file of signals) {
-    const prior = owner.get(file);
+    const prior = ownersByFile.get(file);
     if (typeof prior !== 'undefined') {
       throw new TypeError(`detection signal '${file}' is claimed by both '${prior}' and '${pm}'`);
     }
-    owner.set(file, pm);
+    ownersByFile.set(file, pm);
   }
 };
 
 const buildDetectionSignals = (): ReadonlyMap<PM, readonly string[]> => {
-  const out = new Map<PM, readonly string[]>();
-  const owner = new Map<string, PM>();
+  const signalsByPM = new Map<PM, readonly string[]>();
+  const ownersByFile = new Map<string, PM>();
   for (const pm of PMS) {
     const { lockfiles, configs } = PM_SIGNALS[pm];
     const signals = [...lockfiles, ...configs];
-    registerSignals(signals, pm, owner);
-    out.set(pm, signals);
+    registerSignals(signals, pm, ownersByFile);
+    signalsByPM.set(pm, signals);
   }
-  return out;
+  return signalsByPM;
 };
 
 const DETECTION_SIGNALS: ReadonlyMap<PM, readonly string[]> = buildDetectionSignals();

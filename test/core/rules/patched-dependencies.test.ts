@@ -1,19 +1,15 @@
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import { patchedDependencies } from '../../../src/core/rules/patched-dependencies.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 
-const { pnpm } = patchedDependencies.bindings;
-assert(pnpm, 'expected pnpm binding');
-const pnpmBinding = pnpm;
+const pnpmBinding = bindingForTest(patchedDependencies, 'pnpm');
 
 describe('patched-dependencies: check states', () => {
   it('ok when patchedDependencies key is absent', () => {
-    expect.hasAssertions();
     expect(pnpmBinding.check(makeCtx(), {}).state).toBe('ok');
   });
 
   it('ok when patchedDependencies is an empty object', () => {
-    expect.hasAssertions();
     expect(pnpmBinding.check(makeCtx(), { patchedDependencies: {} }).state).toBe('ok');
   });
 
@@ -21,7 +17,7 @@ describe('patched-dependencies: check states', () => {
     const status = pnpmBinding.check(makeCtx(), {
       patchedDependencies: { 'express@4.18.2': 'patches/express.patch' },
     });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.message).toContain('patchedDependencies');
     expect(status.message).toContain('pnpm-workspace.yaml');
 

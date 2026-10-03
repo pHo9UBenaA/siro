@@ -32,7 +32,6 @@ const bunScannerBinding: RuleBinding = {
   },
   docs: 'https://bun.com/docs/pm/security-scanner-api',
   file: bunfig,
-
   versionNote: { configAvailableSince: 'bun 1.2.21' },
 };
 

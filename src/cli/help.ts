@@ -2,6 +2,7 @@ import { PMS, SEVERITIES } from '../core/contracts/pms.ts';
 import { BUILTIN_REPORTER_NAMES } from '../adapters/reporters/registry.ts';
 import type { CommandName } from './commands.ts';
 import { PROJECT_TYPES } from '../core/contracts/project-type.ts';
+import { limitHelp } from './limit-options.ts';
 
 const PMS_LIST = PMS.join('|');
 const REPORTERS_LIST = BUILTIN_REPORTER_NAMES.join('|');
@@ -12,8 +13,7 @@ const FLAG_LINES = {
   json: '  --json               Shortcut for --reporter json',
   safety:
     '  --no-config          Do not probe or execute repository siro.config.*\n  --strict-filesystem  Reject symlink input paths (not a containment sandbox)',
-  limits:
-    '  --max-file-bytes <n>  Bound each input file (default 8388608)\n  --max-total-bytes <n>  Bound all input reads (default 67108864)\n  --max-entries <n>     Bound native directory entries (default 100000)\n  --max-directories <n> Bound discovered directories (default 10000)\n  --max-directory-depth <n> Bound discovery depth (default 128)\n  --max-config-depth <n> Bound configuration nesting (default 128)\n  --max-findings <n>    Bound unfiltered findings (default 50000)\n  --max-output-bytes <n> Bound report output (default 33554432)',
+  limits: limitHelp,
   pm: `  --pm <name>          Target a specific package manager (${PMS_LIST})`,
   pmVersion: '  --pm-version <x.y.z>  Target an exact stable PM version (requires --pm)',
   inspection:

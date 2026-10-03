@@ -5,7 +5,6 @@ describe(toParsedConfig, () => {
   it.each([Object.prototype, null])(
     'preserves values in a plain mapping with prototype %j',
     (prototype) => {
-      expect.hasAssertions();
       const input = Object.assign(Object.create(prototype), { foo: 'bar', nested: { num: 1 } });
       expect(toParsedConfig(input)).toEqual({ foo: 'bar', nested: { num: 1 } });
     },
@@ -17,7 +16,6 @@ describe(toParsedConfig, () => {
     ['number', 42],
     ['Date', new Date('2024-01-01')],
   ])('rejects a non-mapping %s root', (_name, value) => {
-    expect.hasAssertions();
     expect(() => toParsedConfig(value)).toThrow(/config root must be a mapping/iu);
   });
 });
@@ -34,7 +32,6 @@ describe(getByPath, () => {
   });
 
   it('returns undefined for an inherited property', () => {
-    expect.hasAssertions();
     expect(getByPath({}, ['constructor'])).toBeUndefined();
   });
 });

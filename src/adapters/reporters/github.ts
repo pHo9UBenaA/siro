@@ -16,7 +16,7 @@ const escapeData = (raw: string): string =>
   raw.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
 
 // Properties additionally escape their delimiters; the body does not.
-const escapeProp = (raw: string): string =>
+const escapeProperty = (raw: string): string =>
   escapeData(raw).replaceAll(':', '%3A').replaceAll(',', '%2C');
 
 /** Emit GitHub Actions workflow commands (annotations on PRs). */
@@ -27,16 +27,13 @@ export const githubReporter: Reporter<'github'> = {
     );
     for (const finding of result.findings) {
       // Findings identify files, not source spans.
-      let file = '';
-      if (finding.file) {
-        file = `file=${escapeProp(path.resolve(context.cwd, finding.file))},`;
-      }
+      const fileProperty = finding.file
+        ? `file=${escapeProperty(path.resolve(context.cwd, finding.file))},`
+        : '';
       // Documentation belongs in the body; the protocol has no URL property.
-      let body = `[${finding.pm ?? 'package'}] ${finding.directory}: ${finding.message}`;
-      if (finding.docs) {
-        body += ` (${finding.docs})`;
-      }
-      const line = `::${COMMAND[finding.severity]} ${file}title=${escapeProp(finding.ruleId)}::${escapeData(body)}`;
+      const docsSuffix = finding.docs ? ` (${finding.docs})` : '';
+      const body = `[${finding.pm ?? 'package'}] ${finding.directory}: ${finding.message}${docsSuffix}`;
+      const line = `::${COMMAND[finding.severity]} ${fileProperty}title=${escapeProperty(finding.ruleId)}::${escapeData(body)}`;
       consume(`${line}\n`);
       await io.stdout(line);
     }

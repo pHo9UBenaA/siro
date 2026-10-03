@@ -6,14 +6,12 @@ import { applyConfig } from '../../src/core/apply-config.ts';
 import { asRelPath } from '../../src/core/contracts/paths.ts';
 import { makeCtx } from '../helpers/ctx.ts';
 
-// runLint calls parseConfigFile before invoking each binding's `check`. Tests
-// here use synthetic bindings whose `check` ignores `config`, so any codec
-// that never throws is acceptable.
+// These synthetic bindings test severity and display metadata, not config parsing.
 const stubCodecFor: CodecFor = (): ConfigCodec => ({
   parse: (): Record<string, never> => ({}),
 });
 
-const makeRule = (opts: {
+const makeRule = (options: {
   ruleSeverity: 'error' | 'warn' | 'info';
   bindingSeverity?: 'error' | 'warn' | 'info';
   statusSeverity?: 'error' | 'warn' | 'info';
@@ -22,20 +20,19 @@ const makeRule = (opts: {
   const binding: RuleBinding = {
     check: () => ({
       message: 'always violates',
-      severity: opts.statusSeverity,
+      severity: options.statusSeverity,
       state: 'violation',
     }),
     file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-
-    severity: opts.bindingSeverity,
-    versionNote: opts.versionNote,
+    severity: options.bindingSeverity,
+    versionNote: options.versionNote,
   };
   return {
     bindings: { npm: binding },
-    description: 'd',
-    id: 'synthetic-d1',
-    severity: opts.ruleSeverity,
-    title: 't',
+    description: 'Exercise severity precedence and display metadata.',
+    id: 'severity-probe',
+    severity: options.ruleSeverity,
+    title: 'Severity probe',
   };
 };
 
@@ -57,7 +54,7 @@ it('resolves each severity independently and leaves rule declarations unchanged'
   const adjusted = applyConfig(rules, { rules: { 'user-binding': 'info', 'user-status': 'warn' } });
   const result = runLint({
     repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
-    pms: ['npm'],
+    targets: [{ pm: 'npm' }],
     ruleSet: adjusted.rules,
     severityOverrides: adjusted.severityOverrides,
   });
@@ -88,7 +85,7 @@ it.each([
   (versionNote, message) => {
     const result = runLint({
       repository: createRepositoryEvaluation(makeCtx(), stubCodecFor),
-      pms: ['npm'],
+      targets: [{ pm: 'npm' }],
       ruleSet: [makeRule({ ruleSeverity: 'error', versionNote })],
     });
     expect(result.findings[0]?.message).toBe(message);

@@ -4,37 +4,26 @@ import ini from 'ini';
 
 const INTEGER_PATTERN = /^-?\d+$/u;
 
-const coerceBoolean = (str: string): boolean | undefined => {
-  if (str === 'true') {
-    return true;
-  }
-  if (str === 'false') {
-    return false;
-  }
-  return void 0;
+const parseBooleanString = (text: string): boolean | undefined => {
+  if (text === 'true') return true;
+  if (text === 'false') return false;
+  return undefined;
 };
 
-const coerceInteger = (str: string): number | undefined => {
-  if (INTEGER_PATTERN.test(str)) {
-    return Number(str);
-  }
-  return void 0;
+const parseIntegerString = (text: string): number | undefined => {
+  if (INTEGER_PATTERN.test(text)) return Number(text);
+  return undefined;
 };
 
-const coerce = (raw: unknown): unknown => {
-  if (typeof raw !== 'string') {
-    return raw;
-  }
-  return coerceBoolean(raw) ?? coerceInteger(raw) ?? raw;
+const coerceIniScalar = (raw: unknown): unknown => {
+  if (typeof raw !== 'string') return raw;
+  return parseBooleanString(raw) ?? parseIntegerString(raw) ?? raw;
 };
 
 /**
- * Coerces unquoted scalars on read so rule checks can match by typed
- * value (`true === true`, `7 === 7`). Strings whose lexeme matches
- * `true`/`false`/`-?\d+` lose their string-ness — this is by design for
- * the npm schema, where rule values are booleans / integers / the empty
- * string. Don't model a customRule around a string like `"0"` on this
- * codec; pick yaml/json if you need lossless arbitrary-string reads.
+ * Coerce decoded scalars to npm booleans/integers, including originally quoted
+ * strings: ini.parse no longer preserves their quoting. Use YAML/JSON for custom
+ * rules that need to distinguish a string like "0" from a number.
  */
 export const iniCodec: ConfigCodec = {
   parse(text: string): ParsedConfig {
@@ -44,11 +33,11 @@ export const iniCodec: ConfigCodec = {
       if (Array.isArray(value)) {
         // `key[]=v` npmrc syntax parses to an array. Preserve it, coercing
         // each element like a top-level scalar.
-        config[key] = value.map((elem) => coerce(elem));
+        config[key] = value.map(coerceIniScalar);
       } else if (typeof value === 'object' && value !== null) {
         config[key] = toParsedConfig(value);
       } else {
-        config[key] = coerce(value);
+        config[key] = coerceIniScalar(value);
       }
     }
     return config;

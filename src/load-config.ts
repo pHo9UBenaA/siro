@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { type AbsPath } from './core/contracts/paths.ts';
 import { asAbsPath } from './adapters/node-paths.ts';
@@ -12,8 +13,13 @@ const CONFIG_NAMES = ['siro.config.ts', 'siro.config.mjs', 'siro.config.js'] as 
 const describeError = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-// ESM caches by URL; a new query reloads the config entry, not its transitive imports.
-let loadCounter = 0;
+const importConfig = async (url: URL, name: string): Promise<unknown> => {
+  try {
+    return await import(url.href);
+  } catch (error) {
+    throw new ConfigError(`Failed to load ${name}: ${describeError(error)}`);
+  }
+};
 
 /** Load the first matching config; executable imports always use the real filesystem. */
 export const loadConfig = async (
@@ -33,13 +39,10 @@ export const loadConfig = async (
     );
   }
   const url = pathToFileURL(path.join(cwd, name));
-  url.searchParams.set('siro-load', String(++loadCounter));
-  let mod: unknown;
-  try {
-    mod = await import(url.href);
-  } catch (error) {
-    throw new ConfigError(`Failed to load ${name}: ${describeError(error)}`);
-  }
-  const candidate = mod !== null && typeof mod === 'object' && 'default' in mod ? mod.default : mod;
+  // ESM caches by URL; a fresh query reloads the entry, not its transitive imports.
+  url.searchParams.set('siro-load', randomUUID());
+  const module = await importConfig(url, name);
+  const candidate =
+    module !== null && typeof module === 'object' && 'default' in module ? module.default : module;
   return parseConfig(candidate, name);
 };

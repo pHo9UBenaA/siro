@@ -21,8 +21,10 @@ it('rejects a file as a repository target', async () => {
   try {
     const file = path.join(root, 'file');
     writeFileSync(file, 'not a repository');
-    const { io } = captureIO();
+    const { io, out, err } = captureIO();
     expect(await run(['lint', file, '--pm', 'npm'], io)).toBe(2);
+    expect(out()).toBe('');
+    expect(err()).toContain('The lint target must be a directory.');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

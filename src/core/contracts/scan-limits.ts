@@ -53,36 +53,42 @@ export const checkLimit = (name: keyof ScanLimits, value: number, limits: ScanLi
 export const utf8Bytes = (text: string): number => {
   let bytes = 0;
   for (const character of text) {
-    const code = character.codePointAt(0)!;
-    bytes += code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4;
+    const code = character.codePointAt(0) ?? 0;
+    if (code <= 0x7f) bytes += 1;
+    else if (code <= 0x7ff) bytes += 2;
+    else if (code <= 0xffff) bytes += 3;
+    else bytes += 4;
   }
   return bytes;
 };
 
 /** Iterative traversal; shared YAML mappings are legal, cycles are not. Root depth is 1. */
 export const checkConfigDepth = (value: unknown, maxDepth: number): void => {
-  const active = new Set<object>();
-  const seen = new Map<object, number>();
-  const pending: { value: unknown; depth: number; leave?: boolean }[] = [{ value, depth: 1 }];
-  while (pending.length) {
-    const item = pending.pop()!;
-    if (item.value === null || typeof item.value !== 'object') continue;
-    if (item.leave) {
-      active.delete(item.value);
+  const activeAncestors = new Set<object>();
+  const deepestVisitedDepth = new Map<object, number>();
+  type Frame = { kind: 'enter'; value: unknown; depth: number } | { kind: 'leave'; value: object };
+  const frames: Frame[] = [{ kind: 'enter', value, depth: 1 }];
+  for (;;) {
+    const frame = frames.pop();
+    if (frame === undefined) break;
+    if (frame.kind === 'leave') {
+      activeAncestors.delete(frame.value);
       continue;
     }
-    if (active.has(item.value))
+    if (frame.value === null || typeof frame.value !== 'object') continue;
+    if (activeAncestors.has(frame.value))
       throw new ConfigError('Configuration contains a circular reference.');
-    if (item.depth > maxDepth)
+    if (frame.depth > maxDepth)
       throw new ConfigError(
         `Configuration exceeds maxConfigDepth (${maxDepth}). Simplify the nesting of the configuration.`,
       );
-    if ((seen.get(item.value) ?? 0) >= item.depth) continue;
-    seen.set(item.value, item.depth);
-    active.add(item.value);
-    pending.push({ ...item, leave: true });
-    for (const child of Object.values(item.value))
-      pending.push({ value: child, depth: item.depth + 1 });
+    // A shared mapping must be checked again when reached through a deeper path.
+    if ((deepestVisitedDepth.get(frame.value) ?? 0) >= frame.depth) continue;
+    deepestVisitedDepth.set(frame.value, frame.depth);
+    activeAncestors.add(frame.value);
+    frames.push({ kind: 'leave', value: frame.value });
+    for (const child of Object.values(frame.value))
+      frames.push({ kind: 'enter', value: child, depth: frame.depth + 1 });
   }
 };
 

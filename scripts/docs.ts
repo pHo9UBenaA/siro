@@ -31,27 +31,40 @@ const resolveLink = (bindingDocs: string | undefined, ruleDocs: string | undefin
 };
 
 const renderBindingsBlock = (rule: Rule): string => {
-  const rows = PMS.flatMap((pm) => {
+  const rows: string[] = [];
+  for (const pm of PMS) {
     const binding = rule.bindings[pm];
-    if (!binding) return [];
+    if (!binding) continue;
     const target = binding.file ? `\`${binding.file.path}\`` : 'Repository';
     const notes = renderVersionNoteMessage('', binding.versionNote).trim() || '—';
-    return [
+    rows.push(
       `| \`${pm}\` | ${target} | ${binding.severity ?? rule.severity} | ${notes.replaceAll('|', '&#124;')} | ${resolveLink(binding.docs, rule.docs)} |`,
-    ];
-  });
+    );
+  }
   return rows.length
     ? `\n\n| PM | Primary input | Default severity | Version notes | Reference |\n| --- | --- | --- | --- | --- |\n${rows.join('\n')}`
     : '';
 };
 
+const renderAvailabilityCoverage = (): string => {
+  const rows = settingAvailability.map(
+    (setting) =>
+      `| ${setting.pm} | \`${setting.file.path}\` | \`${setting.keyPath.join('.')}\` | ${setting.since} | [release history](${setting.source}) |`,
+  );
+  return `
+
+### Checked introduction versions
+
+Only the following setting/file pairs are checked. This is not whole-schema validation or a guarantee of support in all later versions. Deno coverage is limited to \`.npmrc#min-release-age\`; Aube has no availability entries in this release.
+
+| PM | File | Setting | First stable version in this file | Source |
+| --- | --- | --- | --- | --- |
+${rows.join('\n')}
+
+For pnpm, strictDepBuilds was introduced in 10.3.0; the checked YAML location requires 10.6.0. A prerelease or range in packageManager leaves availability unknown. See [target versions](configuration.md#target-pm-versions) for explicit versions and precedence.`;
+};
+
 const renderRule = (rule: Rule): string => {
-  const header = `## \`${rule.id}\` — ${rule.severity}`;
-  const { description } = rule;
-  let overview = '';
-  if (rule.docs) {
-    overview = `\nUpstream: <${rule.docs}>`;
-  }
   const scopes = {
     installation: 'Explicit installation roots only (local settings).',
     manifest: 'Every discovered manifest, with PM-neutral checks once per manifest.',
@@ -59,24 +72,26 @@ const renderRule = (rule: Rule): string => {
       'Manifest entries per local manifest target; install-config entries only at explicit installation roots.',
     custom: 'cwd only.',
   };
-  const scope = `\nInspection scope: ${scopes[scopeOf(rule.id)]}${rule.projectTypes ? `\nApplies to: ${rule.projectTypes.join(', ')}.` : ''}${rule.id === 'provenance' ? '\nFor npm, own package.json publishConfig.provenance overrides .npmrc, including false. Manifest-only children do not receive effective provenance checks.' : ''}`;
-  const coverage =
-    rule.id === 'unsupported-settings'
-      ? `\n\n### Checked introduction versions\n\nOnly the following setting/file pairs are checked. This is not whole-schema validation or a guarantee of support in all later versions. Deno coverage is limited to \`.npmrc#min-release-age\`; Aube has no availability entries in this release.\n\n| PM | File | Setting | First stable version in this file | Source |\n| --- | --- | --- | --- | --- |\n${settingAvailability.map((setting) => `| ${setting.pm} | \`${setting.file.path}\` | \`${setting.keyPath.join('.')}\` | ${setting.since} | [release history](${setting.source}) |`).join('\n')}\n\nFor pnpm, strictDepBuilds was introduced in 10.3.0; the checked YAML location requires 10.6.0. A prerelease or range in packageManager leaves availability unknown. See [target versions](configuration.md#target-pm-versions) for explicit versions and precedence.`
-      : '';
-  return `${header}\n\n${description}${scope}${overview}${renderBindingsBlock(rule)}${coverage}\n`;
+  const parts = [
+    `## \`${rule.id}\` — ${rule.severity}\n\n${rule.description}`,
+    `\nInspection scope: ${scopes[scopeOf(rule.id)]}`,
+  ];
+  if (rule.projectTypes) parts.push(`\nApplies to: ${rule.projectTypes.join(', ')}.`);
+  if (rule.id === 'provenance')
+    parts.push(
+      '\nFor npm, own package.json publishConfig.provenance overrides .npmrc, including false. Manifest-only children do not receive effective provenance checks.',
+    );
+  if (rule.docs) parts.push(`\nUpstream: <${rule.docs}>`);
+  parts.push(renderBindingsBlock(rule));
+  if (rule.id === 'unsupported-settings') parts.push(renderAvailabilityCoverage());
+  return `${parts.join('')}\n`;
 };
 
 export const renderComparison = (rules: readonly Rule[] = defaultRules): string => {
   const header = `| Rule | Severity | ${PMS.join(' | ')} |`;
   const separator = `| --- | --- | ${PMS.map(() => ':---:').join(' | ')} |`;
   const rows = rules.map((rule) => {
-    const cells = PMS.map((pm) => {
-      if (rule.bindings[pm]) {
-        return '✅';
-      }
-      return '—';
-    });
+    const cells = PMS.map((pm) => (rule.bindings[pm] ? '✅' : '—'));
     return `| \`${rule.id}\` | ${rule.severity} | ${cells.join(' | ')} |`;
   });
   return `${[COMPARISON_INTRO, header, separator, ...rows].join('\n')}\n`;
@@ -102,7 +117,7 @@ for defaults, precedence and version limits.
 
 /** Render docs/rules.md from the rule registry. */
 export const renderRulesDoc = (rules: readonly Rule[] = defaultRules): string => {
-  const sections = rules.map((rule) => renderRule(rule));
+  const sections = rules.map(renderRule);
   return `${[RULES_INTRO, ...sections].join('\n')}\n`;
 };
 

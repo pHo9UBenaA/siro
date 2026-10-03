@@ -2,12 +2,10 @@ import { iniCodec } from '../../../src/adapters/codecs/ini.ts';
 
 describe('iniCodec.parse', () => {
   it('treats an empty document as an empty mapping', () => {
-    expect.hasAssertions();
     expect(iniCodec.parse('')).toStrictEqual({});
   });
 
   it('parses key=value pairs and coerces scalars', () => {
-    expect.hasAssertions();
     const text = [
       '; comment',
       'flags[]=text',
@@ -21,8 +19,7 @@ describe('iniCodec.parse', () => {
     ].join('\n');
     const config = iniCodec.parse(text);
     expect(config['ignore-scripts']).toBe(true);
-    const MIN_RELEASE_AGE_DAYS = 7;
-    expect(config['min-release-age']).toBe(MIN_RELEASE_AGE_DAYS);
+    expect(config['min-release-age']).toBe(7);
     expect(config['save-prefix']).toBe('');
     expect(config.flags).toEqual(['text', true, 7]);
   });

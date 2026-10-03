@@ -1,9 +1,4 @@
-/**
- * Single source of truth for package managers and severities.
- * Types, runtime sets, and ordering derive from these tuples. Adding a manager
- * still requires local detection signals, applicable rule bindings and verified
- * policy/availability evidence; the tuple alone does not implement support.
- */
+/** Supported identifiers in stable evaluation/display order. */
 
 export const PMS = ['npm', 'pnpm', 'yarn', 'bun', 'deno', 'aube'] as const;
 export type PM = (typeof PMS)[number];
@@ -11,12 +6,7 @@ export type PM = (typeof PMS)[number];
 export const SEVERITIES = ['error', 'warn', 'info'] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
-/**
- * Numeric ordering of severities for threshold comparisons. Co-located with
- * `Severity` so `filter`, `runLint`, and any future severity-aware code share
- * one source of truth — drifting the order in one place silently changes the
- * fail-on-threshold contract everywhere.
- */
+/** Numeric severity order for display filtering and failure thresholds. */
 export const SEVERITY_RANK: Readonly<Record<Severity, number>> = {
   error: 3,
   info: 1,
@@ -38,5 +28,5 @@ export const parsePackageManagerField = (value: string): PM | undefined => {
   if (typeof name !== 'undefined' && isPM(name)) {
     return name;
   }
-  return void 0;
+  return undefined;
 };

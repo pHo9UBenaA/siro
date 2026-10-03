@@ -9,7 +9,6 @@ const validRule = {
     npm: {
       check: () => ({ state: 'ok' }),
       file: { kind: 'npmrc', path: '.npmrc' },
-
       versionNote: { note: 'display only' },
     },
   },
@@ -22,18 +21,15 @@ const validRule = {
 
 describe(isRuleShape, () => {
   it('rejects inherited binding maps even when their entries are valid', () => {
-    expect.hasAssertions();
     const validBindings = Object.create({ npm: validRule.bindings.npm });
     expect(isRuleShape({ ...validRule, bindings: validBindings })).toBe(false);
   });
 
   it('rejects a non-record bindings container', () => {
-    expect.hasAssertions();
     expect(isRuleShape({ ...validRule, bindings: new Container() })).toBe(false);
   });
 
   it('rejects a non-record versionNote container', () => {
-    expect.hasAssertions();
     expect(
       isRuleShape({
         ...validRule,
@@ -43,43 +39,32 @@ describe(isRuleShape, () => {
   });
 
   it('accepts a complete rule including its binding functions', () => {
-    expect.hasAssertions();
     expect(isRuleShape(validRule)).toBe(true);
   });
 
-  it('rejects invalid rule and binding discriminants', () => {
-    expect.hasAssertions();
-    const candidates = [
-      { ...validRule, severity: 'fatal' },
-      { ...validRule, projectTypes: ['service'] },
-      { ...validRule, bindings: { cargo: validRule.bindings.npm } },
-      {
-        ...validRule,
-        bindings: {
-          npm: { ...validRule.bindings.npm, file: { kind: 'xml', path: '.npmrc' } },
-        },
+  it.each([
+    { ...validRule, severity: 'fatal' },
+    { ...validRule, projectTypes: ['service'] },
+    { ...validRule, bindings: { cargo: validRule.bindings.npm } },
+    {
+      ...validRule,
+      bindings: {
+        npm: { ...validRule.bindings.npm, file: { kind: 'xml', path: '.npmrc' } },
       },
-      {
-        ...validRule,
-        bindings: { npm: { ...validRule.bindings.npm, check: 'not-a-function' } },
-      },
-      {
-        ...validRule,
-        bindings: { npm: { ...validRule.bindings.npm, versionNote: { note: 42 } } },
-      },
-    ];
-    expect(candidates.map((candidate) => isRuleShape(candidate))).toStrictEqual([
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
-    ]);
+    },
+    {
+      ...validRule,
+      bindings: { npm: { ...validRule.bindings.npm, check: 'not-a-function' } },
+    },
+    {
+      ...validRule,
+      bindings: { npm: { ...validRule.bindings.npm, versionNote: { note: 42 } } },
+    },
+  ])('rejects invalid rule or binding discriminants: %j', (candidate) => {
+    expect(isRuleShape(candidate)).toBe(false);
   });
 
   it('rejects a sparse projectTypes array', () => {
-    expect.hasAssertions();
     const projectTypes = new Array(1);
     expect(isRuleShape({ ...validRule, projectTypes })).toBe(false);
   });

@@ -4,24 +4,27 @@ import { ConfigError, ConfigParseError } from '../../core/contracts/errors.ts';
 import { checkConfigDepth, DEFAULT_SCAN_LIMITS } from '../../core/contracts/scan-limits.ts';
 import { parseDocument } from 'yaml';
 
-export const parseYaml = (
-  text: string,
-  maxDepth = DEFAULT_SCAN_LIMITS.maxConfigDepth,
-): ParsedConfig => {
-  if (text.trim() === '') return {};
-  let value: unknown;
+const decodeYaml = (text: string): unknown => {
   try {
     const document = parseDocument(text, { prettyErrors: false });
     if (document.errors.length) throw new ConfigParseError('Invalid YAML syntax.');
     if (document.contents === null) return {};
     // Keep toJS's default maxAliasCount: shared anchors are allowed, alias bombs are not.
-    value = document.toJS();
+    return document.toJS();
   } catch (error) {
     if (error instanceof ConfigParseError) throw error;
     if (error instanceof Error && error.message.includes('Excessive alias count'))
       throw new ConfigParseError('Excessive alias count in YAML.');
     throw new ConfigParseError('Invalid YAML.');
   }
+};
+
+export const parseYaml = (
+  text: string,
+  maxDepth = DEFAULT_SCAN_LIMITS.maxConfigDepth,
+): ParsedConfig => {
+  if (text.trim() === '') return {};
+  const value = decodeYaml(text);
   try {
     checkConfigDepth(value, maxDepth);
   } catch (error) {

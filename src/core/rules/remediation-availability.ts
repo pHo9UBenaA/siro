@@ -3,7 +3,7 @@ import type { PM } from '../contracts/pms.ts';
 import type { Remediation } from '../contracts/rule.ts';
 import type { ConfigFileRef } from '../contracts/config-file-ref.ts';
 import type { KeyPath } from '../contracts/config-value.ts';
-import { settingAvailability } from './setting-availability.ts';
+import { settingAvailabilityByPM } from './setting-availability.ts';
 
 type SettingTarget = { readonly file: ConfigFileRef; readonly keyPath: KeyPath };
 
@@ -20,9 +20,7 @@ export const settingSupportedByTarget = (
   target: SettingTarget,
 ): boolean | undefined => {
   if (version === undefined) return undefined;
-  const availability = settingAvailability.find(
-    (setting) => setting.pm === pm && sameSetting(setting, target),
-  );
+  const availability = settingAvailabilityByPM[pm].find((setting) => sameSetting(setting, target));
   return availability === undefined ? undefined : !lt(version, availability.since);
 };
 
@@ -36,27 +34,27 @@ export const guardRemediationAvailability = (
     : [],
 ): Remediation | undefined => {
   if (version === undefined || remediation === undefined) return remediation;
-  const unsupported = settingAvailability.filter(
-    (setting) =>
-      setting.pm === pm &&
-      lt(version, setting.since) &&
-      targets.some((target) => sameSetting(setting, target)),
-  );
-  if (unsupported.length === 0) return remediation;
-  const requirements = unsupported.map(
-    (setting) =>
+  const requirements: string[] = [];
+  for (const setting of settingAvailabilityByPM[pm]) {
+    if (!lt(version, setting.since) || !targets.some((target) => sameSetting(setting, target)))
+      continue;
+    requirements.push(
       `${setting.file.path}#${setting.keyPath.join('.')} requires ${pm} >=${setting.since}`,
-  );
+    );
+  }
+  if (requirements.length === 0) return remediation;
+  const stepsAfterUpgrade =
+    remediation.kind === 'manual'
+      ? remediation.steps
+      : remediation.operations.map(
+          (operation) =>
+            `After upgrading, set ${operation.file.path}#${operation.keyPath.join('.')} to ${JSON.stringify(operation.value)}.`,
+        );
   return {
     kind: 'manual',
     steps: [
       `Target ${pm} ${version} does not support this proposal: ${requirements.join('; ')}. Verify and upgrade the target before applying the steps below, or choose a supported security control. Removing a setting alone does not provide its protection.`,
-      ...(remediation.kind === 'manual'
-        ? remediation.steps
-        : remediation.operations.map(
-            (operation) =>
-              `After upgrading, set ${operation.file.path}#${operation.keyPath.join('.')} to ${JSON.stringify(operation.value)}.`,
-          )),
+      ...stepsAfterUpgrade,
     ],
   };
 };

@@ -1,40 +1,24 @@
 import { lintCommand } from '../../src/runtime.ts';
 import { ConfigError, UsageError } from '../../src/core/contracts/errors.ts';
 import { asAbsPath } from '../../src/adapters/node-paths.ts';
-import { npmGoodFs } from '../helpers/fixtures.ts';
+import { npmPassingFs } from '../helpers/fixtures.ts';
 import { captureIO } from '../helpers/io.ts';
 
-const options = { cwd: asAbsPath('/repo'), fs: npmGoodFs(), reporter: 'json' };
+const options = { cwd: asAbsPath('/repo'), fs: npmPassingFs(), reporter: 'json' };
 
-it('rejects an invalid project type from JavaScript', async () => {
+it.each([
+  { name: 'project type', invalid: { projectType: 'service' }, error: UsageError },
+  { name: 'package manager', invalid: { pm: 'cargo' }, error: UsageError },
+  { name: 'severity', invalid: { severity: 'fatal' }, error: UsageError },
+  { name: 'custom rule', invalid: { config: { customRules: [null] } }, error: ConfigError },
+])('rejects an invalid $name from JavaScript', async ({ invalid, error }) => {
   await expect(
-    // @ts-expect-error Exercise the untyped boundary.
-    lintCommand({ ...options, projectType: 'service' }, captureIO().io),
-  ).rejects.toBeInstanceOf(UsageError);
-});
-
-it('rejects an invalid package manager from JavaScript', async () => {
-  // @ts-expect-error Exercise the untyped boundary.
-  await expect(lintCommand({ ...options, pm: 'cargo' }, captureIO().io)).rejects.toBeInstanceOf(
-    UsageError,
-  );
-});
-
-it('rejects an invalid severity from JavaScript', async () => {
-  await expect(
-    // @ts-expect-error Exercise the untyped boundary.
-    lintCommand({ ...options, severity: 'fatal' }, captureIO().io),
-  ).rejects.toBeInstanceOf(UsageError);
-});
-
-it('rejects a malformed custom rule from JavaScript', async () => {
-  await expect(
-    // @ts-expect-error Exercise the untyped boundary.
-    lintCommand({ ...options, config: { customRules: [null] } }, captureIO().io),
-  ).rejects.toBeInstanceOf(ConfigError);
+    Reflect.apply(lintCommand, undefined, [{ ...options, ...invalid }, captureIO().io]),
+  ).rejects.toBeInstanceOf(error);
 });
 
 it.each([null, undefined])('rejects missing command options %s from JavaScript', async (value) => {
-  // @ts-expect-error Exercise the untyped boundary.
-  await expect(lintCommand(value, captureIO().io)).rejects.toBeInstanceOf(UsageError);
+  await expect(
+    Reflect.apply(lintCommand, undefined, [value, captureIO().io]),
+  ).rejects.toBeInstanceOf(UsageError);
 });

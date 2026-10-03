@@ -51,6 +51,45 @@ const areaOf = (file: string): Area | undefined => {
   if (file === 'version.ts') return 'metadata';
 };
 
+// Undefined denotes a computed module specifier rather than a static import path.
+const visitModuleReferences = (
+  source: ts.Node,
+  inspect: (specifier: string | undefined) => void,
+): void => {
+  const visit = (node: ts.Node): void => {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      inspect(node.moduleSpecifier.text);
+    } else if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument) &&
+      ts.isStringLiteral(node.argument.literal)
+    ) {
+      inspect(node.argument.literal.text);
+    } else if (
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === 'require'))
+    ) {
+      const [argument] = node.arguments;
+      inspect(
+        argument && (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument))
+          ? argument.text
+          : undefined,
+      );
+    }
+    if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) {
+      const reference = node.moduleReference.expression;
+      if (reference && ts.isStringLiteral(reference)) inspect(reference.text);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+};
+
 const findViolations = (files: readonly SourceFile[]): string[] => {
   const violations: string[] = [];
   const contents = new Map(
@@ -102,54 +141,31 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
       }
     };
     const source = ts.createSourceFile(file.path, file.content, ts.ScriptTarget.Latest, true);
-    const visit = (node: ts.Node): void => {
-      if (
-        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-        node.moduleSpecifier &&
-        ts.isStringLiteral(node.moduleSpecifier)
-      ) {
-        inspectImport(node.moduleSpecifier.text);
-      } else if (
-        ts.isImportTypeNode(node) &&
-        ts.isLiteralTypeNode(node.argument) &&
-        ts.isStringLiteral(node.argument.literal)
-      ) {
-        inspectImport(node.argument.literal.text);
-      } else if (
-        ts.isCallExpression(node) &&
-        (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-          (ts.isIdentifier(node.expression) && node.expression.text === 'require'))
-      ) {
-        const [argument] = node.arguments;
-        if (
-          argument &&
-          (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument))
-        )
-          inspectImport(argument.text);
-        else if (noDynamicSelection.has(sourceArea))
-          fail('dynamic module selection in core or driven adapter');
-      }
-      if (
-        ts.isImportEqualsDeclaration(node) &&
-        ts.isExternalModuleReference(node.moduleReference)
-      ) {
-        const reference = node.moduleReference.expression;
-        if (reference && ts.isStringLiteral(reference)) inspectImport(reference.text);
-      }
-      ts.forEachChild(node, visit);
-    };
-    visit(source);
+    visitModuleReferences(source, (specifier) => {
+      if (specifier !== undefined) inspectImport(specifier);
+      else if (noDynamicSelection.has(sourceArea))
+        fail('dynamic module selection in core or driven adapter');
+    });
   }
   return violations;
 };
 
-const readSources = (root: string, relative = ''): SourceFile[] =>
-  readdirSync(path.join(root, relative), { withFileTypes: true }).flatMap((entry) => {
-    const entryPath = path.posix.join(relative, entry.name);
-    if (entry.isDirectory()) return readSources(root, entryPath);
-    if (!entry.isFile() || !/\.(?:[cm]?[jt]sx?)$/u.test(entry.name)) return [];
-    return [{ path: entryPath, content: readFileSync(path.join(root, entryPath), 'utf8') }];
-  });
+const readSources = (root: string): SourceFile[] => {
+  const sources: SourceFile[] = [];
+  const visitDirectory = (relative: string): void => {
+    for (const entry of readdirSync(path.join(root, relative), { withFileTypes: true })) {
+      const entryPath = path.posix.join(relative, entry.name);
+      if (entry.isDirectory()) {
+        visitDirectory(entryPath);
+        continue;
+      }
+      if (!entry.isFile() || !/\.(?:[cm]?[jt]sx?)$/u.test(entry.name)) continue;
+      sources.push({ path: entryPath, content: readFileSync(path.join(root, entryPath), 'utf8') });
+    }
+  };
+  visitDirectory('');
+  return sources;
+};
 
 it('keeps resolved source imports directed through the contracts', () => {
   expect(findViolations(readSources(sourceRoot))).toEqual([]);

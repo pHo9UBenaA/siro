@@ -10,12 +10,9 @@ import { PROJECT_TYPES, type ProjectType, isProjectType } from '../core/contract
 import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../adapters/node-version.ts';
 import { UsageError } from '../core/contracts/errors.ts';
 
-export const parsePmFlag = (raw: unknown): PM | undefined => {
+export const parsePmFlag = (raw: string | undefined): PM | undefined => {
   if (typeof raw === 'undefined') {
     return;
-  }
-  if (raw === true) {
-    throw new UsageError(`--pm requires a value (expected one of: ${PMS.join(', ')})`);
   }
   if (typeof raw !== 'string' || !isPM(raw)) {
     throw new UsageError(`Unknown package manager: ${raw} (expected one of: ${PMS.join(', ')})`);
@@ -23,12 +20,9 @@ export const parsePmFlag = (raw: unknown): PM | undefined => {
   return raw;
 };
 
-export const parseProjectTypeFlag = (raw: unknown): ProjectType | undefined => {
+export const parseProjectTypeFlag = (raw: string | undefined): ProjectType | undefined => {
   if (typeof raw === 'undefined') {
     return;
-  }
-  if (raw === true) {
-    throw new UsageError(`--project-type requires a value (expected ${PROJECT_TYPES.join('|')})`);
   }
   if (typeof raw === 'string' && isProjectType(raw)) {
     return raw;
@@ -38,12 +32,9 @@ export const parseProjectTypeFlag = (raw: unknown): ProjectType | undefined => {
   );
 };
 
-export const parseSeverityFlag = (raw: unknown): Severity | undefined => {
+export const parseSeverityFlag = (raw: string | undefined): Severity | undefined => {
   if (typeof raw === 'undefined') {
     return;
-  }
-  if (raw === true) {
-    throw new UsageError(`--severity requires a value (expected ${SEVERITIES.join('|')})`);
   }
   if (typeof raw !== 'string' || !isSeverity(raw)) {
     throw new UsageError(`Invalid severity: ${String(raw)} (expected ${SEVERITIES.join('|')})`);

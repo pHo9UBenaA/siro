@@ -1,15 +1,19 @@
 import assert from 'node:assert/strict';
+import { inspect } from 'node:util';
 import type { CheckStatus } from '../../src/core/contracts/rule.ts';
 
 export const automaticOperations = (status: CheckStatus) => {
   assert(
     status.state === 'violation' && status.remediation?.kind === 'automatic',
-    'expected a violation with automatic remediation',
+    `Expected automatic violation, received ${inspect(status)}`,
   );
   return status.remediation.operations;
 };
 
-export const manualSteps = (status: CheckStatus) =>
-  status.state === 'violation' && status.remediation?.kind === 'manual'
-    ? status.remediation.steps
-    : undefined;
+export const manualSteps = (status: CheckStatus) => {
+  assert(
+    status.state === 'violation' && status.remediation?.kind === 'manual',
+    `Expected manual violation, received ${inspect(status)}`,
+  );
+  return status.remediation.steps;
+};

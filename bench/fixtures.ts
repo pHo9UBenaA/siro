@@ -49,6 +49,20 @@ frozenLockfile: true
 
 const WORKSPACE_ENTRY_COUNT = 50;
 
+const workspaceEntries = Array.from(
+  { length: WORKSPACE_ENTRY_COUNT },
+  (_, index) => `  - "packages/p${index}"`,
+);
+const workspaceYaml = [
+  'packages:',
+  ...workspaceEntries,
+  'strictDepBuilds: true',
+  "savePrefix: ''",
+  'minimumReleaseAge: 4320',
+  'frozenLockfile: true',
+  '',
+].join('\n');
+
 const WORKSPACE_MANIFEST: Fixture = {
   expectedScope: { manifests: 1, installationRoots: 1 },
   files: {
@@ -58,12 +72,7 @@ const WORKSPACE_MANIFEST: Fixture = {
       private: true,
     }),
     '/repo/pnpm-lock.yaml': 'lockfileVersion: 9.0\n',
-    '/repo/pnpm-workspace.yaml': `packages:\n${Array.from(
-      { length: WORKSPACE_ENTRY_COUNT },
-      (_unused, idx) => `  - "packages/p${idx}"`,
-    ).join(
-      '\n',
-    )}\nstrictDepBuilds: true\nsavePrefix: ''\nminimumReleaseAge: 4320\nfrozenLockfile: true\n`,
+    '/repo/pnpm-workspace.yaml': workspaceYaml,
   },
   name: `large workspace config (${WORKSPACE_ENTRY_COUNT} ignored declarations, no child packages)`,
 };

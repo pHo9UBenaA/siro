@@ -14,7 +14,7 @@ it('does not follow directory symlinks, including intermediate components of exp
       process.platform === 'win32' ? 'junction' : 'dir',
     );
     const options = { cwd: asAbsPath(root), installationRoots: [] };
-    expect(lint(options).inspection.manifests.map((m) => m.path)).toEqual([
+    expect(lint(options).inspection.manifests.map((manifest) => manifest.path)).toEqual([
       'actual/nested/package.json',
     ]);
     for (const directory of ['alias', 'alias/nested', 'Actual', 'actual/nested/package.json']) {
@@ -25,7 +25,7 @@ it('does not follow directory symlinks, including intermediate components of exp
     // The user may deliberately select the symlink itself as cwd.
     expect(
       lint({ ...options, cwd: asAbsPath(path.join(root, 'alias')) }).inspection.manifests.map(
-        (m) => m.path,
+        (manifest) => manifest.path,
       ),
     ).toEqual(['nested/package.json']);
   } finally {

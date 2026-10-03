@@ -1,14 +1,21 @@
 import { lintCommand } from '../../src/core/lint-command.ts';
 import { lint } from '../../src/core/lint.ts';
-import { rebaseFinding } from '../../src/core/rebase-finding.ts';
 import { createBuiltinRules } from '../../src/core/rules/builtin-rules.ts';
-import type { LintDependencies } from '../../src/core/contracts/lint-dependencies.ts';
-import type { Reporter } from '../../src/core/contracts/reporter.ts';
+import { type LintDependencies } from '../../src/core/contracts/lint-dependencies.ts';
+import { type Reporter } from '../../src/core/contracts/reporter.ts';
+import type { Rule } from '../../src/core/contracts/rule.ts';
 import { asRelPath, type AbsPath } from '../../src/core/contracts/paths.ts';
-import type { Remediation } from '../../src/core/contracts/rule.ts';
-import type { Finding } from '../../src/core/contracts/lint-result.ts';
 import { captureIO } from '../helpers/io.ts';
 
+const isVirtualPath = (value: unknown): value is AbsPath =>
+  typeof value === 'string' &&
+  (value === '/virtual' || value.startsWith('/virtual/')) &&
+  !value.split('/').includes('..');
+const virtualPath = (value: string): AbsPath => {
+  if (!isVirtualPath(value)) throw new TypeError(`Invalid virtual path: ${value}`);
+  return value;
+};
+const request = { cwd: virtualPath('/virtual'), installationRoots: [] };
 // No production adapter or runtime composition: all IO goes through these ports.
 const host = () => {
   const files: Record<string, string> = {
@@ -21,32 +28,33 @@ const host = () => {
     fileSystem: {
       readText,
       exists: (path) => files[path] !== undefined,
-      readDirectories: (path) =>
-        path === '/virtual' ? ['packages'] : path === '/virtual/packages' ? ['api'] : [],
+      readDirectories(path) {
+        if (path === '/virtual') return ['packages'];
+        if (path === '/virtual/packages') return ['api'];
+        return [];
+      },
     },
     paths: {
-      isAbsolute: (value): value is AbsPath =>
-        typeof value === 'string' && value.startsWith('/virtual'),
-      resolve: (root, relative) => (relative === '.' ? root : `${root}/${relative}`) as AbsPath,
+      isAbsolute: isVirtualPath,
+      resolve: (root, relative) => virtualPath(relative === '.' ? root : `${root}/${relative}`),
       child: (parent, name) =>
         asRelPath(parent === '.' ? String(name) : `${parent}/${String(name)}`),
     },
     codecFor: () => ({ parse: JSON.parse }),
     compileExclusions: (patterns) => (directory) => patterns.includes(directory),
     createRepoContext: (root, fs, projectType) => {
-      const raw = fs.readText(`${root}/package.json` as AbsPath);
+      const raw = fs.readText(virtualPath(`${root}/package.json`));
       return {
         root,
         projectType,
         packageJson: raw === undefined ? undefined : JSON.parse(raw),
-        exists: (relative) => fs.exists(`${root}/${relative}` as AbsPath),
-        readText: (relative) => fs.readText(`${root}/${relative}` as AbsPath),
+        exists: (relative) => fs.exists(virtualPath(`${root}/${relative}`)),
+        readText: (relative) => fs.readText(virtualPath(`${root}/${relative}`)),
       };
     },
   };
   return { dependencies, readText };
 };
-const request = { cwd: '/virtual' as AbsPath, installationRoots: [] };
 
 it('discovers and evaluates through supplied ports, with generic paths and explicit inspection', () => {
   const { dependencies } = host();
@@ -64,71 +72,8 @@ it('discovers and evaluates through supplied ports, with generic paths and expli
     }),
   ]);
   expect(result.inspection.installationRoots).toEqual([]);
-  expect(result.findings.every((finding) => finding.pm === undefined)).toBe(true);
+  expect(result.findings.map((finding) => finding.pm)).toEqual([undefined, undefined]);
 });
-
-it.each<[Remediation | undefined, Remediation | undefined]>([
-  [undefined, undefined],
-  [
-    { kind: 'manual', steps: ['Review settings.'] },
-    { kind: 'manual', steps: ['Work in child for this finding.', 'Review settings.'] },
-  ],
-  [
-    {
-      kind: 'automatic',
-      operations: [
-        {
-          op: 'setKey',
-          file: { kind: 'json', path: asRelPath('package.json') },
-          keyPath: ['publishConfig', 'provenance'],
-          value: true,
-        },
-        {
-          op: 'setKey',
-          file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-          keyPath: ['provenance'],
-          value: true,
-        },
-      ],
-    },
-    {
-      kind: 'automatic',
-      operations: [
-        {
-          op: 'setKey',
-          file: { kind: 'json', path: asRelPath('child/package.json') },
-          keyPath: ['publishConfig', 'provenance'],
-          value: true,
-        },
-        {
-          op: 'setKey',
-          file: { kind: 'npmrc', path: asRelPath('child/.npmrc') },
-          keyPath: ['provenance'],
-          value: true,
-        },
-      ],
-    },
-  ],
-])(
-  'rebases all remedy paths immutably without inventing a finding file: %j',
-  (remediation, expected) => {
-    const finding: Finding = {
-      ruleId: 'test',
-      directory: '.',
-      severity: 'warn',
-      message: 'Review.',
-      remediation,
-    };
-    const original = structuredClone(finding);
-    const root = rebaseFinding(asRelPath('.'), finding);
-    const child = rebaseFinding(asRelPath('child'), finding);
-    expect(root).toEqual(original);
-    expect(child.file).toBeUndefined();
-    expect(child.directory).toBe('child');
-    expect(child.remediation).toEqual(expected);
-    expect(finding).toEqual(original);
-  },
-);
 
 it('uses the explicitly supplied filesystem throughout discovery', () => {
   const { dependencies } = host();
@@ -158,8 +103,57 @@ it('reports through an injected registry and awaits output failures', async () =
   await expect(lintCommand(request, io, dependencies, registry)).rejects.toBe(failure);
 });
 
+it.each([
+  { name: 'with', includeRootInstallation: true, rootChecks: ['first', 'advisory-check', 'last'] },
+  { name: 'without', includeRootInstallation: false, rootChecks: ['first', 'last'] },
+])(
+  'preserves rule execution order at cwd $name installation checks',
+  ({ includeRootInstallation, rootChecks }) => {
+    const { dependencies } = host();
+    const checks: string[] = [];
+    const observe = (id: string): Rule => ({
+      id,
+      title: id,
+      description: 'Observe execution scope and order.',
+      severity: 'warn',
+      bindings: {
+        npm: {
+          check(ctx) {
+            checks.push(`${ctx.root}:${id}`);
+            return { state: 'violation', message: id };
+          },
+        },
+      },
+    });
+    // A built-in installation rule is interleaved with two custom rules.
+    const orderedRules = ['first', 'advisory-check', 'last'].map(observe);
+    const result = lint(
+      {
+        ...request,
+        pm: 'npm',
+        installationRoots: [
+          ...(includeRootInstallation ? ['.'] : []),
+          { path: 'packages/api', pm: 'npm' },
+        ],
+      },
+      { ...dependencies, rules: orderedRules },
+    );
+    const expectedChecks = [
+      ...rootChecks.map((id) => `/virtual:${id}`),
+      '/virtual/packages/api:advisory-check',
+    ];
+    expect(checks).toEqual(expectedChecks);
+    expect(result.findings.map(({ directory, ruleId }) => `${directory}:${ruleId}`)).toEqual([
+      ...rootChecks.map((id) => `.:${id}`),
+      'packages/api:advisory-check',
+    ]);
+  },
+);
+
 it('does not fall back for an explicitly invalid null filesystem', () => {
   const { dependencies, readText } = host();
-  expect(() => lint({ ...request, fs: null as never }, dependencies)).toThrow(TypeError);
+  expect(() => Reflect.apply(lint, undefined, [{ ...request, fs: null }, dependencies])).toThrow(
+    TypeError,
+  );
   expect(readText).not.toHaveBeenCalled();
 });

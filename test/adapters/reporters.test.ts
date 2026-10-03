@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { asAbsPath } from '../../src/index.ts';
+import { lint, lintCommand, asAbsPath } from '../../src/index.ts';
+import { createMemFileSystem } from '../helpers/memfs.ts';
 import {
   BUILTIN_REPORTER_NAMES,
   createRegistry,
@@ -7,25 +8,24 @@ import {
   jsonReporter,
   prettyReporter,
 } from '../../src/adapters/reporters/registry.ts';
-import type { LintResult } from '../../src/core/contracts/lint-result.ts';
+import { type Finding, type LintResult } from '../../src/core/contracts/lint-result.ts';
 import { parseGithubAnnotation } from '../helpers/github-annotation.ts';
 import { captureIO } from '../helpers/io.ts';
 
 const context = { cwd: asAbsPath(path.resolve('/reporter-fixture')) };
 const inspection = { manifests: [], installationRoots: [] };
+const finding: Finding = {
+  directory: '.',
+  file: '.npmrc',
+  message: 'set ignore-scripts',
+  pm: 'npm',
+  ruleId: 'disable-lifecycle-scripts',
+  severity: 'error',
+  docs: 'https://example.com/guide',
+};
 const result: LintResult = {
   inspection,
-  findings: [
-    {
-      directory: '.',
-      file: '.npmrc',
-      message: 'set ignore-scripts',
-      pm: 'npm',
-      ruleId: 'disable-lifecycle-scripts',
-      severity: 'error',
-      docs: 'https://example.com/guide',
-    },
-  ],
+  findings: [finding],
   summary: { error: 1, info: 0, warn: 0 },
 };
 afterEach(() => vi.unstubAllEnvs());
@@ -51,7 +51,7 @@ it('escapes GitHub properties/data and resolves file paths against the supplied 
       ...result,
       findings: [
         {
-          ...result.findings[0]!,
+          ...finding,
           file,
           message: 'set foo=bar, baz: 100%\nnext line',
           docs: undefined,
@@ -137,7 +137,15 @@ it.each([
   vi.stubEnv('FORCE_COLOR', forceColor);
   const { io, out } = captureIO();
   await prettyReporter.format(result, io, context);
-  expect(out().includes('\u001b[')).toBe(colored);
+  const withColor = expect.stringContaining('\u001b[');
+  const withoutColor = expect.not.stringContaining('\u001b[');
+  expect(out()).toEqual(colored ? withColor : withoutColor);
+});
+
+it('prints the finding, documentation and summary', async () => {
+  vi.stubEnv('NO_COLOR', '1');
+  const { io, out } = captureIO();
+  await prettyReporter.format(result, io, context);
   expect(out()).toContain('[npm]');
   expect(out()).toContain('disable-lifecycle-scripts');
   expect(out()).toContain('set ignore-scripts');
@@ -145,8 +153,9 @@ it.each([
   expect(out()).toContain('Summary: 1 error, 0 warn, 0 info');
 });
 
-it('awaits each built-in sink and propagates its rejection', async () => {
-  for (const reporter of [prettyReporter, jsonReporter, githubReporter]) {
+it.each([prettyReporter, jsonReporter, githubReporter])(
+  'awaits the $name sink and propagates rejection',
+  async (reporter) => {
     const failure = new Error('write failed');
     await expect(
       reporter.format(
@@ -160,5 +169,20 @@ it('awaits each built-in sink and propagates its rejection', async () => {
         context,
       ),
     ).rejects.toBe(failure);
-  }
+  },
+);
+
+it('gives the GitHub reporter the actual scan root without changing API paths', async () => {
+  const options = {
+    cwd: asAbsPath(path.resolve('/repo/tools')),
+    fs: createMemFileSystem(
+      { 'package.json': '{"name":"pkg"}' },
+      path.resolve('/repo/tools').replaceAll('\\', '/'),
+    ),
+    installationRoots: [],
+  };
+  const { io, out } = captureIO();
+  await lintCommand({ ...options, reporter: 'github' }, io);
+  expect(out()).toContain(`file=${path.join(options.cwd, 'package.json').replaceAll(':', '%3A')}`);
+  expect(lint(options).findings[0]?.file).toBe('package.json');
 });

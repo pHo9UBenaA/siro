@@ -13,14 +13,14 @@ export interface ResolvePMsOptions {
 }
 
 /** Apply the explicit selection or detection, then the configured allow-list. */
-export const resolvePMs = (ctx: RepoContext, opts: ResolvePMsOptions): readonly PM[] => {
-  const { pmOverride, allowed } = opts;
+export const resolvePMs = (ctx: RepoContext, options: ResolvePMsOptions): readonly PM[] => {
+  const { pmOverride, allowed } = options;
   const detected = pmOverride ? [pmOverride] : detectPMs(ctx);
   const pms = allowed ? detected.filter((pm) => allowed.includes(pm)) : detected;
   if (pms.length > 0) {
     return pms;
   }
-  if (opts.optional && detected.length === 0) return [];
+  if (options.optional && detected.length === 0) return [];
   if (!allowed) {
     throw new UsageError(
       `No package manager detected. Pass --pm <${PMS.join('|')}> to be explicit.`,

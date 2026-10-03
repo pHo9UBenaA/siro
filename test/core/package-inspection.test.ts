@@ -1,4 +1,11 @@
-import { asAbsPath, lint, lintCommand, CONFIG_FILES, type LintOptions } from '../../src/index.ts';
+import {
+  asAbsPath,
+  lint,
+  lintCommand,
+  CONFIG_FILES,
+  type LintOptions,
+  type Rule,
+} from '../../src/index.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 import { captureIO } from '../helpers/io.ts';
 
@@ -9,34 +16,36 @@ const inspect = (files: Record<string, string>, options: Partial<LintOptions> = 
     installationRoots: [],
     ...options,
   });
-const json = JSON.stringify;
 const packageFindings = (result: ReturnType<typeof lint>) =>
-  result.findings.filter((f) => ['files-field', 'publish-access'].includes(f.ruleId));
+  result.findings.filter((finding) => ['files-field', 'publish-access'].includes(finding.ruleId));
 
 it('discovers every manifest independently of PM declarations, names, privacy, vendor and nesting', () => {
   const files = {
-    'package.json': json({ private: true, workspaces: ['no-match', '!packages/**'] }),
-    'deno.json': json({ name: '@test/root', workspace: ['missing'], vendor: true }),
-    'packages/a/package.json': json({ name: 'same' }),
-    'packages/b/package.json': json({ name: 'same' }),
-    'vendor/deno.json': json({ name: '@test/vendor' }),
-    'dist/package.json': json({ name: 'built' }),
-    'test/fixtures/package.json': json({ name: 'fixture' }),
+    'package.json': JSON.stringify({ private: true, workspaces: ['no-match', '!packages/**'] }),
+    'deno.json': JSON.stringify({ name: '@test/root', workspace: ['missing'], vendor: true }),
+    'packages/a/package.json': JSON.stringify({ name: 'same' }),
+    'packages/b/package.json': JSON.stringify({ name: 'same' }),
+    'vendor/deno.json': JSON.stringify({ name: '@test/vendor' }),
+    'dist/package.json': JSON.stringify({ name: 'built' }),
+    'test/fixtures/package.json': JSON.stringify({ name: 'fixture' }),
     'node_modules/bad/package.json': 'invalid',
     '.git/package.json': 'invalid',
   };
   const first = inspect(files);
   const second = inspect({
     ...files,
-    'package.json': json({ private: true, workspaces: false }),
-    'deno.json': json({ name: '@test/root', workspace: { invalid: true } }),
+    'package.json': JSON.stringify({ private: true, workspaces: false }),
+    'deno.json': JSON.stringify({ name: '@test/root', workspace: { invalid: true } }),
   });
   expect(first.inspection).toEqual(second.inspection);
   expect(first.inspection.manifests).toHaveLength(7);
   expect(first.summary).toEqual({ error: 0, warn: 0, info: 10 });
-  expect(packageFindings(first).map((f) => f.file)).toContain('deno.json');
-  expect(packageFindings(first).map((f) => f.file)).not.toContain('package.json');
-  expect(packageFindings(first).every((f) => f.pm === undefined)).toBe(true);
+  const publicationFiles = packageFindings(first).map((finding) => finding.file);
+  expect(publicationFiles).toContain('deno.json');
+  expect(publicationFiles).not.toContain('package.json');
+  for (const finding of packageFindings(first)) {
+    expect({ file: finding.file, pm: finding.pm }).toMatchObject({ pm: undefined });
+  }
   expect(packageFindings(inspect(files, { projectType: 'application' }))).toEqual([]);
 });
 
@@ -47,12 +56,14 @@ it('keeps discovery separate from local installation policy and rebases every au
     'child/.npmrc': 'ignore-scripts=false\n',
   };
   const first = inspect(files, { installationRoots: ['.'] });
-  expect(first.inspection.installationRoots.map((r) => r.directory)).toEqual(['.']);
+  expect(first.inspection.installationRoots.map((root) => root.directory)).toEqual(['.']);
   expect(
-    first.findings
-      .filter((f) => f.directory === 'child')
-      .every((f) => ['files-field', 'publish-access'].includes(f.ruleId)),
-  ).toBe(true);
+    first.findings.filter(
+      (finding) =>
+        finding.directory === 'child' &&
+        !['files-field', 'publish-access'].includes(finding.ruleId),
+    ),
+  ).toEqual([]);
   const result = inspect(files, {
     installationRoots: ['.', 'child'],
     pm: 'pnpm',
@@ -64,7 +75,7 @@ it('keeps discovery separate from local installation policy and rebases every au
     { directory: 'child', targets: [{ pm: 'npm', version: '12.0.2' }] },
   ]);
   const finding = result.findings.find(
-    (f) => f.directory === 'child' && f.ruleId === 'block-exotic-subdeps',
+    (candidate) => candidate.directory === 'child' && candidate.ruleId === 'block-exotic-subdeps',
   );
   expect(finding).toMatchObject({
     file: 'child/.npmrc',
@@ -91,14 +102,19 @@ it('uses each manifest local version, not the root version, and does not parse c
     { pm: 'npm', pmVersion: '9.4.0' },
   );
   expect(
-    result.findings.filter((f) => f.ruleId === 'unsupported-settings').map((f) => f.file),
+    result.findings
+      .filter((finding) => finding.ruleId === 'unsupported-settings')
+      .map((finding) => finding.file),
   ).toEqual(['package.json']);
   expect(
-    result.inspection.manifests.find((m) => m.path === 'unknown/package.json')?.targets,
+    result.inspection.manifests.find((manifest) => manifest.path === 'unknown/package.json')
+      ?.targets,
   ).toEqual([]);
   expect(result.inspection.installationRoots).toEqual([]);
   expect(
-    result.findings.find((f) => f.file === 'unknown/package.json' && f.ruleId === 'publish-access'),
+    result.findings.find(
+      (finding) => finding.file === 'unknown/package.json' && finding.ruleId === 'publish-access',
+    ),
   ).not.toHaveProperty('pm');
 });
 
@@ -116,6 +132,32 @@ it('evaluates a directory only once even when an injected enumeration repeats it
   expect(result.findings.filter((finding) => finding.ruleId === 'files-field')).toHaveLength(1);
 });
 
+it('discovers indexed children even when entries() hides them', async () => {
+  const fs = createMemFileSystem({ 'child/package.json': '{"name":"child"}' });
+  const enumerate = fs.readDirectories;
+  fs.readDirectories = (directory) =>
+    Object.defineProperty(enumerate(directory), 'entries', { value: function* () {} });
+  const { io, out } = captureIO();
+
+  const code = await lintCommand(
+    {
+      cwd: asAbsPath('/repo'),
+      fs,
+      installationRoots: [],
+      config: { rules: { 'files-field': 'error' } },
+      reporter: 'json',
+    },
+    io,
+  );
+
+  expect(code).toBe(1);
+  const report = JSON.parse(out());
+  expect(report.inspection.manifests).toMatchObject([{ path: 'child/package.json' }]);
+  expect(report.findings).toContainEqual(
+    expect.objectContaining({ ruleId: 'files-field', file: 'child/package.json' }),
+  );
+});
+
 it('common checks run once across multiple detected PMs; manifest availability has one owner', () => {
   const result = inspect(
     {
@@ -126,12 +168,12 @@ it('common checks run once across multiple detected PMs; manifest availability h
     },
     { installationRoots: ['.'] },
   );
-  expect(result.findings.filter((f) => f.ruleId === 'files-field')).toHaveLength(1);
-  expect(result.findings.filter((f) => f.ruleId === 'publish-access')).toHaveLength(1);
+  expect(result.findings.filter((finding) => finding.ruleId === 'files-field')).toHaveLength(1);
+  expect(result.findings.filter((finding) => finding.ruleId === 'publish-access')).toHaveLength(1);
   expect(
     result.findings
-      .filter((f) => f.ruleId === 'unsupported-settings')
-      .map((f) => f.file)
+      .filter((finding) => finding.ruleId === 'unsupported-settings')
+      .map((finding) => finding.file)
       .sort(),
   ).toEqual(['.npmrc', 'package.json']);
 });
@@ -154,7 +196,7 @@ it('explicit roots can have no manifest and use a local explicit PM/version', ()
   expect(result.inspection.installationRoots).toEqual([
     { directory: 'tool', targets: [{ pm: 'npm', version: '12.0.2' }] },
   ]);
-  expect(result.findings.some((f) => f.directory === 'tool')).toBe(true);
+  expect(result.findings).toContainEqual(expect.objectContaining({ directory: 'tool' }));
 });
 
 it.each(['fixtures', 'fixtures/**', '**/fixtures/**'])(
@@ -174,9 +216,9 @@ it.each(['fixtures', 'fixtures/**', '**/fixtures/**'])(
       if (directory.endsWith('/fixtures')) throw new Error('excluded enumeration');
       return enumerate(directory);
     };
-    expect(inspect({}, { fs, exclude: [pattern] }).inspection.manifests.map((m) => m.path)).toEqual(
-      ['ok/package.json'],
-    );
+    expect(
+      inspect({}, { fs, exclude: [pattern] }).inspection.manifests.map((manifest) => manifest.path),
+    ).toEqual(['ok/package.json']);
   },
 );
 
@@ -191,7 +233,7 @@ it('supports only *, ?, whole-component **; punctuation is literal and matching 
     },
     { exclude: ['[abc]', '{one,two}', '@(x)', 'case'] },
   );
-  expect(result.inspection.manifests.map((m) => m.path)).toEqual([
+  expect(result.inspection.manifests.map((manifest) => manifest.path)).toEqual([
     '.hidden/package.json',
     'Case/package.json',
   ]);
@@ -199,7 +241,7 @@ it('supports only *, ?, whole-component **; punctuation is literal and matching 
     inspect(
       { 'package.json': '{}', 'child/package.json': 'invalid' },
       { exclude: ['**'] },
-    ).inspection.manifests.map((m) => m.path),
+    ).inspection.manifests.map((manifest) => manifest.path),
   ).toEqual(['package.json']);
 });
 
@@ -221,9 +263,41 @@ it.each([
   { workspaces: false },
 ])('rejects invalid scope %j', (options) => {
   expect(() =>
-    inspect({ 'child/package.json': '{}', 'node_modules/package.json': '{}' }, options as never),
+    Reflect.apply(inspect, undefined, [
+      { 'child/package.json': '{}', 'node_modules/package.json': '{}' },
+      options,
+    ]),
   ).toThrow(/exclude|installation|workspaces|pmVersion/iu);
 });
+
+it.each(['exclude', 'installationRoots'] as const)(
+  'rejects holes in %s even when keys() and the iterator hide them',
+  async (option) => {
+    const sparse = Object.defineProperties(Array<string>(1), {
+      keys: { value: function* () {} },
+      [Symbol.iterator]: { value: function* () {} },
+    });
+    const { io, out } = captureIO();
+
+    await expect(
+      lintCommand(
+        {
+          cwd: asAbsPath('/repo'),
+          fs: createMemFileSystem({}),
+          installationRoots: [],
+          [option]: sparse,
+          reporter: 'json',
+        },
+        io,
+      ),
+    ).rejects.toMatchObject({
+      name: 'ConfigError',
+      exitCode: 2,
+      message: `${option} must be a dense array.`,
+    });
+    expect(out()).toBe('');
+  },
+);
 
 it('keeps final output stable across directory enumeration orders and treats installation wildcards literally', () => {
   const files = {
@@ -249,7 +323,7 @@ it('guards an old additional root remedy before cwd-relative rebasing', () => {
       installationRoots: [{ path: 'tool', pm: 'npm', pmVersion: '9.4.0' }],
     },
   );
-  expect(result.findings.find((f) => f.ruleId === 'provenance')).toMatchObject({
+  expect(result.findings.find((finding) => finding.ruleId === 'provenance')).toMatchObject({
     directory: 'tool',
     file: 'tool/package.json',
     remediation: {
@@ -259,8 +333,8 @@ it('guards an old additional root remedy before cwd-relative rebasing', () => {
   });
   expect(
     result.findings
-      .filter((f) => f.ruleId === 'unsupported-settings')
-      .map((f) => f.file)
+      .filter((finding) => finding.ruleId === 'unsupported-settings')
+      .map((finding) => finding.file)
       .sort(),
   ).toEqual(['tool/.npmrc', 'tool/package.json']);
 });
@@ -277,7 +351,7 @@ it('normalizes identical literal roots and replaces config arrays rather than me
       config: { exclude: ['child'], installationRoots: ['.'] },
     },
   );
-  expect(result.inspection.installationRoots.map((r) => r.directory)).toEqual(['child']);
+  expect(result.inspection.installationRoots.map((root) => root.directory)).toEqual(['child']);
 });
 
 it.each([
@@ -300,23 +374,38 @@ it.each([
   expect(out()).toBe('');
 });
 
-it.each([undefined, 'not-array', ['..'], ['.'], [''], ['a/b'], [null], Array(1)])(
-  'rejects missing or malformed enumeration: %j',
-  (names) => {
-    const fs = createMemFileSystem({});
-    fs.readDirectories = names === undefined ? (undefined as never) : () => names as never;
-    expect(() => inspect({}, { fs })).toThrow(/FileSystem.readDirectories/);
+it.each([
+  { name: 'missing method', names: undefined },
+  { name: 'non-array response', names: 'not-array' },
+  { name: 'parent component', names: ['..'] },
+  {
+    name: 'parent component hidden by entries()',
+    names: Object.defineProperty(['..'], 'entries', { value: function* () {} }),
   },
-);
+  { name: 'current directory component', names: ['.'] },
+  { name: 'empty component', names: [''] },
+  { name: 'multiple components', names: ['a/b'] },
+  { name: 'non-string component', names: [null] },
+  { name: 'sparse response', names: Array(1) },
+])('rejects enumeration with a $name', ({ names }) => {
+  const fs = createMemFileSystem({});
+  const invalidFs = { ...fs, readDirectories: names === undefined ? undefined : () => names };
+  expect(() => Reflect.apply(inspect, undefined, [{}, { fs: invalidFs }])).toThrow(
+    /FileSystem.readDirectories/,
+  );
+});
 
 it.each([null, undefined])(
   'rejects invalid enumeration results as configuration errors without output: %s',
   async (names) => {
     const fs = createMemFileSystem({});
-    fs.readDirectories = () => names as never;
+    const invalidFs = { ...fs, readDirectories: () => names };
     const { io, out } = captureIO();
     await expect(
-      lintCommand({ cwd: asAbsPath('/repo'), fs, installationRoots: [], reporter: 'json' }, io),
+      Reflect.apply(lintCommand, undefined, [
+        { cwd: asAbsPath('/repo'), fs: invalidFs, installationRoots: [], reporter: 'json' },
+        io,
+      ]),
     ).rejects.toMatchObject({ name: 'ConfigError', exitCode: 2 });
     expect(out()).toBe('');
   },
@@ -337,16 +426,16 @@ it('propagates enumeration/read errors, never emits successful partial results',
 
 it('custom rules run only at cwd, and all-off custom rules do not require a PM', () => {
   const roots: string[] = [];
-  const custom = {
+  const custom: Rule = {
     id: 'custom',
-    title: 't',
-    description: 'd',
-    severity: 'warn' as const,
+    title: 'Custom scope probe',
+    description: 'Observe which repository contexts run custom rules.',
+    severity: 'warn',
     bindings: {
       npm: {
         check: (ctx: { root: string }) => {
           roots.push(ctx.root);
-          return { state: 'ok' as const };
+          return { state: 'ok' };
         },
       },
     },
@@ -368,43 +457,112 @@ it('shares successful manifest reads within a run but not across calls', () => {
       '{"name":"first","packageManager":"npm@9.4.0","publishConfig":{"provenance":true}}',
   });
   const read = fs.readText;
-  let count = 0;
-  fs.readText = (file) =>
-    file.endsWith('package.json') && ++count > 1
-      ? '{"private":true,"packageManager":"npm@12.0.2"}'
-      : read(file);
+  const readManifest = vi
+    .fn<typeof fs.readText>()
+    .mockImplementationOnce(read)
+    .mockReturnValue('{"private":true,"packageManager":"npm@12.0.2"}');
+  fs.readText = (file) => (file.endsWith('package.json') ? readManifest(file) : read(file));
   const result = inspect({}, { fs, installationRoots: ['.'] });
-  expect(count).toBe(1);
+  expect(readManifest).toHaveBeenCalledOnce();
   expect(
-    result.findings.filter((f) => f.ruleId === 'unsupported-settings').map((f) => f.file),
+    result.findings
+      .filter((finding) => finding.ruleId === 'unsupported-settings')
+      .map((finding) => finding.file),
   ).toContain('package.json');
   expect(packageFindings(inspect({}, { fs, installationRoots: ['.'] }))).toEqual([]);
 });
 
 it('npm provenance remedy changes the overriding manifest leaf, preserving sibling settings', () => {
   const pkg = { name: 'pkg', publishConfig: { access: 'public', provenance: false } };
-  const files = { 'package.json': json(pkg), '.npmrc': 'provenance=true' };
+  const files = { 'package.json': JSON.stringify(pkg), '.npmrc': 'provenance=true' };
   const result = inspect(files, { installationRoots: ['.'], pm: 'npm', pmVersion: '12.0.2' });
-  const finding = result.findings.find((f) => f.ruleId === 'provenance');
+  const finding = result.findings.find((candidate) => candidate.ruleId === 'provenance');
   expect(finding).toMatchObject({ file: 'package.json', actual: false });
   const remedy = finding?.remediation;
   expect(remedy?.kind).toBe('automatic');
   if (remedy?.kind !== 'automatic') throw new Error('expected remedy');
-  for (const operation of remedy.operations) {
-    expect(operation.file).toEqual(CONFIG_FILES.packageJson);
-    expect(operation.keyPath).toEqual(['publishConfig', 'provenance']);
-    pkg.publishConfig.provenance = operation.value === true;
-  }
+  expect(remedy.operations).toEqual([
+    {
+      op: 'setKey',
+      file: CONFIG_FILES.packageJson,
+      keyPath: ['publishConfig', 'provenance'],
+      value: true,
+    },
+  ]);
+  const [provenanceOperation] = remedy.operations;
+  pkg.publishConfig.provenance = provenanceOperation.value === true;
   const rerun = inspect(
-    { ...files, 'package.json': json(pkg) },
+    { ...files, 'package.json': JSON.stringify(pkg) },
     { installationRoots: ['.'], pm: 'npm' },
   );
-  expect(rerun.findings.filter((f) => f.ruleId === 'provenance')).toEqual([]);
+  expect(rerun.findings.some((candidate) => candidate.ruleId === 'provenance')).toBe(false);
   expect(pkg.publishConfig.access).toBe('public');
 });
 
 it.each([null, 'true', [], {}])('rejects malformed consumed provenance %j', (provenance) => {
-  expect(() => inspect({ 'package.json': json({ publishConfig: { provenance } }) })).toThrow(
-    /provenance/,
-  );
+  expect(() =>
+    inspect({ 'package.json': JSON.stringify({ publishConfig: { provenance } }) }),
+  ).toThrow(/provenance/);
+});
+
+describe('Deno metadata validation', () => {
+  it.each([
+    { name: 123 },
+    { name: [] },
+    { name: {} },
+    { publish: 'false' },
+    { publish: [] },
+    { publish: { include: 3 } },
+    { publish: { include: [false] } },
+  ])('rejects malformed consumed Deno metadata before applicability: %j', (manifest) => {
+    for (const prefix of ['', 'child/']) {
+      expect(() =>
+        inspect(
+          { [`${prefix}deno.json`]: JSON.stringify(manifest) },
+          {
+            projectType: 'application',
+            config: { rules: { 'files-field': 'off' } },
+          },
+        ),
+      ).toThrow(`${prefix}deno.json`);
+    }
+  });
+
+  it.each([
+    {},
+    { name: null },
+    { publish: null },
+    { publish: true },
+    { publish: false },
+    { publish: { include: null, future: true } },
+    { name: '@a/b', publish: { include: ['mod.ts'] } },
+  ])('preserves legitimate nullable/boolean Deno metadata and unknown fields: %j', (manifest) => {
+    expect(() => inspect({ 'deno.json': JSON.stringify(manifest) })).not.toThrow();
+  });
+
+  it('does not validate excluded malformed metadata', () => {
+    expect(
+      inspect({ 'child/deno.json': '{"name":123}' }, { exclude: ['child'] }).inspection.manifests,
+    ).toEqual([]);
+  });
+});
+
+it('unknown child availability and inspection scope remain explicit', () => {
+  const fs = createMemFileSystem({
+    'package.json': '{"private":true,"packageManager":"npm@12.0.2"}',
+    'child/package.json': '{"name":"child","packageManager":"pnpm@latest"}',
+    'child/pnpm-workspace.yaml': 'strictDepBuilds: false',
+  });
+  const result = lint({ cwd: asAbsPath('/repo'), fs });
+  expect(result.inspection.installationRoots.map((root) => root.directory)).toEqual(['.']);
+  expect(
+    result.inspection.manifests.find((manifest) => manifest.path === 'child/package.json')?.targets,
+  ).toEqual([{ pm: 'pnpm' }]);
+  const childScriptFinding = expect.objectContaining({
+    directory: 'child',
+    ruleId: 'disable-lifecycle-scripts',
+  });
+  expect(result.findings).not.toContainEqual(childScriptFinding);
+  const expanded = lint({ cwd: asAbsPath('/repo'), fs, installationRoots: ['.', 'child'] });
+  expect(expanded.findings).toContainEqual(childScriptFinding);
 });

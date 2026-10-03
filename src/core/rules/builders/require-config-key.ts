@@ -26,7 +26,7 @@ export interface RequireConfigKeySpec {
   /** Only unconditional defaults may reduce severity; omitted means conditional. */
   readonly defaultSafety?: 'unconditional' | 'conditional';
   /**
-   * Severity used when `documentedDefault` satisfies the requirement. Defaults
+   * Severity when an unconditional `documentedDefault` satisfies the requirement. Defaults
    * to `'info'` (advisory). Set `'off'` to silence the finding entirely.
    */
   readonly defaultSatisfiedSeverity?: Severity | 'off';
@@ -56,14 +56,17 @@ const accepts = (spec: RequireConfigKeySpec, actual: unknown): boolean =>
 
 const checkKeyValue = (spec: RequireConfigKeySpec, config: ParsedConfig): CheckStatus => {
   const actual = getByPath(config, spec.keyPath);
-  const coveredByDefault =
+  const isCoveredByUnconditionalDefault =
     actual === undefined &&
     spec.documentedDefault !== undefined &&
     spec.defaultSafety === 'unconditional' &&
     accepts(spec, spec.documentedDefault);
 
-  if (!coveredByDefault && accepts(spec, actual)) return { state: 'ok' };
-  const severity = coveredByDefault ? (spec.defaultSatisfiedSeverity ?? 'info') : undefined;
+  if (!isCoveredByUnconditionalDefault && accepts(spec, actual)) return { state: 'ok' };
+
+  const severity = isCoveredByUnconditionalDefault
+    ? (spec.defaultSatisfiedSeverity ?? 'info')
+    : undefined;
   if (severity === 'off') return { state: 'ok' };
   return {
     state: 'violation',
@@ -87,16 +90,15 @@ const buildBinding = (
       return { state: 'na' };
     }
     const status = checkKeyValue(spec, config);
-    return status.state === 'violation'
-      ? {
-          ...status,
-          remediation: guardRemediationAvailability(pm, ctx.pmVersion, status.remediation, [spec]),
-        }
-      : status;
+    if (status.state !== 'violation') return status;
+    // Public bindings can be checked directly, without evaluateBinding's proposal guard.
+    return {
+      ...status,
+      remediation: guardRemediationAvailability(pm, ctx.pmVersion, status.remediation, [spec]),
+    };
   },
   docs: spec.docs,
   file: spec.file,
-
   severity: spec.severity,
   versionNote: spec.versionNote,
 });
@@ -108,12 +110,11 @@ export const requireConfigKey = <const Id extends string>(
   const bindings: Partial<Record<PM, RuleBinding>> = {};
   for (const pm of PMS) {
     const spec = options.bindings[pm];
-    if (typeof spec !== 'undefined') {
-      if ('extraFix' in spec) {
-        throw new TypeError('extraFix is no longer supported; use a custom binding.');
-      }
-      bindings[pm] = buildBinding(spec, pm, options.applies);
+    if (spec === undefined) continue;
+    if ('extraFix' in spec) {
+      throw new TypeError('extraFix is no longer supported; use a custom binding.');
     }
+    bindings[pm] = buildBinding(spec, pm, options.applies);
   }
   return {
     bindings,

@@ -24,14 +24,10 @@ export class UsageError extends SiroError {
 /** Parser diagnostics constructed from constant classifications, never source excerpts. */
 export class ConfigParseError extends Error {}
 
-/**
- * Run `fn` and wrap any non-`ConfigError` failure as a `ConfigError` prefixed
- * with `filePath`. A `ConfigError` that bubbles up from a nested call is re-thrown unchanged so
- * the original `path: message` framing is preserved.
- */
-export const wrapCodecError = <TResult>(filePath: string, fn: () => TResult): TResult => {
+/** Prefix sanitized parser failures with the file path; preserve existing ConfigErrors. */
+export const wrapCodecError = <TResult>(filePath: string, parse: () => TResult): TResult => {
   try {
-    return fn();
+    return parse();
   } catch (error) {
     if (error instanceof ConfigError) {
       throw error;

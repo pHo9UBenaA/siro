@@ -16,7 +16,7 @@ const result: LintResult = {
   findings: [
     {
       directory: '.',
-      actual: void 0,
+      actual: undefined,
       expected: true,
       file: '.npmrc',
       remediation: {
@@ -30,7 +30,6 @@ const result: LintResult = {
           },
         ],
       },
-
       message: 'Set `save-exact=true` in .npmrc.',
       pm: 'npm',
       ruleId: 'pin-exact-versions',
@@ -44,7 +43,6 @@ const result: LintResult = {
 
 describe('json reporter contract', () => {
   it('renders one parseable document with versions, summary, and remediation', async () => {
-    expect.hasAssertions();
     expect(await render(result)).toMatchObject({
       schemaVersion: 3,
       inspection: { manifests: [], installationRoots: [] },

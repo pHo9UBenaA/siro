@@ -15,6 +15,7 @@ it.each([
   expect(text).not.toContain('\u001b');
   expect(text).not.toContain('\u202e');
 });
+
 it('retains JSON keys, values and literal escapes without exposing legacy commands', () => {
   const data = {
     '##[error]key': '##[add-mask]value\u0085\u202e',

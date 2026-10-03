@@ -1,11 +1,9 @@
-import type { CheckStatus, Rule, RuleBinding } from './contracts/rule.ts';
+import type { ViolationStatus, Rule, RuleBinding } from './contracts/rule.ts';
 import type { Severity } from './contracts/pms.ts';
-
-type Violation = Extract<CheckStatus, { state: 'violation' }>;
 
 /** Resolve the most specific severity signal for one finding. */
 export const decideSeverity = (
-  status: Violation,
+  status: ViolationStatus,
   binding: RuleBinding,
   rule: Rule,
   userOverride?: Severity,

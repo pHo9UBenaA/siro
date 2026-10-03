@@ -3,7 +3,7 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": ["ES2023"],
+    "lib": ["ES2024"],
     "typeRoots": ["node_modules/@types", "node_modules"],
     "types": ["node", "vitest/globals"],
     "strict": true,

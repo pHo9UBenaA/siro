@@ -1,12 +1,13 @@
 import { CONFIG_FILES } from '../../../src/core/config-files.ts';
 import { proposeChanges } from '../../../src/core/rules/remediation.ts';
+import type { SetKeyOperation } from '../../../src/core/contracts/rule.ts';
 
 const operation = {
   file: CONFIG_FILES.bunfig,
   keyPath: ['install', 'exact'],
   op: 'setKey',
   value: true,
-} as const;
+} satisfies SetKeyOperation;
 
 it('allows a scalar write when its parent path is absent', () => {
   expect(proposeChanges({}, [operation])).toStrictEqual({

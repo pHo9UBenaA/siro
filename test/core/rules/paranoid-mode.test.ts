@@ -1,26 +1,23 @@
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import { paranoidMode } from '../../../src/core/rules/paranoid-mode.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 
-const { aube } = paranoidMode.bindings;
-assert(aube, 'expected aube binding');
-const aubeBinding = aube;
+const aubeBinding = bindingForTest(paranoidMode, 'aube');
 
 describe('paranoid-mode: check states', () => {
   it('passes when paranoid is true', () => {
-    expect.hasAssertions();
     expect(aubeBinding.check(makeCtx(), { paranoid: true }).state).toBe('ok');
   });
 
-  it('reports the missing setting with its severity, scope and remediation', () => {
+  it('proposes paranoid in aube-workspace.yaml when absent', () => {
     const status = aubeBinding.check(makeCtx(), {});
 
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.message).toContain('paranoid');
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },
         keyPath: ['paranoid'],
@@ -31,7 +28,6 @@ describe('paranoid-mode: check states', () => {
   });
 
   it('flags a violation when paranoid is false', () => {
-    expect.hasAssertions();
     expect(aubeBinding.check(makeCtx(), { paranoid: false }).state).toBe('violation');
   });
 });

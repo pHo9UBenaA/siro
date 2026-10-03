@@ -1,24 +1,24 @@
 import type { Writable } from 'node:stream';
 import type { IO } from '../core/contracts/io.ts';
 
-const writer = (stream: Writable): ((line: string) => Promise<void>) => {
+const createStreamLineWriter = (stream: Writable): ((line: string) => Promise<void>) => {
   let failure: Error | undefined;
-  const pending = new Set<(error: Error) => void>();
+  const pendingRejects = new Set<(error: Error) => void>();
   const fail = (cause: unknown): Error => {
     failure ??= new Error(
       `Output failed: ${cause instanceof Error ? cause.message : String(cause)}`,
       { cause },
     );
-    for (const reject of pending) reject(failure);
-    pending.clear();
+    for (const reject of pendingRejects) reject(failure);
+    pendingRejects.clear();
     return failure;
   };
-  let observing = false;
+  let isObservingErrors = false;
   return (line) => {
     // Importing the library must not intercept unrelated process stream errors.
     // A callback may precede the error event, so retain one listener after first use.
-    if (!observing) {
-      observing = true;
+    if (!isObservingErrors) {
+      isObservingErrors = true;
       stream.on('error', fail);
       stream.on('close', () => fail(new Error('Output stream closed.')));
     }
@@ -27,10 +27,10 @@ const writer = (stream: Writable): ((line: string) => Promise<void>) => {
         reject(failure ?? fail(new Error('Output stream is destroyed.')));
         return;
       }
-      pending.add(reject);
+      pendingRejects.add(reject);
       try {
         stream.write(`${line}\n`, (error) => {
-          pending.delete(reject);
+          pendingRejects.delete(reject);
           if (error) reject(fail(error));
           else resolve();
         });
@@ -43,8 +43,8 @@ const writer = (stream: Writable): ((line: string) => Promise<void>) => {
 
 /** Node-only construction; keep streams and their errors outside the core. */
 export const createNodeIO = (stdout: Writable, stderr: Writable): IO => ({
-  stdout: writer(stdout),
-  stderr: writer(stderr),
+  stdout: createStreamLineWriter(stdout),
+  stderr: createStreamLineWriter(stderr),
 });
 
 export const nodeIO: IO = createNodeIO(process.stdout, process.stderr);

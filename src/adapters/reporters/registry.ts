@@ -14,7 +14,7 @@ export const JSON_REPORTER_NAME = jsonReporter.name;
 
 /** Names of every built-in reporter, in stable display order. */
 export const BUILTIN_REPORTER_NAMES: readonly BuiltinReporterName[] = BUILTINS.map(
-  (rep) => rep.name,
+  (reporter) => reporter.name,
 );
 
 /** Literal union of every built-in reporter name. */
@@ -25,7 +25,11 @@ export type BuiltinReporterName = (
 )['name'];
 
 /** Later registrations replace earlier reporters with the same name. */
-export const createRegistry = (extras: readonly Reporter[] = []): ReadonlyMap<string, Reporter> =>
-  new Map([...BUILTINS, ...extras].map((reporter) => [reporter.name, reporter]));
+export const createRegistry = (extras: readonly Reporter[] = []): ReadonlyMap<string, Reporter> => {
+  const registry = new Map<string, Reporter>();
+  for (const reporter of BUILTINS) registry.set(reporter.name, reporter);
+  for (const reporter of extras) registry.set(reporter.name, reporter);
+  return registry;
+};
 
 export { githubReporter, jsonReporter, prettyReporter };

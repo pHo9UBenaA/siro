@@ -1,11 +1,12 @@
 import { type Severity, isSeverity } from './contracts/pms.ts';
-import { type Reporter, isReporterShape } from './contracts/reporter.ts';
+import { type Reporter, type ReportContext, isReporterShape } from './contracts/reporter.ts';
 import { exitCodeForLint, filterBySeverity } from './filter.ts';
 import type { IO } from './contracts/io.ts';
 import { UsageError } from './contracts/errors.ts';
 import type { LintDependencies } from './contracts/lint-dependencies.ts';
 import { prepareLint, runPreparedLint, type LintOptions } from './lint.ts';
-import { outputBudget } from './contracts/scan-limits.ts';
+import { outputBudget, type ScanLimits } from './contracts/scan-limits.ts';
+import type { LintResult } from './contracts/lint-result.ts';
 
 export interface LintCommandOptions extends LintOptions {
   readonly reporter?: string | Reporter;
@@ -37,26 +38,35 @@ export const lintCommand = async (
   }
   const result = runPreparedLint(prepared.evaluation);
   const exitCode = exitCodeForLint(result, options.severity ?? 'error');
-  // Observe every returned write promise immediately, including writes made by
-  // legacy synchronous reporters that do not await their sink. Preserve the
-  // original failure and await completion even after a reporter throws.
-  const writes: Promise<void>[] = [];
-  const consumeOutput = outputBudget(prepared.evaluation.limits.maxOutputBytes);
-  let outputFailed = false;
-  let outputFailure: unknown;
+  await reportAndAwaitWrites(reporter, filterBySeverity(result, options.severity ?? 'info'), io, {
+    cwd: options.cwd,
+    limits: prepared.evaluation.limits,
+  });
+  return exitCode;
+};
+
+const reportAndAwaitWrites = async (
+  reporter: Reporter,
+  result: LintResult,
+  io: IO,
+  context: ReportContext & { limits: ScanLimits },
+): Promise<void> => {
+  // Observe legacy unawaited writes immediately. A reporter throw takes precedence
+  // over sink failures, but all started writes must settle before it propagates.
+  const pendingWrites: Promise<void>[] = [];
+  const consumeOutput = outputBudget(context.limits.maxOutputBytes);
+  // The wrapper distinguishes "no failure" from a sink that throws undefined.
+  let outputFailure: { error: unknown } | undefined;
   const recordFailure = (error: unknown) => {
-    if (!outputFailed) {
-      outputFailed = true;
-      outputFailure = error;
-    }
+    outputFailure ??= { error };
   };
-  const track =
+  const trackWrite =
     (write: IO['stdout']): IO['stdout'] =>
     (line) => {
       try {
         consumeOutput(`${line}\n`);
         const written = write(line);
-        writes.push(Promise.resolve(written).then(() => {}, recordFailure));
+        pendingWrites.push(Promise.resolve(written).then(() => {}, recordFailure));
         return written;
       } catch (error) {
         recordFailure(error);
@@ -65,16 +75,15 @@ export const lintCommand = async (
     };
   try {
     await reporter.format(
-      filterBySeverity(result, options.severity ?? 'info'),
+      result,
       {
-        stdout: track((line) => io.stdout(line)),
-        stderr: track((line) => io.stderr(line)),
+        stdout: trackWrite((line) => io.stdout(line)),
+        stderr: trackWrite((line) => io.stderr(line)),
       },
-      { cwd: options.cwd, limits: prepared.evaluation.limits },
+      context,
     );
   } finally {
-    await Promise.all(writes);
+    await Promise.all(pendingWrites);
   }
-  if (outputFailed) throw outputFailure;
-  return exitCode;
+  if (outputFailure) throw outputFailure.error;
 };

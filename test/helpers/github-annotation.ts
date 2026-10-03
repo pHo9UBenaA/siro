@@ -5,7 +5,7 @@ export interface GithubAnnotation {
 }
 
 // Split literal delimiters before decoding, exactly once (a literal %0A must survive).
-const decode = (value: string, property = false): string => {
+const decode = (value: string, { property = false }: { property?: boolean } = {}): string => {
   const codes: Record<string, string> = {
     '%25': '%',
     '%0D': '\r',
@@ -22,11 +22,13 @@ const parseProps = (raw: string): Record<string, string> => {
     return props;
   }
   for (const entry of raw.split(',')) {
-    const eq = entry.indexOf('=');
-    if (eq === -1) {
+    const separatorIndex = entry.indexOf('=');
+    if (separatorIndex === -1) {
       throw new Error(`Malformed property in annotation: ${JSON.stringify(entry)}`);
     }
-    props[entry.slice(0, eq)] = decode(entry.slice(eq + 1), true);
+    props[entry.slice(0, separatorIndex)] = decode(entry.slice(separatorIndex + 1), {
+      property: true,
+    });
   }
   return props;
 };

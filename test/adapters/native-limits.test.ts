@@ -1,17 +1,13 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { createTestProject } from '../helpers/temp-project.ts';
 import path from 'node:path';
 import { asAbsPath, lint } from '../../src/index.ts';
 import { createNodeFileSystem } from '../../src/adapters/node-file-system.ts';
+import { isNodeError } from '../../src/adapters/node-errors.ts';
 import { resolveScanLimits } from '../../src/core/contracts/scan-limits.ts';
 
-let root: string;
-beforeEach(() => {
-  root = mkdtempSync(path.join(tmpdir(), 'siro-native-budget-'));
-});
-afterEach(() => rmSync(root, { recursive: true, force: true }));
-
 it('enforces cumulative native bytes and exact file byte boundaries', () => {
+  const root = createTestProject({});
   const file = asAbsPath(path.join(root, 'data'));
   writeFileSync(file, 'é');
   expect(createNodeFileSystem(resolveScanLimits({ maxFileBytes: 2 })).readText(file)).toBe('é');
@@ -24,6 +20,7 @@ it('enforces cumulative native bytes and exact file byte boundaries', () => {
 });
 
 it('counts ordinary files, not just child directories, before enumeration completes', () => {
+  const root = createTestProject({});
   for (const file of ['one', 'two', 'three']) writeFileSync(path.join(root, file), '');
   expect(
     createNodeFileSystem(resolveScanLimits({ maxEntries: 3 })).readDirectories(asAbsPath(root)),
@@ -34,6 +31,7 @@ it('counts ordinary files, not just child directories, before enumeration comple
 });
 
 it('rejects dangling/input/ancestor symlinks and symlink cwd under strict reads', (context) => {
+  const root = createTestProject({});
   const repository = path.join(root, 'repository');
   const outside = path.join(root, 'outside');
   mkdirSync(repository);
@@ -47,7 +45,7 @@ it('rejects dangling/input/ancestor symlinks and symlink cwd under strict reads'
     );
     symlinkSync(path.join(root, 'missing'), path.join(repository, 'package.json'));
   } catch (error) {
-    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') {
+    if (process.platform === 'win32' && isNodeError(error) && error.code === 'EPERM') {
       context.skip();
       return;
     }

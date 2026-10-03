@@ -33,12 +33,10 @@ const collectUnpinnedImports = (imports: unknown, location: string): string[] =>
 
 const MAX_SAMPLE_COUNT = 3;
 
-const formatOffenders = (offenders: readonly string[]): CheckStatus => {
+const createUnpinnedImportsViolation = (offenders: readonly string[]): CheckStatus => {
   const sample = offenders.slice(0, MAX_SAMPLE_COUNT).join(', ');
-  let more = '';
-  if (offenders.length > MAX_SAMPLE_COUNT) {
-    more = ` (and ${offenders.length - MAX_SAMPLE_COUNT} more)`;
-  }
+  const more =
+    offenders.length > MAX_SAMPLE_COUNT ? ` (and ${offenders.length - MAX_SAMPLE_COUNT} more)` : '';
   return {
     remediation: {
       kind: 'manual',
@@ -51,33 +49,29 @@ const formatOffenders = (offenders: readonly string[]): CheckStatus => {
   };
 };
 
-const OK: CheckStatus = { state: 'ok' };
-
-const unpinnedInlineImports = (config: ParsedConfig): string[] => {
+const collectUnpinnedInlineImports = (config: ParsedConfig): string[] => {
   const imports = getByPath(config, ['imports']);
   const offenders = imports == null ? [] : collectUnpinnedImports(imports, 'imports');
   const scopes = getByPath(config, ['scopes']);
-  if (scopes != null) {
-    if (!isPlainRecord(scopes)) throw new ConfigError('deno.json: scopes must be an object.');
-    for (const [scope, mapping] of Object.entries(scopes)) {
-      for (const offender of collectUnpinnedImports(mapping, `scopes[${JSON.stringify(scope)}]`))
-        offenders.push(offender);
-    }
+  if (scopes == null) return offenders;
+  if (!isPlainRecord(scopes)) throw new ConfigError('deno.json: scopes must be an object.');
+  for (const [scope, mapping] of Object.entries(scopes)) {
+    for (const offender of collectUnpinnedImports(mapping, `scopes[${JSON.stringify(scope)}]`))
+      offenders.push(offender);
   }
   return offenders;
 };
 
 const denoBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
-    const offenders = unpinnedInlineImports(config);
+    const offenders = collectUnpinnedInlineImports(config);
     if (offenders.length === 0) {
-      return OK;
+      return { state: 'ok' };
     }
-    return formatOffenders(offenders);
+    return createUnpinnedImportsViolation(offenders);
   },
   docs: 'https://docs.deno.com/runtime/reference/cli/add/',
   file: denoJson,
-
   versionNote: { configAvailableSince: 'deno 1.30.0' },
 };
 
@@ -87,7 +81,7 @@ const npmBinding: RuleBinding = {
   check(_ctx, config) {
     const exact = getByPath(config, ['save-exact']);
     const prefix = getByPath(config, ['save-prefix']);
-    if (exact === true || prefix === '' || prefix === '=') return OK;
+    if (exact === true || prefix === '' || prefix === '=') return { state: 'ok' };
     return {
       remediation: proposeChanges(config, [
         { op: 'setKey', file: npmrc, keyPath: ['save-exact'], value: true },
@@ -104,10 +98,12 @@ const aubeBinding: RuleBinding = {
   file: npmrc,
   docs: 'https://aube.sh/settings/#setting-saveprefix',
   check(_ctx, config) {
-    const prefixes = ['save-prefix', 'savePrefix']
-      .filter((key) => Object.hasOwn(config, key))
-      .map((key) => config[key]);
-    if (prefixes.length > 0 && prefixes.every((value) => value === '')) return OK;
+    const hasDashedPrefix = Object.hasOwn(config, 'save-prefix');
+    const hasCamelPrefix = Object.hasOwn(config, 'savePrefix');
+    const prefixesAreEmpty =
+      (!hasDashedPrefix || config['save-prefix'] === '') &&
+      (!hasCamelPrefix || config.savePrefix === '');
+    if ((hasDashedPrefix || hasCamelPrefix) && prefixesAreEmpty) return { state: 'ok' };
     return {
       remediation: {
         kind: 'manual',

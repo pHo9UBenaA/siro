@@ -2,16 +2,9 @@ import { CONFIG_FILES } from './config-files.ts';
 import type { PM } from './contracts/pms.ts';
 
 /**
- * Filenames that identify a package manager. `lockfiles[0]` is the
- * canonical/preferred one (used by lint messages and error
- * messages); the rest are legacy/alternative forms the PM writes itself.
- *
- * `lockfiles` and `configs` are **detection evidence** — their presence means
- * the PM is in use. `reusesLockfiles` is NOT evidence: it lists other PMs'
- * lockfile shapes that this PM will reuse rather than writing its own (aube),
- * so `commit-lockfile` accepts them but `detectPMs` ignores them — otherwise a
- * plain pnpm/npm repo would false-positive as aube. Keeping the two lists
- * separate is what lets detection stay a simple "any signal present?" check.
+ * Owned lockfiles and configs are PM detection evidence. The first lockfile is
+ * preferred in guidance. Reused foreign lockfiles satisfy policy but never
+ * identify a PM, or an ordinary npm/pnpm repository would be detected as Aube.
  */
 export interface PMSignals {
   readonly lockfiles: readonly [string, ...string[]];

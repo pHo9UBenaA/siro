@@ -47,10 +47,9 @@ const osvReport = vb.object({
 
 const parsePnpm = (value) => {
   const report = vb.parse(pnpmReport, value);
-  const total = Object.values(report.metadata.vulnerabilities).reduce(
-    (sum, severityCount) => sum + severityCount,
-    0,
-  );
+  let total = 0;
+  for (const severityCount of Object.values(report.metadata.vulnerabilities))
+    total += severityCount;
   const lines = Object.values(report.advisories).map(
     (item) => `${item.module_name}: ${item.title}`,
   );
@@ -59,20 +58,22 @@ const parsePnpm = (value) => {
 
 const parseOsv = (value) => {
   const report = vb.parse(osvReport, value);
-  const lines = (report.results ?? []).flatMap((source) =>
-    (source.packages ?? []).flatMap((item) =>
-      item.vulnerabilities.map(
-        (vuln) =>
-          `${item.package.name}@${item.package.version}: ${vuln.id}${vuln.summary ? ` (${vuln.summary})` : ''}`,
-      ),
-    ),
-  );
+  const lines = [];
+  for (const source of report.results ?? []) {
+    for (const item of source.packages ?? []) {
+      for (const vulnerability of item.vulnerabilities) {
+        lines.push(
+          `${item.package.name}@${item.package.version}: ${vulnerability.id}${vulnerability.summary ? ` (${vulnerability.summary})` : ''}`,
+        );
+      }
+    }
+  }
   return { total: lines.length, lines };
 };
 
 // Exit 0: completed clean checks; 1: findings; 2: incomplete/invalid audit.
 // Only ENOENT for the optional OSV executable is a skip, never a successful scan.
-const audit = (label, command, args, parse, optional = false) => {
+const audit = (label, command, args, parse, { optional = false } = {}) => {
   console.log(`## ${label}`);
   const result = spawnSync(command, args, {
     encoding: 'utf8',
@@ -106,20 +107,22 @@ const audit = (label, command, args, parse, optional = false) => {
   }
 };
 
-let pnpmStatus;
-try {
-  const pnpm = pnpmCommand(['audit', '--json']);
-  pnpmStatus = audit('pnpm audit', pnpm.command, pnpm.args, parsePnpm);
-} catch (error) {
-  console.error(`pnpm audit: ${safeText(error.message)}`);
-  pnpmStatus = 2;
-}
+const auditPnpm = () => {
+  try {
+    const pnpm = pnpmCommand(['audit', '--json']);
+    return audit('pnpm audit', pnpm.command, pnpm.args, parsePnpm);
+  } catch (error) {
+    console.error(`pnpm audit: ${safeText(error.message)}`);
+    return 2;
+  }
+};
+const pnpmStatus = auditPnpm();
 console.log('');
 const osvStatus = audit(
   'osv-scanner',
   'osv-scanner',
   ['scan', 'source', '--format', 'json', '--recursive', '.'],
   parseOsv,
-  true,
+  { optional: true },
 );
 process.exitCode = Math.max(pnpmStatus, osvStatus);

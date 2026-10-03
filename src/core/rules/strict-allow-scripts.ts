@@ -28,15 +28,15 @@ export const strictAllowScripts = defineRule({
             state: 'violation',
           };
         }
-        const strict = getByPath(config, ['strict-allow-scripts']);
-        if (strict === true) {
+        const strictAllowScriptsSetting = getByPath(config, ['strict-allow-scripts']);
+        if (strictAllowScriptsSetting === true) {
           return { state: 'ok' };
         }
         return {
           remediation: proposeChanges(config, [
             { file: npmrc, keyPath: ['strict-allow-scripts'], op: 'setKey', value: true },
           ]),
-          actual: strict,
+          actual: strictAllowScriptsSetting,
           expected: true,
           message:
             'Set `strict-allow-scripts=true` in .npmrc to fail installation for unreviewed install scripts.',

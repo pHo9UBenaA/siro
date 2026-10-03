@@ -12,10 +12,10 @@ const yarnMessage =
 const yarnBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
     const strictSsl = getByPath(config, ['enableStrictSsl']);
-    const whitelist = getByPath(config, ['unsafeHttpWhitelist']);
-    if (Array.isArray(whitelist) && whitelist.length > 0) {
+    const httpExceptions = getByPath(config, ['unsafeHttpWhitelist']);
+    if (Array.isArray(httpExceptions) && httpExceptions.length > 0) {
       return {
-        actual: whitelist,
+        actual: httpExceptions,
         expected: '',
         remediation: {
           kind: 'manual',
@@ -34,7 +34,7 @@ const yarnBinding: RuleBinding = {
       actual: strictSsl,
       expected: true,
       message: yarnMessage,
-      ...(strictSsl === undefined ? { severity: 'info' as const } : {}),
+      ...(strictSsl === undefined ? { severity: 'info' } : {}),
       remediation: proposeChanges(config, [
         { file: yarnrc, keyPath: ['enableStrictSsl'], op: 'setKey', value: true },
       ]),

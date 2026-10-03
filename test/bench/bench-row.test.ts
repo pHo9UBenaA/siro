@@ -1,11 +1,42 @@
-import type { Task } from 'tinybench';
+import type { Statistics, Task } from 'tinybench';
 import { extractBenchRows, printBench, type BenchRow } from '../../bench/bench-row.ts';
 
+// Only fields selected by the row formatter vary between measurements.
+const statistics = (overrides: Partial<Statistics>): Statistics => ({
+  aad: 0,
+  critical: 0,
+  df: 0,
+  mad: 0,
+  max: 0,
+  mean: 0,
+  min: 0,
+  moe: 0,
+  p50: 0,
+  p75: 0,
+  p99: 0,
+  p995: 0,
+  p999: 0,
+  rme: 0,
+  samples: undefined,
+  samplesCount: 0,
+  sd: 0,
+  sem: 0,
+  variance: 0,
+  ...overrides,
+});
+const runtimeInfo = {
+  runtime: 'node',
+  runtimeVersion: process.version,
+  timestampProviderName: 'performanceNow',
+} as const;
 const completedResult = {
+  ...runtimeInfo,
   state: 'completed',
-  latency: { mean: 0.08125, p99: 0.1525, samplesCount: 100, sd: 0.0054 },
-  throughput: { mean: 12_345 },
-} as unknown as Task['result'];
+  period: 0,
+  totalTime: 0,
+  latency: statistics({ mean: 0.08125, p99: 0.1525, samplesCount: 100, sd: 0.0054 }),
+  throughput: statistics({ mean: 12_345 }),
+} satisfies Task['result'];
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -20,9 +51,9 @@ it('maps completed task statistics in registration order', () => {
         name: 'second',
         result: {
           ...completedResult,
-          latency: { mean: 0.25, p99: 0.4, samplesCount: 20, sd: 0.02 },
-          throughput: { mean: 4000 },
-        } as Task['result'],
+          latency: statistics({ mean: 0.25, p99: 0.4, samplesCount: 20, sd: 0.02 }),
+          throughput: statistics({ mean: 4000 }),
+        },
       },
     ]),
   ).toEqual([
@@ -51,9 +82,10 @@ it('fails when a measured task throws', () => {
       {
         name: 'broken',
         result: {
+          ...runtimeInfo,
           error: new Error('measurement failed'),
           state: 'errored',
-        } as Task['result'],
+        },
       },
     ]),
   ).toThrow("Benchmark 'broken' failed: measurement failed");
@@ -68,7 +100,7 @@ it('rejects an incomplete task even when partial statistics are available', () =
     extractBenchRows([
       {
         name: 'partial',
-        result: { ...completedResult, state: 'aborted-with-statistics' } as Task['result'],
+        result: { ...completedResult, state: 'aborted-with-statistics' },
       },
     ]),
   ).toThrow('did not complete');

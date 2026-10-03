@@ -15,12 +15,12 @@ const npmBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
     const git = getByPath(config, ['allow-git']);
     const remote = getByPath(config, ['allow-remote']);
-    const invalid = [git, remote].find((value) => value !== undefined && !isRootOrNone(value));
-    if (invalid === undefined && git !== undefined && remote !== undefined) return { state: 'ok' };
+    if (isRootOrNone(git) && isRootOrNone(remote)) return { state: 'ok' };
+    const invalidValue = [git, remote].find((value) => value !== undefined && !isRootOrNone(value));
     return {
       state: 'violation',
       expected: 'none',
-      ...(invalid === undefined ? {} : { actual: invalid }),
+      ...(invalidValue === undefined ? {} : { actual: invalidValue }),
       message: npmMessage,
       remediation: proposeChanges(config, [
         { file: npmrc, keyPath: ['allow-git'], op: 'setKey', value: 'none' },
@@ -30,7 +30,6 @@ const npmBinding: RuleBinding = {
   },
   docs: 'https://docs.npmjs.com/cli/v12/using-npm/config#allow-git',
   file: npmrc,
-
   versionNote: { defaultSafeSince: 'npm 12.0.0' },
 };
 

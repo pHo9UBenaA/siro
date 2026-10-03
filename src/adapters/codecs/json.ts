@@ -3,14 +3,18 @@ import type { ConfigCodec } from '../../core/contracts/config-codec.ts';
 import { ConfigParseError } from '../../core/contracts/errors.ts';
 import { checkConfigDepth, DEFAULT_SCAN_LIMITS } from '../../core/contracts/scan-limits.ts';
 
-/** Strict JSON; runtime SyntaxError messages may disclose arbitrary source bytes. */
-export const parseJson = (text: string, maxDepth = DEFAULT_SCAN_LIMITS.maxConfigDepth): unknown => {
-  let value: unknown;
+// Runtime SyntaxError messages may disclose arbitrary source bytes.
+const decodeJson = (text: string): unknown => {
   try {
-    value = JSON.parse(text.trim());
+    return JSON.parse(text.trim());
   } catch {
     throw new ConfigParseError('invalid JSON');
   }
+};
+
+/** Strict JSON with bounded configuration nesting. */
+export const parseJson = (text: string, maxDepth = DEFAULT_SCAN_LIMITS.maxConfigDepth): unknown => {
+  const value = decodeJson(text);
   checkConfigDepth(value, maxDepth);
   return value;
 };

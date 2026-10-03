@@ -1,4 +1,4 @@
-import assert from 'node:assert';
+import { bindingForTest } from '../../../helpers/rules.ts';
 import type { ConfigFileRef } from '../../../../src/core/contracts/config-file-ref.ts';
 import { CONFIG_FILES } from '../../../../src/core/config-files.ts';
 import type { Rule, VersionNote } from '../../../../src/core/contracts/rule.ts';
@@ -8,58 +8,72 @@ import { makeCtx } from '../../../helpers/ctx.ts';
 
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
 
-const vnRule = (versionNote?: VersionNote): Rule => {
+it.each([
+  ['11.9.0', 'manual'],
+  ['11.10.0', 'automatic'],
+])('guards npm min-release-age remediation at version %s', (pmVersion, kind) => {
+  const rule = requireConfigKey({
+    id: 'age',
+    title: 'Age',
+    description: 'Age policy',
+    severity: 'warn',
+    bindings: {
+      npm: { file: npmrc, keyPath: ['min-release-age'], value: 3, message: 'Set an age.' },
+    },
+  });
+  expect(bindingForTest(rule, 'npm').check(makeCtx({ pmVersion }), {})).toMatchObject({
+    state: 'violation',
+    remediation: { kind },
+  });
+});
+
+const ruleWithVersionNote = (versionNote?: VersionNote): Rule => {
   return requireConfigKey({
     bindings: {
       npm: {
         file: npmrc,
-        keyPath: ['k'],
+        keyPath: ['enabled'],
         message: 'Pin the key explicitly.',
         value: true,
         versionNote,
       },
     },
-    description: 'd',
+    description: 'Carry display metadata without changing the check result.',
     id: 'version-note',
     severity: 'error',
-    title: 't',
+    title: 'Version note',
   });
 };
 
 describe('requireConfigKey passes spec.severity into binding', () => {
   it('copies an explicit binding severity and otherwise leaves it unset', () => {
-    expect.hasAssertions();
     const bindingSeverity = (severity?: 'info') => {
       const rule = requireConfigKey({
         bindings: {
           npm: {
             file: npmrc,
-            keyPath: ['x'],
-            message: 'm',
+            keyPath: ['enabled'],
+            message: 'Enable the policy.',
             severity,
             value: true,
           },
         },
-        description: 'd',
-        id: 'test-d1',
+        description: 'Preserve the optional binding severity.',
+        id: 'binding-severity',
         severity: 'error',
-        title: 't',
+        title: 'Binding severity',
       });
-      return rule.bindings.npm?.severity;
+      return bindingForTest(rule, 'npm').severity;
     };
     expect([bindingSeverity('info'), bindingSeverity()]).toStrictEqual(['info', undefined]);
   });
 });
 
 describe('versionNote metadata', () => {
-  const binding = (vn?: VersionNote) => {
-    const bd = vnRule(vn).bindings.npm;
-    assert(bd, 'expected npm binding');
-    return bd;
-  };
+  const binding = (versionNote?: VersionNote) =>
+    bindingForTest(ruleWithVersionNote(versionNote), 'npm');
 
   it('copies structured metadata without putting presentation data in the check result', () => {
-    expect.hasAssertions();
     const withMetadata = binding({ configAvailableSince: 'npm 9.0.0' });
     const check = withMetadata.check(makeCtx(), {});
     expect({

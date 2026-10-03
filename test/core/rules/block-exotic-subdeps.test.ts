@@ -1,28 +1,25 @@
-import assert from 'node:assert';
+import { assertCheckState, bindingForTest } from '../../helpers/rules.ts';
 import type { ParsedConfig } from '../../../src/core/contracts/config-value.ts';
 import { blockExoticSubdeps } from '../../../src/core/rules/block-exotic-subdeps.ts';
 import { makeCtx } from '../../helpers/ctx.ts';
 import { automaticOperations } from '../../helpers/remediation.ts';
 
-const { pnpm } = blockExoticSubdeps.bindings;
-assert(pnpm, 'expected pnpm binding');
+const pnpm = bindingForTest(blockExoticSubdeps, 'pnpm');
 
 describe('block-exotic-subdeps', () => {
   it('passes when blockExoticSubdeps is explicitly true', () => {
-    expect.hasAssertions();
     expect(pnpm.check(makeCtx(), { blockExoticSubdeps: true }).state).toBe('ok');
   });
 
-  it('flags a warn violation when explicitly set to false', () => {
-    expect.hasAssertions();
+  it('leaves explicit false at the rule severity', () => {
     const status = pnpm.check(makeCtx(), { blockExoticSubdeps: false });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
   });
 
   it('proposes pnpm URL restrictions with the supported binding scope', () => {
-    const ops = automaticOperations(pnpm.check(makeCtx(), {}));
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(pnpm.check(makeCtx(), {}));
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'pnpm-workspace.yaml' },
         keyPath: ['blockExoticSubdeps'],
@@ -38,12 +35,10 @@ describe('block-exotic-subdeps', () => {
   });
 });
 
-const { aube } = blockExoticSubdeps.bindings;
-assert(aube, 'expected aube binding');
+const aube = bindingForTest(blockExoticSubdeps, 'aube');
 
 describe('block-exotic-subdeps (aube)', () => {
   it('passes when blockExoticSubdeps is explicitly true', () => {
-    expect.hasAssertions();
     expect(aube.check(makeCtx(), { blockExoticSubdeps: true }).state).toBe('ok');
   });
 
@@ -54,8 +49,8 @@ describe('block-exotic-subdeps (aube)', () => {
 
     expect(aube.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },
         keyPath: ['blockExoticSubdeps'],
@@ -65,27 +60,21 @@ describe('block-exotic-subdeps (aube)', () => {
     ]);
   });
 
-  it('flags a warn violation when explicitly set to false', () => {
-    expect.hasAssertions();
+  it('leaves explicit false at the rule severity', () => {
     const status = aube.check(makeCtx(), { blockExoticSubdeps: false });
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
   });
 });
 
-const { npm } = blockExoticSubdeps.bindings;
-if (!npm) {
-  throw new TypeError('expected npm binding');
-}
+const npm = bindingForTest(blockExoticSubdeps, 'npm');
 
 describe('block-exotic-subdeps (npm)', () => {
   it('passes when both allow-git and allow-remote are root', () => {
-    expect.hasAssertions();
     expect(npm.check(makeCtx(), { 'allow-git': 'root', 'allow-remote': 'root' }).state).toBe('ok');
   });
 
   it('passes when both are none', () => {
-    expect.hasAssertions();
     expect(npm.check(makeCtx(), { 'allow-git': 'none', 'allow-remote': 'none' }).state).toBe('ok');
   });
 
@@ -93,27 +82,25 @@ describe('block-exotic-subdeps (npm)', () => {
     { 'allow-git': 'all', 'allow-remote': 'root' },
     { 'allow-git': 'root', 'allow-remote': 'all' },
   ])('keeps full severity when either URL restriction is explicitly unsafe (%j)', (config) => {
-    expect.hasAssertions();
     const status = npm.check(makeCtx(), config);
-    assert(status.state === 'violation');
+    assertCheckState(status, 'violation');
     expect(status.severity).toBeUndefined();
   });
 
   it.each<ParsedConfig>([{ 'allow-git': 'root' }, { 'allow-remote': 'root' }])(
     'keeps unset URL restrictions at full severity when npm 12 is unverified (%j)',
     (config) => {
-      expect.hasAssertions();
       const status = npm.check(makeCtx(), config);
-      expect(status).toMatchObject({ expected: 'none', state: 'violation' });
-      assert(status.state === 'violation');
+      assertCheckState(status, 'violation');
+      expect(status.expected).toBe('none');
       expect(status.severity).toBeUndefined();
     },
   );
 
   it('proposes both npm URL restrictions in .npmrc', () => {
-    const ops = automaticOperations(npm.check(makeCtx(), {}));
+    const operations = automaticOperations(npm.check(makeCtx(), {}));
     const npmrcFile = { kind: 'npmrc', path: '.npmrc' };
-    expect(ops).toStrictEqual([
+    expect(operations).toStrictEqual([
       { file: npmrcFile, keyPath: ['allow-git'], op: 'setKey', value: 'none' },
       { file: npmrcFile, keyPath: ['allow-remote'], op: 'setKey', value: 'none' },
     ]);

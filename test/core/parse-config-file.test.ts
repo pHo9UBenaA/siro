@@ -6,17 +6,14 @@ import {
 } from '../../src/core/parse-config-file.ts';
 import { ConfigError } from '../../src/core/contracts/errors.ts';
 import { asRelPath } from '../../src/core/contracts/paths.ts';
+import { captureThrown } from '../helpers/errors.ts';
 import { makeCtx } from '../helpers/ctx.ts';
-
-const makeCodec = (parse: ConfigCodec['parse']): ConfigCodec => ({
-  parse,
-});
 
 it('pairs a context with a fresh lazy parser without reading ahead', () => {
   const readText = vi.fn<() => string>(() => '{}');
   const ctx = makeCtx({ readText });
   const parse = vi.fn<ConfigCodec['parse']>(() => ({ approved: true }));
-  const codecFor: CodecFor = () => makeCodec(parse);
+  const codecFor: CodecFor = () => ({ parse });
   const first = createRepositoryEvaluation(ctx, codecFor);
   const second = createRepositoryEvaluation(ctx, codecFor);
   expect(first.ctx).toBe(ctx);
@@ -42,15 +39,9 @@ describe('createConfigParser — error handling', () => {
       })
       .mockReturnValue('{}');
     const parse = vi.fn<ConfigCodec['parse']>(() => ({ approved: true }));
-    const parseConfig = createConfigParser(() => makeCodec(parse), makeCtx({ readText }));
+    const parseConfig = createConfigParser(() => ({ parse }), makeCtx({ readText }));
     const file: ConfigFileRef = { kind: 'json', path: asRelPath('deno.json') };
-    let caught: unknown;
-    try {
-      parseConfig(file);
-    } catch (error) {
-      caught = error;
-    }
-    expect(caught).toBe(failure);
+    expect(captureThrown(() => parseConfig(file))).toBe(failure);
     expect(parse).not.toHaveBeenCalled();
     const value = parseConfig(file);
     expect(parseConfig(file)).toBe(value);
@@ -67,7 +58,7 @@ describe('createConfigParser — error handling', () => {
         throw new Error('Invalid input');
       })
       .mockReturnValue({ approved: true });
-    const parseConfig = createConfigParser(() => makeCodec(parse), makeCtx({ readText }));
+    const parseConfig = createConfigParser(() => ({ parse }), makeCtx({ readText }));
     const file: ConfigFileRef = { kind: 'json', path: asRelPath('deno.json') };
     expect(() => parseConfig(file)).toThrow('deno.json: Invalid configuration.');
     expect(parseConfig(file)).toEqual({ approved: true });
@@ -81,7 +72,7 @@ describe('createConfigParser — error handling', () => {
       .mockReturnValueOnce(undefined)
       .mockReturnValue('{}');
     const parse = vi.fn<ConfigCodec['parse']>(() => ({ approved: true }));
-    const codecFor: CodecFor = () => makeCodec(parse);
+    const codecFor: CodecFor = () => ({ parse });
     const ctx = makeCtx({ readText });
     const file: ConfigFileRef = { kind: 'json', path: asRelPath('deno.json') };
     const parseConfig = createConfigParser(codecFor, ctx);
@@ -94,17 +85,17 @@ describe('createConfigParser — error handling', () => {
   });
 
   it('wraps codec errors with file.path without disclosing unknown codec messages', () => {
-    expect.hasAssertions();
-    const codecFor: CodecFor = () =>
-      makeCodec(() => {
+    const codecFor: CodecFor = () => ({
+      parse() {
         throw new Error('unexpected token');
-      });
+      },
+    });
     const ctx = makeCtx({ readText: () => 'garbage' });
     const file: ConfigFileRef = { kind: 'yaml', path: asRelPath('pnpm-workspace.yaml') };
     const parseConfig = createConfigParser(codecFor, ctx);
 
-    expect(() => parseConfig(file)).toThrow(ConfigError);
-    expect(() => parseConfig(file)).toThrow(/pnpm-workspace\.yaml/u);
-    expect(() => parseConfig(file)).toThrow(/Invalid configuration/u);
+    const failure = captureThrown(() => parseConfig(file));
+    expect(failure).toBeInstanceOf(ConfigError);
+    expect(failure).toMatchObject({ message: 'pnpm-workspace.yaml: Invalid configuration.' });
   });
 });

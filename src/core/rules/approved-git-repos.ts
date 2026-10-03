@@ -1,4 +1,4 @@
-import { isStringList } from './config-predicates.ts';
+import { isNonBlankStringArray } from './config-predicates.ts';
 import { type RuleBinding, defineRule } from '../contracts/rule.ts';
 import { CONFIG_FILES } from '../config-files.ts';
 import { getByPath } from '../contracts/config-value.ts';
@@ -11,7 +11,7 @@ const message =
 const yarnBinding: RuleBinding = {
   check(_ctx, config) {
     const value = getByPath(config, ['approvedGitRepositories']);
-    if (isStringList(value)) {
+    if (isNonBlankStringArray(value)) {
       return { state: 'ok' };
     }
     return {
@@ -29,7 +29,6 @@ const yarnBinding: RuleBinding = {
   },
   docs: 'https://yarnpkg.com/configuration/yarnrc#approvedGitRepositories',
   file: yarnrc,
-
   versionNote: { configAvailableSince: 'yarn 4.14.0' },
 };
 

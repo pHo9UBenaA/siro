@@ -20,6 +20,7 @@ import {
   parseExcludes,
   parseInstallationRoots,
   type InstallationRootInput,
+  type InstallationRoot,
 } from './inspection-options.ts';
 import { createUnsupportedSettings } from './rules/unsupported-settings.ts';
 import { checkManifest, manifestProjectType } from './manifest-checks.ts';
@@ -47,7 +48,7 @@ export interface LintOptions {
 
 interface DirectoryEvaluation extends DiscoveredDirectory {
   readonly targets: readonly PolicyTarget[];
-  readonly installation: boolean;
+  readonly isInstallationRoot: boolean;
 }
 interface LintEvaluation {
   readonly directories: readonly DirectoryEvaluation[];
@@ -82,6 +83,62 @@ const validateLintOptions = (
     );
 };
 
+const attachTargetVersions = (
+  pms: readonly PM[],
+  versions: Partial<Record<PM, string>>,
+): PolicyTarget[] =>
+  pms.map((pm) => ({
+    pm,
+    ...(versions[pm] === undefined ? {} : { version: versions[pm] }),
+  }));
+
+const resolveDirectoryTargets = (
+  item: DiscoveredDirectory,
+  installationRoot: InstallationRoot | undefined,
+  options: LintOptions,
+  config: SiroConfig | undefined,
+  hasActiveCustomRules: boolean,
+): PolicyTarget[] => {
+  const { ctx } = item.repository;
+  const declaredVersions = declaredPMVersion(ctx.packageJson?.packageManager);
+  if (item.directory === '.') {
+    const pms = resolvePMs(ctx, {
+      allowed: config?.pms,
+      pmOverride: options.pm,
+      optional: !installationRoot && !hasActiveCustomRules,
+    });
+    const versions = {
+      ...declaredVersions,
+      ...config?.pmVersions,
+      ...(options.pm && options.pmVersion ? { [options.pm]: options.pmVersion } : {}),
+    };
+    return attachTargetVersions(pms, versions);
+  }
+  if (installationRoot) {
+    try {
+      const pms = resolvePMs(ctx, { pmOverride: installationRoot.pm });
+      const versions = {
+        ...declaredVersions,
+        ...(installationRoot.pm && installationRoot.pmVersion
+          ? { [installationRoot.pm]: installationRoot.pmVersion }
+          : {}),
+      };
+      return attachTargetVersions(pms, versions);
+    } catch (error) {
+      if (error instanceof UsageError) throw new UsageError(`${item.directory}: ${error.message}`);
+      throw error;
+    }
+  }
+  const declared =
+    ctx.packageJson?.packageManager === undefined
+      ? undefined
+      : parsePackageManagerField(ctx.packageJson.packageManager);
+  const manifestPMs = PMS.filter(
+    (pm) => pm === declared || (pm === 'deno' && item.manifests.includes('deno.json')),
+  );
+  return attachTargetVersions(manifestPMs, declaredVersions);
+};
+
 /** Validate inputs and prepare shared contexts, without running rules or child executable configs. */
 export const prepareLint = (options: LintOptions, dependencies: LintDependencies): PreparedLint => {
   validateLintOptions(options, dependencies.paths);
@@ -96,13 +153,15 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
   const excluded = dependencies.compileExclusions(
     parseExcludes(options.exclude !== undefined ? options.exclude : (config?.exclude ?? [])),
   );
-  const installations = parseInstallationRoots(
-    options.installationRoots !== undefined
-      ? options.installationRoots
-      : (config?.installationRoots ?? ['.']),
+  const installations = new Map(
+    parseInstallationRoots(
+      options.installationRoots !== undefined
+        ? options.installationRoots
+        : (config?.installationRoots ?? ['.']),
+    ).map((root) => [root.path, root]),
   );
   const configured = applyConfig(dependencies.rules, config);
-  const needsCustomTarget = configured.rules.some((rule) => scopeOf(rule.id) === 'custom');
+  const hasActiveCustomRules = configured.rules.some((rule) => scopeOf(rule.id) === 'custom');
   const discovered = discover(
     options.cwd,
     fs,
@@ -111,53 +170,25 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
     dependencies,
     limits,
   );
-  for (const entry of installations) {
-    if (!discovered.some((item) => item.directory === entry.path))
+  const selectedDirectories = new Set<string>(discovered.map((item) => item.directory));
+  for (const path of installations.keys()) {
+    if (!selectedDirectories.has(path))
       throw new UsageError(
-        `${entry.path}: installation root must be an existing, selected ordinary directory using its exact enumerated spelling (no symlinks, excluded or hard-skipped paths).`,
+        `${path}: installation root must be an existing, selected ordinary directory using its exact enumerated spelling (no symlinks, excluded or hard-skipped paths).`,
       );
   }
   const directories = discovered.map((item): DirectoryEvaluation => {
-    const { ctx } = item.repository;
-    const entry = installations.find((root) => root.path === item.directory);
-    let pms: readonly PM[];
-    let versions = declaredPMVersion(ctx.packageJson?.packageManager);
-    if (item.directory === '.') {
-      pms = resolvePMs(ctx, {
-        allowed: config?.pms,
-        pmOverride: options.pm,
-        optional: !entry && !needsCustomTarget,
-      });
-      versions = {
-        ...versions,
-        ...config?.pmVersions,
-        ...(options.pm && options.pmVersion ? { [options.pm]: options.pmVersion } : {}),
-      };
-    } else if (entry) {
-      try {
-        pms = resolvePMs(ctx, { pmOverride: entry.pm });
-      } catch (error) {
-        if (error instanceof UsageError)
-          throw new UsageError(`${item.directory}: ${error.message}`);
-        throw error;
-      }
-      if (entry.pm && entry.pmVersion) versions = { ...versions, [entry.pm]: entry.pmVersion };
-    } else {
-      const declared =
-        ctx.packageJson?.packageManager === undefined
-          ? undefined
-          : parsePackageManagerField(ctx.packageJson.packageManager);
-      pms = PMS.filter(
-        (pm) => pm === declared || (pm === 'deno' && item.manifests.includes('deno.json')),
-      );
-    }
+    const installationRoot = installations.get(item.directory);
     return {
       ...item,
-      installation: entry !== undefined,
-      targets: pms.map((pm) => ({
-        pm,
-        ...(versions[pm] === undefined ? {} : { version: versions[pm] }),
-      })),
+      isInstallationRoot: installationRoot !== undefined,
+      targets: resolveDirectoryTargets(
+        item,
+        installationRoot,
+        options,
+        config,
+        hasActiveCustomRules,
+      ),
     };
   });
   return {
@@ -171,15 +202,47 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
   };
 };
 
+const unsupportedInstallationBindings = createUnsupportedSettings(
+  (file) => file !== 'package.json' && file !== 'deno.json',
+).bindings;
+
+const groupRulesByScope = (ruleSet: readonly Rule[], includeRootInstallation: boolean) => {
+  const manifestRules: Rule[] = [];
+  const installationRules: Rule[] = [];
+  const rootRules: Rule[] = [];
+  for (const rule of ruleSet) {
+    const scope = scopeOf(rule.id);
+    if (scope === 'manifest' || scope === 'split') manifestRules.push(rule);
+    if (scope === 'custom') {
+      rootRules.push(rule);
+      continue;
+    }
+    if (scope !== 'installation' && scope !== 'split') continue;
+    const installationRule =
+      scope === 'split' ? { ...rule, bindings: unsupportedInstallationBindings } : rule;
+    installationRules.push(installationRule);
+    // Keep custom and installation checks interleaved in their original order at cwd.
+    if (includeRootInstallation) rootRules.push(installationRule);
+  }
+  return { manifestRules, installationRules, rootRules };
+};
+
 export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
   const { directories, ruleSet, severityOverrides, limits } = evaluation;
   const findings: Finding[] = [];
   const manifests: Inspection['manifests'][number][] = [];
   const installationRoots: Inspection['installationRoots'][number][] = [];
   const ruleOrder = new Map(ruleSet.map((rule, index) => [rule.id, index]));
+  const includeRootInstallation = directories.some(
+    (item) => item.directory === '.' && item.isInstallationRoot,
+  );
+  const { manifestRules, installationRules, rootRules } = groupRulesByScope(
+    ruleSet,
+    includeRootInstallation,
+  );
   for (const item of directories) {
-    const { directory, repository, targets, installation } = item;
-    const local: Finding[] = [];
+    const { directory, repository, targets, isInstallationRoot } = item;
+    const directoryFindings: Finding[] = [];
     for (const file of item.manifests) {
       const manifestTargets = targets.filter(({ pm }) =>
         file === 'deno.json' ? pm === 'deno' : pm !== 'deno',
@@ -189,43 +252,37 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
         projectType: manifestProjectType(repository, file),
         targets: manifestTargets,
       });
-      local.push(...checkManifest(repository, file, manifestTargets, ruleSet, severityOverrides));
-    }
-    if (installation) installationRoots.push({ directory, targets });
-    const scopedRules = ruleSet.flatMap((rule): Rule[] => {
-      const scope = scopeOf(rule.id);
-      if ((scope === 'installation' && installation) || (scope === 'custom' && directory === '.'))
-        return [rule];
-      if (scope === 'split' && installation)
-        return [
-          {
-            ...rule,
-            bindings: createUnsupportedSettings(
-              (file) => file !== 'package.json' && file !== 'deno.json',
-            ).bindings,
-          },
-        ];
-      return [];
-    });
-    try {
-      local.push(
-        ...runLint({
-          repository,
-          pms: targets.map(({ pm }) => pm),
-          pmVersions: Object.fromEntries(targets.map(({ pm, version }) => [pm, version])),
-          ruleSet: scopedRules,
-          severityOverrides,
-        }).findings,
+      const manifestFindings = checkManifest(
+        repository,
+        file,
+        manifestTargets,
+        manifestRules,
+        severityOverrides,
       );
-    } catch (error) {
-      if (error instanceof ConfigError && directory !== '.')
-        throw new ConfigError(`${directory}/${error.message}`);
-      throw error;
+      for (const finding of manifestFindings) directoryFindings.push(finding);
+    }
+    if (isInstallationRoot) installationRoots.push({ directory, targets });
+    if (directory === '.' || isInstallationRoot) {
+      try {
+        const installationFindings = runLint({
+          repository,
+          targets,
+          ruleSet: directory === '.' ? rootRules : installationRules,
+          severityOverrides,
+        }).findings;
+        for (const finding of installationFindings) directoryFindings.push(finding);
+      } catch (error) {
+        if (error instanceof ConfigError && directory !== '.')
+          throw new ConfigError(`${directory}/${error.message}`);
+        throw error;
+      }
     }
     // Stable user-facing rule order is independent of traversal/read order.
-    local.sort((a, b) => (ruleOrder.get(a.ruleId) ?? 0) - (ruleOrder.get(b.ruleId) ?? 0));
-    checkLimit('maxFindings', findings.length + local.length, limits);
-    for (const finding of local) findings.push(rebaseFinding(directory, finding));
+    directoryFindings.sort(
+      (left, right) => (ruleOrder.get(left.ruleId) ?? 0) - (ruleOrder.get(right.ruleId) ?? 0),
+    );
+    checkLimit('maxFindings', findings.length + directoryFindings.length, limits);
+    for (const finding of directoryFindings) findings.push(rebaseFinding(directory, finding));
   }
   const summary = { error: 0, warn: 0, info: 0 };
   for (const finding of findings) summary[finding.severity] += 1;

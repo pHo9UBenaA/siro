@@ -16,6 +16,24 @@ import { assertSynchronous } from './contracts/synchronous.ts';
 
 const RuleSettingSchema = vb.union([vb.picklist(SEVERITIES), vb.literal('off')]);
 
+const RuleOverridesSchema = vb.pipe(
+  vb.custom<Record<string, unknown>>(isPlainRecord, 'must be an object of rule settings'),
+  // record() drops own keys such as constructor, which are valid custom rule IDs.
+  vb.rawTransform(({ dataset, addIssue }) => {
+    const entries: [string, RuleSetting][] = [];
+    for (const [key, value] of Object.entries(dataset.value)) {
+      const result = vb.safeParse(RuleSettingSchema, value);
+      if (result.success) entries.push([key, result.output]);
+      else
+        addIssue({
+          message: result.issues[0].message,
+          path: [{ input: dataset.value, key, origin: 'value', type: 'object', value }],
+        });
+    }
+    return Object.fromEntries(entries);
+  }),
+);
+
 const ConfigSchema = vb.strictObject(
   {
     exclude: vb.optional(
@@ -56,27 +74,7 @@ const ConfigSchema = vb.strictObject(
     reporters: vb.optional(
       vb.array(vb.custom<Reporter>(isReporterShape, 'must be a { name, format } reporter')),
     ),
-    rules: vb.optional(
-      vb.pipe(
-        vb.custom<Record<string, unknown>>(isPlainRecord, 'must be an object of rule settings'),
-        // record() drops own keys such as constructor, which are valid custom rule IDs.
-        vb.rawTransform(({ dataset, addIssue }) => {
-          const entries: [string, RuleSetting][] = [];
-          for (const [key, value] of Object.entries(dataset.value)) {
-            const result = vb.safeParse(RuleSettingSchema, value);
-            if (result.success) {
-              entries.push([key, result.output]);
-            } else {
-              addIssue({
-                message: result.issues[0].message,
-                path: [{ input: dataset.value, key, origin: 'value', type: 'object', value }],
-              });
-            }
-          }
-          return Object.fromEntries(entries);
-        }),
-      ),
-    ),
+    rules: vb.optional(RuleOverridesSchema),
   },
   'unknown config key (check for a typo)',
 );
@@ -86,10 +84,12 @@ const formatIssues = (
 ): string =>
   issues
     .map((issue) => {
-      const keyPath = (issue.path ?? [])
-        .map((seg) => seg.key)
-        .filter((key): key is string | number => typeof key === 'string' || typeof key === 'number')
-        .join('.');
+      const keys: (string | number)[] = [];
+      for (const segment of issue.path ?? []) {
+        const key = segment.key;
+        if (typeof key === 'string' || typeof key === 'number') keys.push(key);
+      }
+      const keyPath = keys.join('.');
       if (keyPath) {
         return `${keyPath}: ${issue.message}`;
       }
