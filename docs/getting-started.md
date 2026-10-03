@@ -9,8 +9,9 @@ your repository:
 npx @pho9ubenaa/siro lint
 ```
 
-`npx` may download the tool. The CLI also executes the repository's `siro.config.*`,
-if present. For unfamiliar checkouts, disable executable config and reject symlink
+`npx` may download the tool. Executable repository configuration is not loaded
+automatically; it requires an explicit `--config <path>`. For unfamiliar checkouts,
+skip repository configuration and reject symlink
 input paths with `npx @pho9ubenaa/siro lint --no-config --strict-filesystem`, in an isolated environment
 without credentials. These options are not a sandbox; see the [threat model](threat-model.md).
 
@@ -28,7 +29,8 @@ directory are checked. By default, installation settings are checked only at the
 current directory, not every discovered package. PM workspace declarations do
 not limit discovery.
 
-To exclude intentional fixtures and generated packages, save `siro.config.mjs`:
+To exclude intentional fixtures and generated packages, save `siro.config.mjs`
+and select it with `npx @pho9ubenaa/siro lint --config ./siro.config.mjs`:
 
 ```js
 export default {
@@ -88,7 +90,7 @@ Add a script to `package.json`, preserving its other fields:
 
 ```json
 {
-  "scripts": { "lint:security": "siro lint" }
+  "scripts": { "lint:security": "siro lint --config ./siro.config.mjs" }
 }
 ```
 

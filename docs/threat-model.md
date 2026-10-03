@@ -7,12 +7,14 @@ helps review supported policy gaps; a clean result is not a security attestation
 
 - PM manifests and configuration are read as data. Built-in checks do not install
   dependencies, execute package scripts or edit files.
-- `siro.config.ts`, `.mjs`, and `.js` are executable code. The CLI imports cwd's
-  config automatically with the caller's permissions, before validating its exported
-  value. `--no-config` disables probing and execution of that config entirely.
+- `.ts`, `.mjs`, and `.js` configuration is executable code. `--config <path>`
+  explicitly opts into execution with the caller's permissions, before validating
+  its exported value. Automatic discovery refuses executable config without running
+  it. `--no-config` skips probing and loading repository configuration entirely.
   Custom rules and reporters have the same privileges and can alter results.
-- Library `lint` calls do not import repository code. `loadConfig` is an explicit
-  opt-in to execution. Child and additional-root executable configs are not loaded.
+- Library `lint` calls do not import repository code. Executing a config through
+  `loadConfig` requires an explicit `configPath`. Child and additional-root configs
+  are not loaded automatically.
 - Installing siro trusts its distributed code and dependencies. `npx` may download
   code before checking anything. Pin an exact version when repeatability matters.
 

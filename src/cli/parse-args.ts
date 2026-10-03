@@ -27,12 +27,14 @@ export type ParsedCommand =
       reporter: string;
       severity?: Severity;
       noConfig?: boolean;
+      configPath?: AbsPath;
       rejectSymlinks?: boolean;
       limits?: Partial<ScanLimits>;
     };
 
 const REPEATABLE_FLAGS = new Set(['exclude', 'installation-root']);
 const VALUE_FLAGS = new Set([
+  'config',
   'pm',
   'pm-version',
   'project-type',
@@ -140,6 +142,9 @@ export const parseCommand = (argv: readonly string[]): ParsedCommand => {
   }
   const reporter =
     values.get('reporter') ?? (flags.has('json') ? JSON_REPORTER_NAME : DEFAULT_REPORTER_NAME);
+  if (values.has('config') && flags.has('no-config'))
+    throw new UsageError('Use either --config or --no-config, not both.');
+  const configPath = values.get('config');
   const pmVersion = values.get('pm-version');
   const pm = parsePmFlag(values.get('pm'));
   if (pmVersion !== undefined && (!pm || !isStableVersion(pmVersion)))
@@ -155,6 +160,7 @@ export const parseCommand = (argv: readonly string[]): ParsedCommand => {
     projectType: parseProjectTypeFlag(values.get('project-type')),
     severity: parseSeverityFlag(values.get('severity')),
     ...(flags.has('no-config') ? { noConfig: true } : {}),
+    ...(configPath === undefined ? {} : { configPath: asAbsPath(path.resolve(configPath)) }),
     ...(flags.has('strict-filesystem') ? { rejectSymlinks: true } : {}),
     ...(Object.keys(limits).length ? { limits } : {}),
     reporter,

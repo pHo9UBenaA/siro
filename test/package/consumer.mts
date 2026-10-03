@@ -7,6 +7,7 @@ import {
   githubReporter,
   lint,
   lintCommand,
+  loadConfig,
   PMS,
   PROJECT_TYPES,
   version,
@@ -50,6 +51,11 @@ const emptyFs: FileSystem = {
   exists: () => false,
   readText: () => undefined,
 };
+const missingConfig = await loadConfig(asAbsPath('/virtual'), {
+  configPath: 'missing-siro-config.mjs',
+}).catch((error: unknown) => error);
+check(missingConfig instanceof ConfigError, 'explicit missing config rejects with ConfigError');
+
 const builtinId: Extract<keyof NonNullable<SiroConfig['rules']>, 'files-field'> = 'files-field';
 void builtinId;
 

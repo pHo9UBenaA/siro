@@ -12,14 +12,14 @@ const SEVERITIES_LIST = SEVERITIES.join('|');
 const FLAG_LINES = {
   json: '  --json               Shortcut for --reporter json',
   safety:
-    '  --no-config          Do not probe or execute repository siro.config.*\n  --strict-filesystem  Reject symlink input paths (not a containment sandbox)',
+    '  --config <path>      Load an explicitly trusted JS/TS config\n  --no-config          Do not probe or load repository configuration\n  --strict-filesystem  Reject symlink input paths (not a containment sandbox)',
   limits: limitHelp,
   pm: `  --pm <name>          Target a specific package manager (${PMS_LIST})`,
   pmVersion: '  --pm-version <x.y.z>  Target an exact stable PM version (requires --pm)',
   inspection:
     '  --exclude <pattern>  Exclude directories from recursive discovery (repeatable)\n  --installation-root <path>  Inspect local install policy here (repeatable; default .)',
   projectType: `  --project-type <type>  Project type (${PROJECT_TYPES_LIST}; default auto)`,
-  reporter: `  --reporter <name>    Reporter (${REPORTERS_LIST}; additional reporters can be registered via siro.config.ts)`,
+  reporter: `  --reporter <name>    Reporter (${REPORTERS_LIST}; custom reporters require --config)`,
   severity: `  --severity <level>   Show + fail on findings at or above this level (${SEVERITIES_LIST})`,
 } as const;
 

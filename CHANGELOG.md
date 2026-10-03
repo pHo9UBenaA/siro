@@ -7,9 +7,16 @@
   functions as configuration errors (CLI exit 2) instead of treating them as policy
   decisions. Async results are rejected without unhandled Promise rejections.
 - Simplify configuration and contributor documentation.
+- Stop automatically executing repository configuration. Use `--config <path>`
+  to select trusted `.ts`, `.mjs`, or `.js` code; otherwise existing executable
+  config produces a migration error without running it. `--no-config` still skips
+  configuration entirely and cannot be combined with `--config`.
+- `loadConfig(cwd)` no longer executes discovered code. Use
+  `loadConfig(cwd, { configPath: 'siro.config.mjs' })`; the optional Node-version
+  argument is now `options.nodeVersion`.
 
-Valid synchronous custom policies, public API types, CLI options, decoded JSON
-schema 3, Node requirements and inspection scope remain unchanged.
+Explicitly selected synchronous custom policies, decoded JSON schema 3, Node
+requirements and inspection scope remain unchanged.
 
 ## [0.6.2] — 2026-10-03
 

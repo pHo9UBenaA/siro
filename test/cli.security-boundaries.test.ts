@@ -12,8 +12,9 @@ const createPassingProject = () => {
   cpSync(path.resolve(import.meta.dirname, 'fixtures/npm-good'), root, { recursive: true });
   return root;
 };
-const run = (root: string, args: string[] = [], command = 'lint') => {
+const run = (root: string, args: string[] = [], command = 'lint', cwd?: string) => {
   const result = spawnSync(process.execPath, [cli, command, root, ...args], {
+    cwd,
     encoding: 'utf8',
     timeout: 5000,
     maxBuffer: 1024 * 1024,
@@ -22,6 +23,68 @@ const run = (root: string, args: string[] = [], command = 'lint') => {
   expect(result.signal).toBeNull();
   return result;
 };
+
+it.each(['ts', 'mjs', 'js'])('requires opt-in before evaluating a %s config', (extension) => {
+  const root = createPassingProject();
+  const marker = path.join(root, 'marker');
+  writeFileSync(
+    path.join(root, `siro.config.${extension}`),
+    `import { writeFileSync } from 'node:fs';
+    writeFileSync(${JSON.stringify(marker)}, 'ran');
+    export default {};`,
+  );
+  const result = run(root, ['--json']);
+  expect(existsSync(marker)).toBe(false);
+  expect(result.status).toBe(2);
+  expect(result.stdout).toBe('');
+  expect(result.stderr).toContain('--config');
+  expect(result.stderr).toContain('--no-config');
+});
+
+it('executes only the explicitly selected config, including its custom reporter', () => {
+  const root = createPassingProject();
+  const marker = path.join(root, 'marker');
+  writeFileSync(
+    path.join(root, 'siro.config.mjs'),
+    `import { writeFileSync } from 'node:fs';
+    writeFileSync(${JSON.stringify(marker)}, 'untrusted');
+    export default {};`,
+  );
+  const config = path.join(root, 'trusted-policy.mjs');
+  writeFileSync(
+    config,
+    `export default { reporters: [{
+      name: 'trusted', format(_result, io) { return io.stdout('trusted output'); },
+    }] };`,
+  );
+  const result = run(root, ['--config', config, '--reporter', 'trusted']);
+  expect(result.status).toBe(0);
+  expect(result.stdout).toBe('trusted output\n');
+  expect(existsSync(marker)).toBe(false);
+});
+
+it('resolves --config relative to the shell directory, not the lint target', () => {
+  const root = createPassingProject();
+  const shellDirectory = createTestProject({
+    'policy.mjs': 'export default { installationRoots: [] };',
+  });
+  const result = run(root, ['--config', 'policy.mjs', '--json'], 'lint', shellDirectory);
+  expect(result.status).toBe(0);
+  expect(JSON.parse(result.stdout).inspection.installationRoots).toEqual([]);
+});
+
+it.each([
+  ['--config'],
+  ['--config='],
+  ['--config', 'policy.mjs', '--config', 'other.mjs'],
+  ['--config', 'policy.mjs', '--no-config'],
+])('rejects invalid config selection before running code: %s', (...args) => {
+  const root = createPassingProject();
+  const result = run(root, args);
+  expect(result.status).toBe(2);
+  expect(result.stdout).toBe('');
+  expect(result.stderr).toContain('--config');
+});
 
 it.each(['ts', 'mjs', 'js'])('does not evaluate %s config with --no-config', (extension) => {
   const root = createPassingProject();
@@ -70,7 +133,16 @@ it('validates explicit PM versions before executing trusted config', () => {
     writeFileSync(${JSON.stringify(marker)}, 'ran');
     export default {};`,
   );
-  expect(run(root, ['--pm', 'npm', '--pm-version', 'invalid']).status).toBe(2);
+  expect(
+    run(root, [
+      '--config',
+      path.join(root, 'siro.config.mjs'),
+      '--pm',
+      'npm',
+      '--pm-version',
+      'invalid',
+    ]).status,
+  ).toBe(2);
   expect(existsSync(marker)).toBe(false);
 });
 

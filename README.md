@@ -32,8 +32,8 @@ Discovery does not imply that every package's installation settings were inspect
 
 siro detects managers from `packageManager`, lockfiles, and configuration files. If it cannot
 detect one, choose it explicitly, for example `npx @pho9ubenaa/siro lint --pm npm`.
-The CLI may download code through `npx` and imports a repository's `siro.config.*` as executable
-code by default. For an unfamiliar project, use `npx @pho9ubenaa/siro lint --no-config --strict-filesystem`
+`npx` may download code. Executable repository configuration requires an explicit
+`--config <path>` and runs with your permissions. For an unfamiliar project, use `npx @pho9ubenaa/siro lint --no-config --strict-filesystem`
 in an isolated environment without credentials. These flags do not sandbox npx or
 extensions; see the [threat model](docs/threat-model.md).
 
@@ -71,7 +71,7 @@ For exclusions and rule overrides, see the [configuration examples](docs/configu
 | `--severity <error\|warn\|info>`          | Set both the display and CI failure threshold; default failure threshold is `error`.      |
 | `--reporter <pretty\|json\|github>`       | Choose terminal, JSON, or GitHub Actions output; `--json` is a JSON shortcut.             |
 
-`--no-config` disables executable configuration; `--strict-filesystem` rejects
+`--no-config` skips repository configuration; `--strict-filesystem` rejects
 symlink input paths in native data reads. Scans also have finite caller-controlled
 [file, tree, nesting, finding and output budgets](docs/configuration.md#strict-filesystem-and-scan-budgets).
 Overflow fails the check rather than silently skipping inputs.

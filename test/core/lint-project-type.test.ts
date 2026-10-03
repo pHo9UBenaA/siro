@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { run } from '../../src/cli.ts';
 import { asAbsPath } from '../../src/adapters/node-paths.ts';
 import { captureIO } from '../helpers/io.ts';
@@ -43,7 +44,10 @@ describe('project type selection', () => {
     const { io, out } = captureIO();
 
     try {
-      await run(['lint', dir, '--reporter', 'json'], io);
+      await run(
+        ['lint', dir, '--config', path.join(dir, 'siro.config.mjs'), '--reporter', 'json'],
+        io,
+      );
 
       const result: { findings: { ruleId: string }[] } = JSON.parse(out());
       const ids = result.findings.map((finding) => finding.ruleId);
@@ -64,7 +68,19 @@ describe('project type selection', () => {
     const { io, out } = captureIO();
 
     try {
-      await run(['lint', dir, '--project-type', 'application', '--reporter', 'json'], io);
+      await run(
+        [
+          'lint',
+          dir,
+          '--config',
+          path.join(dir, 'siro.config.mjs'),
+          '--project-type',
+          'application',
+          '--reporter',
+          'json',
+        ],
+        io,
+      );
 
       const result: { findings: { ruleId: string }[] } = JSON.parse(out());
       const packageRules = new Set(['files-field', 'provenance', 'publish-access']);

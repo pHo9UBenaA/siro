@@ -6,11 +6,15 @@ import { pathToFileURL } from 'node:url';
 
 const cli = path.resolve(import.meta.dirname, '../dist/cli.js');
 const run = (root: string, ...args: string[]) => {
-  const result = spawnSync(process.execPath, [cli, 'lint', root, ...args], {
-    encoding: 'utf8',
-    timeout: 10_000,
-    env: { ...process.env, NO_COLOR: '1' },
-  });
+  const result = spawnSync(
+    process.execPath,
+    [cli, 'lint', root, '--config', path.join(root, 'siro.config.mjs'), ...args],
+    {
+      encoding: 'utf8',
+      timeout: 10_000,
+      env: { ...process.env, NO_COLOR: '1' },
+    },
+  );
   expect(result.error).toBeUndefined();
   expect(result.signal).toBeNull();
   return result;
@@ -185,10 +189,14 @@ it.each(['--json', '--help', '--version'])(
   async (flag) => {
     const root = fixture({ 'siro.config.mjs': 'export default {installationRoots:[]};' });
     try {
-      const child = spawn(process.execPath, [cli, 'lint', root, flag], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        timeout: 10_000,
-      });
+      const child = spawn(
+        process.execPath,
+        [cli, 'lint', root, '--config', path.join(root, 'siro.config.mjs'), flag],
+        {
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: 10_000,
+        },
+      );
       try {
         const stderrChunks: string[] = [];
         child.stderr.setEncoding('utf8').on('data', (chunk: string) => {

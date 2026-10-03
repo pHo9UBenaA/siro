@@ -2,7 +2,8 @@
 
 ## Rule settings
 
-Save `siro.config.mjs` in the directory you pass to `lint`. No import is required,
+Save `siro.config.mjs` and explicitly select it with
+`npx @pho9ubenaa/siro lint --config ./siro.config.mjs`. No import is required,
 so this example also works with `npx` without a local siro dependency:
 
 ```js
@@ -225,13 +226,18 @@ npm provenance, Deno release-age fallback and npm shrinkwrap compatibility.
 
 ## Executable CLI configuration
 
-The CLI loads cwd's first existing `siro.config.ts`, `.mjs`, or `.js`, in that
-order. It does not search parents or load child/additional-root executable configs.
-Config runs with the caller's privileges; see the [threat model](threat-model.md).
-TypeScript must use Node-supported erasable syntax. This default is automatic
-execution, not an opt-in or sandbox. `--no-config` disables repository configuration,
-ignoring all its settings and extensions. CLI options and built-in defaults still
-apply; unknown custom reporter names are errors.
+Executable `.ts`, `.mjs`, and `.js` settings require `--config <path>`. Paths are
+relative to the shell's working directory, not the lint target. Only the selected
+file is loaded; settings are not merged with other files. Config runs with the
+caller's privileges; see the [threat model](threat-model.md). TypeScript must use
+Node-supported erasable syntax. This option is trust, not a sandbox.
+
+Without `--config`, finding cwd's `siro.config.ts`, `.mjs`, or `.js` produces a
+migration error (exit 2) without executing it. Parents and child/additional-root
+configs are not loaded. `--no-config` skips probing and loading all repository
+configuration, ignoring its settings and extensions. It cannot be combined with
+`--config`. CLI options and built-in defaults still apply; unknown custom reporter
+names are errors.
 
 Export a config object synchronously, using object literals for configuration and
 setting maps. Unknown keys, unknown or duplicate rule IDs, and malformed extensions
@@ -241,15 +247,18 @@ are errors. All selected targets share cwd's rule overrides and reporter registr
 
 Install siro as a project dependency before importing it. `lint` is synchronous;
 `lintCommand` evaluates and reports asynchronously. Neither implicitly executes
-repository configuration. Use `loadConfig` only for trusted code. Changes to modules
-imported by the config may require restarting the process.
+repository configuration. To execute trusted configuration, explicitly provide
+`loadConfig(cwd, { configPath: 'siro.config.mjs' })`; API paths are relative to `cwd`.
+Calling `loadConfig(cwd)` refuses existing executable config. Its former optional
+Node-version string is now `options.nodeVersion`. Changes to imported modules may
+require restarting the process.
 
 This example assumes `tools/standalone` is an existing independent install project:
 
 ```ts
 import { asAbsPath, lint, lintCommand, loadConfig, nodeIO } from '@pho9ubenaa/siro';
 const cwd = asAbsPath(process.cwd());
-const config = await loadConfig(cwd); // Explicitly executes trusted code.
+const config = await loadConfig(cwd, { configPath: 'siro.config.mjs' }); // Trusted code.
 const options = {
   cwd,
   config,
