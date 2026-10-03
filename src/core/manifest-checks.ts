@@ -12,6 +12,12 @@ import { evaluateBinding } from './evaluate-binding.ts';
 import { runLint } from './run-lint.ts';
 
 type ManifestFile = 'package.json' | 'deno.json';
+// Coverage is static; each binding still reads the current repository and PM version.
+const unsupportedManifestBindings: Record<ManifestFile, Rule['bindings']> = {
+  'package.json': createUnsupportedSettings((file) => file === 'package.json').bindings,
+  'deno.json': createUnsupportedSettings((file) => file === 'deno.json').bindings,
+};
+
 export const manifestProjectType = (repository: RepositoryEvaluation, file: ManifestFile) =>
   file === 'deno.json'
     ? resolveDenoProjectType(repository.ctx, repository.parseConfig(CONFIG_FILES.denoJson))
@@ -52,9 +58,7 @@ export const checkManifest = (
       const unsupported = runLint({
         repository,
         targets,
-        ruleSet: [
-          { ...rule, bindings: createUnsupportedSettings((path) => path === file).bindings },
-        ],
+        ruleSet: [{ ...rule, bindings: unsupportedManifestBindings[file] }],
         severityOverrides: overrides,
       }).findings;
       for (const finding of unsupported) findings.push(finding);

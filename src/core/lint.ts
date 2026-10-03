@@ -202,6 +202,10 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
   };
 };
 
+const unsupportedInstallationBindings = createUnsupportedSettings(
+  (file) => file !== 'package.json' && file !== 'deno.json',
+).bindings;
+
 const selectInstallationRules = (ruleSet: readonly Rule[], item: DirectoryEvaluation): Rule[] => {
   const selected: Rule[] = [];
   for (const rule of ruleSet) {
@@ -215,9 +219,7 @@ const selectInstallationRules = (ruleSet: readonly Rule[], item: DirectoryEvalua
     if (scope === 'split') {
       selected.push({
         ...rule,
-        bindings: createUnsupportedSettings(
-          (file) => file !== 'package.json' && file !== 'deno.json',
-        ).bindings,
+        bindings: unsupportedInstallationBindings,
       });
     }
   }
