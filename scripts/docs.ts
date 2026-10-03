@@ -12,9 +12,9 @@ const COMPARISON_INTRO = `<!-- AUTO-GENERATED from the rule registry. Run \`pnpm
 
 Which security rules \`siro\` can check for each package manager.
 Generic \`files-field\` and portable \`publish-access\` checks also run on discovered
-manifests with unknown PMs, once per manifest. Other checks require local policy
-targets; installation checks run only at explicit installation roots. This matrix
-is not a claim of effective-policy inspection for every discovered package.
+manifests with unknown PMs. Installation checks run only at
+[explicit installation roots](configuration.md#inspection-scope-packages-and-installation-roots);
+discovering a package does not mean its installation settings were checked.
 **✅** = a check is implemented · **—** = no check is implemented.
 An absent check says nothing about the manager's capabilities. See the
 [rule reference](rules.md) for primary inputs, severity overrides, and version notes.
@@ -67,9 +67,9 @@ For pnpm, strictDepBuilds was introduced in 10.3.0; the checked YAML location re
 const renderRule = (rule: Rule): string => {
   const scopes = {
     installation: 'Explicit installation roots only (local settings).',
-    manifest: 'Every discovered manifest, with PM-neutral checks once per manifest.',
+    manifest: 'Every discovered manifest.',
     split:
-      'Manifest entries per local manifest target; install-config entries only at explicit installation roots.',
+      "Discovered manifests and explicit installation roots, using each directory's PM target.",
     custom: 'cwd only.',
   };
   const parts = [
@@ -79,7 +79,7 @@ const renderRule = (rule: Rule): string => {
   if (rule.projectTypes) parts.push(`\nApplies to: ${rule.projectTypes.join(', ')}.`);
   if (rule.id === 'provenance')
     parts.push(
-      '\nFor npm, own package.json publishConfig.provenance overrides .npmrc, including false. Manifest-only children do not receive effective provenance checks.',
+      '\nFor npm, package.json publishConfig.provenance overrides .npmrc, including false.',
     );
   if (rule.docs) parts.push(`\nUpstream: <${rule.docs}>`);
   parts.push(renderBindingsBlock(rule));

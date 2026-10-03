@@ -5,9 +5,8 @@ processing it. Messages are not stable identifiers. A registered custom `json`
 reporter may replace this contract. Await direct reporter calls and supply their scan
 context: `await jsonReporter.format(result, io, { cwd })`.
 
-Parse JSON rather than comparing serialized bytes: display controls and `##[` may
-use Unicode escapes without changing decoded values. No workflow-command wrappers
-surround the document. [Output budgets](configuration.md#strict-filesystem-and-scan-budgets)
+Parse JSON rather than comparing serialized bytes; escaping may change without
+changing decoded values. [Output budgets](configuration.md#strict-filesystem-and-scan-budgets)
 fail rather than silently truncating findings. Observed `actual` values are not secret-redacted.
 
 | Root field      | Meaning                                                                                |
@@ -55,8 +54,8 @@ is not attestation of an executed PM binary.
 Each finding requires `ruleId`, `directory`, `severity`, `message`. `directory` is
 cwd-relative; root is `.`. `pm` is optional and absent for generic publication
 checks. Optional fields also include `file`, `docs`, scalar `expected`, observed
-`actual`, and `remediation`. Undefined fields are omitted. File-less checks do not
-acquire a synthetic package.json. Multiple findings may share a rule ID.
+`actual`, and `remediation`. A finding without a responsible file omits `file`.
+Multiple findings may share a rule ID.
 
 ## Paths and remediation
 
@@ -92,11 +91,12 @@ Every operation in a multi-file remedy uses a cwd-relative file path.
 }
 ```
 
-Manual steps are nonempty and carry no operations. Non-object parent/container
-replacement or a known unsupported target can require manual guidance. A missing
-remediation proposes no change. siro **does not apply edits**. External consumers
-must review changes, preserve unrelated content/comments, resolve conflicts and
-rerun lint. Automatic describes a representation, not permission to write.
+Manual steps are nonempty and carry no operations. Manual guidance may be needed
+when a change would replace a setting's parent value or use a setting unsupported
+by the target PM version. A missing remediation proposes no change.
+siro **does not apply edits**. External consumers must review changes, preserve
+unrelated content/comments, resolve conflicts and rerun lint. Automatic describes
+a representation, not permission to write.
 
 For pairs in the [availability table](rules.md#checked-introduction-versions),
 a known too-old target makes the whole operation group manual upgrade guidance;

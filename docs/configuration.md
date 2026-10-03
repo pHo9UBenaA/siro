@@ -124,11 +124,11 @@ fields are type-checked even when publication checks are disabled; unknown field
 are not whole-schema validated. Lockfile checks establish file presence, not git
 tracking, content validity or freshness.
 
-PM configuration is parsed lazily, only when selected checks consume it. Missing
-optional PM configuration is evaluated as empty configuration; missing lockfiles
-normally produce policy findings, not parse errors. Empty YAML/TOML/INI is accepted.
-Non-selected PM files and disabled checks are not a whole-repository syntax audit.
-Parser diagnostics omit input excerpts; observed finding values are not redacted.
+Other PM configuration files are inspected only when needed by enabled checks.
+Missing optional PM configuration is treated as empty; missing lockfiles normally
+produce findings, not parse errors. Empty YAML/TOML/INI is accepted. This is not a
+whole-repository syntax audit. Parser diagnostics omit input excerpts; observed
+finding values are not redacted.
 
 ### Strict filesystem and scan budgets
 
@@ -139,8 +139,8 @@ npx @pho9ubenaa/siro lint --no-config --strict-filesystem
 ```
 
 `--strict-filesystem` (`rejectSymlinks: true` in the API) rejects a symlink selected
-as cwd and file/path symlinks below cwd, including dangling links. System ancestors
-of cwd are canonicalized; directory symlinks remain untraversed. The option applies
+as cwd and file/path symlinks below cwd, including dangling links. Symlinks above
+cwd are allowed; directory symlinks below cwd are not followed. The option applies
 to native data reads, not executable config or extension code. Combine it with
 `--no-config` for untrusted checkouts. Injected filesystems are trusted code and
 cannot use this option. Neither this check nor lexical path validation is an atomic
@@ -162,12 +162,10 @@ Each inspection has finite caller-controlled budgets. They are not config keys:
 
 All overrides must be positive safe integers. Defaults are exported as
 `DEFAULT_SCAN_LIMITS`; API callers can provide a partial `limits` object.
-Native reads bound actual bytes before/during reading, and enumeration counts all
-entries in visited directories, including files and skipped directory names.
-Injected IO is checked after returning data and counts returned child directories;
-siro cannot bound allocations made inside a supplied IO function. Decoded UTF-8 text
-is also byte-checked. Budgets apply per scan; config depth includes unconsumed
-manifest fields without whole-schema validation.
+Budgets apply per scan. File budgets cover input bytes and decoded UTF-8 text.
+Entry counts include files and skipped directories in visited directories; injected
+filesystems count only returned child directories. Configuration depth includes
+unused manifest fields. Custom filesystems must bound their own reads and allocations.
 
 Input/evaluation overflow aborts with exit 2, without a partial success document.
 Output overflow is exit 70; JSON is bounded before writing, while GitHub output may
@@ -231,22 +229,20 @@ The CLI loads cwd's first existing `siro.config.ts`, `.mjs`, or `.js`, in that
 order. It does not search parents or load child/additional-root executable configs.
 Config runs with the caller's privileges; see the [threat model](threat-model.md).
 TypeScript must use Node-supported erasable syntax. This default is automatic
-execution, not an opt-in or sandbox. `--no-config` skips config filename probing and
-import entirely, discarding its rule overrides, reporters, exclusions, installation
-roots, PM/version declarations and project type. CLI options and built-in defaults
-still apply; unknown custom reporter names fail rather than falling back.
+execution, not an opt-in or sandbox. `--no-config` disables repository configuration,
+ignoring all its settings and extensions. CLI options and built-in defaults still
+apply; unknown custom reporter names are errors.
 
-Unknown keys, unknown/duplicate rule IDs and malformed extensions are errors.
-Config exports and check results must be synchronous objects, not Promises or
-thenables. Config maps must be plain or null-prototype objects. Reporters may be
-async. All selected targets share cwd's rule overrides and reporter registration.
+Export a config object synchronously, using object literals for configuration and
+setting maps. Unknown keys, unknown or duplicate rule IDs, and malformed extensions
+are errors. All selected targets share cwd's rule overrides and reporter registration.
 
 ## Library use
 
 Install siro as a project dependency before importing it. `lint` is synchronous;
 `lintCommand` evaluates and reports asynchronously. Neither implicitly executes
-repository configuration. Use `loadConfig` only for trusted code; it reloads the
-entry module, not its imported dependencies.
+repository configuration. Use `loadConfig` only for trusted code. Changes to modules
+imported by the config may require restarting the process.
 
 This example assumes `tools/standalone` is an existing independent install project:
 
@@ -271,10 +267,9 @@ Use the public `@pho9ubenaa/siro` entry point; internal modules are not supporte
 
 The optional `fs` implements the exported `FileSystem` interface:
 
-- `readDirectories(directory)` is required. Return a dense array of ordinary native
-  child directory names, without symlinks, path separators, empty names, `.`, `..`
-  or NUL. POSIX backslashes/colons are valid native name characters. There is no
-  fallback to the host filesystem when this method is missing.
+- `readDirectories(directory)` is required. Return an array of immediate child
+  directory names, not paths, and omit symlinked directories. There is no fallback
+  to the host filesystem.
 - `readText(path)` returns text or `undefined` for absence; `exists(path)` returns
   whether a regular file exists. File symlinks are accepted.
 - Only ENOENT means absence. Access errors and non-file entries must throw.
@@ -291,9 +286,9 @@ Rule file paths are context-relative; reported file and operation paths are
 cwd-relative. A missing violation file uses the binding's file, if any.
 See [JSON output](json-output.md) for remediation shapes and path handling.
 
-`requireConfigKey.bindings` must be a plain or null-prototype object with own
-supported PM keys; unknown keys are errors. Its optional `accept` and `applies`
-predicates must return synchronous booleans, not Promises, thenables or other values.
+Use supported PM names and an object literal for `requireConfigKey.bindings`.
+Its optional `accept` and `applies` functions must return a boolean synchronously.
+Invalid names or return values are configuration errors.
 
 For `requireConfigKey`, `documentedDefault` may reduce omitted-setting severity
 only with `defaultSafety: 'unconditional'` and a default satisfying the requirement.
@@ -316,10 +311,10 @@ replace them by name. Reporters receive `format(result, io, { cwd })` and must b
 awaited, including direct calls. GitHub annotation files are absolute paths based
 on this scan cwd; API/JSON paths remain cwd-relative.
 
-`IO.stdout` / `stderr` may return promises. Await direct writes and handle rejection;
-synchronous return values are ignored. Reporters must finish their writes before
-returning. `lintCommand` waits for its reporter and supplied-IO writes. Output
-failure rejects the API and exits the CLI with `70`, not the findings exit `1`.
+`IO.stdout` / `stderr` may return promises. Await direct writes and handle rejection.
+Reporters must finish their writes before returning. `lintCommand` waits for reporting
+to finish; output failure rejects the API and exits the CLI with `70`, not the
+findings exit `1`.
 
 `check` aliases `lint`. Value options must be nonempty; only `--exclude` and
 `--installation-root` repeat. Boolean flags take no values. `--no-config` is an

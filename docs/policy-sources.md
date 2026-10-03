@@ -29,7 +29,7 @@ package exclusions are not audited.
   past cutoff satisfies the check. Future, disabled or malformed cutoffs require
   correction; setting a relative age alone does not repair the override. siro
   reports malformed dates even though npm discards them.
-- Own `package.json#publishConfig.provenance` overrides local `.npmrc#provenance`,
+- `package.json#publishConfig.provenance` overrides local `.npmrc#provenance`,
   including false. The remedy targets the responsible file. CLI flags and environment
   overrides are outside this check, and this precedence is not assumed for other PMs.
 - `publishConfig.access: "private"` is accepted as npm's alias of `"restricted"`.
@@ -100,8 +100,6 @@ Sources: [lifecycle scripts](https://bun.com/docs/pm/lifecycle),
   representable past cutoff. Version-dependent defaults remain conservatively
   reported when no active local value is provided.
 - Configured project-relative lockfile paths are honored; `lock: false` is flagged.
-- Publication metadata permits nullable name/include and boolean publish values.
-  siro validates consumed fields, not the entire Deno schema.
 
 Sources: [Deno 2.9.4 configuration](https://github.com/denoland/deno/blob/v2.9.4/libs/config/deno_json/mod.rs),
 [npmrc values](https://github.com/denoland/deno/blob/v2.9.4/libs/npmrc/lib.rs),
