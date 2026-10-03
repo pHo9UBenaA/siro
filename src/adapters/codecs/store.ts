@@ -16,21 +16,25 @@ const CODECS = {
 /** Look up the codec for a parseable kind. Total — every CodecKind has one. */
 export const codecFor: CodecFor = (kind) => CODECS[kind];
 
-export const createCodecFor = (limits: ScanLimits): CodecFor => {
-  return (kind) => {
-    // JSON and YAML check depth inside their parsers; other codecs need the wrapper.
-    if (kind === 'json') {
-      return { parse: (text) => toParsedConfig(parseJson(text, limits.maxConfigDepth)) };
-    }
-    if (kind === 'yaml') {
-      return { parse: (text) => parseYaml(text, limits.maxConfigDepth) };
-    }
-    return {
-      parse(text) {
-        const config = CODECS[kind].parse(text);
-        checkConfigDepth(config, limits.maxConfigDepth);
-        return config;
-      },
-    };
+const createBoundedCodec = (kind: CodecKind, limits: ScanLimits): ConfigCodec => {
+  // JSON and YAML check depth inside their parsers; other codecs need the wrapper.
+  if (kind === 'json') {
+    return { parse: (text) => toParsedConfig(parseJson(text, limits.maxConfigDepth)) };
+  }
+  if (kind === 'yaml') {
+    return { parse: (text) => parseYaml(text, limits.maxConfigDepth) };
+  }
+  return {
+    parse(text) {
+      const config = CODECS[kind].parse(text);
+      checkConfigDepth(config, limits.maxConfigDepth);
+      return config;
+    },
   };
+};
+
+export const createCodecFor = (limits: ScanLimits): CodecFor => {
+  // Reuse wrappers within this scan, never parsed contents or another scan's limits.
+  const codecs: Partial<Record<CodecKind, ConfigCodec>> = {};
+  return (kind) => (codecs[kind] ??= createBoundedCodec(kind, limits));
 };
