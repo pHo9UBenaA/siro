@@ -3,13 +3,8 @@ import { isPlainRecord } from './contracts/records.ts';
 import { isPM, type PM } from './contracts/pms.ts';
 import { isStableVersion } from './pm-versions.ts';
 
-export type InstallationRootInput =
-  | string
-  | {
-      readonly path: string;
-      readonly pm?: PM;
-      readonly pmVersion?: string;
-    };
+export type InstallationRootInput = string | InstallationRoot;
+/** @inline */
 export interface InstallationRoot {
   readonly path: string;
   readonly pm?: PM;
