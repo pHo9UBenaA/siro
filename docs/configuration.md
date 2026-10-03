@@ -291,6 +291,10 @@ Rule file paths are context-relative; reported file and operation paths are
 cwd-relative. A missing violation file uses the binding's file, if any.
 See [JSON output](json-output.md) for remediation shapes and path handling.
 
+`requireConfigKey.bindings` must be a plain or null-prototype object with own
+supported PM keys; unknown keys are errors. Its optional `accept` and `applies`
+predicates must return synchronous booleans, not Promises, thenables or other values.
+
 For `requireConfigKey`, `documentedDefault` may reduce omitted-setting severity
 only with `defaultSafety: 'unconditional'` and a default satisfying the requirement.
 Omitted safety or `'conditional'` keeps configured severity. `defaultSatisfiedSeverity`

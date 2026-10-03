@@ -12,6 +12,7 @@ import {
   version,
   requireConfigKey,
   CONFIG_FILES,
+  ConfigError,
   type LintResult,
   type SiroConfig,
   type FileSystem,
@@ -324,6 +325,46 @@ function verifyPublicBuilder() {
   );
 }
 
+function verifyPublicBuilderValidation() {
+  const options = {
+    id: 'company-policy',
+    title: 'Company policy',
+    description: 'Require approved',
+    severity: 'error',
+  };
+  const spec = {
+    file: CONFIG_FILES.npmrc,
+    keyPath: ['approved'],
+    value: true,
+    message: 'Enable approved',
+  };
+  const bindingFailure = captureThrown(() =>
+    Reflect.apply(requireConfigKey, undefined, [{ ...options, bindings: { nmp: spec } }]),
+  );
+  check(
+    bindingFailure instanceof ConfigError && /bindings.*nmp/.test(bindingFailure.message),
+    'public builder rejects unknown manager keys instead of dropping policy',
+  );
+  const rule: unknown = Reflect.apply(requireConfigKey, undefined, [
+    { ...options, bindings: { npm: { ...spec, accept: async () => false } } },
+  ]);
+  const predicateFailure = captureThrown(() =>
+    Reflect.apply(lint, undefined, [
+      {
+        cwd: asAbsPath('/virtual'),
+        fs: emptyFs,
+        pm: 'npm',
+        installationRoots: [],
+        config: { customRules: [rule] },
+      },
+    ]),
+  );
+  check(
+    predicateFailure instanceof ConfigError && /accept.*synchronous/.test(predicateFailure.message),
+    'public builder rejects async acceptance instead of reporting clean findings',
+  );
+}
+
 async function verifyGroupedResults() {
   const multi = defineRule({
     id: 'multiple',
@@ -372,4 +413,5 @@ await verifyJsonEscaping(result);
 await verifyGitHubReport(result);
 await verifyOutputFailure();
 verifyPublicBuilder();
+verifyPublicBuilderValidation();
 await verifyGroupedResults();

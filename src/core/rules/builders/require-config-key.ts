@@ -8,8 +8,11 @@ import {
   type ParsedConfig,
   getByPath,
 } from '../../contracts/config-value.ts';
-import { type PM, PMS, type Severity } from '../../contracts/pms.ts';
+import { type PM, PMS, isPM, type Severity } from '../../contracts/pms.ts';
 import type { RepoContext } from '../../contracts/repo-context.ts';
+import { ConfigError } from '../../contracts/errors.ts';
+import { isPlainRecord } from '../../contracts/records.ts';
+import { assertSynchronous } from '../../contracts/synchronous.ts';
 
 /** One public helper binding: setting requirement, safe-default policy and proposal. */
 export interface RequireConfigKeySpec {
@@ -20,6 +23,7 @@ export interface RequireConfigKeySpec {
   readonly message: string;
   readonly docs?: string;
   readonly severity?: Severity;
+  /** Synchronous acceptance predicate; must return a boolean. */
   accept?: (actual: unknown) => boolean;
   /** Recorded default value; does not establish safety without `defaultSafety`. */
   readonly documentedDefault?: ConfigValue;
@@ -40,9 +44,9 @@ export interface RequireConfigKeyOptions<Id extends string = string> {
   readonly severity: Severity;
   readonly docs?: string;
   readonly projectTypes?: Rule['projectTypes'];
-  /** Bindings keyed by PM. PMs absent from this map are treated as N/A. */
+  /** Plain or null-prototype map with own PM keys. Absent PMs are treated as N/A. */
   readonly bindings: Partial<Record<PM, RequireConfigKeySpec>>;
-  /** Return false to short-circuit `check` as N/A (e.g. private packages). */
+  /** Synchronous boolean predicate; false skips `check` as N/A (e.g. private packages). */
   applies?: (ctx: RepoContext) => boolean;
 }
 
@@ -51,8 +55,15 @@ export const overrideBindings = <Id extends string>(
   overrides: Partial<Rule['bindings']>,
 ): Rule<Id> => ({ ...rule, bindings: { ...rule.bindings, ...overrides } });
 
+const requireBooleanResult = (value: unknown, name: 'accept' | 'applies'): boolean => {
+  const label = `requireConfigKey ${name} predicate`;
+  assertSynchronous(value, label);
+  if (typeof value !== 'boolean') throw new ConfigError(`${label} must return a boolean.`);
+  return value;
+};
+
 const accepts = (spec: RequireConfigKeySpec, actual: unknown): boolean =>
-  spec.accept ? spec.accept(actual) : actual === spec.value;
+  spec.accept ? requireBooleanResult(spec.accept(actual), 'accept') : actual === spec.value;
 
 const checkKeyValue = (spec: RequireConfigKeySpec, config: ParsedConfig): CheckStatus => {
   const actual = getByPath(config, spec.keyPath);
@@ -86,7 +97,7 @@ const buildBinding = (
   applies?: (ctx: RepoContext) => boolean,
 ): RuleBinding => ({
   check(ctx, config): CheckStatus {
-    if (typeof applies !== 'undefined' && !applies(ctx)) {
+    if (applies !== undefined && !requireBooleanResult(applies(ctx), 'applies')) {
       return { state: 'na' };
     }
     const status = checkKeyValue(spec, config);
@@ -107,9 +118,17 @@ const buildBinding = (
 export const requireConfigKey = <const Id extends string>(
   options: RequireConfigKeyOptions<Id>,
 ): Rule<Id> => {
+  const specs = options.bindings;
+  if (!isPlainRecord(specs))
+    throw new ConfigError('requireConfigKey bindings must be a plain or null-prototype object.');
+  for (const key of Reflect.ownKeys(specs)) {
+    if (typeof key !== 'string' || !isPM(key))
+      throw new ConfigError(`Unknown package manager in requireConfigKey bindings: ${String(key)}`);
+  }
   const bindings: Partial<Record<PM, RuleBinding>> = {};
   for (const pm of PMS) {
-    const spec = options.bindings[pm];
+    if (!Object.hasOwn(specs, pm)) continue;
+    const spec = specs[pm];
     if (spec === undefined) continue;
     if ('extraFix' in spec) {
       throw new TypeError('extraFix is no longer supported; use a custom binding.');
