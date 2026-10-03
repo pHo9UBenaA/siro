@@ -49,7 +49,7 @@ export const createUnsupportedSettings = (includesFile: (file: string) => boolea
     id: 'unsupported-settings',
     title: 'Use settings available in the target PM version',
     description:
-      'Report configured settings whose recorded introduction version is newer than the declared or explicit stable PM target. Reports each affected file separately, grouping its unsupported keys. Findings retain their evaluation directory. Only the coverage table below is checked. Unknown targets and unlisted settings are not evaluated for availability.',
+      'Report configured settings introduced after the declared or explicit stable PM target version. Only the coverage table below is checked; unknown versions and unlisted settings are not assessed.',
     severity: 'error',
     docs: 'https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error',
     bindings: {

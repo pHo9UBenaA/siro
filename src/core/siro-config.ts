@@ -10,6 +10,7 @@ export type RuleSetting = Severity | 'off';
 
 /**
  * User-facing config returned by `defineConfig` in `siro.config.{ts,mjs,js}`.
+ * Use ordinary or null-prototype objects for config and setting maps.
  *
  *   defineConfig({
  *     pms: ['npm', 'pnpm'],            // restrict detection

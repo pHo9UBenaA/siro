@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.3] — 2026-10-03
+
+- Reject unknown package-manager names and invalid binding maps in `requireConfigKey`.
+- Report async or nonboolean results from `requireConfigKey`'s `accept` and `applies`
+  functions as configuration errors (CLI exit 2) instead of treating them as policy
+  decisions. Async results are rejected without unhandled Promise rejections.
+- Simplify configuration and contributor documentation.
+
+Valid synchronous custom policies, public API types, CLI options, decoded JSON
+schema 3, Node requirements and inspection scope remain unchanged.
+
 ## [0.6.2] — 2026-10-03
 
 - Report oversized custom rule groups as finding-limit errors (CLI exit 2), rather

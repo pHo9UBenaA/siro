@@ -2,6 +2,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { rmSync, writeFileSync } from 'node:fs';
 import { createTempProject as fixture } from './helpers/temp-project.ts';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const cli = path.resolve(import.meta.dirname, '../dist/cli.js');
 const run = (root: string, ...args: string[]) => {
@@ -51,6 +52,51 @@ it.each([
     expect(result.status).toBe(2);
     expect(result.stdout).toBe('');
     expect(result.stderr).toMatch(/synchronous|Promise|async/);
+    expect(result.stderr).not.toContain('Node.js v');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+it.each([
+  { name: 'unknown PM key', bindingKey: 'nmp', predicate: '', diagnostic: /bindings.*nmp/ },
+  {
+    name: 'rejecting accept',
+    bindingKey: 'npm',
+    predicate: "accept: async () => { throw new Error('predicate rejected'); },",
+    diagnostic: /accept.*synchronous/,
+  },
+  {
+    name: 'async applies',
+    bindingKey: 'npm',
+    predicate: '',
+    applies: 'applies: async () => false,',
+    diagnostic: /applies.*synchronous/,
+  },
+])('rejects helper $name through executable config with exit 2', (input) => {
+  const entry = pathToFileURL(path.resolve(import.meta.dirname, '../dist/index.mjs')).href;
+  const root = fixture({
+    'siro.config.mjs': `
+      import { requireConfigKey, CONFIG_FILES } from ${JSON.stringify(entry)};
+      export default {
+        installationRoots: [],
+        customRules: [requireConfigKey({
+          id: 'company-policy', title: 'Company policy',
+          description: 'Require approved', severity: 'error',
+          ${input.applies ?? ''}
+          bindings: { ${input.bindingKey}: {
+            file: CONFIG_FILES.npmrc, keyPath: ['approved'],
+            value: true, message: 'Enable approved', ${input.predicate}
+          } },
+        })],
+      };
+    `,
+  });
+  try {
+    const result = run(root, '--pm', 'npm', '--json');
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toMatch(input.diagnostic);
     expect(result.stderr).not.toContain('Node.js v');
   } finally {
     rmSync(root, { recursive: true, force: true });

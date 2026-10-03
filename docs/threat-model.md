@@ -76,10 +76,10 @@ not sandbox them. See [JSON output](json-output.md) for consumer requirements.
 
 ## Release authority and impact
 
-Build and verification run without OIDC authority; a separate environment-bound job
-stages the verified artifact. Identity, digest and ancestry checks do not prove benign
-bytes or release authorization: compromised source or build tooling can still produce
-malicious packages. Maintainers must configure the [release controls](contributing.md#release-controls).
+Publishing authority is restricted to a separate approval-controlled job. Successful
+checks and provenance do not prove that a package is benign: compromised source or
+build tooling can still produce malicious packages. Maintainers must configure the
+[release controls](contributing.md#release-controls).
 
 ## Reporting vulnerabilities
 
