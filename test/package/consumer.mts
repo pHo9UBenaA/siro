@@ -19,6 +19,7 @@ import {
   type PM,
   type LintOptions,
   type RequireConfigKeySpec,
+  type Rule,
   DEFAULT_SCAN_LIMITS,
   type ScanLimits,
   type IO,
@@ -345,19 +346,17 @@ function verifyPublicBuilderValidation() {
     bindingFailure instanceof ConfigError && /bindings.*nmp/.test(bindingFailure.message),
     'public builder rejects unknown manager keys instead of dropping policy',
   );
-  const rule: unknown = Reflect.apply(requireConfigKey, undefined, [
+  const rule: Rule = Reflect.apply(requireConfigKey, undefined, [
     { ...options, bindings: { npm: { ...spec, accept: async () => false } } },
   ]);
   const predicateFailure = captureThrown(() =>
-    Reflect.apply(lint, undefined, [
-      {
-        cwd: asAbsPath('/virtual'),
-        fs: emptyFs,
-        pm: 'npm',
-        installationRoots: [],
-        config: { customRules: [rule] },
-      },
-    ]),
+    lint({
+      cwd: asAbsPath('/virtual'),
+      fs: emptyFs,
+      pm: 'npm',
+      installationRoots: [],
+      config: { customRules: [rule] },
+    }),
   );
   check(
     predicateFailure instanceof ConfigError && /accept.*synchronous/.test(predicateFailure.message),

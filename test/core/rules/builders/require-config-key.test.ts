@@ -7,6 +7,7 @@ import {
   ConfigError,
   lint,
   requireConfigKey,
+  type LintResult,
   type RequireConfigKeySpec,
 } from '../../../../src/index.ts';
 import { asRelPath } from '../../../../src/core/contracts/paths.ts';
@@ -27,17 +28,15 @@ const helperSpec: RequireConfigKeySpec = {
 };
 
 // Exercise the JavaScript boundary without asserting invalid input has a valid TypeScript type.
-const lintUntypedHelper = (options: unknown): unknown => {
-  const rule: unknown = Reflect.apply(requireConfigKey, undefined, [options]);
-  return Reflect.apply(lint, undefined, [
-    {
-      cwd: asAbsPath('/virtual'),
-      pm: 'npm',
-      installationRoots: [],
-      fs: { readDirectories: () => [], exists: () => false, readText: () => undefined },
-      config: { customRules: [rule] },
-    },
-  ]);
+const lintUntypedHelper = (options: unknown): LintResult => {
+  const rule: Rule = Reflect.apply(requireConfigKey, undefined, [options]);
+  return lint({
+    cwd: asAbsPath('/virtual'),
+    pm: 'npm',
+    installationRoots: [],
+    fs: { readDirectories: () => [], exists: () => false, readText: () => undefined },
+    config: { customRules: [rule] },
+  });
 };
 
 describe('requireConfigKey JavaScript bindings', () => {
