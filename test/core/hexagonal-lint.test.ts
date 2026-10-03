@@ -3,6 +3,7 @@ import { lint } from '../../src/core/lint.ts';
 import { createBuiltinRules } from '../../src/core/rules/builtin-rules.ts';
 import { type LintDependencies } from '../../src/core/contracts/lint-dependencies.ts';
 import { type Reporter } from '../../src/core/contracts/reporter.ts';
+import type { Rule } from '../../src/core/contracts/rule.ts';
 import { asRelPath, type AbsPath } from '../../src/core/contracts/paths.ts';
 import { captureIO } from '../helpers/io.ts';
 
@@ -94,6 +95,53 @@ it('reports through an injected registry and awaits output failures', async () =
   format.mockRejectedValueOnce(failure);
   await expect(lintCommand(request, io, dependencies, registry)).rejects.toBe(failure);
 });
+
+it.each([
+  { name: 'with', includeRootInstallation: true, rootChecks: ['first', 'advisory-check', 'last'] },
+  { name: 'without', includeRootInstallation: false, rootChecks: ['first', 'last'] },
+])(
+  'preserves rule execution order at cwd $name installation checks',
+  ({ includeRootInstallation, rootChecks }) => {
+    const { dependencies } = host();
+    const checks: string[] = [];
+    const observe = (id: string): Rule => ({
+      id,
+      title: id,
+      description: 'Observe execution scope and order.',
+      severity: 'warn',
+      bindings: {
+        npm: {
+          check(ctx) {
+            checks.push(`${ctx.root}:${id}`);
+            return { state: 'violation', message: id };
+          },
+        },
+      },
+    });
+    // A built-in installation rule is interleaved with two custom rules.
+    const orderedRules = ['first', 'advisory-check', 'last'].map(observe);
+    const result = lint(
+      {
+        ...request,
+        pm: 'npm',
+        installationRoots: [
+          ...(includeRootInstallation ? ['.'] : []),
+          { path: 'packages/api', pm: 'npm' },
+        ],
+      },
+      { ...dependencies, rules: orderedRules },
+    );
+    const expectedChecks = [
+      ...rootChecks.map((id) => `/virtual:${id}`),
+      '/virtual/packages/api:advisory-check',
+    ];
+    expect(checks).toEqual(expectedChecks);
+    expect(result.findings.map(({ directory, ruleId }) => `${directory}:${ruleId}`)).toEqual([
+      ...rootChecks.map((id) => `.:${id}`),
+      'packages/api:advisory-check',
+    ]);
+  },
+);
 
 it('does not fall back for an explicitly invalid null filesystem', () => {
   const { dependencies, readText } = host();

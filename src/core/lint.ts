@@ -206,24 +206,25 @@ const unsupportedInstallationBindings = createUnsupportedSettings(
   (file) => file !== 'package.json' && file !== 'deno.json',
 ).bindings;
 
-const selectInstallationRules = (ruleSet: readonly Rule[], item: DirectoryEvaluation): Rule[] => {
-  const selected: Rule[] = [];
+const groupRulesByScope = (ruleSet: readonly Rule[], includeRootInstallation: boolean) => {
+  const manifestRules: Rule[] = [];
+  const installationRules: Rule[] = [];
+  const rootRules: Rule[] = [];
   for (const rule of ruleSet) {
     const scope = scopeOf(rule.id);
+    if (scope === 'manifest' || scope === 'split') manifestRules.push(rule);
     if (scope === 'custom') {
-      if (item.directory === '.') selected.push(rule);
+      rootRules.push(rule);
       continue;
     }
-    if (!item.isInstallationRoot) continue;
-    if (scope === 'installation') selected.push(rule);
-    if (scope === 'split') {
-      selected.push({
-        ...rule,
-        bindings: unsupportedInstallationBindings,
-      });
-    }
+    if (scope !== 'installation' && scope !== 'split') continue;
+    const installationRule =
+      scope === 'split' ? { ...rule, bindings: unsupportedInstallationBindings } : rule;
+    installationRules.push(installationRule);
+    // Keep custom and installation checks interleaved in their original order at cwd.
+    if (includeRootInstallation) rootRules.push(installationRule);
   }
-  return selected;
+  return { manifestRules, installationRules, rootRules };
 };
 
 export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
@@ -232,6 +233,13 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
   const manifests: Inspection['manifests'][number][] = [];
   const installationRoots: Inspection['installationRoots'][number][] = [];
   const ruleOrder = new Map(ruleSet.map((rule, index) => [rule.id, index]));
+  const includeRootInstallation = directories.some(
+    (item) => item.directory === '.' && item.isInstallationRoot,
+  );
+  const { manifestRules, installationRules, rootRules } = groupRulesByScope(
+    ruleSet,
+    includeRootInstallation,
+  );
   for (const item of directories) {
     const { directory, repository, targets, isInstallationRoot } = item;
     const directoryFindings: Finding[] = [];
@@ -248,25 +256,26 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
         repository,
         file,
         manifestTargets,
-        ruleSet,
+        manifestRules,
         severityOverrides,
       );
       for (const finding of manifestFindings) directoryFindings.push(finding);
     }
     if (isInstallationRoot) installationRoots.push({ directory, targets });
-    const scopedRules = selectInstallationRules(ruleSet, item);
-    try {
-      const installationFindings = runLint({
-        repository,
-        targets,
-        ruleSet: scopedRules,
-        severityOverrides,
-      }).findings;
-      for (const finding of installationFindings) directoryFindings.push(finding);
-    } catch (error) {
-      if (error instanceof ConfigError && directory !== '.')
-        throw new ConfigError(`${directory}/${error.message}`);
-      throw error;
+    if (directory === '.' || isInstallationRoot) {
+      try {
+        const installationFindings = runLint({
+          repository,
+          targets,
+          ruleSet: directory === '.' ? rootRules : installationRules,
+          severityOverrides,
+        }).findings;
+        for (const finding of installationFindings) directoryFindings.push(finding);
+      } catch (error) {
+        if (error instanceof ConfigError && directory !== '.')
+          throw new ConfigError(`${directory}/${error.message}`);
+        throw error;
+      }
     }
     // Stable user-facing rule order is independent of traversal/read order.
     directoryFindings.sort(
