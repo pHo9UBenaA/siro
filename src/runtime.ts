@@ -36,11 +36,14 @@ const prepareRuntime = <Options extends LintOptions>(
       'rejectSymlinks requires the native filesystem; an injected FileSystem is trusted code.',
     );
   if (usesNativeFileSystem) assertDirectory(options.cwd);
+  const suppliedFileSystem = options.fs;
+  const fileSystem =
+    suppliedFileSystem === undefined || suppliedFileSystem === nodeFileSystem
+      ? createNodeFileSystem(limits, options.rejectSymlinks ? options.cwd : undefined)
+      : suppliedFileSystem;
   const dependencies: LintDependencies = {
     rules,
-    fileSystem: usesNativeFileSystem
-      ? createNodeFileSystem(limits, options.rejectSymlinks ? options.cwd : undefined)
-      : options.fs!,
+    fileSystem,
     paths: nodePaths,
     createRepoContext: (root, fs, projectType) =>
       createRepoContext(root, fs, projectType, limits.maxConfigDepth),

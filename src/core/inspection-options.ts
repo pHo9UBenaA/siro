@@ -18,7 +18,7 @@ export interface InstallationRoot {
 
 const requireDenseArray = (value: unknown, name: string): unknown[] => {
   if (!Array.isArray(value)) throw new ConfigError(`${name} must be a dense array.`);
-  for (let index = 0; index < value.length; index += 1) {
+  for (const index of value.keys()) {
     if (!Object.hasOwn(value, index)) throw new ConfigError(`${name} must be a dense array.`);
   }
   return value;

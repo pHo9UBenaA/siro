@@ -1,3 +1,4 @@
+import { isOwnKey } from './contracts/records.ts';
 import type { Finding, PolicyTarget } from './contracts/lint-result.ts';
 import type { Severity } from './contracts/pms.ts';
 import type { Rule, RuleBinding } from './contracts/rule.ts';
@@ -64,8 +65,8 @@ export const checkManifest = (
       for (const finding of unsupported) findings.push(finding);
       continue;
     }
-    if (!Object.hasOwn(selectManifestBinding, rule.id)) continue;
-    const binding = selectManifestBinding[rule.id as ManifestRuleId](file, repository, targets);
+    if (!isOwnKey(selectManifestBinding, rule.id)) continue;
+    const binding = selectManifestBinding[rule.id](file, repository, targets);
     if (binding === undefined) continue;
     if (binding === 'use-pm-bindings') {
       const evaluated = runLint({

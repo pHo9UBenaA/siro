@@ -53,7 +53,7 @@ export const checkLimit = (name: keyof ScanLimits, value: number, limits: ScanLi
 export const utf8Bytes = (text: string): number => {
   let bytes = 0;
   for (const character of text) {
-    const code = character.codePointAt(0)!;
+    const code = character.codePointAt(0) ?? 0;
     if (code <= 0x7f) bytes += 1;
     else if (code <= 0x7ff) bytes += 2;
     else if (code <= 0xffff) bytes += 3;
@@ -68,8 +68,9 @@ export const checkConfigDepth = (value: unknown, maxDepth: number): void => {
   const deepestVisitedDepth = new Map<object, number>();
   type Frame = { kind: 'enter'; value: unknown; depth: number } | { kind: 'leave'; value: object };
   const frames: Frame[] = [{ kind: 'enter', value, depth: 1 }];
-  while (frames.length) {
-    const frame = frames.pop()!;
+  for (;;) {
+    const frame = frames.pop();
+    if (frame === undefined) break;
     if (frame.kind === 'leave') {
       activeAncestors.delete(frame.value);
       continue;

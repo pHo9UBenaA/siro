@@ -15,6 +15,14 @@ const describeError = (error: unknown): string =>
 // ESM caches by URL; a new query reloads the config entry, not its transitive imports.
 let loadCounter = 0;
 
+const importConfig = async (url: URL, name: string): Promise<unknown> => {
+  try {
+    return await import(url.href);
+  } catch (error) {
+    throw new ConfigError(`Failed to load ${name}: ${describeError(error)}`);
+  }
+};
+
 /** Load the first matching config; executable imports always use the real filesystem. */
 export const loadConfig = async (
   cwd: AbsPath,
@@ -34,12 +42,7 @@ export const loadConfig = async (
   }
   const url = pathToFileURL(path.join(cwd, name));
   url.searchParams.set('siro-load', String(++loadCounter));
-  let module: unknown;
-  try {
-    module = await import(url.href);
-  } catch (error) {
-    throw new ConfigError(`Failed to load ${name}: ${describeError(error)}`);
-  }
+  const module = await importConfig(url, name);
   const candidate =
     module !== null && typeof module === 'object' && 'default' in module ? module.default : module;
   return parseConfig(candidate, name);

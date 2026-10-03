@@ -35,10 +35,8 @@ const MAX_SAMPLE_COUNT = 3;
 
 const createUnpinnedImportsViolation = (offenders: readonly string[]): CheckStatus => {
   const sample = offenders.slice(0, MAX_SAMPLE_COUNT).join(', ');
-  let more = '';
-  if (offenders.length > MAX_SAMPLE_COUNT) {
-    more = ` (and ${offenders.length - MAX_SAMPLE_COUNT} more)`;
-  }
+  const more =
+    offenders.length > MAX_SAMPLE_COUNT ? ` (and ${offenders.length - MAX_SAMPLE_COUNT} more)` : '';
   return {
     remediation: {
       kind: 'manual',

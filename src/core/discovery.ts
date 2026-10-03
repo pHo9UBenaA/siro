@@ -36,6 +36,28 @@ const inspectManifests = (
   return manifests;
 };
 
+const inspectDirectory = (
+  directory: RelPath,
+  absolute: AbsPath,
+  fs: FileSystem,
+  projectType: ProjectType | undefined,
+  dependencies: LintDependencies,
+  maxConfigDepth: number,
+): DiscoveredDirectory => {
+  try {
+    const repository = createRepositoryEvaluation(
+      dependencies.createRepoContext(absolute, fs, projectType),
+      dependencies.codecFor,
+      maxConfigDepth,
+    );
+    return { directory, repository, manifests: inspectManifests(repository, maxConfigDepth) };
+  } catch (error) {
+    if (error instanceof ConfigError && directory !== '.')
+      throw new ConfigError(`${directory}/${error.message}`);
+    throw error;
+  }
+};
+
 /** One context per selected directory, shared by publication and installation passes. */
 export const discover = (
   cwd: AbsPath,
@@ -45,36 +67,24 @@ export const discover = (
   dependencies: LintDependencies,
   limits: ScanLimits = DEFAULT_SCAN_LIMITS,
 ): DiscoveredDirectory[] => {
-  const { paths, createRepoContext, codecFor } = dependencies;
+  const { paths } = dependencies;
   const pending = [asRelPath('.')];
   const directories: DiscoveredDirectory[] = [];
-  while (pending.length) {
-    const directory = pending.pop()!;
+  for (;;) {
+    const directory = pending.pop();
+    if (directory === undefined) break;
     checkLimit('maxDirectories', directories.length + pending.length + 1, limits);
     checkLimit('maxDirectoryDepth', directory === '.' ? 0 : directory.split('/').length, limits);
     const absolute = paths.resolve(cwd, directory);
-    let repository: RepositoryEvaluation;
-    let manifests: ('package.json' | 'deno.json')[];
-    try {
-      repository = createRepositoryEvaluation(
-        createRepoContext(absolute, fs, projectType),
-        codecFor,
-        limits.maxConfigDepth,
-      );
-      manifests = inspectManifests(repository, limits.maxConfigDepth);
-    } catch (error) {
-      if (error instanceof ConfigError && directory !== '.')
-        throw new ConfigError(`${directory}/${error.message}`);
-      throw error;
-    }
-    directories.push({ directory, repository, manifests });
+    directories.push(
+      inspectDirectory(directory, absolute, fs, projectType, dependencies, limits.maxConfigDepth),
+    );
     const names: unknown = fs.readDirectories(absolute);
     const invalidEnumeration = `${directory}: FileSystem.readDirectories must return a dense array.`;
     if (!Array.isArray(names)) throw new ConfigError(invalidEnumeration);
     const children = new Set<RelPath>();
-    for (let i = 0; i < names.length; i += 1) {
-      if (!Object.hasOwn(names, i)) throw new ConfigError(invalidEnumeration);
-      const name = names[i];
+    for (const [index, name] of names.entries()) {
+      if (!Object.hasOwn(names, index)) throw new ConfigError(invalidEnumeration);
       const child = paths.child(directory, name);
       if (name === '.git' || name === 'node_modules' || excluded(child) || children.has(child))
         continue;

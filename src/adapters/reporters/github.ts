@@ -31,10 +31,8 @@ export const githubReporter: Reporter<'github'> = {
         ? `file=${escapeProp(path.resolve(context.cwd, finding.file))},`
         : '';
       // Documentation belongs in the body; the protocol has no URL property.
-      let body = `[${finding.pm ?? 'package'}] ${finding.directory}: ${finding.message}`;
-      if (finding.docs) {
-        body += ` (${finding.docs})`;
-      }
+      const docsSuffix = finding.docs ? ` (${finding.docs})` : '';
+      const body = `[${finding.pm ?? 'package'}] ${finding.directory}: ${finding.message}${docsSuffix}`;
       const line = `::${COMMAND[finding.severity]} ${fileProperty}title=${escapeProp(finding.ruleId)}::${escapeData(body)}`;
       consume(`${line}\n`);
       await io.stdout(line);

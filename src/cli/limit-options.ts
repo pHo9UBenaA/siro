@@ -1,3 +1,4 @@
+import { isOwnKey } from '../core/contracts/records.ts';
 import { DEFAULT_SCAN_LIMITS, type ScanLimits } from '../core/contracts/scan-limits.ts';
 
 const options: Record<
@@ -18,10 +19,9 @@ const options: Record<
   maxOutputBytes: { flag: 'max-output-bytes', description: 'Bound report output' },
 };
 
-export const LIMIT_OPTIONS = Object.entries(options).map(([key, option]) => ({
-  key: key as keyof ScanLimits,
-  ...option,
-}));
+export const LIMIT_OPTIONS = Object.keys(options)
+  .filter((key) => isOwnKey(options, key))
+  .map((key) => ({ key, ...options[key] }));
 
 export const limitHelp = LIMIT_OPTIONS.map(
   ({ key, flag, description, descriptionColumn = 24 }) =>
