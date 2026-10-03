@@ -19,12 +19,15 @@ export const applyConfig = (baseRules: readonly Rule[], config?: SiroConfig): Ap
   }
   if (duplicateRuleIds.size > 0) {
     throw new ConfigError(
-      `Duplicate rule ids: ${[...duplicateRuleIds].map((id) => `'${id}'`).join(', ')}`,
+      `Duplicate rule ids: ${Array.from(duplicateRuleIds, (id) => `'${id}'`).join(', ')}`,
     );
   }
-  const unknownRuleIds = Object.keys(config?.rules ?? {}).filter((id) => !knownRuleIds.has(id));
-  if (unknownRuleIds.length > 0) {
-    throw new ConfigError(`Unknown rule ids: ${unknownRuleIds.map((id) => `'${id}'`).join(', ')}`);
+  const unknownRuleLabels: string[] = [];
+  for (const id of Object.keys(config?.rules ?? {})) {
+    if (!knownRuleIds.has(id)) unknownRuleLabels.push(`'${id}'`);
+  }
+  if (unknownRuleLabels.length > 0) {
+    throw new ConfigError(`Unknown rule ids: ${unknownRuleLabels.join(', ')}`);
   }
   const activeRules: Rule[] = [];
   const severityOverrides = new Map<string, Severity>();

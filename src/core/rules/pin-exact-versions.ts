@@ -98,10 +98,12 @@ const aubeBinding: RuleBinding = {
   file: npmrc,
   docs: 'https://aube.sh/settings/#setting-saveprefix',
   check(_ctx, config) {
-    const prefixes = ['save-prefix', 'savePrefix']
-      .filter((key) => Object.hasOwn(config, key))
-      .map((key) => config[key]);
-    if (prefixes.length > 0 && prefixes.every((value) => value === '')) return { state: 'ok' };
+    const hasDashedPrefix = Object.hasOwn(config, 'save-prefix');
+    const hasCamelPrefix = Object.hasOwn(config, 'savePrefix');
+    const prefixesAreEmpty =
+      (!hasDashedPrefix || config['save-prefix'] === '') &&
+      (!hasCamelPrefix || config.savePrefix === '');
+    if ((hasDashedPrefix || hasCamelPrefix) && prefixesAreEmpty) return { state: 'ok' };
     return {
       remediation: {
         kind: 'manual',

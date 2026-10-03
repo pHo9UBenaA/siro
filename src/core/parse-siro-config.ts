@@ -84,10 +84,12 @@ const formatIssues = (
 ): string =>
   issues
     .map((issue) => {
-      const keyPath = (issue.path ?? [])
-        .map((seg) => seg.key)
-        .filter((key): key is string | number => typeof key === 'string' || typeof key === 'number')
-        .join('.');
+      const keys: (string | number)[] = [];
+      for (const segment of issue.path ?? []) {
+        const key = segment.key;
+        if (typeof key === 'string' || typeof key === 'number') keys.push(key);
+      }
+      const keyPath = keys.join('.');
       if (keyPath) {
         return `${keyPath}: ${issue.message}`;
       }

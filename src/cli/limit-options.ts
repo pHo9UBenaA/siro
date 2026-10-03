@@ -1,10 +1,14 @@
 import { isOwnKey } from '../core/contracts/records.ts';
 import { DEFAULT_SCAN_LIMITS, type ScanLimits } from '../core/contracts/scan-limits.ts';
 
-const options: Record<
-  keyof ScanLimits,
-  { flag: string; description: string; descriptionColumn?: number }
-> = {
+interface LimitOption {
+  readonly key: keyof ScanLimits;
+  readonly flag: string;
+  readonly description: string;
+  readonly descriptionColumn?: number;
+}
+
+const options: Record<keyof ScanLimits, Omit<LimitOption, 'key'>> = {
   maxFileBytes: { flag: 'max-file-bytes', description: 'Bound each input file' },
   maxTotalBytes: {
     flag: 'max-total-bytes',
@@ -19,9 +23,12 @@ const options: Record<
   maxOutputBytes: { flag: 'max-output-bytes', description: 'Bound report output' },
 };
 
-export const LIMIT_OPTIONS = Object.keys(options)
-  .filter((key) => isOwnKey(options, key))
-  .map((key) => ({ key, ...options[key] }));
+const limitOptions: LimitOption[] = [];
+for (const key of Object.keys(options)) {
+  if (!isOwnKey(options, key)) continue;
+  limitOptions.push({ key, ...options[key] });
+}
+export const LIMIT_OPTIONS: readonly LimitOption[] = limitOptions;
 
 export const limitHelp = LIMIT_OPTIONS.map(
   ({ key, flag, description, descriptionColumn = 24 }) =>

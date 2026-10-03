@@ -22,23 +22,20 @@ const bindingFor = (pm: PM, includesFile: (file: string) => boolean): RuleBindin
         fileSettings.push(setting);
         unsupportedByFile.set(setting.file.path, fileSettings);
       }
-      const violations = [...unsupportedByFile].map(([file, fileSettings]): ViolationStatus => {
-        const requirements = fileSettings.map(
-          (setting) => `${setting.keyPath.join('.')} (requires ${pm} >=${setting.since})`,
-        );
+      const violations = Array.from(unsupportedByFile, ([file, fileSettings]): ViolationStatus => {
+        const requirements: string[] = [];
+        const steps: [string, ...string[]] = [
+          'Verify the PM version used by your install or publish command. If the declared target is accurate, upgrade the PM or use a security control supported by that target; removing a setting alone does not provide its protection.',
+        ];
+        for (const setting of fileSettings) {
+          requirements.push(`${setting.keyPath.join('.')} (requires ${pm} >=${setting.since})`);
+          steps.push(`${setting.file.path}#${setting.keyPath.join('.')}: ${setting.source}`);
+        }
         return {
           state: 'violation',
           file,
           message: `Target ${pm} ${version} predates support for ${file}: ${requirements.join('; ')}.`,
-          remediation: {
-            kind: 'manual',
-            steps: [
-              'Verify the PM version used by your install or publish command. If the declared target is accurate, upgrade the PM or use a security control supported by that target; removing a setting alone does not provide its protection.',
-              ...fileSettings.map(
-                (setting) => `${setting.file.path}#${setting.keyPath.join('.')}: ${setting.source}`,
-              ),
-            ],
-          },
+          remediation: { kind: 'manual', steps },
         };
       });
       const [first, ...rest] = violations;

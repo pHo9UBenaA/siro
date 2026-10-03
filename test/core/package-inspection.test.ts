@@ -436,7 +436,7 @@ it('npm provenance remedy changes the overriding manifest leaf, preserving sibli
     { ...files, 'package.json': JSON.stringify(pkg) },
     { installationRoots: ['.'], pm: 'npm' },
   );
-  expect(rerun.findings.filter((candidate) => candidate.ruleId === 'provenance')).toEqual([]);
+  expect(rerun.findings.some((candidate) => candidate.ruleId === 'provenance')).toBe(false);
   expect(pkg.publishConfig.access).toBe('public');
 });
 
