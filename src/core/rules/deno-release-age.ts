@@ -29,7 +29,7 @@ const isActiveDurationSeconds = (seconds: number, nowMs: number): boolean =>
 const durationSeconds = (value: string): number => {
   let seconds = 0;
   for (const token of value.matchAll(DENO_DURATION_TOKEN)) {
-    const { integer, fraction, unit } = token.groups!;
+    const { integer, fraction, unit } = token.groups ?? {};
     // Sub-nanosecond fractional seconds are truncated by Deno.
     const fractionDigits = (fraction ?? '').slice(0, 9) || '0';
     const amount = Number(integer) + Number(`0.${fractionDigits}`);

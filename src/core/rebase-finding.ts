@@ -1,5 +1,5 @@
 import type { Finding } from './contracts/lint-result.ts';
-import type { RelPath } from './contracts/paths.ts';
+import { joinRelativePath, type RelPath } from './contracts/paths.ts';
 import type { Remediation, SetKeyOperation } from './contracts/rule.ts';
 
 const rebaseRemediation = (
@@ -15,7 +15,7 @@ const rebaseRemediation = (
   }
   const rebaseOperation = (operation: SetKeyOperation): SetKeyOperation => ({
     ...operation,
-    file: { ...operation.file, path: `${directory}/${operation.file.path}` as RelPath },
+    file: { ...operation.file, path: joinRelativePath(directory, operation.file.path) },
   });
   const [first, ...rest] = remediation.operations;
   return { ...remediation, operations: [rebaseOperation(first), ...rest.map(rebaseOperation)] };

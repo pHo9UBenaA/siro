@@ -51,13 +51,33 @@ export const createNodeFileSystem = (
     if (!stat.isFile()) throw new ConfigError(`${file}: expected a regular file.`);
     return stat;
   };
+  const openInputFile = (file: AbsPath): number | undefined => {
+    try {
+      const stat = statRegularFile(file);
+      checkLimit('maxFileBytes', stat.size, limits);
+      checkLimit('maxTotalBytes', totalBytesRead + stat.size, limits);
+      // NONBLOCK avoids waiting on a FIFO substituted after stat; NOFOLLOW protects the
+      // final component where supported. Ancestor replacement still needs a sandbox.
+      return openSync(
+        file,
+        constants.O_RDONLY |
+          constants.O_NONBLOCK |
+          (strictRoot === undefined ? 0 : (constants.O_NOFOLLOW ?? 0)),
+      );
+    } catch (error) {
+      if (isNodeError(error) && error.code === 'ENOENT') return;
+      throw error;
+    }
+  };
   return {
     readDirectories(directory) {
       checkPath(directory);
       const stream = opendirSync(directory);
       const names: string[] = [];
       try {
-        for (let entry = stream.readSync(); entry !== null; entry = stream.readSync()) {
+        for (;;) {
+          const entry = stream.readSync();
+          if (entry === null) break;
           directoryEntryCount += 1;
           checkLimit('maxEntries', directoryEntryCount, limits);
           if (entry.isDirectory()) names.push(entry.name);
@@ -77,19 +97,9 @@ export const createNodeFileSystem = (
       }
     },
     readText(file) {
-      let fd: number | undefined;
+      const fd = openInputFile(file);
+      if (fd === undefined) return;
       try {
-        const stat = statRegularFile(file);
-        checkLimit('maxFileBytes', stat.size, limits);
-        checkLimit('maxTotalBytes', totalBytesRead + stat.size, limits);
-        // NONBLOCK avoids waiting on a FIFO substituted after stat; NOFOLLOW protects the
-        // final component where supported. Ancestor replacement still needs a sandbox.
-        fd = openSync(
-          file,
-          constants.O_RDONLY |
-            constants.O_NONBLOCK |
-            (strictRoot === undefined ? 0 : (constants.O_NOFOLLOW ?? 0)),
-        );
         if (!fstatSync(fd).isFile()) throw new ConfigError(`${file}: expected a regular file.`);
         const chunks: Buffer[] = [];
         let fileBytesRead = 0;
@@ -116,7 +126,7 @@ export const createNodeFileSystem = (
         if (isNodeError(error) && error.code === 'ENOENT') return;
         throw error;
       } finally {
-        if (fd !== undefined) closeSync(fd);
+        closeSync(fd);
       }
     },
   };

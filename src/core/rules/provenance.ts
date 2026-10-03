@@ -49,7 +49,8 @@ const baseRule = requireConfigKey({
   title: 'Publish with provenance',
 });
 
-const npmBinding = baseRule.bindings.npm!;
+const npmBinding = baseRule.bindings.npm;
+if (npmBinding === undefined) throw new TypeError('Provenance requires an npm binding.');
 
 export const provenance = overrideBindings(baseRule, {
   npm: {

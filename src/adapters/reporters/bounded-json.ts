@@ -6,20 +6,20 @@ const isOmittedJsonValue = (value: unknown) =>
   value === undefined || typeof value === 'function' || typeof value === 'symbol';
 
 const normalizeJsonValue = (value: unknown, key: string): unknown => {
-  if (
+  const canHaveToJSON =
     value !== null &&
-    (typeof value === 'object' || typeof value === 'function' || typeof value === 'bigint')
-  ) {
-    const toJSON = (value as { toJSON?: unknown }).toJSON;
-    if (typeof toJSON === 'function') value = Reflect.apply(toJSON, value, [key]);
-  }
+    (typeof value === 'object' || typeof value === 'function' || typeof value === 'bigint');
+  // Box primitive BigInts for property lookup, retaining the original getter receiver.
+  const toJSON: unknown = canHaveToJSON ? Reflect.get(Object(value), 'toJSON', value) : undefined;
+  const normalized: unknown =
+    typeof toJSON === 'function' ? Reflect.apply(toJSON, value, [key]) : value;
   // Native JSON coerces number/string wrappers, but ignores overridden valueOf
   // on boolean/bigint wrappers. Node's guards also recognize cross-realm wrappers.
-  if (types.isNumberObject(value)) return +value;
-  if (types.isStringObject(value)) return `${value}`;
-  if (types.isBooleanObject(value)) return Boolean.prototype.valueOf.call(value);
-  if (types.isBigIntObject(value)) return BigInt.prototype.valueOf.call(value);
-  return value;
+  if (types.isNumberObject(normalized)) return +normalized;
+  if (types.isStringObject(normalized)) return `${normalized}`;
+  if (types.isBooleanObject(normalized)) return Boolean.prototype.valueOf.call(normalized);
+  if (types.isBigIntObject(normalized)) return BigInt.prototype.valueOf.call(normalized);
+  return normalized;
 };
 
 /** Serialize incrementally into bounded chunks before allocating the final JSON document.
@@ -62,8 +62,7 @@ export const boundedJson = (input: unknown, maxBytes: number, maxDepth: number):
       const length = value.length;
       for (let index = 0; index < length; index++) serializeEntry(String(index), value[index]);
     } else {
-      for (const key of Object.keys(value))
-        serializeEntry(key, (value as Record<string, unknown>)[key]);
+      for (const key of Object.keys(value)) serializeEntry(key, Reflect.get(value, key));
     }
     if (emittedEntryCount) emit(`\n${'  '.repeat(depth - 1)}`);
     emit(isArray ? ']' : '}');

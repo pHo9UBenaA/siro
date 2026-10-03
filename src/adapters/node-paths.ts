@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { type AbsPath, type RelPath } from '../core/contracts/paths.ts';
+import { type AbsPath, type RelPath, joinRelativePath } from '../core/contracts/paths.ts';
 import { ConfigError } from '../core/contracts/errors.ts';
 import type { RepositoryPaths } from '../core/contracts/repository-paths.ts';
 
@@ -10,6 +10,15 @@ export const asAbsPath = (value: string): AbsPath => {
   if (!isAbsPath(value)) throw new TypeError('Expected an absolute filesystem path.');
   return value;
 };
+
+const isNativeChildName = (value: unknown): value is RelPath =>
+  typeof value === 'string' &&
+  value.length > 0 &&
+  value !== '.' &&
+  value !== '..' &&
+  !value.includes('\0') &&
+  !value.includes('/') &&
+  (path.sep !== '\\' || (!value.includes('\\') && !value.includes(':')));
 
 export const nodePaths: RepositoryPaths = {
   isAbsolute: isAbsPath,
@@ -35,20 +44,11 @@ export const nodePaths: RepositoryPaths = {
     return asAbsPath(resolved);
   },
   child(parent, name) {
-    if (
-      typeof name !== 'string' ||
-      !name ||
-      name === '.' ||
-      name === '..' ||
-      name.includes('\0') ||
-      name.includes('/') ||
-      (path.sep === '\\' && (name.includes('\\') || name.includes(':')))
-    ) {
+    if (!isNativeChildName(name)) {
       throw new ConfigError(
         `FileSystem.readDirectories returned an invalid child directory name: ${String(name)}`,
       );
     }
-    // This brand is earned by host-native component validation, not user path parsing.
-    return (parent === '.' ? name : `${parent}/${name}`) as RelPath;
+    return joinRelativePath(parent, name);
   },
 };

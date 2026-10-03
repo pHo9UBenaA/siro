@@ -56,9 +56,8 @@ const collectArguments = (argv: readonly string[]) => {
   const repeatedFlags = new Map<string, string[]>();
   const positionals: string[] = [];
   let firstError: string | undefined;
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (!token) break;
+  const remainingTokens = tokens.entries();
+  for (const [index, token] of remainingTokens) {
     if (token.kind === 'option-terminator') {
       if (index + 1 < tokens.length)
         firstError ??= 'siro takes no passthrough arguments after `--`.';
@@ -85,12 +84,11 @@ const collectArguments = (argv: readonly string[]) => {
           : `Unknown flag: ${token.rawName}`;
       continue;
     }
-    let value = token.value;
     const next = tokens[index + 1];
-    if (value === undefined && next?.kind === 'positional' && next.index === token.index + 1) {
-      value = next.value;
-      index += 1;
-    }
+    const consumesNext =
+      token.value === undefined && next?.kind === 'positional' && next.index === token.index + 1;
+    const value = consumesNext ? next.value : token.value;
+    if (consumesNext) remainingTokens.next();
     if (value === undefined || value === '') {
       firstError ??= `${token.rawName} requires a value.`;
       continue;

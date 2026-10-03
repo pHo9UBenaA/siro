@@ -106,14 +106,16 @@ const audit = (label, command, args, parse, { optional = false } = {}) => {
   }
 };
 
-let pnpmStatus;
-try {
-  const pnpm = pnpmCommand(['audit', '--json']);
-  pnpmStatus = audit('pnpm audit', pnpm.command, pnpm.args, parsePnpm);
-} catch (error) {
-  console.error(`pnpm audit: ${safeText(error.message)}`);
-  pnpmStatus = 2;
-}
+const auditPnpm = () => {
+  try {
+    const pnpm = pnpmCommand(['audit', '--json']);
+    return audit('pnpm audit', pnpm.command, pnpm.args, parsePnpm);
+  } catch (error) {
+    console.error(`pnpm audit: ${safeText(error.message)}`);
+    return 2;
+  }
+};
+const pnpmStatus = auditPnpm();
 console.log('');
 const osvStatus = audit(
   'osv-scanner',

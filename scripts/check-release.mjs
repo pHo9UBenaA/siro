@@ -13,12 +13,14 @@ const metadata = spawnSync('tar', ['-xOzf', '-', 'package/package.json'], {
 });
 if (metadata.error || metadata.status !== 0)
   throw new Error('Cannot read packed package metadata.');
-let pkg;
-try {
-  pkg = JSON.parse(metadata.stdout);
-} catch {
-  throw new Error('Invalid release package metadata.');
-}
+const parseMetadata = (text) => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error('Invalid release package metadata.');
+  }
+};
+const pkg = parseMetadata(metadata.stdout);
 if (
   pkg?.name !== '@pho9ubenaa/siro' ||
   typeof pkg.version !== 'string' ||
