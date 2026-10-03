@@ -52,7 +52,8 @@ const emptyFs: FileSystem = {
   readText: () => undefined,
 };
 const missingConfig = await loadConfig(asAbsPath('/virtual'), {
-  configPath: 'missing-siro-config.mjs',
+  configPath: 'missing-siro-config.json',
+  limits: { maxConfigDepth: 2 },
 }).catch((error: unknown) => error);
 check(missingConfig instanceof ConfigError, 'explicit missing config rejects with ConfigError');
 

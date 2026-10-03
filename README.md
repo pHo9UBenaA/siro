@@ -32,7 +32,8 @@ Discovery does not imply that every package's installation settings were inspect
 
 siro detects managers from `packageManager`, lockfiles, and configuration files. If it cannot
 detect one, choose it explicitly, for example `npx @pho9ubenaa/siro lint --pm npm`.
-`npx` may download code. Executable repository configuration requires an explicit
+The CLI automatically reads `siro.config.json` as data. `npx` may download code.
+Executable repository configuration requires an explicit
 `--config <path>` and runs with your permissions. For an unfamiliar project, use `npx @pho9ubenaa/siro lint --no-config --strict-filesystem`
 in an isolated environment without credentials. These flags do not sandbox npx or
 extensions; see the [threat model](docs/threat-model.md).
@@ -66,6 +67,7 @@ For exclusions and rule overrides, see the [configuration examples](docs/configu
 | `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Select one manager at cwd; additional installation roots retain their own targets.        |
 | `--pm-version <x.y.z>`                    | Supply an exact stable target version (requires `--pm`); it does not run an installed PM. |
 | `--project-type <application\|package>`   | Choose whether publication safeguards apply; omitted means infer from publish metadata.   |
+| `--config <path>`                         | Select JSON settings or explicitly execute trusted JS/TS configuration.                   |
 | `--exclude <pattern>`                     | Prune directories from recursive discovery (repeatable).                                  |
 | `--installation-root <path>`              | Replace the default cwd installation scope (repeatable; include `.` to retain cwd).       |
 | `--severity <error\|warn\|info>`          | Set both the display and CI failure threshold; default failure threshold is `error`.      |

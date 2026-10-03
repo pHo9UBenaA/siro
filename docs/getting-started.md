@@ -29,13 +29,13 @@ directory are checked. By default, installation settings are checked only at the
 current directory, not every discovered package. PM workspace declarations do
 not limit discovery.
 
-To exclude intentional fixtures and generated packages, save `siro.config.mjs`
-and select it with `npx @pho9ubenaa/siro lint --config ./siro.config.mjs`:
+To exclude intentional fixtures and generated packages, save `siro.config.json`.
+The CLI automatically reads it as data:
 
-```js
-export default {
-  exclude: ['test/fixtures', 'vendor', 'dist'],
-};
+```json
+{
+  "exclude": ["test/fixtures", "vendor", "dist"]
+}
 ```
 
 For an independent install project, explicitly add its directory:
@@ -67,11 +67,11 @@ steps; see the [output contract](json-output.md).
 
 To change a rule's severity, add a `rules` map to your existing config:
 
-```js
-export default {
-  exclude: ['test/fixtures', 'vendor', 'dist'],
-  rules: { 'files-field': 'warn' },
-};
+```json
+{
+  "exclude": ["test/fixtures", "vendor", "dist"],
+  "rules": { "files-field": "warn" }
+}
 ```
 
 The [rule reference](rules.md) explains the checks and supported managers.
@@ -90,7 +90,7 @@ Add a script to `package.json`, preserving its other fields:
 
 ```json
 {
-  "scripts": { "lint:security": "siro lint --config ./siro.config.mjs" }
+  "scripts": { "lint:security": "siro lint" }
 }
 ```
 

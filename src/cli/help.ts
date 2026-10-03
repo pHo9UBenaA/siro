@@ -12,7 +12,7 @@ const SEVERITIES_LIST = SEVERITIES.join('|');
 const FLAG_LINES = {
   json: '  --json               Shortcut for --reporter json',
   safety:
-    '  --config <path>      Load an explicitly trusted JS/TS config\n  --no-config          Do not probe or load repository configuration\n  --strict-filesystem  Reject symlink input paths (not a containment sandbox)',
+    '  --config <path>      Select JSON settings or explicitly trust JS/TS config\n  --no-config          Do not probe or load repository configuration\n  --strict-filesystem  Reject symlink input paths (not a containment sandbox)',
   limits: limitHelp,
   pm: `  --pm <name>          Target a specific package manager (${PMS_LIST})`,
   pmVersion: '  --pm-version <x.y.z>  Target an exact stable PM version (requires --pm)',
@@ -80,7 +80,7 @@ const HELP_LINT = [
   'EXIT CODES',
   '  0  No findings at or above the active threshold',
   '  1  Findings at or above the threshold (default: error)',
-  '  2  Usage error (bad flag, broken siro.config.ts, unreadable path, …)',
+  '  2  Usage error (bad flag, invalid config, unreadable path, …)',
   '  70 Output failure/limit, or unexpected exception (including trusted extensions)',
   '',
   'EXAMPLES',

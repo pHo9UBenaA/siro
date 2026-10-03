@@ -11,7 +11,11 @@
   to select trusted `.ts`, `.mjs`, or `.js` code; otherwise existing executable
   config produces a migration error without running it. `--no-config` still skips
   configuration entirely and cannot be combined with `--config`.
-- `loadConfig(cwd)` no longer executes discovered code. Use
+- Automatically read `siro.config.json` as data, with precedence over coexisting
+  JS/TS config. JSON supports built-in settings only: custom rules, reporters,
+  module references and config inheritance are rejected. Invalid JSON fails without
+  fallback. JSON honors native scan budgets and strict filesystem checks.
+- `loadConfig(cwd)` reads JSON instead of executing discovered code. Use
   `loadConfig(cwd, { configPath: 'siro.config.mjs' })`; the optional Node-version
   argument is now `options.nodeVersion`.
 

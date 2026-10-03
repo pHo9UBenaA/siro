@@ -4,6 +4,100 @@ import { loadConfig } from '../src/load-config.ts';
 import { asAbsPath } from '../src/adapters/node-paths.ts';
 import path from 'node:path';
 
+describe('JSON configuration', () => {
+  it('automatically loads data settings without executing a coexisting JS config', async () => {
+    const settings = {
+      pms: ['npm', 'pnpm'],
+      pmVersions: { npm: '12.0.2' },
+      exclude: ['fixtures/**'],
+      installationRoots: ['.', { path: 'tools', pm: 'npm', pmVersion: '12.0.2' }],
+      projectType: 'application',
+      rules: { provenance: 'off' },
+    };
+    const cwd = asAbsPath(
+      createTestProject({
+        'siro.config.json': JSON.stringify(settings),
+        'siro.config.mjs': "throw new Error('must not execute');",
+      }),
+    );
+    expect(await loadConfig(cwd)).toStrictEqual(settings);
+  });
+
+  it('loads an explicit JSON file instead of the automatic configuration', async () => {
+    const cwd = asAbsPath(
+      createTestProject({
+        'siro.config.json': '{"pms":["npm"]}',
+        'policy.json': '{"pms":["pnpm"]}',
+      }),
+    );
+    expect(await loadConfig(cwd, { configPath: 'policy.json' })).toEqual({ pms: ['pnpm'] });
+  });
+
+  it('reads JSON rewrites without module caching', async () => {
+    const cwd = asAbsPath(createTestProject({ 'siro.config.json': '{"pms":["npm"]}' }));
+    expect(await loadConfig(cwd)).toEqual({ pms: ['npm'] });
+    writeFileSync(path.join(cwd, 'siro.config.json'), '{"pms":["pnpm"]}');
+    expect(await loadConfig(cwd)).toEqual({ pms: ['pnpm'] });
+  });
+
+  it.each([
+    'null',
+    '[]',
+    '{"pms":[]}',
+    '{"rules":{"provenance":"fatal"}}',
+    '{"rules":{"company-rule":"off"}}',
+    '{"rules":{"constructor":"warn"}}',
+    '{"customRules":[]}',
+    '{"reporters":[]}',
+    '{"jsPlugins":["./plugin.mjs"]}',
+    '{"extends":["./policy.mjs"]}',
+    '{"rule":{}}',
+  ])('rejects invalid or executable JSON settings: %s', async (text) => {
+    const cwd = asAbsPath(createTestProject({ 'siro.config.json': text }));
+    await expect(loadConfig(cwd)).rejects.toMatchObject({ name: 'ConfigError' });
+  });
+
+  it('reports malformed JSON without disclosing its contents or falling back to JS', async () => {
+    const cwd = asAbsPath(
+      createTestProject({
+        'siro.config.json': 'FAKE_SECRET_NOT_JSON',
+        'siro.config.mjs': "throw new Error('must not execute');",
+      }),
+    );
+    await expect(loadConfig(cwd)).rejects.toMatchObject({
+      name: 'ConfigError',
+      message: expect.stringContaining('siro.config.json: invalid JSON'),
+    });
+  });
+
+  it('bounds decoded UTF-8 text as well as raw file bytes', async () => {
+    const cwd = asAbsPath(createTestProject({}));
+    const bytes = Buffer.concat([
+      Buffer.from('{"exclude":["'),
+      Buffer.from([0xff]),
+      Buffer.from('"]}'),
+    ]);
+    writeFileSync(path.join(cwd, 'siro.config.json'), bytes);
+    await expect(loadConfig(cwd, { limits: { maxFileBytes: bytes.length } })).rejects.toMatchObject(
+      {
+        name: 'ConfigError',
+        message: expect.stringContaining('maxFileBytes'),
+      },
+    );
+  });
+
+  it.each([
+    { text: '{}'.padEnd(32), limits: { maxFileBytes: 16 }, diagnostic: 'maxFileBytes' },
+    { text: '{"rules":{}}', limits: { maxConfigDepth: 1 }, diagnostic: 'maxConfigDepth' },
+  ])('bounds JSON configuration by $diagnostic', async ({ text, limits, diagnostic }) => {
+    const cwd = asAbsPath(createTestProject({ 'siro.config.json': text }));
+    await expect(loadConfig(cwd, { limits })).rejects.toMatchObject({
+      name: 'ConfigError',
+      message: expect.stringContaining(diagnostic),
+    });
+  });
+});
+
 it('returns undefined when no config file exists', async () => {
   const cwd = asAbsPath(createTestProject({}));
   expect(await loadConfig(cwd)).toBeUndefined();
@@ -157,7 +251,7 @@ it('rejects selected TypeScript on a runtime without type stripping', async () =
     loadConfig(cwd, { configPath: 'policy.ts', nodeVersion: '20.19.0' }),
   ).rejects.toMatchObject({
     name: 'ConfigError',
-    message: expect.stringMatching(/type stripping[\s\S]*siro\.config\.mjs/u),
+    message: expect.stringMatching(/type stripping[\s\S]*\.mjs/u),
   });
 });
 

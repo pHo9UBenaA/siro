@@ -9,7 +9,8 @@ import type { ProjectType } from './contracts/project-type.ts';
 export type RuleSetting = Severity | 'off';
 
 /**
- * User-facing config returned by `defineConfig` in `siro.config.{ts,mjs,js}`.
+ * User-facing settings for JSON, executable config, and programmatic use.
+ * JSON supports data fields only; customRules and reporters require trusted code.
  * Use ordinary or null-prototype objects for config and setting maps.
  *
  *   defineConfig({

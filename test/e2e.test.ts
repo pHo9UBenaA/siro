@@ -73,7 +73,7 @@ it.each<{ name: string; files: Record<string, string>; pattern: RegExp }>([
   {
     name: 'detected PM outside configured restriction',
     files: { 'siro.config.mjs': "export default { pms: ['pnpm'] };\n" },
-    pattern: /do not match siro\.config\.ts pms/u,
+    pattern: /do not match configured pms/u,
   },
   {
     name: 'no PM without a silent npm fallback',

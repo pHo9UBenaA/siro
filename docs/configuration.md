@@ -2,20 +2,21 @@
 
 ## Rule settings
 
-Save `siro.config.mjs` and explicitly select it with
-`npx @pho9ubenaa/siro lint --config ./siro.config.mjs`. No import is required,
-so this example also works with `npx` without a local siro dependency:
+Save `siro.config.json` in the directory you pass to `lint`. It is automatically
+read as data, without executing repository code or requiring a local siro dependency:
 
-```js
-export default {
-  exclude: ['test/fixtures', 'vendor', 'dist'],
-  rules: {
-    'files-field': 'warn',
-    provenance: 'error',
-    'store-server': 'off', // Omit this advisory only after reviewing your policy.
-  },
-};
+```json
+{
+  "exclude": ["test/fixtures", "vendor", "dist"],
+  "rules": {
+    "files-field": "warn",
+    "provenance": "error",
+    "store-server": "off"
+  }
+}
 ```
+
+Disable an advisory only after reviewing your policy.
 
 Rules run at their built-in severities unless overridden. Allowed values are
 `'error'`, `'warn'`, `'info'`, and `'off'`. Off disables the check, not just its
@@ -30,8 +31,8 @@ output. Unknown rule IDs are errors. Overrides apply to all selected directories
 | `pms`               | Nonempty array restricting cwd's PM selection; does not force detection.        |
 | `pmVersions`        | Map such as `{ npm: '12.0.2' }`; declares versions for cwd.                     |
 | `projectType`       | `'application'` or `'package'`; overrides inference for all selected manifests. |
-| `customRules`       | Array of custom rules; run only at cwd.                                         |
-| `reporters`         | Array of `{ name, format }` reporters; can replace built-ins by name.           |
+| `customRules`       | JS/TS only: custom rules; run only at cwd.                                      |
+| `reporters`         | JS/TS only: `{ name, format }` reporters; can replace built-ins by name.        |
 
 For TypeScript completion, first install siro in the project with
 `npm install --save-dev --save-exact @pho9ubenaa/siro`, then use `siro.config.ts`:
@@ -43,8 +44,10 @@ export default defineConfig({
 });
 ```
 
-An `npx` temporary installation does not make imports from your repository's
-config resolvable. Without a local dependency, use the import-free `.mjs` form.
+Run `npx @pho9ubenaa/siro lint --config ./siro.config.ts` to explicitly execute this
+trusted code. An `npx` temporary installation does not make imports from your
+repository's config resolvable. Without a local dependency, use JSON or an import-free
+`.mjs` file selected with `--config`.
 
 ## Inspection scope: packages and installation roots
 
@@ -65,15 +68,15 @@ only cwd receives installation checks. List other independently installed projec
 explicitly; siro does not infer them from lockfiles or PM declarations. For example,
 adapt these paths to existing directories in your repository:
 
-```js
-export default {
-  exclude: ['test/fixtures', 'vendor', 'dist'],
-  installationRoots: [
-    '.',
-    'tools/standalone',
-    { path: 'tools/no-detection-signal', pm: 'npm', pmVersion: '12.0.2' },
-  ],
-};
+```json
+{
+  "exclude": ["test/fixtures", "vendor", "dist"],
+  "installationRoots": [
+    ".",
+    "tools/standalone",
+    { "path": "tools/no-detection-signal", "pm": "npm", "pmVersion": "12.0.2" }
+  ]
+}
 ```
 
 ```sh
@@ -142,7 +145,7 @@ npx @pho9ubenaa/siro lint --no-config --strict-filesystem
 `--strict-filesystem` (`rejectSymlinks: true` in the API) rejects a symlink selected
 as cwd and file/path symlinks below cwd, including dangling links. Symlinks above
 cwd are allowed; directory symlinks below cwd are not followed. The option applies
-to native data reads, not executable config or extension code. Combine it with
+to native data reads, including JSON siro settings, not executable config or extension code. Combine it with
 `--no-config` for untrusted checkouts. Injected filesystems are trusted code and
 cannot use this option. Neither this check nor lexical path validation is an atomic
 containment guarantee: ancestor replacement races, hard links, and hostile concurrent
@@ -224,6 +227,24 @@ install/publish commands or workspace inheritance. PM-specific precedence and
 exceptions are described in [policy and sources](policy-sources.md), including
 npm provenance, Deno release-age fallback and npm shrinkwrap compatibility.
 
+## JSON CLI configuration
+
+The CLI automatically reads only cwd's `siro.config.json`, not parent, child or
+additional-root siro settings. JSON takes precedence over coexisting executable
+config, which remains unexecuted. Invalid JSON settings fail with exit 2; there is
+no fallback to another configuration.
+
+Use strict JSON without comments. Only the data fields above and built-in rule IDs
+are accepted. `customRules`, `reporters`, module references and config inheritance
+are not supported in JSON, even when selected explicitly with `--config <path>`.
+An explicitly selected file replaces automatic configuration; files are not merged.
+
+JSON reads share the CLI's file/total-byte budgets with inspection and honor
+`--max-config-depth` and `--strict-filesystem`. In strict mode, an explicitly selected
+JSON file must be inside the lint target. `--no-config` skips JSON settings too.
+Data-only settings can still disable checks or exclude inputs; do not trust an
+unreviewed configuration as your security policy.
+
 ## Executable CLI configuration
 
 Executable `.ts`, `.mjs`, and `.js` settings require `--config <path>`. Paths are
@@ -232,8 +253,9 @@ file is loaded; settings are not merged with other files. Config runs with the
 caller's privileges; see the [threat model](threat-model.md). TypeScript must use
 Node-supported erasable syntax. This option is trust, not a sandbox.
 
-Without `--config`, finding cwd's `siro.config.ts`, `.mjs`, or `.js` produces a
-migration error (exit 2) without executing it. Parents and child/additional-root
+When JSON is absent and `--config` is omitted, finding cwd's `siro.config.ts`,
+`.mjs`, or `.js` produces a migration error (exit 2) without executing it. Move data settings to
+`siro.config.json`, or explicitly select trusted code. Parents and child/additional-root
 configs are not loaded. `--no-config` skips probing and loading all repository
 configuration, ignoring its settings and extensions. It cannot be combined with
 `--config`. CLI options and built-in defaults still apply; unknown custom reporter
@@ -246,19 +268,20 @@ are errors. All selected targets share cwd's rule overrides and reporter registr
 ## Library use
 
 Install siro as a project dependency before importing it. `lint` is synchronous;
-`lintCommand` evaluates and reports asynchronously. Neither implicitly executes
-repository configuration. To execute trusted configuration, explicitly provide
-`loadConfig(cwd, { configPath: 'siro.config.mjs' })`; API paths are relative to `cwd`.
-Calling `loadConfig(cwd)` refuses existing executable config. Its former optional
-Node-version string is now `options.nodeVersion`. Changes to imported modules may
-require restarting the process.
+`lintCommand` evaluates and reports asynchronously. Neither implicitly loads
+repository configuration. `loadConfig(cwd)` reads JSON automatically, but refuses
+existing executable config if JSON is absent. To execute trusted configuration,
+provide `loadConfig(cwd, { configPath: 'siro.config.mjs' })`; API paths are relative
+to `cwd`. Changes to imported modules may require restarting the process.
+`loadConfig` accepts caller-controlled `limits` for JSON reads and nesting; separate
+API calls to load and lint have separate budgets.
 
 This example assumes `tools/standalone` is an existing independent install project:
 
 ```ts
 import { asAbsPath, lint, lintCommand, loadConfig, nodeIO } from '@pho9ubenaa/siro';
 const cwd = asAbsPath(process.cwd());
-const config = await loadConfig(cwd, { configPath: 'siro.config.mjs' }); // Trusted code.
+const config = await loadConfig(cwd); // Reads JSON settings, never auto-executes code.
 const options = {
   cwd,
   config,

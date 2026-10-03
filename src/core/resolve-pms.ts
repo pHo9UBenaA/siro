@@ -6,7 +6,7 @@ import { detectPMs } from './detect-pms.ts';
 export interface ResolvePMsOptions {
   /** A single PM forced by `--pm`; bypasses auto-detection when set. */
   readonly pmOverride?: PM;
-  /** User's `siro.config.ts` `pms` allow-list; intersected with the detection. */
+  /** Configured `pms` allow-list; intersected with the detection. */
   readonly allowed?: readonly PM[];
   /** Publication-only root may have no target. */
   readonly optional?: boolean;
@@ -28,15 +28,15 @@ export const resolvePMs = (ctx: RepoContext, options: ResolvePMsOptions): readon
   }
   if (pmOverride) {
     throw new UsageError(
-      `--pm ${pmOverride} is not in siro.config.ts pms (${allowed.join(', ')}). Adjust the config or the flag.`,
+      `--pm ${pmOverride} is not in configured pms (${allowed.join(', ')}). Adjust the config or the flag.`,
     );
   }
   if (detected.length > 0) {
     throw new UsageError(
-      `Detected PMs (${detected.join(', ')}) do not match siro.config.ts pms (${allowed.join(', ')}). Adjust the config or remove the restriction.`,
+      `Detected PMs (${detected.join(', ')}) do not match configured pms (${allowed.join(', ')}). Adjust the config or remove the restriction.`,
     );
   }
   throw new UsageError(
-    `No package manager detected, and siro.config.ts restricts pms to ${allowed.join(', ')}. Adjust the config or remove the restriction.`,
+    `No package manager detected, and configuration restricts pms to ${allowed.join(', ')}. Adjust the config or remove the restriction.`,
   );
 };

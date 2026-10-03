@@ -6,7 +6,9 @@ helps review supported policy gaps; a clean result is not a security attestation
 ## Trusted code and untrusted data
 
 - PM manifests and configuration are read as data. Built-in checks do not install
-  dependencies, execute package scripts or edit files.
+  dependencies, execute package scripts or edit files. Automatically loaded
+  `siro.config.json` supports data settings only, with no executable extensions
+  or module references. It can still disable checks or narrow inspection scope.
 - `.ts`, `.mjs`, and `.js` configuration is executable code. `--config <path>`
   explicitly opts into execution with the caller's permissions, before validating
   its exported value. Automatic discovery refuses executable config without running

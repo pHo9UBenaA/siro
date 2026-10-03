@@ -127,6 +127,8 @@ function verifyInstalledApi() {
     'tsconfig.json',
   ]);
   run(process.execPath, ['consumer.mts']);
+  cpSync(join(root, 'test/package/load-config.mjs'), join(consumer, 'load-config.mjs'));
+  run(process.execPath, ['load-config.mjs']);
 }
 
 function verifyInstalledCli(installedBin) {
@@ -188,11 +190,8 @@ function verifyInspectionScope(runCli) {
   );
   mkdirSync(join(consumer, 'workspace/child'));
   writeFileSync(join(consumer, 'workspace/child/package.json'), '{"name":"child"}');
-  writeFileSync(
-    join(consumer, 'workspace/siro.config.mjs'),
-    "export default { rules: { 'files-field': 'error' } };\n",
-  );
-  const args = ['lint', 'workspace', '--config', 'workspace/siro.config.mjs'];
+  writeFileSync(join(consumer, 'workspace/siro.config.json'), '{"rules":{"files-field":"error"}}');
+  const args = ['lint', 'workspace'];
   runCli([...args, '--exclude', 'child']);
   runCli(['lint', 'workspace', '--workspaces'], { expectedStatus: 2 });
   const workspaceReport = JSON.parse(runCli([...args, '--json'], { expectedStatus: 1 }));
