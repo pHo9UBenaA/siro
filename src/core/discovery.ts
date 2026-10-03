@@ -83,8 +83,10 @@ export const discover = (
     const invalidEnumeration = `${directory}: FileSystem.readDirectories must return a dense array.`;
     if (!Array.isArray(names)) throw new ConfigError(invalidEnumeration);
     const children = new Set<RelPath>();
-    for (const [index, name] of names.entries()) {
+    // Validate indexed contents, not an overridable array method's view of them.
+    for (let index = 0; index < names.length; index++) {
       if (!Object.hasOwn(names, index)) throw new ConfigError(invalidEnumeration);
+      const name: unknown = names[index];
       const child = paths.child(directory, name);
       if (name === '.git' || name === 'node_modules' || excluded(child) || children.has(child))
         continue;

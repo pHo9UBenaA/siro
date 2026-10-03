@@ -132,6 +132,32 @@ it('evaluates a directory only once even when an injected enumeration repeats it
   expect(result.findings.filter((finding) => finding.ruleId === 'files-field')).toHaveLength(1);
 });
 
+it('discovers indexed children even when entries() hides them', async () => {
+  const fs = createMemFileSystem({ 'child/package.json': '{"name":"child"}' });
+  const enumerate = fs.readDirectories;
+  fs.readDirectories = (directory) =>
+    Object.defineProperty(enumerate(directory), 'entries', { value: function* () {} });
+  const { io, out } = captureIO();
+
+  const code = await lintCommand(
+    {
+      cwd: asAbsPath('/repo'),
+      fs,
+      installationRoots: [],
+      config: { rules: { 'files-field': 'error' } },
+      reporter: 'json',
+    },
+    io,
+  );
+
+  expect(code).toBe(1);
+  const report = JSON.parse(out());
+  expect(report.inspection.manifests).toMatchObject([{ path: 'child/package.json' }]);
+  expect(report.findings).toContainEqual(
+    expect.objectContaining({ ruleId: 'files-field', file: 'child/package.json' }),
+  );
+});
+
 it('common checks run once across multiple detected PMs; manifest availability has one owner', () => {
   const result = inspect(
     {
@@ -244,6 +270,35 @@ it.each([
   ).toThrow(/exclude|installation|workspaces|pmVersion/iu);
 });
 
+it.each(['exclude', 'installationRoots'] as const)(
+  'rejects holes in %s even when keys() and the iterator hide them',
+  async (option) => {
+    const sparse = Object.defineProperties(Array<string>(1), {
+      keys: { value: function* () {} },
+      [Symbol.iterator]: { value: function* () {} },
+    });
+    const { io, out } = captureIO();
+
+    await expect(
+      lintCommand(
+        {
+          cwd: asAbsPath('/repo'),
+          fs: createMemFileSystem({}),
+          installationRoots: [],
+          [option]: sparse,
+          reporter: 'json',
+        },
+        io,
+      ),
+    ).rejects.toMatchObject({
+      name: 'ConfigError',
+      exitCode: 2,
+      message: `${option} must be a dense array.`,
+    });
+    expect(out()).toBe('');
+  },
+);
+
 it('keeps final output stable across directory enumeration orders and treats installation wildcards literally', () => {
   const files = {
     'literal*/package.json': '{"name":"literal","packageManager":"npm@12.0.2"}',
@@ -323,6 +378,10 @@ it.each([
   { name: 'missing method', names: undefined },
   { name: 'non-array response', names: 'not-array' },
   { name: 'parent component', names: ['..'] },
+  {
+    name: 'parent component hidden by entries()',
+    names: Object.defineProperty(['..'], 'entries', { value: function* () {} }),
+  },
   { name: 'current directory component', names: ['.'] },
   { name: 'empty component', names: [''] },
   { name: 'multiple components', names: ['a/b'] },
