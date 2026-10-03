@@ -150,13 +150,22 @@ const findViolations = (files: readonly SourceFile[]): string[] => {
   return violations;
 };
 
-const readSources = (root: string, relative = ''): SourceFile[] =>
-  readdirSync(path.join(root, relative), { withFileTypes: true }).flatMap((entry) => {
-    const entryPath = path.posix.join(relative, entry.name);
-    if (entry.isDirectory()) return readSources(root, entryPath);
-    if (!entry.isFile() || !/\.(?:[cm]?[jt]sx?)$/u.test(entry.name)) return [];
-    return [{ path: entryPath, content: readFileSync(path.join(root, entryPath), 'utf8') }];
-  });
+const readSources = (root: string): SourceFile[] => {
+  const sources: SourceFile[] = [];
+  const visitDirectory = (relative: string): void => {
+    for (const entry of readdirSync(path.join(root, relative), { withFileTypes: true })) {
+      const entryPath = path.posix.join(relative, entry.name);
+      if (entry.isDirectory()) {
+        visitDirectory(entryPath);
+        continue;
+      }
+      if (!entry.isFile() || !/\.(?:[cm]?[jt]sx?)$/u.test(entry.name)) continue;
+      sources.push({ path: entryPath, content: readFileSync(path.join(root, entryPath), 'utf8') });
+    }
+  };
+  visitDirectory('');
+  return sources;
+};
 
 it('keeps resolved source imports directed through the contracts', () => {
   expect(findViolations(readSources(sourceRoot))).toEqual([]);

@@ -15,10 +15,13 @@ export const createMemFileSystem = (
     nodePath.sep === '\\' ? value.replaceAll('\\', '/') : value;
   return {
     readDirectories(directory) {
-      return fs
-        .readdirSync(toMemfsPath(directory))
-        .map(String)
-        .filter((name) => fs.lstatSync(`${toMemfsPath(directory)}/${name}`).isDirectory());
+      const directoryPath = toMemfsPath(directory);
+      const names: string[] = [];
+      for (const entry of fs.readdirSync(directoryPath)) {
+        const name = String(entry);
+        if (fs.lstatSync(`${directoryPath}/${name}`).isDirectory()) names.push(name);
+      }
+      return names;
     },
     exists(path) {
       // Match native file-type checks and propagate every non-ENOENT error.

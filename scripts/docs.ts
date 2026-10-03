@@ -31,15 +31,16 @@ const resolveLink = (bindingDocs: string | undefined, ruleDocs: string | undefin
 };
 
 const renderBindingsBlock = (rule: Rule): string => {
-  const rows = PMS.flatMap((pm) => {
+  const rows: string[] = [];
+  for (const pm of PMS) {
     const binding = rule.bindings[pm];
-    if (!binding) return [];
+    if (!binding) continue;
     const target = binding.file ? `\`${binding.file.path}\`` : 'Repository';
     const notes = renderVersionNoteMessage('', binding.versionNote).trim() || '—';
-    return [
+    rows.push(
       `| \`${pm}\` | ${target} | ${binding.severity ?? rule.severity} | ${notes.replaceAll('|', '&#124;')} | ${resolveLink(binding.docs, rule.docs)} |`,
-    ];
-  });
+    );
+  }
   return rows.length
     ? `\n\n| PM | Primary input | Default severity | Version notes | Reference |\n| --- | --- | --- | --- | --- |\n${rows.join('\n')}`
     : '';

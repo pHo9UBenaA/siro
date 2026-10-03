@@ -10,6 +10,7 @@ import { type RelPath, isRelPath } from './paths.ts';
 import type { RuleContext } from './repo-context.ts';
 import { type ProjectType, isProjectType } from './project-type.ts';
 import { isPlainRecord } from './records.ts';
+import { isArrayOf, isStringArray } from './arrays.ts';
 
 export interface SetKeyOperation {
   readonly op: 'setKey';
@@ -91,9 +92,6 @@ const isConfigValueShape = (value: unknown): value is ConfigValue =>
   typeof value === 'boolean' ||
   (typeof value === 'number' && Number.isFinite(value));
 
-const isDenseStringArray = (value: unknown): value is readonly string[] =>
-  Array.isArray(value) && Array.from(value).every((item) => typeof item === 'string');
-
 export const isCheckStatusShape = (value: unknown): value is CheckStatus => {
   if (!isPlainRecord(value)) {
     return false;
@@ -102,11 +100,7 @@ export const isCheckStatusShape = (value: unknown): value is CheckStatus => {
     return true;
   }
   if (value.state === 'violations') {
-    return (
-      Array.isArray(value.violations) &&
-      value.violations.length > 0 &&
-      Array.from(value.violations).every(isViolationStatusShape)
-    );
+    return isArrayOf(value.violations, isViolationStatusShape) && value.violations.length > 0;
   }
   return isViolationStatusShape(value);
 };
@@ -131,21 +125,20 @@ const isSetKeyOperation = (value: unknown): value is SetKeyOperation =>
   isPlainRecord(value) &&
   value.op === 'setKey' &&
   isConfigFileRefShape(value.file) &&
-  isDenseStringArray(value.keyPath) &&
+  isStringArray(value.keyPath) &&
   value.keyPath.length > 0 &&
   isConfigValueShape(value.value);
 
 const isRemediationShape = (value: unknown): value is Remediation => {
   if (!isPlainRecord(value)) return false;
   if (value.kind === 'manual') {
-    return !('operations' in value) && isDenseStringArray(value.steps) && value.steps.length > 0;
+    return !('operations' in value) && isStringArray(value.steps) && value.steps.length > 0;
   }
   return (
     value.kind === 'automatic' &&
     !('steps' in value) &&
-    Array.isArray(value.operations) &&
-    value.operations.length > 0 &&
-    Array.from(value.operations).every(isSetKeyOperation)
+    isArrayOf(value.operations, isSetKeyOperation) &&
+    value.operations.length > 0
   );
 };
 
@@ -182,9 +175,7 @@ const isProjectTypeValue = (value: unknown): value is ProjectType =>
   typeof value === 'string' && isProjectType(value);
 
 const isProjectTypesShape = (value: unknown): value is readonly ProjectType[] | undefined =>
-  typeof value === 'undefined' ||
-  (Array.isArray(value) &&
-    Array.from(value).every((projectType) => isProjectTypeValue(projectType)));
+  typeof value === 'undefined' || isArrayOf(value, isProjectTypeValue);
 
 export const isRuleShape = (value: unknown): value is Rule => {
   if (!isPlainRecord(value)) {

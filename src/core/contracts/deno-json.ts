@@ -1,6 +1,7 @@
 import { type ParsedConfig, getByPath } from './config-value.ts';
 import { ConfigError } from './errors.ts';
 import { isPlainRecord } from './records.ts';
+import { isStringArray } from './arrays.ts';
 
 /** Validate consumed publication metadata, not Deno's entire versioned schema. */
 export const validateDenoMetadata = (config: ParsedConfig): void => {
@@ -12,9 +13,6 @@ export const validateDenoMetadata = (config: ParsedConfig): void => {
   if (!isPlainRecord(publish))
     throw new ConfigError('deno.json: publish must be a boolean, object or null.');
   const include = getByPath(publish, ['include']);
-  if (
-    include != null &&
-    (!Array.isArray(include) || !Array.from(include).every((item) => typeof item === 'string'))
-  )
+  if (include != null && !isStringArray(include))
     throw new ConfigError('deno.json: publish.include must be a string array or null.');
 };

@@ -42,7 +42,7 @@ it('does not expose OIDC to install/build/verification and transfers one exact a
   expect(publish.needs).toBe('build');
   expect(publish.permissions['id-token']).toBe('write');
   const steps = publish.steps;
-  expect(steps.filter((step) => step.uses?.startsWith('actions/checkout'))).toEqual([]);
+  expect(steps.some((step) => step.uses?.startsWith('actions/checkout'))).toBe(false);
   const publishCommands = steps.map((step) => step.run ?? '').join('\n');
   expect(publishCommands).not.toMatch(/pnpm|scripts\/|npm install|npm run|npm pack/);
   expect(publishCommands).toContain('sha256sum --check --strict');
@@ -52,10 +52,12 @@ it('does not expose OIDC to install/build/verification and transfers one exact a
       'artifact-ids'
     ],
   ).toContain('needs.build.outputs.artifactId');
-  const actions = Object.values(workflow.jobs)
-    .flatMap((job) => job.steps)
-    .map((step) => step.uses)
-    .filter((uses): uses is string => uses !== undefined);
+  const actions: string[] = [];
+  for (const job of Object.values(workflow.jobs)) {
+    for (const step of job.steps) {
+      if (step.uses !== undefined) actions.push(step.uses);
+    }
+  }
   for (const action of actions) expect(action).toMatch(/@[a-f0-9]{40}$/);
 });
 

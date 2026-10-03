@@ -68,9 +68,7 @@ describe('project type selection', () => {
 
       const result: { findings: { ruleId: string }[] } = JSON.parse(out());
       const packageRules = new Set(['files-field', 'provenance', 'publish-access']);
-      expect(result.findings.filter((finding) => packageRules.has(finding.ruleId))).toStrictEqual(
-        [],
-      );
+      expect(result.findings.some((finding) => packageRules.has(finding.ruleId))).toBe(false);
     } finally {
       rmSync(dir, { force: true, recursive: true });
     }

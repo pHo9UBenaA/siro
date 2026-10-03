@@ -11,13 +11,13 @@ const bindingFor = (pm: PM, includesFile: (file: string) => boolean): RuleBindin
     check(ctx) {
       const version = ctx.pmVersion;
       if (version === undefined) return { state: 'na' };
-      const unsupported = settings.filter(
-        (setting) =>
-          lt(version, setting.since) &&
-          getByPath(ctx.readConfig(setting.file), setting.keyPath) !== undefined,
-      );
       const unsupportedByFile = new Map<RelPath, typeof settings>();
-      for (const setting of unsupported) {
+      for (const setting of settings) {
+        if (
+          !lt(version, setting.since) ||
+          getByPath(ctx.readConfig(setting.file), setting.keyPath) === undefined
+        )
+          continue;
         const fileSettings = unsupportedByFile.get(setting.file.path) ?? [];
         fileSettings.push(setting);
         unsupportedByFile.set(setting.file.path, fileSettings);

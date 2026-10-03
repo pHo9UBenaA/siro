@@ -34,15 +34,15 @@ export const guardRemediationAvailability = (
     : [],
 ): Remediation | undefined => {
   if (version === undefined || remediation === undefined) return remediation;
-  const unsupported = settingAvailabilityByPM[pm].filter(
-    (setting) =>
-      lt(version, setting.since) && targets.some((target) => sameSetting(setting, target)),
-  );
-  if (unsupported.length === 0) return remediation;
-  const requirements = unsupported.map(
-    (setting) =>
+  const requirements: string[] = [];
+  for (const setting of settingAvailabilityByPM[pm]) {
+    if (!lt(version, setting.since) || !targets.some((target) => sameSetting(setting, target)))
+      continue;
+    requirements.push(
       `${setting.file.path}#${setting.keyPath.join('.')} requires ${pm} >=${setting.since}`,
-  );
+    );
+  }
+  if (requirements.length === 0) return remediation;
   const stepsAfterUpgrade =
     remediation.kind === 'manual'
       ? remediation.steps

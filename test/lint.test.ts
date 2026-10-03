@@ -55,7 +55,7 @@ describe('lint command — flags', () => {
     const publishOnly = new Set(['files-field', 'provenance', 'publish-access']);
     const ids = parsed.findings.map((finding) => finding.ruleId);
     expect(ids).toContain('disable-lifecycle-scripts');
-    expect(ids.filter((id) => publishOnly.has(id))).toStrictEqual([]);
+    expect(ids.some((id) => publishOnly.has(id))).toBe(false);
   });
 
   it('fails on warnings when --severity warn is set', async () => {

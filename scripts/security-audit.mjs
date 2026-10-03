@@ -47,10 +47,9 @@ const osvReport = vb.object({
 
 const parsePnpm = (value) => {
   const report = vb.parse(pnpmReport, value);
-  const total = Object.values(report.metadata.vulnerabilities).reduce(
-    (sum, severityCount) => sum + severityCount,
-    0,
-  );
+  let total = 0;
+  for (const severityCount of Object.values(report.metadata.vulnerabilities))
+    total += severityCount;
   const lines = Object.values(report.advisories).map(
     (item) => `${item.module_name}: ${item.title}`,
   );
@@ -59,14 +58,16 @@ const parsePnpm = (value) => {
 
 const parseOsv = (value) => {
   const report = vb.parse(osvReport, value);
-  const lines = (report.results ?? []).flatMap((source) =>
-    (source.packages ?? []).flatMap((item) =>
-      item.vulnerabilities.map(
-        (vuln) =>
-          `${item.package.name}@${item.package.version}: ${vuln.id}${vuln.summary ? ` (${vuln.summary})` : ''}`,
-      ),
-    ),
-  );
+  const lines = [];
+  for (const source of report.results ?? []) {
+    for (const item of source.packages ?? []) {
+      for (const vulnerability of item.vulnerabilities) {
+        lines.push(
+          `${item.package.name}@${item.package.version}: ${vulnerability.id}${vulnerability.summary ? ` (${vulnerability.summary})` : ''}`,
+        );
+      }
+    }
+  }
   return { total: lines.length, lines };
 };
 
