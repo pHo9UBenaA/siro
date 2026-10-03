@@ -8,6 +8,7 @@ import {
   lintCommand,
   type LintResult,
   type CheckStatus,
+  type ProjectType,
   type RuleBinding,
   type Rule,
   type Reporter,
@@ -142,6 +143,65 @@ it.each([
   { reporters: {} },
 ])('rejects malformed extensions in configuration: %j', (config) => {
   expect(() => Reflect.apply(lint, undefined, [{ ...options, config }])).toThrow(ConfigError);
+});
+
+it('validates indexed project types without invoking the array iterator', () => {
+  const projectTypes: readonly ProjectType[] = ['package'];
+  Object.defineProperty(projectTypes, Symbol.iterator, {
+    value() {
+      throw new Error('The iterator must not decide which project types are validated.');
+    },
+  });
+  const result = lint({
+    ...options,
+    projectType: 'package',
+    config: { customRules: [{ ...rule('indexed-types'), projectTypes }] },
+  });
+  expect(result.findings.some((finding) => finding.ruleId === 'indexed-types')).toBe(true);
+});
+
+it.each([
+  { name: 'a non-string entry', projectTypes: [42] },
+  { name: 'a sparse slot', projectTypes: new Array<unknown>(1) },
+])('rejects projectTypes whose iterator hides $name', ({ projectTypes }) => {
+  Object.defineProperty(projectTypes, Symbol.iterator, {
+    value: function* () {
+      yield 'package';
+    },
+  });
+  expect(() =>
+    Reflect.apply(lint, undefined, [
+      { ...options, config: { customRules: [{ ...rule('invalid-types'), projectTypes }] } },
+    ]),
+  ).toThrow(ConfigError);
+});
+
+it('rejects numeric manual steps hidden by an iterator without emitting JSON', async () => {
+  const steps = Object.defineProperty([42], Symbol.iterator, {
+    value: function* () {
+      yield 'Review the setting.';
+    },
+  });
+  const customRule = {
+    ...rule('invalid-steps'),
+    bindings: {
+      npm: {
+        check: () => ({
+          state: 'violation',
+          message: 'Review the setting.',
+          remediation: { kind: 'manual', steps },
+        }),
+      },
+    },
+  };
+  const { io, out } = captureIO();
+  await expect(
+    Reflect.apply(lintCommand, undefined, [
+      { ...options, reporter: 'json', config: { customRules: [customRule] } },
+      io,
+    ]),
+  ).rejects.toThrow(/invalid check result/u);
+  expect(out()).toBe('');
 });
 
 it.each([
