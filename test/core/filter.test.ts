@@ -1,7 +1,7 @@
 import type { LintResult } from '../../src/core/contracts/lint-result.ts';
 import { exitCodeForLint, filterBySeverity } from '../../src/core/filter.ts';
 
-const result: LintResult = {
+const result = {
   inspection: {
     manifests: [{ path: 'child/package.json', projectType: 'package', targets: [] }],
     installationRoots: [],
@@ -12,7 +12,7 @@ const result: LintResult = {
     { directory: 'child', message: 'm', ruleId: 'c', severity: 'info' },
   ],
   summary: { error: 1, info: 1, warn: 1 },
-};
+} as const satisfies LintResult;
 
 it.each([
   { threshold: 'error', ids: ['a'], summary: { error: 1, warn: 0, info: 0 } },
@@ -29,12 +29,12 @@ it.each([
   { findings: result.findings, threshold: 'error', exit: 1 },
   { findings: [], threshold: undefined, exit: 0 },
   {
-    findings: [result.findings[1]!],
+    findings: [result.findings[1]],
     threshold: 'warn',
     exit: 1,
   },
   {
-    findings: [result.findings[1]!],
+    findings: [result.findings[1]],
     threshold: 'error',
     exit: 0,
   },

@@ -4,13 +4,33 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { parse } from 'yaml';
 import { createHash } from 'node:crypto';
+import * as vb from 'valibot';
 
-const workflow = parse(
-  readFileSync(path.resolve(import.meta.dirname, '../../.github/workflows/publish.yaml'), 'utf8'),
+const StepSchema = vb.looseObject({
+  run: vb.optional(vb.string()),
+  uses: vb.optional(vb.string()),
+  with: vb.optional(vb.record(vb.string(), vb.unknown())),
+});
+const JobSchema = vb.looseObject({
+  steps: vb.array(StepSchema),
+  permissions: vb.record(vb.string(), vb.string()),
+  needs: vb.optional(vb.string()),
+});
+const WorkflowSchema = vb.looseObject({
+  permissions: vb.record(vb.string(), vb.string()),
+  jobs: vb.record(vb.string(), JobSchema),
+});
+const workflow = vb.parse(
+  WorkflowSchema,
+  parse(
+    readFileSync(path.resolve(import.meta.dirname, '../../.github/workflows/publish.yaml'), 'utf8'),
+  ),
 );
+const { build, publish } = workflow.jobs;
+if (!build || !publish) throw new Error('Publish workflow requires build and publish jobs.');
 
 it('does not expose OIDC to install/build/verification and transfers one exact artifact', () => {
-  const buildSteps = workflow.jobs.build.steps as { run?: string; uses?: string }[];
+  const buildSteps = build.steps;
   const pack = buildSteps.findIndex((step) => step.run?.includes('pnpm test:package'));
   const identity = buildSteps.findIndex((step) => step.run?.includes('scripts/check-release.mjs'));
   const upload = buildSteps.findIndex((step) => step.uses?.startsWith('actions/upload-artifact'));
@@ -18,14 +38,10 @@ it('does not expose OIDC to install/build/verification and transfers one exact a
   expect(identity).toBeGreaterThan(pack);
   expect(upload).toBeGreaterThan(identity);
   expect(workflow.permissions['id-token']).toBeUndefined();
-  expect(workflow.jobs.build.permissions['id-token']).toBeUndefined();
-  expect(workflow.jobs.publish.needs).toBe('build');
-  expect(workflow.jobs.publish.permissions['id-token']).toBe('write');
-  const steps = workflow.jobs.publish.steps as {
-    uses?: string;
-    run?: string;
-    with?: Record<string, string>;
-  }[];
+  expect(build.permissions['id-token']).toBeUndefined();
+  expect(publish.needs).toBe('build');
+  expect(publish.permissions['id-token']).toBe('write');
+  const steps = publish.steps;
   expect(steps.filter((step) => step.uses?.startsWith('actions/checkout'))).toEqual([]);
   const publishCommands = steps.map((step) => step.run ?? '').join('\n');
   expect(publishCommands).not.toMatch(/pnpm|scripts\/|npm install|npm run|npm pack/);
@@ -36,7 +52,7 @@ it('does not expose OIDC to install/build/verification and transfers one exact a
       'artifact-ids'
     ],
   ).toContain('needs.build.outputs.artifactId');
-  const actions = (Object.values(workflow.jobs) as { steps: { uses?: string }[] }[])
+  const actions = Object.values(workflow.jobs)
     .flatMap((job) => job.steps)
     .map((step) => step.uses)
     .filter((uses): uses is string => uses !== undefined);
@@ -49,9 +65,8 @@ it('only stages the bytes matching the build checksum', (context) => {
     return;
   }
   const root = mkdtempSync(path.join(tmpdir(), 'siro-stage-boundary-'));
-  const script = workflow.jobs.publish.steps.find((step: { run?: string }) =>
-    step.run?.includes('npm stage publish'),
-  ).run;
+  const script = publish.steps.find((step) => step.run?.includes('npm stage publish'))?.run;
+  if (!script) throw new Error('Publish workflow requires an npm staging command.');
   try {
     mkdirSync(path.join(root, 'bin'));
     mkdirSync(path.join(root, 'release'));

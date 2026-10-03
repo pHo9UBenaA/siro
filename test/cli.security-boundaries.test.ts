@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { isNodeError } from '../src/adapters/node-errors.ts';
 import { asAbsPath, ConfigError, lint } from '../src/index.ts';
 
 const cli = path.resolve(import.meta.dirname, '../dist/cli.js');
@@ -187,7 +188,7 @@ it('rejects file symlinks in strict mode, but retains default resolution', (cont
   try {
     symlinkSync(file, path.join(root, '.npmrc'));
   } catch (error) {
-    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') {
+    if (process.platform === 'win32' && isNodeError(error) && error.code === 'EPERM') {
       context.skip();
       return;
     }

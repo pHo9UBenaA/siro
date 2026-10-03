@@ -14,7 +14,7 @@ import { captureIO } from '../helpers/io.ts';
 
 const context = { cwd: asAbsPath(path.resolve('/reporter-fixture')) };
 const inspection = { manifests: [], installationRoots: [] };
-const result: LintResult = {
+const result = {
   inspection,
   findings: [
     {
@@ -28,7 +28,7 @@ const result: LintResult = {
     },
   ],
   summary: { error: 1, info: 0, warn: 0 },
-};
+} as const satisfies LintResult;
 afterEach(() => vi.unstubAllEnvs());
 
 it('registers built-ins and allows later custom replacements', () => {
@@ -52,7 +52,7 @@ it('escapes GitHub properties/data and resolves file paths against the supplied 
       ...result,
       findings: [
         {
-          ...result.findings[0]!,
+          ...result.findings[0],
           file,
           message: 'set foo=bar, baz: 100%\nnext line',
           docs: undefined,

@@ -18,6 +18,11 @@ it('waits for write callbacks under backpressure and keeps output ordered', asyn
       callbacks.push(done);
     },
   });
+  const completeNextWrite = () => {
+    const callback = callbacks.shift();
+    if (!callback) throw new Error('Expected a pending write callback.');
+    callback();
+  };
   const io = createNodeIO(output, discard());
   expect(output.listenerCount('error')).toBe(0); // No interception until this sink is used.
   let settled = false;
@@ -28,9 +33,9 @@ it('waits for write callbacks under backpressure and keeps output ordered', asyn
   await Promise.resolve();
   expect(settled).toBe(false);
   expect(chunks).toEqual(['first\n']);
-  callbacks.shift()!();
+  completeNextWrite();
   expect(chunks).toEqual(['first\n', 'second\n']);
-  callbacks.shift()!();
+  completeNextWrite();
   await Promise.all([first, second]);
   expect(settled).toBe(true);
 });

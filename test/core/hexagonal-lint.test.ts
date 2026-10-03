@@ -7,7 +7,15 @@ import type { Rule } from '../../src/core/contracts/rule.ts';
 import { asRelPath, type AbsPath } from '../../src/core/contracts/paths.ts';
 import { captureIO } from '../helpers/io.ts';
 
-const request = { cwd: '/virtual' as AbsPath, installationRoots: [] };
+const isVirtualPath = (value: unknown): value is AbsPath =>
+  typeof value === 'string' &&
+  (value === '/virtual' || value.startsWith('/virtual/')) &&
+  !value.split('/').includes('..');
+const virtualPath = (value: string): AbsPath => {
+  if (!isVirtualPath(value)) throw new TypeError(`Invalid virtual path: ${value}`);
+  return value;
+};
+const request = { cwd: virtualPath('/virtual'), installationRoots: [] };
 // No production adapter or runtime composition: all IO goes through these ports.
 const host = () => {
   const files: Record<string, string> = {
@@ -27,22 +35,21 @@ const host = () => {
       },
     },
     paths: {
-      isAbsolute: (value): value is AbsPath =>
-        typeof value === 'string' && value.startsWith('/virtual'),
-      resolve: (root, relative) => (relative === '.' ? root : `${root}/${relative}`) as AbsPath,
+      isAbsolute: isVirtualPath,
+      resolve: (root, relative) => virtualPath(relative === '.' ? root : `${root}/${relative}`),
       child: (parent, name) =>
         asRelPath(parent === '.' ? String(name) : `${parent}/${String(name)}`),
     },
     codecFor: () => ({ parse: JSON.parse }),
     compileExclusions: (patterns) => (directory) => patterns.includes(directory),
     createRepoContext: (root, fs, projectType) => {
-      const raw = fs.readText(`${root}/package.json` as AbsPath);
+      const raw = fs.readText(virtualPath(`${root}/package.json`));
       return {
         root,
         projectType,
         packageJson: raw === undefined ? undefined : JSON.parse(raw),
-        exists: (relative) => fs.exists(`${root}/${relative}` as AbsPath),
-        readText: (relative) => fs.readText(`${root}/${relative}` as AbsPath),
+        exists: (relative) => fs.exists(virtualPath(`${root}/${relative}`)),
+        readText: (relative) => fs.readText(virtualPath(`${root}/${relative}`)),
       };
     },
   };
@@ -145,6 +152,8 @@ it.each([
 
 it('does not fall back for an explicitly invalid null filesystem', () => {
   const { dependencies, readText } = host();
-  expect(() => lint({ ...request, fs: null as never }, dependencies)).toThrow(TypeError);
+  expect(() => Reflect.apply(lint, undefined, [{ ...request, fs: null }, dependencies])).toThrow(
+    TypeError,
+  );
   expect(readText).not.toHaveBeenCalled();
 });

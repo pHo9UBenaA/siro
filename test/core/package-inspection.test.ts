@@ -225,7 +225,10 @@ it.each([
   { workspaces: false },
 ])('rejects invalid scope %j', (options) => {
   expect(() =>
-    inspect({ 'child/package.json': '{}', 'node_modules/package.json': '{}' }, options as never),
+    Reflect.apply(inspect, undefined, [
+      { 'child/package.json': '{}', 'node_modules/package.json': '{}' },
+      options,
+    ]),
   ).toThrow(/exclude|installation|workspaces|pmVersion/iu);
 });
 
@@ -315,18 +318,23 @@ it.each([
   { name: 'sparse response', names: Array(1) },
 ])('rejects enumeration with a $name', ({ names }) => {
   const fs = createMemFileSystem({});
-  fs.readDirectories = names === undefined ? (undefined as never) : () => names as never;
-  expect(() => inspect({}, { fs })).toThrow(/FileSystem.readDirectories/);
+  const invalidFs = { ...fs, readDirectories: names === undefined ? undefined : () => names };
+  expect(() => Reflect.apply(inspect, undefined, [{}, { fs: invalidFs }])).toThrow(
+    /FileSystem.readDirectories/,
+  );
 });
 
 it.each([null, undefined])(
   'rejects invalid enumeration results as configuration errors without output: %s',
   async (names) => {
     const fs = createMemFileSystem({});
-    fs.readDirectories = () => names as never;
+    const invalidFs = { ...fs, readDirectories: () => names };
     const { io, out } = captureIO();
     await expect(
-      lintCommand({ cwd: asAbsPath('/repo'), fs, installationRoots: [], reporter: 'json' }, io),
+      Reflect.apply(lintCommand, undefined, [
+        { cwd: asAbsPath('/repo'), fs: invalidFs, installationRoots: [], reporter: 'json' },
+        io,
+      ]),
     ).rejects.toMatchObject({ name: 'ConfigError', exitCode: 2 });
     expect(out()).toBe('');
   },

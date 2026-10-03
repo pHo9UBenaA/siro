@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { asAbsPath, lint } from '../../src/index.ts';
 import { createNodeFileSystem } from '../../src/adapters/node-file-system.ts';
+import { isNodeError } from '../../src/adapters/node-errors.ts';
 import { resolveScanLimits } from '../../src/core/contracts/scan-limits.ts';
 
 let root: string;
@@ -47,7 +48,7 @@ it('rejects dangling/input/ancestor symlinks and symlink cwd under strict reads'
     );
     symlinkSync(path.join(root, 'missing'), path.join(repository, 'package.json'));
   } catch (error) {
-    if (process.platform === 'win32' && (error as NodeJS.ErrnoException).code === 'EPERM') {
+    if (process.platform === 'win32' && isNodeError(error) && error.code === 'EPERM') {
       context.skip();
       return;
     }

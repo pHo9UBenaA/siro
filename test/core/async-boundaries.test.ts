@@ -1,4 +1,4 @@
-import { asAbsPath, lint, lintCommand, type SiroConfig } from '../../src/index.ts';
+import { asAbsPath, lint, lintCommand } from '../../src/index.ts';
 import { npmPassingFs } from '../helpers/fixtures.ts';
 import { captureIO } from '../helpers/io.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
@@ -25,24 +25,27 @@ const asyncValues = [
 it.each(asyncValues)(
   'rejects a $name without process-wide rejection handlers',
   async ({ create }) => {
-    expect(() => lint({ ...options, config: create() as unknown as SiroConfig })).toThrow(
+    // Runtime validation also protects untyped JavaScript callers.
+    expect(() => Reflect.apply(lint, undefined, [{ ...options, config: create() }])).toThrow(
       /synchronous/,
     );
     expect(() =>
-      lint({
-        ...options,
-        config: {
-          customRules: [
-            {
-              id: 'async-probe',
-              title: 'Async probe',
-              description: 'Return an unsupported async check result.',
-              severity: 'error',
-              bindings: { npm: { check: () => create() as never } },
-            },
-          ],
+      Reflect.apply(lint, undefined, [
+        {
+          ...options,
+          config: {
+            customRules: [
+              {
+                id: 'async-probe',
+                title: 'Async probe',
+                description: 'Return an unsupported async check result.',
+                severity: 'error',
+                bindings: { npm: { check: create } },
+              },
+            ],
+          },
         },
-      }),
+      ]),
     ).toThrow(/async-probe.*synchronous/);
     // Vitest itself detects any escaped unhandled rejection after this turn.
     await new Promise<void>((resolve) => setImmediate(resolve));
@@ -140,10 +143,7 @@ it('observes writes from legacy synchronous reporters, even if they catch a sync
 
 it('awaits a delayed output rejection rather than resolving a clean lint command', async () => {
   const failure = new Error('delayed output failure');
-  let reject: (error: Error) => void = () => {};
-  const write = new Promise<void>((_resolve, rejectWrite) => {
-    reject = rejectWrite;
-  });
+  const { promise: write, reject } = Promise.withResolvers<void>();
   // Observe immediately so the red test itself does not create an unhandled rejection.
   void write.catch(() => {});
   const result = lintCommand(
@@ -204,10 +204,7 @@ describe('Reporter completion and failures', () => {
 
   it('waits for asynchronous reporting before returning the lint exit code', async () => {
     const { io, out } = captureIO();
-    let release!: () => void;
-    const ready = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: ready, resolve: release } = Promise.withResolvers<void>();
     let settled = false;
     const command = lintCommand(
       {

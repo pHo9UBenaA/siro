@@ -86,9 +86,9 @@ it('requires a manager for an explicit version', () => {
 it.each(['^11.10.0', '11.10.0-rc.1', 'v11.10.0', ' 11.10.0', 11, null])(
   'rejects an ambiguous explicit target: %s',
   (pmVersion) => {
-    expect(() => evaluate('npm@11.9.0', { pm: 'npm', pmVersion } as Partial<LintOptions>)).toThrow(
-      UsageError,
-    );
+    expect(() =>
+      Reflect.apply(evaluate, undefined, ['npm@11.9.0', { pm: 'npm', pmVersion }]),
+    ).toThrow(UsageError);
   },
 );
 
@@ -104,7 +104,7 @@ it('does not let a version map select managers or bypass its validation', () => 
     Object.create({ npm: '1.0.0' }),
   ]) {
     expect(() =>
-      evaluate('npm@11.10.0', { config: { pmVersions } } as Partial<LintOptions>),
+      Reflect.apply(evaluate, undefined, ['npm@11.10.0', { config: { pmVersions } }]),
     ).toThrow(ConfigError);
   }
 });

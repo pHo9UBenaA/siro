@@ -55,7 +55,7 @@ it.each([
   { kind: 'manual', steps: [42] },
   { kind: 'manual', steps: ['manual'], operations: [operation] },
 ])('rejects invalid or ambiguous remediation: %j', (remediation) => {
-  const rule: Rule = {
+  const rule = {
     id: 'invalid-remedy',
     title: 'Invalid',
     description: 'Invalid',
@@ -63,46 +63,49 @@ it.each([
     bindings: {
       npm: {
         file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-        check: () => ({ state: 'violation', message: 'Invalid remedy', remediation }) as never,
+        check: () => ({ state: 'violation', message: 'Invalid remedy', remediation }),
       },
     },
   };
   expect(() =>
-    runLint({
-      repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      targets: [{ pm: 'npm' }],
-      ruleSet: [rule],
-    }),
+    Reflect.apply(runLint, undefined, [
+      {
+        repository: createRepositoryEvaluation(makeCtx(), codecFor),
+        targets: [{ pm: 'npm' }],
+        ruleSet: [rule],
+      },
+    ]),
   ).toThrow("Rule 'invalid-remedy' returned an invalid check result.");
 });
 
 it('rejects a write target that traverses outside the repository', () => {
   const path = 'nested/../../outside';
 
-  const rule: Rule = {
+  const rule = {
     id: 'invalid-target',
     title: 'Invalid target',
     description: 'Invalid target',
     severity: 'error',
     bindings: {
       npm: {
-        check: () =>
-          ({
-            state: 'violation',
-            message: 'x',
-            remediation: {
-              kind: 'automatic',
-              operations: [{ ...operation, file: { kind: 'npmrc', path } }],
-            },
-          }) as never,
+        check: () => ({
+          state: 'violation',
+          message: 'x',
+          remediation: {
+            kind: 'automatic',
+            operations: [{ ...operation, file: { kind: 'npmrc', path } }],
+          },
+        }),
       },
     },
   };
   expect(() =>
-    runLint({
-      repository: createRepositoryEvaluation(makeCtx(), codecFor),
-      targets: [{ pm: 'npm' }],
-      ruleSet: [rule],
-    }),
+    Reflect.apply(runLint, undefined, [
+      {
+        repository: createRepositoryEvaluation(makeCtx(), codecFor),
+        targets: [{ pm: 'npm' }],
+        ruleSet: [rule],
+      },
+    ]),
   ).toThrow(/invalid check result/u);
 });

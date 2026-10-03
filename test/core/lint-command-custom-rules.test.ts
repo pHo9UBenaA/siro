@@ -141,7 +141,7 @@ it.each([
   { reporters: [Object.assign([], { name: 'array', format() {} })] },
   { reporters: {} },
 ])('rejects malformed extensions in configuration: %j', (config) => {
-  expect(() => lint({ ...options, config: config as unknown as SiroConfig })).toThrow(ConfigError);
+  expect(() => Reflect.apply(lint, undefined, [{ ...options, config }])).toThrow(ConfigError);
 });
 
 it.each([
@@ -155,7 +155,14 @@ it.each([
   { state: 'violation', message: 'x', fix: [] },
 ])('rejects invalid extension check results: %j', (status) => {
   expect(() =>
-    lint({ ...options, config: { customRules: [rule('invalid', () => status as CheckStatus)] } }),
+    Reflect.apply(lint, undefined, [
+      {
+        ...options,
+        config: {
+          customRules: [{ ...rule('invalid'), bindings: { npm: { check: () => status } } }],
+        },
+      },
+    ]),
   ).toThrow("Rule 'invalid' returned an invalid check result.");
 });
 
@@ -163,7 +170,7 @@ it.each(['unknown', { name: 'broken' }])(
   'rejects an invalid reporter selection: %j',
   async (reporter) => {
     await expect(
-      lintCommand({ ...options, reporter: reporter as never }, captureIO().io),
+      Reflect.apply(lintCommand, undefined, [{ ...options, reporter }, captureIO().io]),
     ).rejects.toThrow(UsageError);
   },
 );
@@ -201,7 +208,7 @@ it('propagates a rule failure without reporting a partial result', async () => {
 });
 
 it('rejects legacy extension options instead of silently ignoring their policies', () => {
-  expect(() => lint({ ...options, customRules: [rule('legacy')] } as never)).toThrow(
-    /inside the config option/u,
-  );
+  expect(() =>
+    Reflect.apply(lint, undefined, [{ ...options, customRules: [rule('legacy')] }]),
+  ).toThrow(/inside the config option/u);
 });

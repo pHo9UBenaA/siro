@@ -214,11 +214,13 @@ it.each([
     ],
   },
 ])('rejects an invalid $name without a partial result', ({ violations }) => {
-  const rule = ruleWith('invalid-group', ['npm'], {
-    state: 'violations',
-    violations,
-  } as unknown as CheckStatus);
-  expect(() => lint(noopCtx, [rule], ['npm'])).toThrow('invalid check result');
+  const invalidRule = {
+    ...ruleWith('invalid-group', ['npm'], { state: 'ok' }),
+    bindings: { npm: { check: () => ({ state: 'violations', violations }) } },
+  };
+  expect(() => Reflect.apply(lint, undefined, [noopCtx, [invalidRule], ['npm']])).toThrow(
+    'invalid check result',
+  );
 });
 
 it('guards each grouped remediation and applies an override to every entry', () => {
