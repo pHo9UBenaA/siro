@@ -70,15 +70,17 @@ it.each([
 });
 
 it('reads toJSON once and does not invoke the returned object hook again', () => {
-  let reads = 0;
+  const readToJSON = vi.fn<() => () => unknown>(() => () => ({
+    toJSON: () => 'must not run',
+    value: 7,
+  }));
   const value = {
     get toJSON() {
-      reads++;
-      return () => ({ toJSON: () => 'must not run', value: 7 });
+      return readToJSON();
     },
   };
   expect(boundedJson(value, 1024, 128)).toBe('{\n  "value": 7\n}');
-  expect(reads).toBe(1);
+  expect(readToJSON).toHaveBeenCalledOnce();
 });
 
 it('snapshots array length before child toJSON hooks change it', () => {

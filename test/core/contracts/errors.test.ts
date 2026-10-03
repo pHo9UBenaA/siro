@@ -1,3 +1,4 @@
+import { captureThrown } from '../../helpers/errors.ts';
 import { ConfigError, wrapCodecError } from '../../../src/core/contracts/errors.ts';
 
 /** Throws a non-Error value to exercise code paths handling bare throws. */
@@ -14,14 +15,11 @@ describe(wrapCodecError, () => {
 
   it('re-throws an existing ConfigError unchanged so a nested wrap does not double-prefix', () => {
     const original = new ConfigError('inner.toml: original');
-    let caught: unknown;
-    try {
+    const caught = captureThrown(() =>
       wrapCodecError('outer.toml', () => {
         throw original;
-      });
-    } catch (error) {
-      caught = error;
-    }
+      }),
+    );
     expect(caught).toBe(original);
   });
 });

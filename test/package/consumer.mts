@@ -20,11 +20,27 @@ import {
   type RequireConfigKeySpec,
   DEFAULT_SCAN_LIMITS,
   type ScanLimits,
+  type IO,
 } from '@pho9ubenaa/siro';
 
 // Isolated installed consumer: no internal imports or dev dependency types.
 function check(condition: boolean, contract: string): void {
   if (!condition) throw new Error(`Installed public API: ${contract}`);
+}
+function captureThrown(action: () => unknown): unknown {
+  try {
+    action();
+  } catch (error) {
+    return error;
+  }
+  throw new Error('Expected the action to throw.');
+}
+function captureOutput(): { io: IO; text: () => string } {
+  const chunks: string[] = [];
+  return {
+    io: { stdout: (text) => chunks.push(text), stderr() {} },
+    text: () => chunks.join(''),
+  };
 }
 const posix = (value: string) => value.replaceAll('\\', '/');
 const emptyFs: FileSystem = {
@@ -42,18 +58,18 @@ function verifyLimits() {
       .manifests.length === 0,
     'empty discovery accepts the public scan limits',
   );
-  let overflow = false;
-  try {
+  const failure = captureThrown(() =>
     lint({
       cwd: asAbsPath('/virtual'),
       fs: { ...emptyFs, readText: () => '{"private":true}' },
       installationRoots: [],
       limits: { maxFileBytes: 1 },
-    });
-  } catch (error) {
-    overflow = error instanceof Error && error.message.includes('maxFileBytes');
-  }
-  check(overflow, 'file byte overflow propagates through lint');
+    }),
+  );
+  check(
+    failure instanceof Error && failure.message.includes('maxFileBytes'),
+    'file byte overflow propagates through lint',
+  );
 }
 
 // @ts-expect-error workspace selection is removed, not an alias.
@@ -124,35 +140,28 @@ async function verifyReporterCompletion() {
 
 async function verifyReporterFailure() {
   const failure = new Error('reporter failure');
-  let caught: unknown;
-  let partial = '';
-  try {
-    await lintCommand(
-      {
-        cwd: asAbsPath('/virtual'),
-        pm: 'npm',
-        fs: emptyFs,
-        reporter: {
-          name: 'partial',
-          async format(_result, io) {
-            io.stdout('partial');
-            await Promise.resolve();
-            throw failure;
-          },
+  const { io, text } = captureOutput();
+  const caught = await lintCommand(
+    {
+      cwd: asAbsPath('/virtual'),
+      pm: 'npm',
+      fs: emptyFs,
+      reporter: {
+        name: 'partial',
+        async format(_result, targetIO) {
+          targetIO.stdout('partial');
+          await Promise.resolve();
+          throw failure;
         },
       },
-      {
-        stdout(text) {
-          partial += text;
-        },
-        stderr() {},
-      },
-    );
-  } catch (error) {
-    caught = error;
-  }
+    },
+    io,
+  ).then(
+    () => undefined,
+    (error: unknown) => error,
+  );
   check(
-    caught === failure && partial === 'partial',
+    caught === failure && text() === 'partial',
     'reporter failure identity propagates after partial output',
   );
 }
@@ -211,18 +220,9 @@ function verifyInspection() {
 }
 
 async function verifyJsonReport(result: LintResult) {
-  let output = '';
-  await jsonReporter.format(
-    result,
-    {
-      stdout(text) {
-        output += text;
-      },
-      stderr() {},
-    },
-    { cwd: asAbsPath('/virtual') },
-  );
-  const report = JSON.parse(output);
+  const { io, text } = captureOutput();
+  await jsonReporter.format(result, io, { cwd: asAbsPath('/virtual') });
+  const report = JSON.parse(text());
   check(report.schemaVersion === 3, 'JSON identifies schema version 3');
   check(report.siroVersion === version, 'JSON identifies the installed package version');
   check(
@@ -237,7 +237,7 @@ async function verifyJsonReport(result: LintResult) {
 
 async function verifyJsonEscaping(result: LintResult) {
   const marker = '##[error]literal\u202e';
-  let encoded = '';
+  const { io, text } = captureOutput();
   await jsonReporter.format(
     {
       ...result,
@@ -250,14 +250,10 @@ async function verifyJsonEscaping(result: LintResult) {
         },
       ],
     },
-    {
-      stdout: (text) => {
-        encoded += text;
-      },
-      stderr() {},
-    },
+    io,
     { cwd: asAbsPath('/virtual') },
   );
+  const encoded = text();
   check(
     !encoded.includes('##[') && !encoded.includes('\u202e'),
     'JSON escapes annotation openers and bidi controls',
@@ -269,39 +265,28 @@ async function verifyJsonEscaping(result: LintResult) {
 }
 
 async function verifyGitHubReport(result: LintResult) {
-  let annotations = '';
-  await githubReporter.format(
-    result,
-    {
-      stdout: (text) => {
-        annotations += text;
-      },
-      stderr() {},
-    },
-    { cwd: asAbsPath('/virtual') },
-  );
+  const { io, text } = captureOutput();
+  await githubReporter.format(result, io, { cwd: asAbsPath('/virtual') });
   check(
-    posix(annotations).includes('/virtual/child/package.json'),
+    posix(text()).includes('/virtual/child/package.json'),
     'GitHub annotations resolve child paths against cwd',
   );
 }
 
 async function verifyOutputFailure() {
   const writeFailure = new Error('delayed write');
-  let outputFailure: unknown;
-  try {
-    await lintCommand(
-      { cwd: asAbsPath('/virtual'), fs: emptyFs, installationRoots: [], reporter: 'json' },
-      {
-        async stdout() {
-          throw writeFailure;
-        },
-        stderr() {},
+  const outputFailure = await lintCommand(
+    { cwd: asAbsPath('/virtual'), fs: emptyFs, installationRoots: [], reporter: 'json' },
+    {
+      async stdout() {
+        throw writeFailure;
       },
-    );
-  } catch (error) {
-    outputFailure = error;
-  }
+      stderr() {},
+    },
+  ).then(
+    () => undefined,
+    (error: unknown) => error,
+  );
   check(outputFailure === writeFailure, 'delayed sink failure identity propagates');
 }
 
@@ -354,7 +339,7 @@ async function verifyGroupedResults() {
     },
   });
   for (const reporter of ['json', 'pretty', 'github'] as const) {
-    let text = '';
+    const { io, text } = captureOutput();
     await lintCommand(
       {
         cwd: asAbsPath('/virtual'),
@@ -363,15 +348,11 @@ async function verifyGroupedResults() {
         config: { customRules: [multi] },
         reporter,
       },
-      {
-        stdout(line) {
-          text += line;
-        },
-        stderr() {},
-      },
+      io,
     );
+    const output = text();
     check(
-      text.includes('First file') && text.includes('Second file'),
+      output.includes('First file') && output.includes('Second file'),
       `${reporter} reports both independent group members`,
     );
   }

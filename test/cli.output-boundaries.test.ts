@@ -144,9 +144,9 @@ it.each(['--json', '--help', '--version'])(
         timeout: 10_000,
       });
       try {
-        let stderr = '';
-        child.stderr.setEncoding('utf8').on('data', (chunk) => {
-          stderr += chunk;
+        const stderrChunks: string[] = [];
+        child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+          stderrChunks.push(chunk);
         });
         child.stdout.destroy();
         const completion = await new Promise<{
@@ -156,7 +156,7 @@ it.each(['--json', '--help', '--version'])(
           child.on('error', reject);
           child.on('close', (code, signal) => resolve({ code, signal }));
         });
-        expect({ ...completion, stderr }).toMatchObject({
+        expect({ ...completion, stderr: stderrChunks.join('') }).toMatchObject({
           code: 70,
           signal: null,
           stderr: expect.not.stringContaining("Unhandled 'error' event"),

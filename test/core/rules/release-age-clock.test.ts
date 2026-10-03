@@ -8,13 +8,16 @@ it.each([
 ] as const)(
   'evaluates %s cutoffs against its supplied clock without changing global time',
   (pm, config) => {
-    let nowMs = Date.parse('2030-01-01T00:00:00.000Z');
-    const rule = createMinimumReleaseAge({ now: () => nowMs, parse: Date.parse });
+    const cutoffMs = Date.parse('2030-01-01T00:00:00.000Z');
+    const now = vi
+      .fn<() => number>()
+      .mockReturnValueOnce(cutoffMs)
+      .mockReturnValue(cutoffMs + 1);
+    const rule = createMinimumReleaseAge({ now, parse: Date.parse });
     const binding = bindingForTest(rule, pm);
     expect(binding.check(makeCtx(), config).state).toBe('violation');
-    nowMs += 1;
     expect(binding.check(makeCtx(), config).state).toBe('ok');
-    const other = createMinimumReleaseAge({ now: () => nowMs - 1, parse: Date.parse });
+    const other = createMinimumReleaseAge({ now: () => cutoffMs, parse: Date.parse });
     expect(bindingForTest(other, pm).check(makeCtx(), config).state).toBe('violation');
   },
 );

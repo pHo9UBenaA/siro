@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { isNodeError } from '../src/adapters/node-errors.ts';
+import { captureThrown } from './helpers/errors.ts';
 import { asAbsPath, ConfigError, lint } from '../src/index.ts';
 
 const cli = path.resolve(import.meta.dirname, '../dist/cli.js');
@@ -104,12 +105,7 @@ it.each([
   expect(result.stdout).toBe('');
   expect(result.stderr).not.toContain('FAKE_SECRET');
   expect(result.stderr).toContain(file);
-  let failure: unknown;
-  try {
-    lint({ cwd: asAbsPath(root), pm });
-  } catch (error) {
-    failure = error;
-  }
+  const failure = captureThrown(() => lint({ cwd: asAbsPath(root), pm }));
   expect(failure).toBeInstanceOf(ConfigError);
   expect(String(failure)).toMatch(/invalid|Invalid/);
   expect(String(failure)).toContain(file);

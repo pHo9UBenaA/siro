@@ -386,15 +386,13 @@ it('shares successful manifest reads within a run but not across calls', () => {
       '{"name":"first","packageManager":"npm@9.4.0","publishConfig":{"provenance":true}}',
   });
   const read = fs.readText;
-  let count = 0;
-  fs.readText = (file) => {
-    if (!file.endsWith('package.json')) return read(file);
-    count += 1;
-    if (count > 1) return '{"private":true,"packageManager":"npm@12.0.2"}';
-    return read(file);
-  };
+  const readManifest = vi
+    .fn<typeof fs.readText>()
+    .mockImplementationOnce(read)
+    .mockReturnValue('{"private":true,"packageManager":"npm@12.0.2"}');
+  fs.readText = (file) => (file.endsWith('package.json') ? readManifest(file) : read(file));
   const result = inspect({}, { fs, installationRoots: ['.'] });
-  expect(count).toBe(1);
+  expect(readManifest).toHaveBeenCalledOnce();
   expect(
     result.findings.filter((f) => f.ruleId === 'unsupported-settings').map((f) => f.file),
   ).toContain('package.json');

@@ -6,6 +6,7 @@ import {
 } from '../../src/core/parse-config-file.ts';
 import { ConfigError } from '../../src/core/contracts/errors.ts';
 import { asRelPath } from '../../src/core/contracts/paths.ts';
+import { captureThrown } from '../helpers/errors.ts';
 import { makeCtx } from '../helpers/ctx.ts';
 
 it('pairs a context with a fresh lazy parser without reading ahead', () => {
@@ -40,13 +41,7 @@ describe('createConfigParser — error handling', () => {
     const parse = vi.fn<ConfigCodec['parse']>(() => ({ approved: true }));
     const parseConfig = createConfigParser(() => ({ parse }), makeCtx({ readText }));
     const file: ConfigFileRef = { kind: 'json', path: asRelPath('deno.json') };
-    let caught: unknown;
-    try {
-      parseConfig(file);
-    } catch (error) {
-      caught = error;
-    }
-    expect(caught).toBe(failure);
+    expect(captureThrown(() => parseConfig(file))).toBe(failure);
     expect(parse).not.toHaveBeenCalled();
     const value = parseConfig(file);
     expect(parseConfig(file)).toBe(value);
@@ -99,12 +94,7 @@ describe('createConfigParser — error handling', () => {
     const file: ConfigFileRef = { kind: 'yaml', path: asRelPath('pnpm-workspace.yaml') };
     const parseConfig = createConfigParser(codecFor, ctx);
 
-    let failure: unknown;
-    try {
-      parseConfig(file);
-    } catch (error) {
-      failure = error;
-    }
+    const failure = captureThrown(() => parseConfig(file));
     expect(failure).toBeInstanceOf(ConfigError);
     expect(failure).toMatchObject({ message: 'pnpm-workspace.yaml: Invalid configuration.' });
   });

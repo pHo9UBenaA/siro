@@ -35,14 +35,11 @@ it.each([
 });
 
 it('shares additional file parsing across rules and refreshes it on the next run', () => {
-  let content = 'approved=true';
-  let reads = 0;
-  const ctx = makeCtx({
-    readText: () => {
-      reads += 1;
-      return content;
-    },
-  });
+  const readText = vi
+    .fn<() => string>()
+    .mockReturnValueOnce('approved=true')
+    .mockReturnValue('approved=false');
+  const ctx = makeCtx({ readText });
   const options = {
     targets: [{ pm: 'npm' }] as const,
     ruleSet: ['first', 'second'].map((id) => ({
@@ -64,12 +61,11 @@ it('shares additional file parsing across rules and refreshes it on the next run
   expect(
     runLint({ ...options, repository: createRepositoryEvaluation(ctx, codecFor) }).findings,
   ).toEqual([]);
-  expect(reads).toBe(1);
-  content = 'approved=false';
+  expect(readText).toHaveBeenCalledOnce();
   expect(
     runLint({ ...options, repository: createRepositoryEvaluation(ctx, codecFor) }).findings,
   ).toHaveLength(2);
-  expect(reads).toBe(2);
+  expect(readText).toHaveBeenCalledTimes(2);
 });
 
 it('propagates a parse failure from an additional configuration file', () => {
@@ -108,17 +104,19 @@ describe('Scan read snapshots', () => {
   it.each(['package.json', './package.json'])(
     'gives manifest metadata and rule config the same package.json source via %s',
     (rulePath) => {
-      let reads = 0;
-      let extraReads = 0;
+      const readManifest = vi
+        .fn<() => string>()
+        .mockReturnValueOnce('{"private":false}')
+        .mockReturnValue('{"private":true}');
+      const readExtra = vi.fn<() => string>().mockReturnValueOnce('1').mockReturnValue('2');
       const manifest = path.join('/repo', 'package.json');
       const fs: FileSystem = {
         readDirectories: () => [],
         exists: () => false,
         readText: (file) => {
-          if (file === path.join('/repo', 'extra.txt')) return String(++extraReads);
-          if (file !== manifest) return undefined;
-          reads++;
-          return JSON.stringify({ private: reads > 1 });
+          if (file === path.join('/repo', 'extra.txt')) return readExtra();
+          if (file === manifest) return readManifest();
+          return undefined;
         },
       };
       const seen: unknown[] = [];
@@ -152,21 +150,24 @@ describe('Scan read snapshots', () => {
         aliasedExtraText: '1',
       };
       expect(seen).toEqual([firstSnapshot]);
-      expect(reads).toBe(1);
-      expect(extraReads).toBe(1);
+      expect(readManifest).toHaveBeenCalledOnce();
+      expect(readExtra).toHaveBeenCalledOnce();
       lint(snapshotOptions);
       expect(seen).toEqual([
         firstSnapshot,
         { manifestPrivate: true, configPrivate: true, extraText: '2', aliasedExtraText: '2' },
       ]);
-      expect(reads).toBe(2);
-      expect(extraReads).toBe(2);
+      expect(readManifest).toHaveBeenCalledTimes(2);
+      expect(readExtra).toHaveBeenCalledTimes(2);
     },
   );
 
   it('keeps an absent manifest absent within a scan and re-reads it on the next scan', () => {
     const manifest = path.join('/repo', 'package.json');
-    let reads = 0;
+    const readManifest = vi
+      .fn<() => string | undefined>()
+      .mockReturnValueOnce(undefined)
+      .mockReturnValue('{"private":true}');
     const seen: unknown[] = [];
     const request: LintOptions = {
       cwd: asAbsPath('/repo'),
@@ -177,8 +178,7 @@ describe('Scan read snapshots', () => {
         exists: () => false,
         readText(file) {
           if (file !== manifest) return undefined;
-          reads += 1;
-          return reads > 1 ? '{"private":true}' : undefined;
+          return readManifest();
         },
       },
       config: {
@@ -199,12 +199,12 @@ describe('Scan read snapshots', () => {
     };
     lint(request);
     expect(seen).toEqual([{ manifestPrivate: undefined, configPrivate: undefined }]);
-    expect(reads).toBe(1);
+    expect(readManifest).toHaveBeenCalledOnce();
     lint(request);
     expect(seen).toEqual([
       { manifestPrivate: undefined, configPrivate: undefined },
       { manifestPrivate: true, configPrivate: true },
     ]);
-    expect(reads).toBe(2);
+    expect(readManifest).toHaveBeenCalledTimes(2);
   });
 });
