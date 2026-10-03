@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.3] — 2026-10-03
+
+- Reject unknown package-manager keys and non-plain binding maps in
+  `requireConfigKey` instead of silently dropping or inheriting custom policy.
+- Require synchronous boolean results from `requireConfigKey`'s `accept` and
+  `applies` predicates. Promises, thenables and nonboolean values now produce
+  configuration errors (CLI exit 2), rather than being treated as truthy policy
+  decisions. Rejected asynchronous results are observed without an unhandled rejection.
+- Consolidate the installation-root type and remove duplicate Git-hook setup prose.
+
+Valid synchronous custom policies, public API types, CLI options, decoded JSON
+schema 3, Node requirements and inspection scope remain unchanged.
+
 ## [0.6.2] — 2026-10-03
 
 - Report oversized custom rule groups as finding-limit errors (CLI exit 2), rather
