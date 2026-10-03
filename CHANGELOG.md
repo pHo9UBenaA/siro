@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## [0.6.2] — 2026-10-03
 
 - Report oversized custom rule groups as finding-limit errors (CLI exit 2), rather
   than JavaScript argument-limit failures (exit 70). Larger caller-supplied finding
   budgets also work without truncating results.
+- Reduce distribution size and repeated configuration work during scans.
+
+Public API, CLI options, decoded JSON schema 3, Node requirements, inspection scope
+and [safety limits](docs/threat-model.md) remain unchanged.
 
 ## [0.6.1] — 2026-10-02
 
