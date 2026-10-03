@@ -3,7 +3,7 @@ import type { PM } from '../contracts/pms.ts';
 import type { Remediation } from '../contracts/rule.ts';
 import type { ConfigFileRef } from '../contracts/config-file-ref.ts';
 import type { KeyPath } from '../contracts/config-value.ts';
-import { settingAvailability } from './setting-availability.ts';
+import { settingAvailabilityByPM } from './setting-availability.ts';
 
 type SettingTarget = { readonly file: ConfigFileRef; readonly keyPath: KeyPath };
 
@@ -20,9 +20,7 @@ export const settingSupportedByTarget = (
   target: SettingTarget,
 ): boolean | undefined => {
   if (version === undefined) return undefined;
-  const availability = settingAvailability.find(
-    (setting) => setting.pm === pm && sameSetting(setting, target),
-  );
+  const availability = settingAvailabilityByPM[pm].find((setting) => sameSetting(setting, target));
   return availability === undefined ? undefined : !lt(version, availability.since);
 };
 
@@ -36,11 +34,9 @@ export const guardRemediationAvailability = (
     : [],
 ): Remediation | undefined => {
   if (version === undefined || remediation === undefined) return remediation;
-  const unsupported = settingAvailability.filter(
+  const unsupported = settingAvailabilityByPM[pm].filter(
     (setting) =>
-      setting.pm === pm &&
-      lt(version, setting.since) &&
-      targets.some((target) => sameSetting(setting, target)),
+      lt(version, setting.since) && targets.some((target) => sameSetting(setting, target)),
   );
   if (unsupported.length === 0) return remediation;
   const requirements = unsupported.map(

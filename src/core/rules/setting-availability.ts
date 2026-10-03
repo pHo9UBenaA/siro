@@ -1,4 +1,4 @@
-import type { PM } from '../contracts/pms.ts';
+import { PMS, type PM } from '../contracts/pms.ts';
 import type { ConfigFileRef } from '../contracts/config-file-ref.ts';
 import type { KeyPath } from '../contracts/config-value.ts';
 import { CONFIG_FILES } from '../config-files.ts';
@@ -131,3 +131,10 @@ export const settingAvailability = [
     source: 'https://github.com/denoland/deno/releases/tag/v2.8.1',
   },
 ] as const satisfies readonly SettingAvailability[];
+
+export const settingAvailabilityByPM = Object.fromEntries(
+  PMS.map((pm): [PM, readonly SettingAvailability[]] => [
+    pm,
+    settingAvailability.filter((setting) => setting.pm === pm),
+  ]),
+) as Readonly<Record<PM, readonly SettingAvailability[]>>;

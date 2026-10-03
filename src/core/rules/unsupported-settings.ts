@@ -3,12 +3,10 @@ import type { PM } from '../contracts/pms.ts';
 import type { RelPath } from '../contracts/paths.ts';
 import { getByPath } from '../contracts/config-value.ts';
 import { defineRule, type RuleBinding, type ViolationStatus } from '../contracts/rule.ts';
-import { settingAvailability } from './setting-availability.ts';
+import { settingAvailabilityByPM } from './setting-availability.ts';
 
 const bindingFor = (pm: PM, includesFile: (file: string) => boolean): RuleBinding => {
-  const settings = settingAvailability.filter(
-    (setting) => setting.pm === pm && includesFile(setting.file.path),
-  );
+  const settings = settingAvailabilityByPM[pm].filter((setting) => includesFile(setting.file.path));
   return {
     check(ctx) {
       const version = ctx.pmVersion;
