@@ -53,7 +53,7 @@ it('reports grouped custom findings and aggregates their final severities', asyn
     ),
   ).toBe(1);
   const result: LintResult = JSON.parse(out());
-  expect(result.findings.filter((f) => f.ruleId === 'custom')).toMatchObject([
+  expect(result.findings.filter((finding) => finding.ruleId === 'custom')).toMatchObject([
     { message: 'error', severity: 'error' },
     { message: 'warn', severity: 'warn' },
     { message: 'info', severity: 'info' },
@@ -111,12 +111,12 @@ it.each(['constructor', '__proto__', 'ordinary'])(
   'uses only own severity settings for a custom rule named %s',
   (id) => {
     const unconfigured = lint({ ...options, config: { customRules: [rule(id)], rules: {} } });
-    expect(unconfigured.findings.find((f) => f.ruleId === id)?.severity).toBe('error');
+    expect(unconfigured.findings.find((finding) => finding.ruleId === id)?.severity).toBe('error');
     const configured = lint({
       ...options,
       config: { customRules: [rule(id)], rules: { [id]: 'warn' } },
     });
-    expect(configured.findings.find((f) => f.ruleId === id)?.severity).toBe('warn');
+    expect(configured.findings.find((finding) => finding.ruleId === id)?.severity).toBe('warn');
   },
 );
 

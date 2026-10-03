@@ -22,8 +22,8 @@ describe('trust-policy: check states', () => {
 
     expect(Object.keys(trustPolicy.bindings).sort()).toEqual(['aube', 'pnpm']);
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'pnpm-workspace.yaml' },
         keyPath: ['trustPolicy'],
@@ -54,8 +54,8 @@ describe('trust-policy: aube binding', () => {
   });
 
   it('proposes Aube trust policy in its workspace configuration', () => {
-    const ops = automaticOperations(aubeBinding.check(makeCtx(), {}));
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(aubeBinding.check(makeCtx(), {}));
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },
         keyPath: ['trustPolicy'],

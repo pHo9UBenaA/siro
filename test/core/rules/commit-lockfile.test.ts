@@ -49,7 +49,7 @@ describe('commit-lockfile per-PM lockfile detection', () => {
       const ruleBinding = bindingForTest(commitLockfile, pm);
 
       expect(
-        ruleBinding.check(makePublishableCtx({ exists: (fp) => fp === lockfile }), {}).state,
+        ruleBinding.check(makePublishableCtx({ exists: (file) => file === lockfile }), {}).state,
       ).toBe('ok');
       expect(ruleBinding.check(makePublishableCtx({ exists: () => false }), {}).state).toBe(
         'violation',
@@ -116,7 +116,7 @@ describe('npm shrinkwrap target versions', () => {
           ...(version ? { pmVersion: version } : {}),
         },
       );
-      const finding = result.findings.find((f) => f.ruleId === 'commit-lockfile');
+      const finding = result.findings.find((candidate) => candidate.ruleId === 'commit-lockfile');
       const migrationFinding = expect.objectContaining({
         message: expect.stringContaining('npm-shrinkwrap.json'),
       });

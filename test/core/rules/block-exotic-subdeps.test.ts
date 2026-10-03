@@ -18,8 +18,8 @@ describe('block-exotic-subdeps', () => {
   });
 
   it('proposes pnpm URL restrictions with the supported binding scope', () => {
-    const ops = automaticOperations(pnpm.check(makeCtx(), {}));
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(pnpm.check(makeCtx(), {}));
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'pnpm-workspace.yaml' },
         keyPath: ['blockExoticSubdeps'],
@@ -49,8 +49,8 @@ describe('block-exotic-subdeps (aube)', () => {
 
     expect(aube.file).toStrictEqual({ kind: 'yaml', path: 'aube-workspace.yaml' });
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },
         keyPath: ['blockExoticSubdeps'],
@@ -98,9 +98,9 @@ describe('block-exotic-subdeps (npm)', () => {
   );
 
   it('proposes both npm URL restrictions in .npmrc', () => {
-    const ops = automaticOperations(npm.check(makeCtx(), {}));
+    const operations = automaticOperations(npm.check(makeCtx(), {}));
     const npmrcFile = { kind: 'npmrc', path: '.npmrc' };
-    expect(ops).toStrictEqual([
+    expect(operations).toStrictEqual([
       { file: npmrcFile, keyPath: ['allow-git'], op: 'setKey', value: 'none' },
       { file: npmrcFile, keyPath: ['allow-remote'], op: 'setKey', value: 'none' },
     ]);

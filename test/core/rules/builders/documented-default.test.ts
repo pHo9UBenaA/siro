@@ -7,7 +7,7 @@ import { requireConfigKey } from '../../../../src/core/rules/builders/require-co
 import { runLint } from '../../../../src/core/run-lint.ts';
 import { createRepositoryEvaluation } from '../../../../src/core/parse-config-file.ts';
 
-const buildRule = (opts: {
+const buildRule = (options: {
   documentedDefault?: boolean;
   defaultSatisfiedSeverity?: 'error' | 'warn' | 'info' | 'off';
   defaultSafety?: 'unconditional' | 'conditional';
@@ -16,7 +16,7 @@ const buildRule = (opts: {
   requireConfigKey({
     bindings: {
       npm: {
-        ...opts,
+        ...options,
         file: { kind: 'npmrc', path: asRelPath('.npmrc') },
         keyPath: ['enabled'],
         message: 'Enable the policy explicitly.',

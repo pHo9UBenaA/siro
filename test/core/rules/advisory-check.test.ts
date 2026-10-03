@@ -22,8 +22,8 @@ describe('advisory-check: remediation', () => {
   it('proposes an explicit advisoryCheck setting in aube-workspace.yaml', () => {
     const status = aubeBinding.check(makeCtx(), {});
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },
         keyPath: ['advisoryCheck'],

@@ -16,8 +16,8 @@ describe('disable-lifecycle-scripts (npm)', () => {
 
     expect(npmBinding.file).toStrictEqual({ kind: 'npmrc', path: '.npmrc' });
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'npmrc', path: '.npmrc' },
         keyPath: ['ignore-scripts'],
@@ -78,8 +78,8 @@ describe('disable-lifecycle-scripts (pnpm): bypass remediation', () => {
   });
 
   it('proposes strictDepBuilds in pnpm-workspace.yaml when no bypass is present', () => {
-    const ops = automaticOperations(pnpmBinding.check(ctx, {}));
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(pnpmBinding.check(ctx, {}));
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'pnpm-workspace.yaml' },
         keyPath: ['strictDepBuilds'],
@@ -142,9 +142,9 @@ describe('disable-lifecycle-scripts (aube)', () => {
     const status = ruleBinding.check(makePublishableCtx(), {});
     assertCheckState(status, 'violations');
     expect(status.violations.map((item) => item.file)).toEqual(['aube-workspace.yaml', '.npmrc']);
-    const ops = status.violations.flatMap((item) => automaticOperations(item));
+    const operations = status.violations.flatMap(automaticOperations);
     const aubeFile = { kind: 'yaml', path: 'aube-workspace.yaml' };
-    expect(ops).toStrictEqual([
+    expect(operations).toStrictEqual([
       { file: aubeFile, keyPath: ['jailBuilds'], op: 'setKey', value: true },
       {
         file: { kind: 'npmrc', path: '.npmrc' },

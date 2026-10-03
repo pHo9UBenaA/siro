@@ -20,8 +20,8 @@ describe('block-auto-install: check behaviour', () => {
     expect(blockAutoInstall.severity).toBe('warn');
     expect(bun.file).toStrictEqual({ kind: 'toml', path: 'bunfig.toml' });
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'toml', path: 'bunfig.toml' },
         keyPath: ['install', 'auto'],

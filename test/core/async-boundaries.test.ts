@@ -1,4 +1,4 @@
-import { asAbsPath, lint, lintCommand } from '../../src/index.ts';
+import { asAbsPath, lint, lintCommand, type LintOptions } from '../../src/index.ts';
 import { npmPassingFs } from '../helpers/fixtures.ts';
 import { captureIO } from '../helpers/io.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
@@ -7,8 +7,8 @@ const options = {
   cwd: asAbsPath('/repo'),
   fs: createMemFileSystem({}),
   installationRoots: [],
-  pm: 'npm' as const,
-};
+  pm: 'npm',
+} satisfies LintOptions;
 const asyncValues = [
   { name: 'resolved Promise', create: () => Promise.resolve({ state: 'ok' }) },
   { name: 'rejected Promise', create: () => Promise.reject(new Error('rejected')) },
@@ -83,7 +83,7 @@ it.each([undefined, null, new Error('sink failure')])(
 
 it('awaits pending writes but gives a reporter failure precedence over a sink failure', async () => {
   const reporterFailure = new Error('reporter failure');
-  let writeSettled = false;
+  const onWriteRejected = vi.fn<() => void>();
   await expect(
     lintCommand(
       {
@@ -100,7 +100,7 @@ it('awaits pending writes but gives a reporter failure precedence over a sink fa
         stdout: () =>
           new Promise<void>((_resolve, reject) =>
             setImmediate(() => {
-              writeSettled = true;
+              onWriteRejected();
               reject(new Error('sink failure'));
             }),
           ),
@@ -108,7 +108,7 @@ it('awaits pending writes but gives a reporter failure precedence over a sink fa
       },
     ),
   ).rejects.toBe(reporterFailure);
-  expect(writeSettled).toBe(true);
+  expect(onWriteRejected).toHaveBeenCalledOnce();
 });
 
 it('observes writes from legacy synchronous reporters, even if they catch a synchronous sink failure', async () => {
@@ -205,7 +205,7 @@ describe('Reporter completion and failures', () => {
   it('waits for asynchronous reporting before returning the lint exit code', async () => {
     const { io, out } = captureIO();
     const { promise: ready, resolve: release } = Promise.withResolvers<void>();
-    let settled = false;
+    const onCommandCompleted = vi.fn<(code: number) => number>((code) => code);
     const command = lintCommand(
       {
         ...passingOptions,
@@ -237,13 +237,10 @@ describe('Reporter completion and failures', () => {
         },
       },
       io,
-    ).then((code) => {
-      settled = true;
-      return code;
-    });
+    ).then(onCommandCompleted);
     try {
       await Promise.resolve();
-      expect(settled).toBe(false);
+      expect(onCommandCompleted).not.toHaveBeenCalled();
       expect(out()).toBe('');
     } finally {
       release();

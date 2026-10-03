@@ -44,8 +44,8 @@ describe('strict-store-integrity: check states', () => {
 describe('strict-store-integrity: remediation', () => {
   it('proposes strictStoreIntegrity in aube-workspace.yaml', () => {
     const status = aubeBinding.check(makeCtx(), {});
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },
         keyPath: ['strictStoreIntegrity'],

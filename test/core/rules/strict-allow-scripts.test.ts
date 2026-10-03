@@ -46,8 +46,8 @@ describe('strict-allow-scripts', () => {
     expect(strictAllowScripts.severity).toBe('warn');
     expect(npm.file).toStrictEqual({ kind: 'npmrc', path: '.npmrc' });
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'npmrc', path: '.npmrc' },
         keyPath: ['strict-allow-scripts'],

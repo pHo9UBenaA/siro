@@ -4,6 +4,7 @@ import { bindingForTest } from '../../helpers/rules.ts';
 import { publishAccess } from '../../../src/core/rules/publish-access.ts';
 import { makePublishableCtx } from '../../helpers/ctx.ts';
 import { manualSteps } from '../../helpers/remediation.ts';
+import type { PackageJson } from '../../../src/core/contracts/package-json.ts';
 
 const npm = bindingForTest(publishAccess, 'npm');
 
@@ -26,7 +27,10 @@ describe('publish-access (npm)', () => {
   });
 
   it('accepts the private alias only for npm and preserves application scope', () => {
-    const packageJson = { name: '@scope/example', publishConfig: { access: 'private' as const } };
+    const packageJson = {
+      name: '@scope/example',
+      publishConfig: { access: 'private' },
+    } satisfies PackageJson;
     expect(npm.check(makePublishableCtx({ packageJson }), {}).state).toBe('ok');
     expect(
       npm.check(makePublishableCtx({ packageJson, projectType: 'application' }), {}).state,

@@ -36,16 +36,14 @@ const processOptions = {
 };
 
 function run(command, args, { cwd = consumer, expectedStatus = 0 } = {}) {
-  if (command === 'pnpm') {
-    ({ command, args } = pnpmCommand(args));
-  }
-  const result = spawnSync(command, args, { ...processOptions, cwd });
+  const invocation = command === 'pnpm' ? pnpmCommand(args) : { command, args };
+  const result = spawnSync(invocation.command, invocation.args, { ...processOptions, cwd });
   assert.ifError(result.error);
-  assert.equal(result.signal, null, `${command} terminated by ${result.signal}`);
+  assert.equal(result.signal, null, `${invocation.command} terminated by ${result.signal}`);
   assert.equal(
     result.status,
     expectedStatus,
-    `${command} ${args.join(' ')}\n${result.stdout}\n${result.stderr}`,
+    `${invocation.command} ${invocation.args.join(' ')}\n${result.stdout}\n${result.stderr}`,
   );
   return result.stdout;
 }

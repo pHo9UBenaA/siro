@@ -11,7 +11,7 @@ const stubCodecFor: CodecFor = (): ConfigCodec => ({
   parse: (): Record<string, never> => ({}),
 });
 
-const makeRule = (opts: {
+const makeRule = (options: {
   ruleSeverity: 'error' | 'warn' | 'info';
   bindingSeverity?: 'error' | 'warn' | 'info';
   statusSeverity?: 'error' | 'warn' | 'info';
@@ -20,18 +20,18 @@ const makeRule = (opts: {
   const binding: RuleBinding = {
     check: () => ({
       message: 'always violates',
-      severity: opts.statusSeverity,
+      severity: options.statusSeverity,
       state: 'violation',
     }),
     file: { kind: 'npmrc', path: asRelPath('.npmrc') },
-    severity: opts.bindingSeverity,
-    versionNote: opts.versionNote,
+    severity: options.bindingSeverity,
+    versionNote: options.versionNote,
   };
   return {
     bindings: { npm: binding },
     description: 'Exercise severity precedence and display metadata.',
     id: 'severity-probe',
-    severity: opts.ruleSeverity,
+    severity: options.ruleSeverity,
     title: 'Severity probe',
   };
 };

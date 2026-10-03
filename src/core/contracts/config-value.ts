@@ -19,19 +19,11 @@ export type KeyPath = readonly [string, ...string[]];
 export type ConfigReadValue = unknown;
 
 /** Read an own key path; absent or non-mapping parents yield undefined. */
-export const getByPath = (config: ParsedConfig, keyPath: KeyPath): ConfigReadValue => {
-  let current: unknown = config;
-  for (const key of keyPath) {
-    if (!isPlainRecord(current)) {
-      return;
-    }
-    if (!Object.hasOwn(current, key)) {
-      return;
-    }
-    current = current[key];
-  }
-  return current;
-};
+export const getByPath = (config: ParsedConfig, keyPath: KeyPath): ConfigReadValue =>
+  keyPath.reduce<unknown>((parent, key) => {
+    if (!isPlainRecord(parent) || !Object.hasOwn(parent, key)) return undefined;
+    return parent[key];
+  }, config);
 
 /** Accept only mapping roots while preserving unvalidated values inside them. */
 export const toParsedConfig = (value: unknown): ParsedConfig => {

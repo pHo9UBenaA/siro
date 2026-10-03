@@ -90,12 +90,7 @@ export const renderComparison = (rules: readonly Rule[] = defaultRules): string 
   const header = `| Rule | Severity | ${PMS.join(' | ')} |`;
   const separator = `| --- | --- | ${PMS.map(() => ':---:').join(' | ')} |`;
   const rows = rules.map((rule) => {
-    const cells = PMS.map((pm) => {
-      if (rule.bindings[pm]) {
-        return '✅';
-      }
-      return '—';
-    });
+    const cells = PMS.map((pm) => (rule.bindings[pm] ? '✅' : '—'));
     return `| \`${rule.id}\` | ${rule.severity} | ${cells.join(' | ')} |`;
   });
   return `${[COMPARISON_INTRO, header, separator, ...rows].join('\n')}\n`;
@@ -121,7 +116,7 @@ for defaults, precedence and version limits.
 
 /** Render docs/rules.md from the rule registry. */
 export const renderRulesDoc = (rules: readonly Rule[] = defaultRules): string => {
-  const sections = rules.map((rule) => renderRule(rule));
+  const sections = rules.map(renderRule);
   return `${[RULES_INTRO, ...sections].join('\n')}\n`;
 };
 

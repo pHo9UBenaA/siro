@@ -4,7 +4,13 @@ import {
 } from './remediation-availability.ts';
 import { proposeChanges } from './remediation.ts';
 import { withAubeParanoid } from './builders/with-aube-paranoid.ts';
-import type { RuleBinding, CheckStatus, VersionNote, ViolationStatus } from '../contracts/rule.ts';
+import type {
+  RuleBinding,
+  CheckStatus,
+  VersionNote,
+  ViolationStatus,
+  Remediation,
+} from '../contracts/rule.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../config-files.ts';
 import { getByPath } from '../contracts/config-value.ts';
@@ -21,8 +27,11 @@ const checkPnpmBypass = (
   pmVersion: string | undefined,
   strictDepBuilds: unknown,
 ): ViolationStatus => {
-  const bypassTarget = { file: pnpmWorkspace, keyPath: ['dangerouslyAllowAllBuilds'] as const };
-  if (settingSupportedByTarget('pnpm', pmVersion, bypassTarget) === false) {
+  const bypassSupported = settingSupportedByTarget('pnpm', pmVersion, {
+    file: pnpmWorkspace,
+    keyPath: ['dangerouslyAllowAllBuilds'],
+  });
+  if (bypassSupported === false) {
     const steps: [string, ...string[]] = [
       'Remove `dangerouslyAllowAllBuilds: true` before upgrading to pnpm 10.9.0 or newer; the declared target ignores it, but a later version would activate the bypass.',
     ];
@@ -30,7 +39,7 @@ const checkPnpmBypass = (
       steps.push(
         'Set `strictDepBuilds: true` in pnpm-workspace.yaml to enable lifecycle-script gating for the declared target.',
       );
-    const proposal = { kind: 'manual' as const, steps };
+    const proposal: Remediation = { kind: 'manual', steps };
     return {
       state: 'violation',
       actual: true,

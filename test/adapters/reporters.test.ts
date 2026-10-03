@@ -8,27 +8,26 @@ import {
   jsonReporter,
   prettyReporter,
 } from '../../src/adapters/reporters/registry.ts';
-import { type LintResult } from '../../src/core/contracts/lint-result.ts';
+import { type Finding, type LintResult } from '../../src/core/contracts/lint-result.ts';
 import { parseGithubAnnotation } from '../helpers/github-annotation.ts';
 import { captureIO } from '../helpers/io.ts';
 
 const context = { cwd: asAbsPath(path.resolve('/reporter-fixture')) };
 const inspection = { manifests: [], installationRoots: [] };
-const result = {
+const finding: Finding = {
+  directory: '.',
+  file: '.npmrc',
+  message: 'set ignore-scripts',
+  pm: 'npm',
+  ruleId: 'disable-lifecycle-scripts',
+  severity: 'error',
+  docs: 'https://example.com/guide',
+};
+const result: LintResult = {
   inspection,
-  findings: [
-    {
-      directory: '.',
-      file: '.npmrc',
-      message: 'set ignore-scripts',
-      pm: 'npm',
-      ruleId: 'disable-lifecycle-scripts',
-      severity: 'error',
-      docs: 'https://example.com/guide',
-    },
-  ],
+  findings: [finding],
   summary: { error: 1, info: 0, warn: 0 },
-} as const satisfies LintResult;
+};
 afterEach(() => vi.unstubAllEnvs());
 
 it('registers built-ins and allows later custom replacements', () => {
@@ -52,7 +51,7 @@ it('escapes GitHub properties/data and resolves file paths against the supplied 
       ...result,
       findings: [
         {
-          ...result.findings[0],
+          ...finding,
           file,
           message: 'set foo=bar, baz: 100%\nnext line',
           docs: undefined,

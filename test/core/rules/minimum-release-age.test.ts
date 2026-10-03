@@ -21,8 +21,8 @@ describe('minimum-release-age (npm)', () => {
     expect(minimumReleaseAge.severity).toBe('warn');
     expect(npm.file).toStrictEqual({ kind: 'npmrc', path: '.npmrc' });
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'npmrc', path: '.npmrc' },
         op: 'setKey',
@@ -217,8 +217,7 @@ describe('minimum-release-age (deno)', () => {
   });
 
   it('proposes a three-day cooldown in deno.json', () => {
-    const ops = automaticOperations(deno.check(ctx, {}));
-    const [setKey] = ops;
+    const [setKey] = automaticOperations(deno.check(ctx, {}));
     expect(setKey).toMatchObject({ keyPath: ['minimumDependencyAge'], value: 'P3D' });
 
     expect(deno.file).toStrictEqual({ kind: 'json', path: 'deno.json' });

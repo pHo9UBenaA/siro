@@ -260,7 +260,7 @@ describe('Deno manifest integration', () => {
       },
       { installationRoots: ['.'], pm: 'deno' },
     );
-    const finding = result.findings.find((f) => f.ruleId === 'pin-exact-versions');
+    const finding = result.findings.find((candidate) => candidate.ruleId === 'pin-exact-versions');
     expect(finding?.severity).toBe('error');
     expect(finding?.message).toContain('./first/');
     expect(finding?.message).toContain('./second/');

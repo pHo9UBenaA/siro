@@ -27,12 +27,15 @@ const createStrictPathChecker = (root: AbsPath) => {
     const relative = path.relative(root, file);
     if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))
       throw new ConfigError('Strict filesystem path escapes cwd.');
-    let current = canonicalRoot;
-    for (const component of relative.split(path.sep).filter(Boolean)) {
-      current = path.join(current, component);
-      if (lstatSync(current).isSymbolicLink())
-        throw new ConfigError(`${file}: strict filesystem rejects symlinks.`);
-    }
+    relative
+      .split(path.sep)
+      .filter(Boolean)
+      .reduce((parent, component) => {
+        const child = path.join(parent, component);
+        if (lstatSync(child).isSymbolicLink())
+          throw new ConfigError(`${file}: strict filesystem rejects symlinks.`);
+        return child;
+      }, canonicalRoot);
   };
 };
 

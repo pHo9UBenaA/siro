@@ -25,19 +25,17 @@ it('waits for write callbacks under backpressure and keeps output ordered', asyn
   };
   const io = createNodeIO(output, discard());
   expect(output.listenerCount('error')).toBe(0); // No interception until this sink is used.
-  let settled = false;
-  const first = Promise.resolve(io.stdout('first')).then(() => {
-    settled = true;
-  });
+  const onFirstWriteCompleted = vi.fn<() => void>();
+  const first = Promise.resolve(io.stdout('first')).then(onFirstWriteCompleted);
   const second = io.stdout('second');
   await Promise.resolve();
-  expect(settled).toBe(false);
+  expect(onFirstWriteCompleted).not.toHaveBeenCalled();
   expect(chunks).toEqual(['first\n']);
   completeNextWrite();
   expect(chunks).toEqual(['first\n', 'second\n']);
   completeNextWrite();
   await Promise.all([first, second]);
-  expect(settled).toBe(true);
+  expect(onFirstWriteCompleted).toHaveBeenCalledOnce();
 });
 
 it.each(['callback', 'event', 'throw', 'close'] as const)(

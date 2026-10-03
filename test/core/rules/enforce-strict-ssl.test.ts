@@ -19,8 +19,8 @@ describe('enforce-strict-ssl (npm)', () => {
 
     expect(npmBinding.file).toStrictEqual({ kind: 'npmrc', path: '.npmrc' });
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'npmrc', path: '.npmrc' },
         keyPath: ['strict-ssl'],
@@ -69,8 +69,8 @@ describe('enforce-strict-ssl (yarn) — check states', () => {
 
     expect(yarnBinding.file).toStrictEqual({ kind: 'yaml', path: '.yarnrc.yml' });
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: '.yarnrc.yml' },
         keyPath: ['enableStrictSsl'],

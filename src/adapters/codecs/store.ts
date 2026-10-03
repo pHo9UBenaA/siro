@@ -11,7 +11,7 @@ const CODECS = {
   npmrc: iniCodec,
   toml: tomlCodec,
   yaml: yamlCodec,
-} as const satisfies Record<CodecKind, ConfigCodec>;
+} satisfies Record<CodecKind, ConfigCodec>;
 
 /** Look up the codec for a parseable kind. Total — every CodecKind has one. */
 export const codecFor: CodecFor = (kind) => CODECS[kind];

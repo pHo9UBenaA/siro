@@ -56,7 +56,7 @@ it.each([
       const result = run(root, '--pm', 'npm', '--pm-version', '12.0.2', '--severity', 'warn');
       expect(result.status).toBe(exit);
       const finding = JSON.parse(result.stdout).findings.find(
-        (f: { ruleId: string }) => f.ruleId === 'provenance',
+        (candidate: { ruleId: string }) => candidate.ruleId === 'provenance',
       );
       expect(finding?.file).toBe(file);
     } finally {
@@ -90,7 +90,7 @@ it('repeatable flags replace config arrays; schema 3 preserves scope through dis
     expect(report.inspection.installationRoots).toEqual([
       { directory: 'tool', targets: [{ pm: 'npm', version: '12.0.2' }] },
     ]);
-    expect(report.inspection.manifests.map((m: { path: string }) => m.path)).toEqual([
+    expect(report.inspection.manifests.map((manifest: { path: string }) => manifest.path)).toEqual([
       'package.json',
       'tool/package.json',
     ]);

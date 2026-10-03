@@ -12,7 +12,7 @@ import { CONFIG_FILES } from '../../src/core/config-files.ts';
 import { getByPath } from '../../src/core/contracts/config-value.ts';
 import type { Rule } from '../../src/core/contracts/rule.ts';
 import type { RuleContext } from '../../src/core/contracts/repo-context.ts';
-import { runLint } from '../../src/core/run-lint.ts';
+import { runLint, type RunLintOptions } from '../../src/core/run-lint.ts';
 import { createRepositoryEvaluation } from '../../src/core/parse-config-file.ts';
 import { codecFor } from '../../src/adapters/codecs/store.ts';
 import { disableLifecycleScripts } from '../../src/core/rules/disable-lifecycle-scripts.ts';
@@ -41,23 +41,25 @@ it('shares additional file parsing across rules and refreshes it on the next run
     .mockReturnValue('approved=false');
   const ctx = makeCtx({ readText });
   const options = {
-    targets: [{ pm: 'npm' }] as const,
-    ruleSet: ['first', 'second'].map((id) => ({
-      id,
-      title: id,
-      description: id,
-      severity: 'error' as const,
-      bindings: {
-        npm: {
-          check(context: RuleContext) {
-            return getByPath(context.readConfig(CONFIG_FILES.npmrc), ['approved']) === true
-              ? { state: 'ok' as const }
-              : { state: 'violation' as const, message: 'Approval required.' };
+    targets: [{ pm: 'npm' }],
+    ruleSet: ['first', 'second'].map(
+      (id): Rule => ({
+        id,
+        title: id,
+        description: id,
+        severity: 'error',
+        bindings: {
+          npm: {
+            check(context: RuleContext) {
+              return getByPath(context.readConfig(CONFIG_FILES.npmrc), ['approved']) === true
+                ? { state: 'ok' }
+                : { state: 'violation', message: 'Approval required.' };
+            },
           },
         },
-      },
-    })),
-  };
+      }),
+    ),
+  } satisfies Omit<RunLintOptions, 'repository'>;
   expect(
     runLint({ ...options, repository: createRepositoryEvaluation(ctx, codecFor) }).findings,
   ).toEqual([]);
@@ -122,7 +124,7 @@ describe('Scan read snapshots', () => {
       const seen: unknown[] = [];
       const snapshotOptions: LintOptions = {
         cwd: asAbsPath('/repo'),
-        pm: 'npm' as const,
+        pm: 'npm',
         fs,
         config: {
           customRules: [

@@ -16,8 +16,8 @@ describe('paranoid-mode: check states', () => {
     assertCheckState(status, 'violation');
     expect(status.message).toContain('paranoid');
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },
         keyPath: ['paranoid'],

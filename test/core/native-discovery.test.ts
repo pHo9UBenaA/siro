@@ -28,8 +28,8 @@ describe.skipIf(process.platform === 'win32')('native POSIX names', () => {
       });
       expect(
         result.findings
-          .filter((f) => f.ruleId === 'files-field')
-          .map((f) => f.file)
+          .filter((finding) => finding.ruleId === 'files-field')
+          .map((finding) => finding.file)
           .sort(),
       ).toEqual(
         [
@@ -40,8 +40,10 @@ describe.skipIf(process.platform === 'win32')('native POSIX names', () => {
       );
       expect(
         result.findings
-          .filter((f) => f.directory !== '.' && f.ruleId === 'block-exotic-subdeps')
-          .map((f) => f.remediation),
+          .filter(
+            (finding) => finding.directory !== '.' && finding.ruleId === 'block-exotic-subdeps',
+          )
+          .map((finding) => finding.remediation),
       ).toEqual(
         ['C:notes', 'scratch/notes', 'scratch\\notes'].map((directory) => ({
           kind: 'automatic',

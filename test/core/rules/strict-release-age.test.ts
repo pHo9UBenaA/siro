@@ -27,8 +27,8 @@ describe('strict-release-age: check states', () => {
 describe('strict-release-age: remediation', () => {
   it('proposes minimumReleaseAgeStrict in aube-workspace.yaml', () => {
     const status = aubeBinding.check(makeCtx(), {});
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: 'aube-workspace.yaml' },
         keyPath: ['minimumReleaseAgeStrict'],

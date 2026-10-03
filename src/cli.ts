@@ -17,32 +17,32 @@ const EXIT_SUCCESS = 0;
 const EXIT_USAGE = 2;
 const EXIT_CRASH = 70;
 
-const dispatch = async (cmd: ParsedCommand, io: IO): Promise<number> => {
-  switch (cmd.kind) {
+const dispatch = async (command: ParsedCommand, io: IO): Promise<number> => {
+  switch (command.kind) {
     case 'version': {
       await io.stdout(version);
       return EXIT_SUCCESS;
     }
     case 'help': {
-      await io.stdout(renderHelp(cmd.target));
+      await io.stdout(renderHelp(command.target));
       return EXIT_SUCCESS;
     }
     case 'usage': {
-      if (cmd.reason) {
-        await io.stderr(`${safeText(cmd.reason)}\n`);
+      if (command.reason) {
+        await io.stderr(`${safeText(command.reason)}\n`);
       }
       await io.stderr(renderHelp());
       return EXIT_USAGE;
     }
     case 'lint': {
-      assertDirectory(cmd.cwd);
-      const { noConfig, ...options } = cmd;
+      assertDirectory(command.cwd);
+      const { noConfig, ...options } = command;
       if (noConfig) return lintCommand(options, io);
-      const config = await loadConfig(cmd.cwd);
+      const config = await loadConfig(command.cwd);
       return lintCommand({ ...options, config }, io);
     }
     default: {
-      const exhaustiveCheck: never = cmd;
+      const exhaustiveCheck: never = command;
       throw new Error(`Unhandled command kind: ${String(exhaustiveCheck)}`);
     }
   }
@@ -64,8 +64,8 @@ const handleError = async (error: unknown, io: IO): Promise<number> => {
 export const run = async (argv: readonly string[], io: IO = nodeIO): Promise<number> => {
   try {
     ensureNodeVersion(process.versions.node);
-    const cmd = parseCommand(argv);
-    return await dispatch(cmd, io);
+    const command = parseCommand(argv);
+    return await dispatch(command, io);
   } catch (error) {
     return handleError(error, io);
   }

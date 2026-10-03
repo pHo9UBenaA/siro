@@ -51,35 +51,28 @@ export const checkManifest = (
   rules: readonly Rule[],
   overrides: ReadonlyMap<string, Severity>,
 ): Finding[] => {
-  const findings: Finding[] = [];
   const projectType = manifestProjectType(repository, file);
-  for (const rule of rules) {
-    if (rule.projectTypes && !rule.projectTypes.includes(projectType)) continue;
+  return rules.flatMap((rule): readonly Finding[] => {
+    if (rule.projectTypes && !rule.projectTypes.includes(projectType)) return [];
     if (rule.id === 'unsupported-settings') {
-      const unsupported = runLint({
+      return runLint({
         repository,
         targets,
         ruleSet: [{ ...rule, bindings: unsupportedManifestBindings[file] }],
         severityOverrides: overrides,
       }).findings;
-      for (const finding of unsupported) findings.push(finding);
-      continue;
     }
-    if (!isOwnKey(selectManifestBinding, rule.id)) continue;
+    if (!isOwnKey(selectManifestBinding, rule.id)) return [];
     const binding = selectManifestBinding[rule.id](file, repository, targets);
-    if (binding === undefined) continue;
+    if (binding === undefined) return [];
     if (binding === 'use-pm-bindings') {
-      const evaluated = runLint({
+      return runLint({
         repository,
         targets,
         ruleSet: [rule],
         severityOverrides: overrides,
       }).findings;
-      for (const finding of evaluated) findings.push(finding);
-      continue;
     }
-    for (const finding of evaluateBinding(repository, rule, binding, overrides))
-      findings.push(finding);
-  }
-  return findings;
+    return evaluateBinding(repository, rule, binding, overrides);
+  });
 };

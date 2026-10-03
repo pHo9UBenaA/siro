@@ -1,4 +1,4 @@
-import { asAbsPath, lint, lintCommand } from '../../src/index.ts';
+import { asAbsPath, lint, lintCommand, type LintCommandOptions } from '../../src/index.ts';
 import { createMemFileSystem } from '../helpers/memfs.ts';
 import { captureIO } from '../helpers/io.ts';
 
@@ -15,10 +15,10 @@ it('TLS warnings and failure thresholds are distinct from finding correctness', 
   );
   const request = {
     cwd: asAbsPath('/repo'),
-    pm: 'npm' as const,
+    pm: 'npm',
     fs,
     reporter: 'json',
-  };
+  } satisfies LintCommandOptions;
   expect(await lintCommand(request, captureIO().io)).toBe(0);
   expect(await lintCommand({ ...request, severity: 'warn' }, captureIO().io)).toBe(1);
 });

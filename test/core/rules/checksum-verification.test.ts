@@ -21,8 +21,8 @@ describe('checksum-verification: remediation', () => {
     assertCheckState(status, 'violation');
     expect(status.severity).toBe('info');
 
-    const ops = automaticOperations(status);
-    expect(ops).toStrictEqual([
+    const operations = automaticOperations(status);
+    expect(operations).toStrictEqual([
       {
         file: { kind: 'yaml', path: '.yarnrc.yml' },
         keyPath: ['checksumBehavior'],

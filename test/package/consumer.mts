@@ -112,14 +112,16 @@ function verifySynchronousApi() {
     );
     if (pm === 'npm')
       check(
-        result.findings.some((f) => f.ruleId === 'consumer-probe' && f.message === 'Target 11.9.0'),
+        result.findings.some(
+          (finding) => finding.ruleId === 'consumer-probe' && finding.message === 'Target 11.9.0',
+        ),
         'custom rule receives the configured npm version',
       );
   }
 }
 
 async function verifyReporterCompletion() {
-  let reported = false;
+  const { io, text } = captureOutput();
   await lintCommand(
     {
       cwd: asAbsPath('/virtual'),
@@ -127,15 +129,15 @@ async function verifyReporterCompletion() {
       fs: emptyFs,
       reporter: {
         name: 'async',
-        async format() {
+        async format(_result, targetIO) {
           await Promise.resolve();
-          reported = true;
+          await targetIO.stdout('reported');
         },
       },
     },
-    { stdout() {}, stderr() {} },
+    io,
   );
-  check(reported, 'lintCommand awaits asynchronous reporter completion');
+  check(text() === 'reported', 'lintCommand awaits asynchronous reporter completion');
 }
 
 async function verifyReporterFailure() {
@@ -195,7 +197,7 @@ function verifyInspection() {
     'only explicit installation roots are selected',
   );
   const generic = result.findings.find(
-    (f) => f.ruleId === 'files-field' && f.directory === 'child',
+    (finding) => finding.ruleId === 'files-field' && finding.directory === 'child',
   );
   const maybePm: PM | undefined = generic?.pm;
   check(
@@ -204,10 +206,12 @@ function verifyInspection() {
   );
   check(
     result.findings.some(
-      (f) =>
-        f.directory === 'child' &&
-        f.remediation?.kind === 'automatic' &&
-        f.remediation.operations.every((op) => op.file.path.startsWith('child/')),
+      (finding) =>
+        finding.directory === 'child' &&
+        finding.remediation?.kind === 'automatic' &&
+        finding.remediation.operations.every((operation) =>
+          operation.file.path.startsWith('child/'),
+        ),
     ),
     'every child remediation operation is rebased',
   );
@@ -315,7 +319,7 @@ function verifyPublicBuilder() {
       fs: emptyFs,
       pm: 'npm',
       config: { customRules: [helper] },
-    }).findings.find((f) => f.ruleId === helper.id)?.severity === 'info',
+    }).findings.find((finding) => finding.ruleId === helper.id)?.severity === 'info',
     'public builder honors an explicitly unconditional safe default',
   );
 }

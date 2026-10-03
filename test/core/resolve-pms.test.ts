@@ -2,17 +2,9 @@ import type { RepoContext } from '../../src/core/contracts/repo-context.ts';
 import { resolvePMs } from '../../src/core/resolve-pms.ts';
 import { UsageError } from '../../src/core/contracts/errors.ts';
 import { makeCtx } from '../helpers/ctx.ts';
+import { captureThrown } from '../helpers/errors.ts';
 
 const ctx = (files: readonly string[] = []): RepoContext => makeCtx({ files });
-
-const captureThrow = (fn: () => unknown): unknown => {
-  try {
-    fn();
-  } catch (error) {
-    return error;
-  }
-  throw new Error('expected fn to throw');
-};
 
 describe('resolvePMs — detection', () => {
   it('returns the auto-detected PMs in canonical order when no restriction is set', () => {
@@ -41,7 +33,9 @@ describe('resolvePMs — override', () => {
   });
 
   it('applies the allowed restriction to an override and blames --pm', () => {
-    const error = captureThrow(() => resolvePMs(ctx([]), { allowed: ['pnpm'], pmOverride: 'npm' }));
+    const error = captureThrown(() =>
+      resolvePMs(ctx([]), { allowed: ['pnpm'], pmOverride: 'npm' }),
+    );
     expect(error).toBeInstanceOf(UsageError);
     expect(error).toMatchObject({ message: expect.stringMatching(/--pm npm/u) });
     expect(error).not.toMatchObject({ message: expect.stringMatching(/detected/iu) });
@@ -50,7 +44,7 @@ describe('resolvePMs — override', () => {
 
 describe('resolvePMs — error cases: no detection', () => {
   it('throws UsageError listing every PM when nothing was detected', () => {
-    const error = captureThrow(() => resolvePMs(ctx([]), {}));
+    const error = captureThrown(() => resolvePMs(ctx([]), {}));
     expect(error).toBeInstanceOf(UsageError);
     expect(error).toMatchObject({
       message: expect.stringMatching(/no package manager detected.*pass --pm/iu),
