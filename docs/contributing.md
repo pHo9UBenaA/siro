@@ -21,18 +21,6 @@ Hooks check the working tree, not a separate partially staged tree.
 | `pnpm test:package` | Verify the built package from an isolated consumer               |
 | `pnpm bench`        | Benchmark evaluation, excluding process startup and disk I/O     |
 
-## Formatting and linting
-
-Run `pnpm format` for layout and `pnpm lint:fix` for safe automatic lint fixes;
-review the diff, then run `pnpm verify`. Some lint findings require a manual fix.
-`pnpm check` checks without rewriting files and rejects unused lint suppressions.
-
-Oxfmt owns whitespace, quotes and wrapping. Oxlint checks correctness, unnecessary
-branches, nested ternaries and avoidable reassignment. Simple ternaries, nullish
-`== null` checks and intentional `let` reassignment remain valid. Names, useful
-comments and responsibility boundaries still need human review; do not split
-functions or introduce abstractions just to shorten them.
-
 ## Source map
 
 - `src/core/`: linting decisions and rules, independent of Node IO.
