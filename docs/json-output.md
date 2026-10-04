@@ -20,7 +20,7 @@ fail rather than silently truncating findings. Observed `actual` values are not 
 ```json
 {
   "schemaVersion": 3,
-  "siroVersion": "0.6.3",
+  "siroVersion": "0.7.0",
   "findings": [
     {
       "ruleId": "files-field",
