@@ -48,7 +48,8 @@
   "scripts": {
     "bench": "node bench/lint.bench.ts",
     "build": "tsdown && node scripts/bin-wrapper.mjs",
-    "check": "oxlint --deny-warnings && oxfmt --check",
+    "check": "oxlint --deny-warnings --report-unused-disable-directives && oxfmt --check",
+    "lint:fix": "oxlint --fix --deny-warnings --report-unused-disable-directives",
     "format": "oxfmt --write",
     "gen": "pnpm gen:docs && pnpm gen:api",
     "gen:api": "typedoc",
