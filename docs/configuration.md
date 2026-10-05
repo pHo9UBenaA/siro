@@ -1,5 +1,9 @@
 # Configuration and behavior
 
+Options, defaults, precedence, inspection scope, exit codes and migration. CLI
+readers need only the sections up to [Severity, reporters, CLI and exits](#severity-reporters-cli-and-exits);
+library and extension contracts start at [Library use](#library-use).
+
 ## Rule settings
 
 Save `siro.config.json` in the directory you pass to `lint`. It is automatically

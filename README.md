@@ -77,12 +77,18 @@ symlink input paths in native data reads. Scans also have finite caller-controll
 [file, tree, nesting, finding and output budgets](docs/configuration.md#strict-filesystem-and-scan-budgets).
 Overflow fails the check rather than silently skipping inputs.
 
-For a walkthrough and deeper reference, use these guides:
+Documentation by task:
 
-- [Getting started](docs/getting-started.md) walks through findings and CI; [configuration](docs/configuration.md) covers local PM/version selection, discovery and explicit installation scope, executable config, exit codes, and migration from the removed `--workspaces` flag.
-- The [rule reference](docs/rules.md) and [PM comparison](docs/comparison.md) show what is checked for each manager.
-- [JSON output](docs/json-output.md) documents the machine-readable remediation contract.
-- [Contributing](docs/contributing.md) covers development setup, the source map, and verification.
+| If you want to…                                           | Read                                         |
+| --------------------------------------------------------- | -------------------------------------------- |
+| Run a first scan, then add it to CI                       | [Getting started](docs/getting-started.md)   |
+| Set options, inspection scope, config or migrate          | [Configuration](docs/configuration.md)       |
+| Check what a rule does, on which inputs, at what severity | [Rule reference](docs/rules.md)              |
+| See which package managers a rule covers                  | [PM comparison](docs/comparison.md)          |
+| Consume or emit the machine-readable report               | [JSON output](docs/json-output.md)           |
+| Judge why a finding is justified                          | [Policy and sources](docs/policy-sources.md) |
+| Know what a clean result does and does not prove          | [Threat model](docs/threat-model.md)         |
+| Build, verify or release siro                             | [Contributing](docs/contributing.md)         |
 
 ## License
 
