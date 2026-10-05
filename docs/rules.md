@@ -141,7 +141,7 @@ Upstream: <https://docs.npmjs.com/cli/v11/using-npm/config#strict-ssl>
 ## `files-field` — info
 
 An explicit `files` array in package.json restricts what gets published, preventing accidental inclusion of secrets or local files.
-Inspection scope: Every discovered manifest, with PM-neutral checks once per manifest.
+Inspection scope: Every discovered manifest.
 Applies to: package.
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#12-review-published-files>
 
@@ -253,7 +253,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#4-pin-depend
 Provenance statements (via Sigstore) bind a published artifact to its recorded source and build.
 Inspection scope: Explicit installation roots only (local settings).
 Applies to: package.
-For npm, own package.json publishConfig.provenance overrides .npmrc, including false. Manifest-only children do not receive effective provenance checks.
+For npm, package.json publishConfig.provenance overrides .npmrc, including false.
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#11-generate-provenance-statements>
 
 | PM | Primary input | Default severity | Version notes | Reference |
@@ -266,7 +266,7 @@ Upstream: <https://github.com/bodadotsh/npm-security-best-practices#11-generate-
 ## `publish-access` — info
 
 Set `publishConfig.access` so a misconfigured scope or registry never accidentally publishes an internal package publicly.
-Inspection scope: Every discovered manifest, with PM-neutral checks once per manifest.
+Inspection scope: Every discovered manifest.
 Applies to: package.
 Upstream: <https://github.com/bodadotsh/npm-security-best-practices#for-maintainers>
 
@@ -331,8 +331,8 @@ Upstream: <https://pnpm.io/settings/dependency-resolution#trustpolicy>
 
 ## `unsupported-settings` — error
 
-Report configured settings whose recorded introduction version is newer than the declared or explicit stable PM target. Reports each affected file separately, grouping its unsupported keys. Findings retain their evaluation directory. Only the coverage table below is checked. Unknown targets and unlisted settings are not evaluated for availability.
-Inspection scope: Manifest entries per local manifest target; install-config entries only at explicit installation roots.
+Report configured settings introduced after the declared or explicit stable PM target version. Only the coverage table below is checked; unknown versions and unlisted settings are not assessed.
+Inspection scope: Discovered manifests and explicit installation roots, using each directory's PM target.
 Upstream: <https://github.com/pHo9UBenaA/siro/blob/main/docs/rules.md#unsupported-settings--error>
 
 | PM | Primary input | Default severity | Version notes | Reference |

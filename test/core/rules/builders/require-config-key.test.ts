@@ -2,11 +2,141 @@ import { bindingForTest } from '../../../helpers/rules.ts';
 import type { ConfigFileRef } from '../../../../src/core/contracts/config-file-ref.ts';
 import { CONFIG_FILES } from '../../../../src/core/config-files.ts';
 import type { Rule, VersionNote } from '../../../../src/core/contracts/rule.ts';
-import { requireConfigKey } from '../../../../src/core/rules/builders/require-config-key.ts';
+import {
+  asAbsPath,
+  ConfigError,
+  lint,
+  requireConfigKey,
+  type LintResult,
+  type RequireConfigKeySpec,
+} from '../../../../src/index.ts';
 import { asRelPath } from '../../../../src/core/contracts/paths.ts';
 import { makeCtx } from '../../../helpers/ctx.ts';
 
 const npmrc: ConfigFileRef = { kind: 'npmrc', path: asRelPath('.npmrc') };
+const helperOptions = {
+  id: 'company-policy',
+  title: 'Company policy',
+  description: 'Require the approved setting',
+  severity: 'error',
+};
+const helperSpec: RequireConfigKeySpec = {
+  file: npmrc,
+  keyPath: ['approved'],
+  value: true,
+  message: 'Enable approved',
+};
+
+// Exercise the JavaScript boundary without asserting invalid input has a valid TypeScript type.
+const lintUntypedHelper = (options: unknown): LintResult => {
+  const rule: Rule = Reflect.apply(requireConfigKey, undefined, [options]);
+  return lint({
+    cwd: asAbsPath('/virtual'),
+    pm: 'npm',
+    installationRoots: [],
+    fs: { readDirectories: () => [], exists: () => false, readText: () => undefined },
+    config: { customRules: [rule] },
+  });
+};
+
+describe('requireConfigKey JavaScript bindings', () => {
+  it('rejects an unknown PM key instead of silently dropping the policy', () => {
+    expect(() => lintUntypedHelper({ ...helperOptions, bindings: { nmp: helperSpec } })).toThrow(
+      /bindings.*nmp/,
+    );
+  });
+
+  it.each([
+    { name: 'null', bindings: null },
+    { name: 'array', bindings: [] },
+    { name: 'inherited bindings', bindings: Object.create({ npm: helperSpec }) },
+  ])('rejects $name rather than normalizing it into a valid rule', ({ bindings }) => {
+    expect(() => lintUntypedHelper({ ...helperOptions, bindings })).toThrow(ConfigError);
+  });
+
+  it('accepts an empty map and a null-prototype map with an own binding', () => {
+    expect(lintUntypedHelper({ ...helperOptions, bindings: {} })).toMatchObject({ findings: [] });
+    const bindings: unknown = Object.assign(Object.create(null), { npm: helperSpec });
+    expect(lintUntypedHelper({ ...helperOptions, bindings })).toMatchObject({
+      findings: [{ ruleId: 'company-policy', severity: 'error' }],
+    });
+  });
+});
+
+const invalidPredicates = [
+  { name: 'resolved Promise', predicate: async () => false, error: /synchronous/ },
+  {
+    name: 'rejected Promise',
+    predicate: () => Promise.reject(new Error('predicate rejected')),
+    error: /synchronous/,
+  },
+  {
+    name: 'rejecting thenable',
+    predicate: () => ({
+      then(_resolve: unknown, reject: (error: Error) => void) {
+        reject(new Error('thenable rejected'));
+      },
+    }),
+    error: /synchronous/,
+  },
+  { name: 'nonboolean object', predicate: () => ({}), error: /boolean/ },
+];
+
+it.each(invalidPredicates)('rejects accept returning a $name', async ({ predicate, error }) => {
+  expect(() =>
+    lintUntypedHelper({
+      ...helperOptions,
+      bindings: { npm: { ...helperSpec, accept: predicate } },
+    }),
+  ).toThrow(error);
+  // Vitest reports any rejection escaping the synchronous boundary after this turn.
+  await new Promise<void>((resolve) => setImmediate(resolve));
+});
+
+it.each(invalidPredicates)('rejects applies returning a $name', async ({ predicate, error }) => {
+  expect(() =>
+    lintUntypedHelper({
+      ...helperOptions,
+      bindings: { npm: helperSpec },
+      applies: predicate,
+    }),
+  ).toThrow(error);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+});
+
+it('validates accept when checking an unconditional documented default', () => {
+  expect(() =>
+    lintUntypedHelper({
+      ...helperOptions,
+      bindings: {
+        npm: {
+          ...helperSpec,
+          documentedDefault: true,
+          defaultSafety: 'unconditional',
+          accept: async () => false,
+        },
+      },
+    }),
+  ).toThrow(/synchronous/);
+});
+
+it('preserves synchronous false and short-circuits acceptance when applies is false', () => {
+  expect(
+    lintUntypedHelper({
+      ...helperOptions,
+      bindings: { npm: { ...helperSpec, accept: () => false } },
+    }),
+  ).toMatchObject({ findings: [{ ruleId: 'company-policy', severity: 'error' }] });
+  const accept = vi.fn<() => boolean>(() => true);
+  expect(
+    lintUntypedHelper({
+      ...helperOptions,
+      bindings: { npm: { ...helperSpec, accept } },
+      applies: () => false,
+    }),
+  ).toMatchObject({ findings: [] });
+  expect(accept).not.toHaveBeenCalled();
+});
 
 it.each([
   ['11.9.0', 'manual'],

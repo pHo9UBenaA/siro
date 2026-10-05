@@ -53,10 +53,9 @@ and changelog current when public behavior changes. `docs/rules.md` and
 
 ## Package verification
 
-After `pnpm verify`, run `pnpm test:package`. It installs the packed artifact in a
-temporary project with install scripts disabled, then checks public files, API,
-TypeScript declarations and CLI exit behavior. Missing dependencies may be downloaded.
-CI runs it on both supported Node majors and on Linux and Windows.
+After `pnpm verify`, run `pnpm test:package` to check the distributed files, installed
+API, TypeScript declarations and CLI exits. It may download dependencies, with install
+scripts disabled. CI runs it on both supported Node majors and on Linux and Windows.
 
 To verify an existing artifact, run `pnpm test:package /absolute/path/package.tgz`.
 To retain a verified artifact, use
@@ -72,5 +71,4 @@ and stages the package. Staging is separate from approval and public availabilit
 
 Before publishing, protect main and `v*` tags, configure the `npm-publish` environment
 with required reviewers and tag restrictions, and match the npm trusted publisher
-binding to this repository, `publish.yaml` and environment. Local tests cannot verify
-these remote settings. Do not use publishing authority for test probes.
+binding to this repository, `publish.yaml` and environment.

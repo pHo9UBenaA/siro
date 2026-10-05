@@ -6,13 +6,17 @@ helps review supported policy gaps; a clean result is not a security attestation
 ## Trusted code and untrusted data
 
 - PM manifests and configuration are read as data. Built-in checks do not install
-  dependencies, execute package scripts or edit files.
-- `siro.config.ts`, `.mjs`, and `.js` are executable code. The CLI imports cwd's
-  config automatically with the caller's permissions, before validating its exported
-  value. `--no-config` disables probing and execution of that config entirely.
+  dependencies, execute package scripts or edit files. Automatically loaded
+  `siro.config.json` supports data settings only, with no executable extensions
+  or module references. It can still disable checks or narrow inspection scope.
+- `.ts`, `.mjs`, and `.js` configuration is executable code. `--config <path>`
+  explicitly opts into execution with the caller's permissions, before validating
+  its exported value. Automatic discovery refuses executable config without running
+  it. `--no-config` skips probing and loading repository configuration entirely.
   Custom rules and reporters have the same privileges and can alter results.
-- Library `lint` calls do not import repository code. `loadConfig` is an explicit
-  opt-in to execution. Child and additional-root executable configs are not loaded.
+- Library `lint` calls do not import repository code. Executing a config through
+  `loadConfig` requires an explicit `configPath`. Child and additional-root configs
+  are not loaded automatically.
 - Installing siro trusts its distributed code and dependencies. `npx` may download
   code before checking anything. Pin an exact version when repeatability matters.
 
@@ -76,10 +80,10 @@ not sandbox them. See [JSON output](json-output.md) for consumer requirements.
 
 ## Release authority and impact
 
-Build and verification run without OIDC authority; a separate environment-bound job
-stages the verified artifact. Identity, digest and ancestry checks do not prove benign
-bytes or release authorization: compromised source or build tooling can still produce
-malicious packages. Maintainers must configure the [release controls](contributing.md#release-controls).
+Publishing authority is restricted to a separate approval-controlled job. Successful
+checks and provenance do not prove that a package is benign: compromised source or
+build tooling can still produce malicious packages. Maintainers must configure the
+[release controls](contributing.md#release-controls).
 
 ## Reporting vulnerabilities
 

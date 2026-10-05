@@ -35,7 +35,10 @@ it('applies warn and off rule overrides from the same config', async () => {
   });
   try {
     const { io, out } = captureIO();
-    await run(['lint', '--reporter', 'json', root], io);
+    await run(
+      ['lint', '--config', path.join(root, 'siro.config.mjs'), '--reporter', 'json', root],
+      io,
+    );
     const parsed: { findings: { ruleId: string; severity: string }[] } = JSON.parse(out());
     const finding = parsed.findings.find((entry) => entry.ruleId === 'pin-exact-versions');
     expect(finding).toMatchObject({ ruleId: 'pin-exact-versions', severity: 'warn' });
@@ -70,7 +73,7 @@ it.each<{ name: string; files: Record<string, string>; pattern: RegExp }>([
   {
     name: 'detected PM outside configured restriction',
     files: { 'siro.config.mjs': "export default { pms: ['pnpm'] };\n" },
-    pattern: /do not match siro\.config\.ts pms/u,
+    pattern: /do not match configured pms/u,
   },
   {
     name: 'no PM without a silent npm fallback',
@@ -86,7 +89,10 @@ it.each<{ name: string; files: Record<string, string>; pattern: RegExp }>([
   const root = createTempProject({ 'package.json': packageJson, ...files });
   try {
     const { io, err } = captureIO();
-    expect(await run(['lint', root], io)).toBe(2);
+    const configArgs = files['siro.config.mjs']
+      ? ['--config', path.join(root, 'siro.config.mjs')]
+      : [];
+    expect(await run(['lint', root, ...configArgs], io)).toBe(2);
     expect(err()).toMatch(pattern);
   } finally {
     rmSync(root, { force: true, recursive: true });
@@ -111,7 +117,10 @@ it.each<{ name: string; files: Record<string, string>; pattern: RegExp }>([
   const root = createTempProject(files);
   try {
     const { io, out, err } = captureIO();
-    const status = await run(['lint', root], io);
+    const configArgs = files['siro.config.mjs']
+      ? ['--config', path.join(root, 'siro.config.mjs')]
+      : [];
+    const status = await run(['lint', root, ...configArgs], io);
     expect(status, `stdout: ${out()}\nstderr: ${err()}`).toBe(2);
     expect(err()).toMatch(pattern);
   } finally {

@@ -127,6 +127,8 @@ function verifyInstalledApi() {
     'tsconfig.json',
   ]);
   run(process.execPath, ['consumer.mts']);
+  cpSync(join(root, 'test/package/load-config.mjs'), join(consumer, 'load-config.mjs'));
+  run(process.execPath, ['load-config.mjs']);
 }
 
 function verifyInstalledCli(installedBin) {
@@ -188,22 +190,18 @@ function verifyInspectionScope(runCli) {
   );
   mkdirSync(join(consumer, 'workspace/child'));
   writeFileSync(join(consumer, 'workspace/child/package.json'), '{"name":"child"}');
-  writeFileSync(
-    join(consumer, 'workspace/siro.config.mjs'),
-    "export default { rules: { 'files-field': 'error' } };\n",
-  );
-  runCli(['lint', 'workspace', '--exclude', 'child']);
+  writeFileSync(join(consumer, 'workspace/siro.config.json'), '{"rules":{"files-field":"error"}}');
+  const args = ['lint', 'workspace'];
+  runCli([...args, '--exclude', 'child']);
   runCli(['lint', 'workspace', '--workspaces'], { expectedStatus: 2 });
-  const workspaceReport = JSON.parse(
-    runCli(['lint', 'workspace', '--json'], { expectedStatus: 1 }),
-  );
+  const workspaceReport = JSON.parse(runCli([...args, '--json'], { expectedStatus: 1 }));
   assert.ok(
     workspaceReport.findings.some(
       (finding) => finding.ruleId === 'files-field' && finding.file === 'child/package.json',
     ),
   );
   const failedScopeOutput = runCli(
-    ['lint', 'workspace', '--installation-root', '.', '--installation-root', 'child', '--json'],
+    [...args, '--installation-root', '.', '--installation-root', 'child', '--json'],
     { expectedStatus: 2 },
   );
   assert.equal(failedScopeOutput, '', 'Unknown child PM must fail without a success document');
@@ -212,10 +210,9 @@ function verifyInspectionScope(runCli) {
     '{"name":"child","packageManager":"npm@12.0.2"}',
   );
   const expandedScope = JSON.parse(
-    runCli(
-      ['lint', 'workspace', '--installation-root', '.', '--installation-root', 'child', '--json'],
-      { expectedStatus: 1 },
-    ),
+    runCli([...args, '--installation-root', '.', '--installation-root', 'child', '--json'], {
+      expectedStatus: 1,
+    }),
   );
   assert.equal(expandedScope.inspection.installationRoots.length, 2);
 }
@@ -231,11 +228,14 @@ function verifyFailureExits(runCli, installedBin) {
       }],
     };`,
   );
-  runCli(['lint', 'good', '--reporter', 'crash'], { expectedStatus: 70 });
+  runCli(['lint', 'good', '--config', 'good/siro.config.mjs', '--reporter', 'crash'], {
+    expectedStatus: 70,
+  });
   writeFileSync(
     join(consumer, 'good/siro.config.mjs'),
     "throw new Error('Untrusted config must not execute');\n",
   );
+  runCli(['lint', 'good', '--json'], { expectedStatus: 2 });
   assert.equal(
     JSON.parse(runCli(['lint', 'good', '--no-config', '--strict-filesystem', '--json']))
       .schemaVersion,

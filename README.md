@@ -32,17 +32,17 @@ Discovery does not imply that every package's installation settings were inspect
 
 siro detects managers from `packageManager`, lockfiles, and configuration files. If it cannot
 detect one, choose it explicitly, for example `npx @pho9ubenaa/siro lint --pm npm`.
-The CLI may download code through `npx` and imports a repository's `siro.config.*` as executable
-code by default. For an unfamiliar project, use `npx @pho9ubenaa/siro lint --no-config --strict-filesystem`
-in an isolated environment without credentials. These flags do not sandbox npx or
-extensions; see the [threat model](docs/threat-model.md).
+The CLI automatically reads `siro.config.json` as data. `npx` may download code.
+Executable repository configuration requires an explicit `--config <path>` and runs
+with your permissions. For unfamiliar projects, `--no-config --strict-filesystem`
+narrows the inputs; neither flag is a sandbox. See the [threat model](docs/threat-model.md).
 
 ## Read findings and add CI
 
 Findings have `error`, `warn`, or `info` severity. Exit `0` means no findings at or above the
-selected threshold; exit `1` means there are findings. Usage/configuration errors exit `2`
-without completing the check; unexpected failures exit `70`. Errors fail CI by default. siro
-suggests fixes but **does not edit files**: review changes and rerun the linter.
+selected threshold; exit `1` means there are findings. Errors fail CI by default; see
+[exit codes](docs/configuration.md#severity-reporters-cli-and-exits) for `2` and `70`.
+siro suggests fixes but **does not edit files**: review changes and rerun the linter.
 
 For regular use, install it with `npm install --save-dev --save-exact @pho9ubenaa/siro`
 and add a package script:
@@ -66,22 +66,29 @@ For exclusions and rule overrides, see the [configuration examples](docs/configu
 | `--pm <npm\|pnpm\|yarn\|bun\|deno\|aube>` | Select one manager at cwd; additional installation roots retain their own targets.        |
 | `--pm-version <x.y.z>`                    | Supply an exact stable target version (requires `--pm`); it does not run an installed PM. |
 | `--project-type <application\|package>`   | Choose whether publication safeguards apply; omitted means infer from publish metadata.   |
+| `--config <path>`                         | Select JSON settings or explicitly execute trusted JS/TS configuration.                   |
 | `--exclude <pattern>`                     | Prune directories from recursive discovery (repeatable).                                  |
 | `--installation-root <path>`              | Replace the default cwd installation scope (repeatable; include `.` to retain cwd).       |
 | `--severity <error\|warn\|info>`          | Set both the display and CI failure threshold; default failure threshold is `error`.      |
 | `--reporter <pretty\|json\|github>`       | Choose terminal, JSON, or GitHub Actions output; `--json` is a JSON shortcut.             |
 
-`--no-config` disables executable configuration; `--strict-filesystem` rejects
+`--no-config` skips repository configuration; `--strict-filesystem` rejects
 symlink input paths in native data reads. Scans also have finite caller-controlled
 [file, tree, nesting, finding and output budgets](docs/configuration.md#strict-filesystem-and-scan-budgets).
 Overflow fails the check rather than silently skipping inputs.
 
-For a walkthrough and deeper reference, use these guides:
+Documentation by task:
 
-- [Getting started](docs/getting-started.md) walks through findings and CI; [configuration](docs/configuration.md) covers local PM/version selection, discovery and explicit installation scope, executable config, exit codes, and migration from the removed `--workspaces` flag.
-- The [rule reference](docs/rules.md) and [PM comparison](docs/comparison.md) show what is checked for each manager.
-- [JSON output](docs/json-output.md) documents the machine-readable remediation contract.
-- [Contributing](docs/contributing.md) covers development setup, the source map, and verification.
+| If you want to…                                           | Read                                         |
+| --------------------------------------------------------- | -------------------------------------------- |
+| Run a first scan, then add it to CI                       | [Getting started](docs/getting-started.md)   |
+| Set options, inspection scope, config or migrate          | [Configuration](docs/configuration.md)       |
+| Check what a rule does, on which inputs, at what severity | [Rule reference](docs/rules.md)              |
+| See which package managers a rule covers                  | [PM comparison](docs/comparison.md)          |
+| Consume or emit the machine-readable report               | [JSON output](docs/json-output.md)           |
+| Judge why a finding is justified                          | [Policy and sources](docs/policy-sources.md) |
+| Know what a clean result does and does not prove          | [Threat model](docs/threat-model.md)         |
+| Build, verify or release siro                             | [Contributing](docs/contributing.md)         |
 
 ## License
 

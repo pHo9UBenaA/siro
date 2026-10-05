@@ -27,13 +27,14 @@ it('Deno exclude-only age fails at configured severity even on a known newer tar
         minimumDependencyAge: { exclude: ['npm:reviewed'] },
       }),
     );
-    const result = run(root, '--pm', 'deno', '--pm-version', '2.9.4');
+    const args = ['--config', path.join(root, 'siro.config.mjs'), '--pm', 'deno'];
+    const result = run(root, ...args, '--pm-version', '2.9.4');
     expect(result.status).toBe(1);
     expect(JSON.parse(result.stdout).findings).toContainEqual(
       expect.objectContaining({ ruleId: 'minimum-release-age', severity: 'error' }),
     );
     writeFileSync(path.join(root, '.npmrc'), 'min-release-age=3');
-    expect(run(root, '--pm', 'deno', '--pm-version', '2.8.1').status).toBe(0);
+    expect(run(root, ...args, '--pm-version', '2.8.1').status).toBe(0);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -76,6 +77,8 @@ it('repeatable flags replace config arrays; schema 3 preserves scope through dis
   try {
     const result = run(
       root,
+      '--config',
+      path.join(root, 'siro.config.mjs'),
       '--exclude',
       'bad',
       '--exclude=other',

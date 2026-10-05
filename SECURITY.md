@@ -10,8 +10,8 @@ Security fixes target the latest release; older release lines have no guaranteed
 
 ## Scope
 
-siro checks local configuration, not dependency safety. The CLI executes repository
-config by default; config and extensions run with the caller's permissions. For
+siro checks local configuration, not dependency safety. Executable config requires
+an explicit `--config <path>`; config and extensions run with the caller's permissions. For
 unfamiliar checkouts, use `--no-config --strict-filesystem` in an isolated environment
 without credentials. These flags are not a sandbox; findings may contain secrets.
 

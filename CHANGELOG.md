@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.7.0] — 2026-10-04
+
+### Breaking changes
+
+- Stop automatically executing repository configuration. Use `--config <path>` to
+  select a trusted `.ts`, `.mjs`, or `.js` file; otherwise an existing executable
+  config produces a migration error (exit 2) without running it. `--no-config` still
+  skips configuration entirely and cannot be combined with `--config`.
+- `loadConfig(cwd)` reads JSON instead of executing discovered code. Use
+  `loadConfig(cwd, { configPath: 'siro.config.mjs' })`; the optional Node-version
+  argument is now `options.nodeVersion`.
+
+Migration: move data-only settings to `siro.config.json`, or pass `--config <path>`
+for code you trust.
+
+### Other changes
+
+- Automatically read `siro.config.json` as data, with precedence over coexisting
+  JS/TS config. JSON supports built-in settings only: custom rules, reporters,
+  module references and config inheritance are rejected. Invalid JSON fails without
+  fallback. JSON honors native scan budgets and strict filesystem checks.
+- Reject unknown package-manager names and invalid binding maps in `requireConfigKey`.
+- Report async or nonboolean results from `requireConfigKey`'s `accept` and `applies`
+  functions as configuration errors (CLI exit 2) instead of treating them as policy
+  decisions. Async results are rejected without unhandled Promise rejections.
+- Ship the distribution unminified, so published stack traces and code match the
+  reviewed sources.
+- Simplify configuration and contributor documentation.
+
+Explicitly selected synchronous custom policies, decoded JSON schema 3, Node
+requirements and inspection scope remain unchanged.
+
 ## [0.6.2] — 2026-10-03
 
 - Report oversized custom rule groups as finding-limit errors (CLI exit 2), rather

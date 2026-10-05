@@ -7,17 +7,20 @@ import {
   githubReporter,
   lint,
   lintCommand,
+  loadConfig,
   PMS,
   PROJECT_TYPES,
   version,
   requireConfigKey,
   CONFIG_FILES,
+  ConfigError,
   type LintResult,
   type SiroConfig,
   type FileSystem,
   type PM,
   type LintOptions,
   type RequireConfigKeySpec,
+  type Rule,
   DEFAULT_SCAN_LIMITS,
   type ScanLimits,
   type IO,
@@ -48,6 +51,12 @@ const emptyFs: FileSystem = {
   exists: () => false,
   readText: () => undefined,
 };
+const missingConfig = await loadConfig(asAbsPath('/virtual'), {
+  configPath: 'missing-siro-config.json',
+  limits: { maxConfigDepth: 2 },
+}).catch((error: unknown) => error);
+check(missingConfig instanceof ConfigError, 'explicit missing config rejects with ConfigError');
+
 const builtinId: Extract<keyof NonNullable<SiroConfig['rules']>, 'files-field'> = 'files-field';
 void builtinId;
 
@@ -324,6 +333,44 @@ function verifyPublicBuilder() {
   );
 }
 
+function verifyPublicBuilderValidation() {
+  const options = {
+    id: 'company-policy',
+    title: 'Company policy',
+    description: 'Require approved',
+    severity: 'error',
+  };
+  const spec = {
+    file: CONFIG_FILES.npmrc,
+    keyPath: ['approved'],
+    value: true,
+    message: 'Enable approved',
+  };
+  const bindingFailure = captureThrown(() =>
+    Reflect.apply(requireConfigKey, undefined, [{ ...options, bindings: { nmp: spec } }]),
+  );
+  check(
+    bindingFailure instanceof ConfigError && /bindings.*nmp/.test(bindingFailure.message),
+    'public builder rejects unknown manager keys instead of dropping policy',
+  );
+  const rule: Rule = Reflect.apply(requireConfigKey, undefined, [
+    { ...options, bindings: { npm: { ...spec, accept: async () => false } } },
+  ]);
+  const predicateFailure = captureThrown(() =>
+    lint({
+      cwd: asAbsPath('/virtual'),
+      fs: emptyFs,
+      pm: 'npm',
+      installationRoots: [],
+      config: { customRules: [rule] },
+    }),
+  );
+  check(
+    predicateFailure instanceof ConfigError && /accept.*synchronous/.test(predicateFailure.message),
+    'public builder rejects async acceptance instead of reporting clean findings',
+  );
+}
+
 async function verifyGroupedResults() {
   const multi = defineRule({
     id: 'multiple',
@@ -372,4 +419,5 @@ await verifyJsonEscaping(result);
 await verifyGitHubReport(result);
 await verifyOutputFailure();
 verifyPublicBuilder();
+verifyPublicBuilderValidation();
 await verifyGroupedResults();

@@ -1,6 +1,6 @@
 {
   "name": "@pho9ubenaa/siro",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Security best-practices linter for the npm ecosystem (npm, pnpm, deno, bun, yarn, aube).",
   "keywords": [
     "aube",
@@ -48,7 +48,8 @@
   "scripts": {
     "bench": "node bench/lint.bench.ts",
     "build": "tsdown && node scripts/bin-wrapper.mjs",
-    "check": "oxlint --deny-warnings && oxfmt --check",
+    "check": "oxlint --deny-warnings --report-unused-disable-directives && oxfmt --check",
+    "lint:fix": "oxlint --fix --deny-warnings --report-unused-disable-directives",
     "format": "oxfmt --write",
     "gen": "pnpm gen:docs && pnpm gen:api",
     "gen:api": "typedoc",

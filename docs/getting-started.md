@@ -9,10 +9,10 @@ your repository:
 npx @pho9ubenaa/siro lint
 ```
 
-`npx` may download the tool. The CLI also executes the repository's `siro.config.*`,
-if present. For unfamiliar checkouts, disable executable config and reject symlink
-input paths with `npx @pho9ubenaa/siro lint --no-config --strict-filesystem`, in an isolated environment
-without credentials. These options are not a sandbox; see the [threat model](threat-model.md).
+`npx` may download the tool. Executable repository configuration is not loaded
+automatically; it requires an explicit `--config <path>`. For unfamiliar checkouts,
+scan with `--no-config --strict-filesystem` in an isolated environment without
+credentials. These options are not a sandbox; see the [threat model](threat-model.md).
 
 siro detects managers from `packageManager`, lockfiles and manager-specific config.
 If it cannot detect yours, select it explicitly, for example:
@@ -28,12 +28,13 @@ directory are checked. By default, installation settings are checked only at the
 current directory, not every discovered package. PM workspace declarations do
 not limit discovery.
 
-To exclude intentional fixtures and generated packages, save `siro.config.mjs`:
+To exclude intentional fixtures and generated packages, save `siro.config.json`.
+The CLI automatically reads it as data:
 
-```js
-export default {
-  exclude: ['test/fixtures', 'vendor', 'dist'],
-};
+```json
+{
+  "exclude": ["test/fixtures", "vendor", "dist"]
+}
 ```
 
 For an independent install project, explicitly add its directory:
@@ -65,11 +66,11 @@ steps; see the [output contract](json-output.md).
 
 To change a rule's severity, add a `rules` map to your existing config:
 
-```js
-export default {
-  exclude: ['test/fixtures', 'vendor', 'dist'],
-  rules: { 'files-field': 'warn' },
-};
+```json
+{
+  "exclude": ["test/fixtures", "vendor", "dist"],
+  "rules": { "files-field": "warn" }
+}
 ```
 
 The [rule reference](rules.md) explains the checks and supported managers.
@@ -111,7 +112,7 @@ Do not run an untrusted checkout's executable config in a privileged
 credential-free, restricted job for data-only scans.
 
 The GitHub reporter emits Actions annotations. Treat [exit codes](configuration.md#severity-reporters-cli-and-exits)
-`2` and `70` as failed/incomplete checks, not successful empty results.
+`2` and `70` as failed/incomplete checks.
 
 For more options, use `npx @pho9ubenaa/siro lint --help` or the
 [CLI summary](../README.md#common-cli-options). Upgrading from 0.5.x? Follow the

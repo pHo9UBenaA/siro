@@ -66,7 +66,15 @@ it('reports an un-compilable exclusion pattern with exit 2', () => {
       path.join(dir, 'siro.config.mjs'),
       `export default { exclude: [${JSON.stringify('a'.repeat(65_537))}] };`,
     );
-    const result = spawnBin(['lint', dir, '--pm', 'npm', '--json']);
+    const result = spawnBin([
+      'lint',
+      dir,
+      '--config',
+      path.join(dir, 'siro.config.mjs'),
+      '--pm',
+      'npm',
+      '--json',
+    ]);
     expect(result.status).toBe(EXIT_USAGE);
     expect(result.stderr).toContain('exclude');
     expect(result.stdout).toBe('');
@@ -122,8 +130,9 @@ it('reports recursively discovered package paths and failures without executing 
     );
     writeFileSync(path.join(dir, 'child/package.json'), '{"name":"child"}');
     writeFileSync(path.join(dir, 'child/siro.config.mjs'), 'throw new Error("must not execute")');
-    expect(spawnBin(['lint', dir, '--exclude', 'child']).status).toBe(EXIT_SUCCESS);
-    const result = spawnBin(['lint', dir, '--json']);
+    const args = ['lint', dir, '--config', path.join(dir, 'siro.config.mjs')];
+    expect(spawnBin([...args, '--exclude', 'child']).status).toBe(EXIT_SUCCESS);
+    const result = spawnBin([...args, '--json']);
     expect(result.status).toBe(EXIT_FAILURE);
     expect(parseJsonOutput(result.stdout, result.stderr).findings).toContainEqual(
       expect.objectContaining({
@@ -132,12 +141,12 @@ it('reports recursively discovered package paths and failures without executing 
         severity: 'error',
       }),
     );
-    const annotations = spawnBin(['lint', dir, '--reporter', 'github']);
+    const annotations = spawnBin([...args, '--reporter', 'github']);
     expect(annotations.stdout).toContain(
       `file=${path.join(dir, 'child/package.json').replaceAll(':', '%3A')}`,
     );
     writeFileSync(path.join(dir, 'child/package.json'), '{');
-    const broken = spawnBin(['lint', dir, '--json']);
+    const broken = spawnBin([...args, '--json']);
     expect(broken.status).toBe(EXIT_USAGE);
     expect(broken.stderr).toContain('child/package.json');
     expect(broken.stdout).toBe('');
@@ -183,8 +192,11 @@ it('checks declared, configured, and CLI PM targets through the executable', () 
       path.join(dir, 'siro.config.mjs'),
       "export default { pmVersions: { npm: '11.10.0' } };\n",
     );
-    expect(spawnBin(args).status).toBe(EXIT_SUCCESS);
-    expect(spawnBin([...args, '--pm', 'npm', '--pm-version=11.9.0']).status).toBe(EXIT_FAILURE);
+    const configuredArgs = [...args, '--config', path.join(dir, 'siro.config.mjs')];
+    expect(spawnBin(configuredArgs).status).toBe(EXIT_SUCCESS);
+    expect(spawnBin([...configuredArgs, '--pm', 'npm', '--pm-version=11.9.0']).status).toBe(
+      EXIT_FAILURE,
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -212,7 +224,14 @@ describe('CLI binary — error handling', () => {
             }],
           };`,
         );
-        const result = spawnBin(['lint', '--reporter', 'boom', dir]);
+        const result = spawnBin([
+          'lint',
+          '--config',
+          path.join(dir, 'siro.config.ts'),
+          '--reporter',
+          'boom',
+          dir,
+        ]);
         expect(result.status, `stdout: ${result.stdout}\nstderr: ${result.stderr}`).toBe(
           EXIT_CRASH,
         );

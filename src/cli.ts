@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-import { assertDirectory } from './adapters/node-file-system.ts';
-import { loadConfig } from './load-config.ts';
+import { assertDirectory, createNodeFileSystem } from './adapters/node-file-system.ts';
+import { loadConfigFromFileSystem } from './load-config.ts';
+import { resolveScanLimits } from './core/contracts/scan-limits.ts';
+import { boundedFileSystem } from './core/bounded-file-system.ts';
 import { SiroError } from './core/contracts/errors.ts';
 import { ensureNodeVersion } from './cli/parsers.ts';
 import type { IO } from './core/contracts/io.ts';
@@ -36,10 +38,16 @@ const dispatch = async (command: ParsedCommand, io: IO): Promise<number> => {
     }
     case 'lint': {
       assertDirectory(command.cwd);
-      const { noConfig, ...options } = command;
-      if (noConfig) return lintCommand(options, io);
-      const config = await loadConfig(command.cwd);
-      return lintCommand({ ...options, config }, io);
+      const { noConfig, configPath, rejectSymlinks, ...options } = command;
+      if (noConfig) return lintCommand({ ...options, rejectSymlinks }, io);
+      const limits = resolveScanLimits(options.limits);
+      const fs = boundedFileSystem(
+        createNodeFileSystem(limits, rejectSymlinks ? command.cwd : undefined),
+        limits,
+      );
+      const config = await loadConfigFromFileSystem(command.cwd, { configPath, limits }, fs);
+      // This native adapter already enforces strict paths and shares config/scan budgets.
+      return lintCommand({ ...options, config, fs }, io);
     }
     default: {
       const exhaustiveCheck: never = command;

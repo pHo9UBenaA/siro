@@ -21,7 +21,15 @@
     "suspicious": "error"
   },
   "rules": {
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "no-else-return": "error",
+    "no-lonely-if": "error",
+    "no-nested-ternary": "error",
+    "no-useless-return": "error",
+    "no-var": "error",
+    "no-void": ["error", { "allowAsStatement": true }],
     "prefer-const": "error",
+    "yoda": ["error", "never", { "onlyEquality": true }],
     "typescript/consistent-type-assertions": ["error", { "assertionStyle": "never" }],
     "typescript/no-non-null-assertion": "error",
     "typescript/no-explicit-any": "error",
