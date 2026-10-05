@@ -33,17 +33,16 @@ Discovery does not imply that every package's installation settings were inspect
 siro detects managers from `packageManager`, lockfiles, and configuration files. If it cannot
 detect one, choose it explicitly, for example `npx @pho9ubenaa/siro lint --pm npm`.
 The CLI automatically reads `siro.config.json` as data. `npx` may download code.
-Executable repository configuration requires an explicit
-`--config <path>` and runs with your permissions. For an unfamiliar project, use `npx @pho9ubenaa/siro lint --no-config --strict-filesystem`
-in an isolated environment without credentials. These flags do not sandbox npx or
-extensions; see the [threat model](docs/threat-model.md).
+Executable repository configuration requires an explicit `--config <path>` and runs
+with your permissions. For unfamiliar projects, `--no-config --strict-filesystem`
+narrows the inputs; neither flag is a sandbox. See the [threat model](docs/threat-model.md).
 
 ## Read findings and add CI
 
 Findings have `error`, `warn`, or `info` severity. Exit `0` means no findings at or above the
-selected threshold; exit `1` means there are findings. Usage/configuration errors exit `2`
-without completing the check; unexpected failures exit `70`. Errors fail CI by default. siro
-suggests fixes but **does not edit files**: review changes and rerun the linter.
+selected threshold; exit `1` means there are findings. Errors fail CI by default; see
+[exit codes](docs/configuration.md#severity-reporters-cli-and-exits) for `2` and `70`.
+siro suggests fixes but **does not edit files**: review changes and rerun the linter.
 
 For regular use, install it with `npm install --save-dev --save-exact @pho9ubenaa/siro`
 and add a package script:

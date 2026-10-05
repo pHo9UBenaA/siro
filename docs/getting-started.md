@@ -11,9 +11,8 @@ npx @pho9ubenaa/siro lint
 
 `npx` may download the tool. Executable repository configuration is not loaded
 automatically; it requires an explicit `--config <path>`. For unfamiliar checkouts,
-skip repository configuration and reject symlink
-input paths with `npx @pho9ubenaa/siro lint --no-config --strict-filesystem`, in an isolated environment
-without credentials. These options are not a sandbox; see the [threat model](threat-model.md).
+scan with `--no-config --strict-filesystem` in an isolated environment without
+credentials. These options are not a sandbox; see the [threat model](threat-model.md).
 
 siro detects managers from `packageManager`, lockfiles and manager-specific config.
 If it cannot detect yours, select it explicitly, for example:
@@ -113,7 +112,7 @@ Do not run an untrusted checkout's executable config in a privileged
 credential-free, restricted job for data-only scans.
 
 The GitHub reporter emits Actions annotations. Treat [exit codes](configuration.md#severity-reporters-cli-and-exits)
-`2` and `70` as failed/incomplete checks, not successful empty results.
+`2` and `70` as failed/incomplete checks.
 
 For more options, use `npx @pho9ubenaa/siro lint --help` or the
 [CLI summary](../README.md#common-cli-options). Upgrading from 0.5.x? Follow the

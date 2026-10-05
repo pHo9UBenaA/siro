@@ -90,7 +90,7 @@ npx @pho9ubenaa/siro lint . --installation-root . --installation-root tools/stan
   to supply an empty array or per-root PM/version objects.
 - Installation paths are literal, cwd-relative directories, not globs. They must
   match exact spelling, including case on all hosts. Missing, excluded, symlinked
-  or hard-skipped directories are rejected. Normalized duplicates run once;
+  or always-skipped directories are rejected. Normalized duplicates run once;
   conflicting duplicate options are errors.
 - The `.` entry cannot contain PM options; use root API/CLI options or config
   `pms` / `pmVersions` instead.
@@ -145,11 +145,10 @@ npx @pho9ubenaa/siro lint --no-config --strict-filesystem
 `--strict-filesystem` (`rejectSymlinks: true` in the API) rejects a symlink selected
 as cwd and file/path symlinks below cwd, including dangling links. Symlinks above
 cwd are allowed; directory symlinks below cwd are not followed. The option applies
-to native data reads, including JSON siro settings, not executable config or extension code. Combine it with
-`--no-config` for untrusted checkouts. Injected filesystems are trusted code and
-cannot use this option. Neither this check nor lexical path validation is an atomic
-containment guarantee: ancestor replacement races, hard links, and hostile concurrent
-processes still require an isolated snapshot/sandbox.
+to native data reads, including JSON siro settings, not executable config or extension
+code, and not to injected filesystems, which are trusted code. It is not an atomic
+containment guarantee; see the [threat model](threat-model.md) for what still requires
+an isolated snapshot.
 
 Each inspection has finite caller-controlled budgets. They are not config keys:
 
@@ -166,17 +165,16 @@ Each inspection has finite caller-controlled budgets. They are not config keys:
 
 All overrides must be positive safe integers. Defaults are exported as
 `DEFAULT_SCAN_LIMITS`; API callers can provide a partial `limits` object.
-Budgets apply per scan. File budgets cover input bytes and decoded UTF-8 text.
-Entry counts include files and skipped directories in visited directories; injected
-filesystems count only returned child directories. Configuration depth includes
-unused manifest fields. Custom filesystems must bound their own reads and allocations.
+Budgets apply per scan, and cover input bytes and decoded UTF-8 text. Configuration
+depth also counts fields no check reads, so deep-but-irrelevant manifest nesting can
+still overflow. Injected filesystems must bound their own reads and allocations.
 
 Input/evaluation overflow aborts with exit 2, without a partial success document.
-Output overflow is exit 70; JSON is bounded before writing, while GitHub output may
-already contain annotations. No findings are silently truncated. Direct built-in
-reporter calls use defaults, or supplied `context.limits`. Limits do not sandbox
-trusted extensions or impose a hard CPU timeout. Isolate synchronous API work in a
-subprocess/container when hard time/memory bounds are needed.
+Output overflow is exit 70; JSON fails instead of emitting a partial document, while
+GitHub output may already contain annotations. No findings are silently truncated.
+Direct built-in reporter calls use defaults, or supplied `context.limits`. Limits do
+not sandbox trusted extensions or impose a hard CPU timeout. Isolate synchronous API
+work in a subprocess/container when hard time/memory bounds are needed.
 
 When aggregate budgets are exceeded, reduce the scan scope; scan independent projects
 separately where possible. Changing the target directory can change configuration
