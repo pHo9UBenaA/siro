@@ -129,12 +129,12 @@ const resolveDirectoryTargets = (
       throw error;
     }
   }
-  const declared =
+  const declaredPM =
     ctx.packageJson?.packageManager === undefined
       ? undefined
       : parsePackageManagerField(ctx.packageJson.packageManager);
   const manifestPMs = PMS.filter(
-    (pm) => pm === declared || (pm === 'deno' && item.manifests.includes('deno.json')),
+    (pm) => pm === declaredPM || (pm === 'deno' && item.manifests.includes('deno.json')),
   );
   return attachTargetVersions(manifestPMs, declaredVersions);
 };
@@ -202,6 +202,8 @@ export const prepareLint = (options: LintOptions, dependencies: LintDependencies
   };
 };
 
+// package.json/deno.json are dispatched by checkManifest, so exclude them here
+// to avoid reporting the same setting twice.
 const unsupportedInstallationBindings = createUnsupportedSettings(
   (file) => file !== 'package.json' && file !== 'deno.json',
 ).bindings;
@@ -209,12 +211,12 @@ const unsupportedInstallationBindings = createUnsupportedSettings(
 const groupRulesByScope = (ruleSet: readonly Rule[], includeRootInstallation: boolean) => {
   const manifestRules: Rule[] = [];
   const installationRules: Rule[] = [];
-  const rootRules: Rule[] = [];
+  const rootNonManifestRules: Rule[] = [];
   for (const rule of ruleSet) {
     const scope = scopeOf(rule.id);
     if (scope === 'manifest' || scope === 'split') manifestRules.push(rule);
     if (scope === 'custom') {
-      rootRules.push(rule);
+      rootNonManifestRules.push(rule);
       continue;
     }
     if (scope !== 'installation' && scope !== 'split') continue;
@@ -222,9 +224,9 @@ const groupRulesByScope = (ruleSet: readonly Rule[], includeRootInstallation: bo
       scope === 'split' ? { ...rule, bindings: unsupportedInstallationBindings } : rule;
     installationRules.push(installationRule);
     // Keep custom and installation checks interleaved in their original order at cwd.
-    if (includeRootInstallation) rootRules.push(installationRule);
+    if (includeRootInstallation) rootNonManifestRules.push(installationRule);
   }
-  return { manifestRules, installationRules, rootRules };
+  return { manifestRules, installationRules, rootNonManifestRules };
 };
 
 export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
@@ -236,7 +238,7 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
   const includeRootInstallation = directories.some(
     (item) => item.directory === '.' && item.isInstallationRoot,
   );
-  const { manifestRules, installationRules, rootRules } = groupRulesByScope(
+  const { manifestRules, installationRules, rootNonManifestRules } = groupRulesByScope(
     ruleSet,
     includeRootInstallation,
   );
@@ -267,7 +269,7 @@ export const runPreparedLint = (evaluation: LintEvaluation): LintResult => {
         const installationFindings = runLint({
           repository,
           targets,
-          ruleSet: directory === '.' ? rootRules : installationRules,
+          ruleSet: directory === '.' ? rootNonManifestRules : installationRules,
           severityOverrides,
         }).findings;
         for (const finding of installationFindings) directoryFindings.push(finding);
