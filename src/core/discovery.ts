@@ -70,10 +70,12 @@ export const discover = (
   const { paths } = dependencies;
   const pending = [asRelPath('.')];
   const directories: DiscoveredDirectory[] = [];
+  // Count inspected directories plus the pending frontier plus the one being added.
+  const projectedDirectoryCount = () => directories.length + pending.length + 1;
   for (;;) {
     const directory = pending.pop();
     if (directory === undefined) break;
-    checkLimit('maxDirectories', directories.length + pending.length + 1, limits);
+    checkLimit('maxDirectories', projectedDirectoryCount(), limits);
     checkLimit('maxDirectoryDepth', directory === '.' ? 0 : directory.split('/').length, limits);
     const absolute = paths.resolve(cwd, directory);
     directories.push(
@@ -91,8 +93,7 @@ export const discover = (
       if (name === '.git' || name === 'node_modules' || excluded(child) || children.has(child))
         continue;
       checkLimit('maxDirectoryDepth', child.split('/').length, limits);
-      const directoryCountWithChild = directories.length + pending.length + 1;
-      checkLimit('maxDirectories', directoryCountWithChild, limits);
+      checkLimit('maxDirectories', projectedDirectoryCount(), limits);
       children.add(child);
       pending.push(child);
     }
