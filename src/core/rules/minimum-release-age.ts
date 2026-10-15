@@ -32,10 +32,10 @@ const isPositiveYarnDuration = (value: unknown): boolean => {
   return Number.isFinite(durationAmount) && durationAmount > 0;
 };
 
-const isActiveDenoNpmrcAge = (value: unknown, nowMs: number, parse: DateTime['parse']): boolean =>
-  typeof value === 'number' &&
-  Number.isSafeInteger(value) &&
-  isActiveDenoReleaseAge(value * MINUTES_PER_DAY, nowMs, parse);
+const isActiveDenoNpmrcAge = (ageDays: unknown, nowMs: number, parse: DateTime['parse']): boolean =>
+  typeof ageDays === 'number' &&
+  Number.isSafeInteger(ageDays) &&
+  isActiveDenoReleaseAge(ageDays * MINUTES_PER_DAY, nowMs, parse);
 
 const baseRule = requireConfigKey({
   bindings: {
@@ -46,7 +46,7 @@ const baseRule = requireConfigKey({
       defaultSafety: 'unconditional',
       file: aubeWorkspace,
       keyPath: ['minimumReleaseAge'],
-      message: `Set minimumReleaseAge (~${RECOMMENDED_RELEASE_AGE_MINUTES} minutes for a 3-day cooldown) in aube-workspace.yaml.`,
+      message: `Set minimumReleaseAge (~${RECOMMENDED_RELEASE_AGE_MINUTES} minutes for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in aube-workspace.yaml.`,
       value: RECOMMENDED_RELEASE_AGE_MINUTES,
     },
     bun: {
@@ -65,7 +65,7 @@ const baseRule = requireConfigKey({
       defaultSafety: 'conditional',
       file: pnpmWorkspace,
       keyPath: ['minimumReleaseAge'],
-      message: `Set minimumReleaseAge (~${RECOMMENDED_RELEASE_AGE_MINUTES} minutes for a 3-day cooldown) in pnpm-workspace.yaml.`,
+      message: `Set minimumReleaseAge (~${RECOMMENDED_RELEASE_AGE_MINUTES} minutes for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in pnpm-workspace.yaml.`,
       value: RECOMMENDED_RELEASE_AGE_MINUTES,
       versionNote: {
         configAvailableSince: 'pnpm 10.16.0',
@@ -79,7 +79,7 @@ const baseRule = requireConfigKey({
       defaultSafety: 'conditional',
       file: yarnrc,
       keyPath: ['npmMinimalAgeGate'],
-      message: `Set npmMinimalAgeGate (~${RECOMMENDED_RELEASE_AGE_MINUTES} minutes for a 3-day cooldown) in .yarnrc.yml.`,
+      message: `Set npmMinimalAgeGate (~${RECOMMENDED_RELEASE_AGE_MINUTES} minutes for a ${RECOMMENDED_RELEASE_AGE_DAYS}-day cooldown) in .yarnrc.yml.`,
       value: RECOMMENDED_RELEASE_AGE_MINUTES,
       versionNote: {
         configAvailableSince: 'yarn 4.10.0',
