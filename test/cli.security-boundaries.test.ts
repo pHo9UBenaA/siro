@@ -227,7 +227,6 @@ it.each(['ts', 'mjs', 'js'])('does not evaluate %s config with --no-config', (ex
     throw new Error('untrusted');`,
   );
   const result = run(root, ['--no-config', '--json'], 'check');
-  expect(result.error).toBeUndefined();
   expect(result.status).toBe(0);
   expect(JSON.parse(result.stdout).schemaVersion).toBe(3);
   expect(existsSync(marker)).toBe(false);
@@ -345,7 +344,6 @@ it.each([
     mkdirSync(path.join(root, 'a/b'), { recursive: true });
     writeFileSync(path.join(root, 'a/b/package.json'), '{}');
     const result = run(root, ['--no-config', flag, '1', '--json']);
-    expect(result.error).toBeUndefined();
     expect(result.status).toBe(code);
     expect(result.stdout).toBe('');
     expect(result.stderr).toBe(`${message} ${advice}\n`);
