@@ -13,7 +13,7 @@ export const evaluateBinding = (
   repository: RepositoryEvaluation,
   rule: Rule,
   binding: RuleBinding,
-  overrides: ReadonlyMap<string, Severity> | undefined,
+  severityOverrides: ReadonlyMap<string, Severity> | undefined,
   target?: PolicyTarget,
 ): Finding[] => {
   const response: unknown = binding.check(
@@ -30,7 +30,7 @@ export const evaluateBinding = (
       ruleId: rule.id,
       directory: '.',
       ...(target ? { pm: target.pm } : {}),
-      severity: decideSeverity(status, binding, rule, overrides?.get(rule.id)),
+      severity: decideSeverity(status, binding, rule, severityOverrides?.get(rule.id)),
       message: renderVersionNoteMessage(status.message, binding.versionNote),
       file: status.file ?? binding.file?.path,
       docs: binding.docs ?? rule.docs,

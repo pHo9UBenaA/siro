@@ -49,7 +49,7 @@ export const checkManifest = (
   file: ManifestFile,
   targets: readonly PolicyTarget[],
   rules: readonly Rule[],
-  overrides: ReadonlyMap<string, Severity>,
+  severityOverrides: ReadonlyMap<string, Severity>,
 ): Finding[] => {
   const projectType = manifestProjectType(repository, file);
   const findings: Finding[] = [];
@@ -60,7 +60,7 @@ export const checkManifest = (
         repository,
         targets,
         ruleSet: [{ ...rule, bindings: unsupportedManifestBindings[file] }],
-        severityOverrides: overrides,
+        severityOverrides,
       });
       for (const finding of result.findings) findings.push(finding);
       continue;
@@ -74,9 +74,9 @@ export const checkManifest = (
             repository,
             targets,
             ruleSet: [rule],
-            severityOverrides: overrides,
+            severityOverrides,
           }).findings
-        : evaluateBinding(repository, rule, binding, overrides);
+        : evaluateBinding(repository, rule, binding, severityOverrides);
     for (const finding of evaluated) findings.push(finding);
   }
   return findings;
