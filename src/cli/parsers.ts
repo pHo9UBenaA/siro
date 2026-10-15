@@ -11,20 +11,20 @@ import { SUPPORTED_NODE_RANGE, isSupportedNodeVersion } from '../adapters/node-v
 import { UsageError } from '../core/contracts/errors.ts';
 
 export const parsePmFlag = (raw: string | undefined): PM | undefined => {
-  if (typeof raw === 'undefined') {
+  if (raw === undefined) {
     return;
   }
-  if (typeof raw !== 'string' || !isPM(raw)) {
+  if (!isPM(raw)) {
     throw new UsageError(`Unknown package manager: ${raw} (expected one of: ${PMS.join(', ')})`);
   }
   return raw;
 };
 
 export const parseProjectTypeFlag = (raw: string | undefined): ProjectType | undefined => {
-  if (typeof raw === 'undefined') {
+  if (raw === undefined) {
     return;
   }
-  if (typeof raw === 'string' && isProjectType(raw)) {
+  if (isProjectType(raw)) {
     return raw;
   }
   throw new UsageError(
@@ -33,10 +33,10 @@ export const parseProjectTypeFlag = (raw: string | undefined): ProjectType | und
 };
 
 export const parseSeverityFlag = (raw: string | undefined): Severity | undefined => {
-  if (typeof raw === 'undefined') {
+  if (raw === undefined) {
     return;
   }
-  if (typeof raw !== 'string' || !isSeverity(raw)) {
+  if (!isSeverity(raw)) {
     throw new UsageError(`Invalid severity: ${String(raw)} (expected ${SEVERITIES.join('|')})`);
   }
   return raw;
