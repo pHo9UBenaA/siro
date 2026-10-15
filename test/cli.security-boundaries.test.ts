@@ -32,9 +32,24 @@ const run = (root: string, args: string[] = [], command = 'lint', cwd?: string) 
   return result;
 };
 
+const expectUsageFailure = (result: ReturnType<typeof run>) => {
+  expect(result.status).toBe(2);
+  expect(result.stdout).toBe('');
+};
+
+const writeMarkerConfig = (root: string, name: string, body: string) => {
+  const marker = path.join(root, 'marker');
+  writeFileSync(
+    path.join(root, name),
+    `import { writeFileSync } from 'node:fs';
+writeFileSync(${JSON.stringify(marker)}, 'ran');
+${body}`,
+  );
+  return marker;
+};
+
 it('applies automatic JSON settings, leaves JS configs inert, and honors CLI overrides', () => {
   const root = createPassingProject();
-  const marker = path.join(root, 'marker');
   writeFileSync(
     path.join(root, 'siro.config.json'),
     JSON.stringify({
@@ -43,13 +58,7 @@ it('applies automatic JSON settings, leaves JS configs inert, and honors CLI ove
       rules: { 'files-field': 'error' },
     }),
   );
-  writeFileSync(
-    path.join(root, 'siro.config.mjs'),
-    `
-    import { writeFileSync } from 'node:fs';
-    writeFileSync(${JSON.stringify(marker)}, 'ran');
-    export default {};`,
-  );
+  const marker = writeMarkerConfig(root, 'siro.config.mjs', 'export default {};');
   mkdirSync(path.join(root, 'child'));
   writeFileSync(path.join(root, 'child/package.json'), '{"name":"child"}');
   writeFileSync(path.join(root, 'child/siro.config.mjs'), "throw new Error('child config');");
@@ -76,8 +85,7 @@ it('skips even malformed JSON with --no-config', () => {
   writeFileSync(path.join(root, 'siro.config.json'), 'FAKE_SECRET_NOT_JSON');
   expect(run(root, ['--no-config', '--json']).status).toBe(0);
   const result = run(root, ['--json']);
-  expect(result.status).toBe(2);
-  expect(result.stdout).toBe('');
+  expectUsageFailure(result);
   expect(result.stderr).toContain('siro.config.json');
   expect(result.stderr).not.toContain('FAKE_SECRET');
 });
@@ -90,8 +98,7 @@ it('loads an external explicit JSON policy unless strict filesystem requires con
   expect(ordinary.status).toBe(0);
   expect(JSON.parse(ordinary.stdout).inspection.installationRoots).toEqual([]);
   const strict = run(root, [...args, '--strict-filesystem']);
-  expect(strict.status).toBe(2);
-  expect(strict.stdout).toBe('');
+  expectUsageFailure(strict);
   expect(strict.stderr).toContain('escapes cwd');
 });
 
@@ -105,8 +112,7 @@ it('counts JSON config bytes in the same total budget as inspected files', () =>
     String(Buffer.byteLength(config) + manifestBytes - 1),
     '--json',
   ]);
-  expect(result.status).toBe(2);
-  expect(result.stdout).toBe('');
+  expectUsageFailure(result);
   expect(result.stderr).toContain('maxTotalBytes');
 });
 
@@ -114,9 +120,8 @@ it('rejects a directory in place of automatic JSON configuration', () => {
   const root = createPassingProject();
   mkdirSync(path.join(root, 'siro.config.json'));
   const result = run(root, ['--json']);
-  expect(result.status).toBe(2);
+  expectUsageFailure(result);
   expect(result.stderr).toContain('siro.config.json');
-  expect(result.stdout).toBe('');
 });
 
 it('rejects a FIFO JSON config without waiting for a writer', (context) => {
@@ -127,8 +132,7 @@ it('rejects a FIFO JSON config without waiting for a writer', (context) => {
   const root = createPassingProject();
   expect(spawnSync('mkfifo', [path.join(root, 'siro.config.json')]).status).toBe(0);
   const result = run(root, ['--json']);
-  expect(result.status).toBe(2);
-  expect(result.stdout).toBe('');
+  expectUsageFailure(result);
   expect(result.stderr).toContain('expected a regular file');
 });
 
@@ -149,37 +153,23 @@ it('applies strict filesystem checks to automatic JSON configuration', (context)
   expect(ordinary.status).toBe(0);
   expect(JSON.parse(ordinary.stdout).inspection.installationRoots).toEqual([]);
   const strict = run(root, ['--strict-filesystem', '--json']);
-  expect(strict.status).toBe(2);
-  expect(strict.stdout).toBe('');
+  expectUsageFailure(strict);
   expect(strict.stderr).toContain('symlink');
 });
 
 it.each(['ts', 'mjs', 'js'])('requires opt-in before evaluating a %s config', (extension) => {
   const root = createPassingProject();
-  const marker = path.join(root, 'marker');
-  writeFileSync(
-    path.join(root, `siro.config.${extension}`),
-    `import { writeFileSync } from 'node:fs';
-    writeFileSync(${JSON.stringify(marker)}, 'ran');
-    export default {};`,
-  );
+  const marker = writeMarkerConfig(root, `siro.config.${extension}`, 'export default {};');
   const result = run(root, ['--json']);
   expect(existsSync(marker)).toBe(false);
-  expect(result.status).toBe(2);
-  expect(result.stdout).toBe('');
+  expectUsageFailure(result);
   expect(result.stderr).toContain('--config');
   expect(result.stderr).toContain('--no-config');
 });
 
 it('executes only the explicitly selected config, including its custom reporter', () => {
   const root = createPassingProject();
-  const marker = path.join(root, 'marker');
-  writeFileSync(
-    path.join(root, 'siro.config.mjs'),
-    `import { writeFileSync } from 'node:fs';
-    writeFileSync(${JSON.stringify(marker)}, 'untrusted');
-    export default {};`,
-  );
+  const marker = writeMarkerConfig(root, 'siro.config.mjs', 'export default {};');
   writeFileSync(path.join(root, 'siro.config.json'), 'invalid automatic settings');
   const config = path.join(root, 'trusted-policy.mjs');
   writeFileSync(
@@ -212,19 +202,16 @@ it.each([
 ])('rejects invalid config selection before running code: $selection', ({ selection }) => {
   const root = createPassingProject();
   const result = run(root, selection);
-  expect(result.status).toBe(2);
-  expect(result.stdout).toBe('');
+  expectUsageFailure(result);
   expect(result.stderr).toContain('--config');
 });
 
 it.each(['ts', 'mjs', 'js'])('does not evaluate %s config with --no-config', (extension) => {
   const root = createPassingProject();
-  const marker = path.join(root, 'marker');
-  writeFileSync(
-    path.join(root, `siro.config.${extension}`),
-    `import { writeFileSync } from 'node:fs';
-    writeFileSync(${JSON.stringify(marker)}, 'ran');
-    throw new Error('untrusted');`,
+  const marker = writeMarkerConfig(
+    root,
+    `siro.config.${extension}`,
+    "throw new Error('untrusted');",
   );
   const result = run(root, ['--no-config', '--json'], 'check');
   expect(result.status).toBe(0);
@@ -256,13 +243,7 @@ it('ignores a non-file config and ignores its exclusions/rules/reporters entirel
 
 it('validates explicit PM versions before executing trusted config', () => {
   const root = createPassingProject();
-  const marker = path.join(root, 'marker');
-  writeFileSync(
-    path.join(root, 'siro.config.mjs'),
-    `import { writeFileSync } from 'node:fs';
-    writeFileSync(${JSON.stringify(marker)}, 'ran');
-    export default {};`,
-  );
+  const marker = writeMarkerConfig(root, 'siro.config.mjs', 'export default {};');
   expect(
     run(root, [
       '--config',
@@ -300,8 +281,7 @@ it.each([
   const root = createPassingProject();
   writeFileSync(path.join(root, file), text);
   const result = run(root, ['--no-config', '--json', '--pm', pm]);
-  expect(result.status).toBe(2);
-  expect(result.stdout).toBe('');
+  expectUsageFailure(result);
   expect(result.stderr).not.toContain('FAKE_SECRET');
   expect(result.stderr).toContain(file);
   const failure = captureThrown(() => lint({ cwd: asAbsPath(root), pm }));

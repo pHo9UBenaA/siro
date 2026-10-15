@@ -7,6 +7,14 @@ import { createRepositoryEvaluation } from '../../../src/core/parse-config-file.
 import { automaticOperations } from '../../helpers/remediation.ts';
 import { bindingForTest, minimumReleaseAge } from '../../helpers/rules.ts';
 import { createMinimumReleaseAge } from '../../../src/core/rules/minimum-release-age.ts';
+import type { RuleContext } from '../../../src/core/contracts/repo-context.ts';
+
+const lintNpmrc = (pm: 'npm' | 'deno', readText: RuleContext['readText']) =>
+  runLint({
+    repository: createRepositoryEvaluation(makeCtx({ readText }), codecFor),
+    targets: [{ pm }],
+    ruleSet: [minimumReleaseAge],
+  });
 
 describe('minimum-release-age (npm)', () => {
   const ctx = makeCtx();
@@ -37,32 +45,14 @@ describe('minimum-release-age (npm)', () => {
   });
 
   it.each(['.5', '3'])('accepts the positive release age %s from .npmrc', (value) => {
-    const result = runLint({
-      repository: createRepositoryEvaluation(
-        makeCtx({
-          readText: () => `min-release-age=${value}\n`,
-        }),
-        codecFor,
-      ),
-      targets: [{ pm: 'npm' }],
-      ruleSet: [minimumReleaseAge],
-    });
+    const result = lintNpmrc('npm', () => `min-release-age=${value}\n`);
     expect(result.findings).toStrictEqual([]);
   });
 
   it.each(['0', '-0.5', 'Infinity', '1e300', '1e309', '1e-300', 'NaN'])(
     'flags the inactive or invalid release age %s from .npmrc',
     (value) => {
-      const result = runLint({
-        repository: createRepositoryEvaluation(
-          makeCtx({
-            readText: () => `min-release-age=${value}\n`,
-          }),
-          codecFor,
-        ),
-        targets: [{ pm: 'npm' }],
-        ruleSet: [minimumReleaseAge],
-      });
+      const result = lintNpmrc('npm', () => `min-release-age=${value}\n`);
       expect(result.findings.map((finding) => finding.ruleId)).toStrictEqual([
         'minimum-release-age',
       ]);
@@ -136,16 +126,9 @@ describe('minimum-release-age (deno)', () => {
   });
 
   it("honors Deno's project .npmrc release-age fallback", () => {
-    const result = runLint({
-      repository: createRepositoryEvaluation(
-        makeCtx({
-          readText: (file) => (file === '.npmrc' ? 'min-release-age=3\n' : undefined),
-        }),
-        codecFor,
-      ),
-      targets: [{ pm: 'deno' }],
-      ruleSet: [minimumReleaseAge],
-    });
+    const result = lintNpmrc('deno', (file) =>
+      file === '.npmrc' ? 'min-release-age=3\n' : undefined,
+    );
     expect(result.findings).toStrictEqual([]);
   });
 
@@ -161,16 +144,9 @@ describe('minimum-release-age (deno)', () => {
   });
 
   it("flags Deno's explicit .npmrc release-age opt-out", () => {
-    const result = runLint({
-      repository: createRepositoryEvaluation(
-        makeCtx({
-          readText: (file) => (file === '.npmrc' ? 'min-release-age=0\n' : undefined),
-        }),
-        codecFor,
-      ),
-      targets: [{ pm: 'deno' }],
-      ruleSet: [minimumReleaseAge],
-    });
+    const result = lintNpmrc('deno', (file) =>
+      file === '.npmrc' ? 'min-release-age=0\n' : undefined,
+    );
     expect(result.findings).toMatchObject([
       {
         file: '.npmrc',
