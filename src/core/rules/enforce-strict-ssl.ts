@@ -3,6 +3,7 @@ import type { RuleBinding, CheckStatus } from '../contracts/rule.ts';
 import { overrideBindings, requireConfigKey } from './builders/require-config-key.ts';
 import { CONFIG_FILES } from '../config-files.ts';
 import { getByPath } from '../contracts/config-value.ts';
+import { isNonEmptyArray } from './config-predicates.ts';
 
 const { npmrc, yarnrc } = CONFIG_FILES;
 
@@ -13,10 +14,10 @@ const yarnBinding: RuleBinding = {
   check(_ctx, config): CheckStatus {
     const strictSsl = getByPath(config, ['enableStrictSsl']);
     const httpExceptions = getByPath(config, ['unsafeHttpWhitelist']);
-    if (Array.isArray(httpExceptions) && httpExceptions.length > 0) {
+    if (isNonEmptyArray(httpExceptions)) {
       return {
         actual: httpExceptions,
-        expected: '',
+        expected: '[]',
         remediation: {
           kind: 'manual',
           steps: [

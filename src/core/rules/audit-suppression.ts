@@ -1,10 +1,9 @@
 import { type RuleBinding, defineRule } from '../contracts/rule.ts';
 import { CONFIG_FILES } from '../config-files.ts';
 import { getByPath } from '../contracts/config-value.ts';
+import { isNonEmptyArray } from './config-predicates.ts';
 
 const { yarnrc } = CONFIG_FILES;
-
-const isNonEmptyArray = (value: unknown): boolean => Array.isArray(value) && value.length > 0;
 
 const SUPPRESSION_KEYS = ['npmAuditIgnoreAdvisories', 'npmAuditExcludePackages'] as const;
 

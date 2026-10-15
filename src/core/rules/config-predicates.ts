@@ -7,6 +7,9 @@ export const isNonBlankString = (value: unknown): value is string =>
 export const isNonBlankStringArray = (value: unknown): value is string[] =>
   isArrayOf(value, isNonBlankString);
 
+export const isNonEmptyArray = (value: unknown): value is readonly unknown[] =>
+  Array.isArray(value) && value.length > 0;
+
 export const isNonEmptyObject = (value: unknown): boolean =>
   typeof value === 'object' &&
   value !== null &&
