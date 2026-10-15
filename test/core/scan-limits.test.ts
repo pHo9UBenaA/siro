@@ -31,6 +31,7 @@ it('shares a scan read budget, memoizes reads, and resets between scans', () => 
   });
   const request = { ...options, fs, limits: { maxTotalBytes: privateManifestText.length * 2 } };
   expect(lint(request).inspection.manifests).toHaveLength(2);
+  // A second scan over the same filesystem must start with a fresh budget.
   expect(lint(request).inspection.manifests).toHaveLength(2);
   expect(() =>
     lint({ ...request, limits: { maxTotalBytes: privateManifestText.length * 2 - 1 } }),
