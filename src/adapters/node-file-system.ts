@@ -14,7 +14,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import type { FileSystem } from '../core/contracts/file-system.ts';
-import { isNodeError } from './node-errors.ts';
+import { isEnoent } from './node-errors.ts';
 
 /** Root ancestors are canonicalized; selected cwd and all below-root components must not be links. */
 const createStrictPathChecker = (root: AbsPath) => {
@@ -66,7 +66,7 @@ export const createNodeFileSystem = (
           (strictRoot === undefined ? 0 : (constants.O_NOFOLLOW ?? 0)),
       );
     } catch (error) {
-      if (isNodeError(error) && error.code === 'ENOENT') return;
+      if (isEnoent(error)) return;
       throw error;
     }
   };
@@ -93,7 +93,7 @@ export const createNodeFileSystem = (
         statRegularFile(file);
         return true;
       } catch (error) {
-        if (isNodeError(error) && error.code === 'ENOENT') return false;
+        if (isEnoent(error)) return false;
         throw error;
       }
     },
@@ -101,6 +101,7 @@ export const createNodeFileSystem = (
       const fd = openInputFile(file);
       if (fd === undefined) return;
       try {
+        // Re-fstat the opened fd: the path could be swapped for a non-file between stat and open.
         if (!fstatSync(fd).isFile()) throw new ConfigError(`${file}: expected a regular file.`);
         const chunks: Buffer[] = [];
         let fileBytesRead = 0;
@@ -124,7 +125,7 @@ export const createNodeFileSystem = (
         }
         return Buffer.concat(chunks, fileBytesRead).toString('utf8');
       } catch (error) {
-        if (isNodeError(error) && error.code === 'ENOENT') return;
+        if (isEnoent(error)) return;
         throw error;
       } finally {
         closeSync(fd);
