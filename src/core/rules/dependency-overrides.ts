@@ -6,14 +6,14 @@ import { isNonEmptyObject } from './config-predicates.ts';
 
 const { aubeWorkspace, pnpmWorkspace } = CONFIG_FILES;
 
-const checkOverrides = (config: ParsedConfig, file: string): CheckStatus => {
+const checkOverrides = (config: ParsedConfig, filePath: string): CheckStatus => {
   const value = getByPath(config, ['overrides']);
   if (!isNonEmptyObject(value)) {
     return { state: 'ok' };
   }
   return {
     actual: value,
-    message: `Review \`overrides\` in ${file}. Overrides can replace transitive dependencies with arbitrary versions or forks.`,
+    message: `Review \`overrides\` in ${filePath}. Overrides can replace transitive dependencies with arbitrary versions or forks.`,
     state: 'violation',
     remediation: {
       kind: 'manual',
