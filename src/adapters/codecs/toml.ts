@@ -8,6 +8,7 @@ const decodeToml = (text: string): unknown => {
   try {
     return parseToml(input);
   } catch {
+    // The parser error may quote the offending source; do not surface it.
     throw new ConfigParseError('Invalid TOML syntax.');
   }
 };
