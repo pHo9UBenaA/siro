@@ -5,7 +5,7 @@ import type { RepoContext } from './contracts/repo-context.ts';
 import { wrapCodecError } from './contracts/errors.ts';
 import { checkConfigDepth, DEFAULT_SCAN_LIMITS } from './contracts/scan-limits.ts';
 
-/** A repository-context parser that memoizes successful `(kind, path)` reads. */
+/** A repository-context parser that memoizes `(kind, path)` reads, including absent files. */
 export type ConfigParser = (file?: ConfigFileRef) => ParsedConfig;
 
 /** Keep a repository view and its evaluation-scoped parser together. */
