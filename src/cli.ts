@@ -31,7 +31,7 @@ const dispatch = async (command: ParsedCommand, io: IO): Promise<number> => {
     }
     case 'usage': {
       if (command.reason) {
-        await io.stderr(`${safeText(command.reason)}\n`);
+        await io.stderr(safeText(command.reason));
       }
       await io.stderr(renderHelp());
       return EXIT_USAGE;
