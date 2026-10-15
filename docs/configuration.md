@@ -1,8 +1,9 @@
 # Configuration and behavior
 
 Options, defaults, precedence, inspection scope, exit codes and migration. CLI
-readers need only the sections up to [Severity, reporters, CLI and exits](#severity-reporters-cli-and-exits);
-library and extension contracts start at [Library use](#library-use).
+readers need every section up to [Library use](#library-use), can skip the
+library and extension contracts there, and resume at
+[Severity, reporters, CLI and exits](#severity-reporters-cli-and-exits).
 
 ## Rule settings
 

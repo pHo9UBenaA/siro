@@ -39,8 +39,8 @@ narrows the inputs; neither flag is a sandbox. See the [threat model](docs/threa
 
 ## Read findings and add CI
 
-Findings have `error`, `warn`, or `info` severity. Exit `0` means no findings at or above the
-selected threshold; exit `1` means there are findings. Errors fail CI by default; see
+Findings have `error`, `warn`, or `info` severity. Exit `0` means no findings meet the
+selected failure threshold; exit `1` means a finding meets it. Errors fail CI by default; see
 [exit codes](docs/configuration.md#severity-reporters-cli-and-exits) for `2` and `70`.
 siro suggests fixes but **does not edit files**: review changes and rerun the linter.
 
