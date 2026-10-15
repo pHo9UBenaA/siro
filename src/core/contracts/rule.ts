@@ -92,6 +92,9 @@ const isConfigValueShape = (value: unknown): value is ConfigValue =>
   typeof value === 'boolean' ||
   (typeof value === 'number' && Number.isFinite(value));
 
+const isSeverityValue = (value: unknown): value is Severity =>
+  typeof value === 'string' && isSeverity(value);
+
 export const isCheckStatusShape = (value: unknown): value is CheckStatus => {
   if (!isPlainRecord(value)) {
     return false;
@@ -112,8 +115,8 @@ const isViolationStatusShape = (value: unknown): value is ViolationStatus => {
     typeof value.message === 'string' &&
     (value.file === undefined || isRelPath(value.file)) &&
     (value.expected === undefined || isConfigValueShape(value.expected)) &&
-    (value.severity === undefined ||
-      (typeof value.severity === 'string' && isSeverity(value.severity))) &&
+    (value.severity === undefined || isSeverityValue(value.severity)) &&
+    // Reject pre-0.4 remediation keys (schema 1) so stale custom rules fail loudly.
     !('manualSteps' in value) &&
     !('fix' in value) &&
     !('fixable' in value) &&
@@ -155,12 +158,12 @@ const isRuleBindingShape = (value: unknown): value is RuleBinding => {
   }
   return (
     (value.file === undefined || isConfigFileRefShape(value.file)) &&
+    // Reject pre-0.4 binding keys (schema 1) so stale custom rules fail loudly.
     !('fix' in value) &&
     !('fixKind' in value) &&
     !('fileGlob' in value) &&
     isOptionalString(value.docs) &&
-    (typeof value.severity === 'undefined' ||
-      (typeof value.severity === 'string' && isSeverity(value.severity))) &&
+    (value.severity === undefined || isSeverityValue(value.severity)) &&
     isVersionNoteShape(value.versionNote) &&
     typeof value.check === 'function'
   );
@@ -185,8 +188,7 @@ export const isRuleShape = (value: unknown): value is Rule => {
     typeof value.id === 'string' &&
     typeof value.title === 'string' &&
     typeof value.description === 'string' &&
-    typeof value.severity === 'string' &&
-    isSeverity(value.severity) &&
+    isSeverityValue(value.severity) &&
     isOptionalString(value.docs) &&
     isProjectTypesShape(value.projectTypes) &&
     isBindingsShape(value.bindings)
