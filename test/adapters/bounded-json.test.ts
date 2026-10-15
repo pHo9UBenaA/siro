@@ -2,6 +2,9 @@ import { runInNewContext } from 'node:vm';
 import { boundedJson } from '../../src/adapters/reporters/bounded-json.ts';
 import { safeJsonText } from '../../src/adapters/safe-text.ts';
 
+const MAX_DEPTH = 128;
+const GENEROUS_BYTES = 1024;
+
 it.each([
   {
     name: 'empty containers and omitted properties',
@@ -57,8 +60,8 @@ it.each([
 ])('matches native JSON for $name at the exact output budget', ({ value }) => {
   const native = safeJsonText(JSON.stringify(value, undefined, 2));
   const size = Buffer.byteLength(native) + 1;
-  expect(boundedJson(value, size, 128)).toBe(native);
-  expect(() => boundedJson(value, size - 1, 128)).toThrow(/maxOutputBytes/);
+  expect(boundedJson(value, size, MAX_DEPTH)).toBe(native);
+  expect(() => boundedJson(value, size - 1, MAX_DEPTH)).toThrow(/maxOutputBytes/);
 });
 
 it.each([
@@ -66,7 +69,7 @@ it.each([
   { name: 'cross-realm', value: runInNewContext('Object(1n)') },
 ])('rejects $name boxed BigInt instead of silently emitting an empty object', ({ value }) => {
   expect(() => JSON.stringify(value)).toThrow(TypeError);
-  expect(() => boundedJson({ actual: value }, 1024, 128)).toThrow(TypeError);
+  expect(() => boundedJson({ actual: value }, GENEROUS_BYTES, MAX_DEPTH)).toThrow(TypeError);
 });
 
 it('reads toJSON once and does not invoke the returned object hook again', () => {
@@ -79,7 +82,7 @@ it('reads toJSON once and does not invoke the returned object hook again', () =>
       return readToJSON();
     },
   };
-  expect(boundedJson(value, 1024, 128)).toBe('{\n  "value": 7\n}');
+  expect(boundedJson(value, GENEROUS_BYTES, MAX_DEPTH)).toBe('{\n  "value": 7\n}');
   expect(readToJSON).toHaveBeenCalledOnce();
 });
 
@@ -94,7 +97,9 @@ it('snapshots array length before child toJSON hooks change it', () => {
     });
     return array;
   };
-  expect(boundedJson(input(), 1024, 128)).toBe(JSON.stringify(input(), undefined, 2));
+  expect(boundedJson(input(), GENEROUS_BYTES, MAX_DEPTH)).toBe(
+    JSON.stringify(input(), undefined, 2),
+  );
 });
 
 it('bounds expansion of shared values', () => {
@@ -102,8 +107,8 @@ it('bounds expansion of shared values', () => {
   expect(() =>
     boundedJson(
       Array.from({ length: 1000 }, () => shared),
-      1024,
-      128,
+      GENEROUS_BYTES,
+      MAX_DEPTH,
     ),
   ).toThrow(/maxOutputBytes/);
 });
@@ -111,9 +116,9 @@ it('bounds expansion of shared values', () => {
 it('rejects circular reports', () => {
   const cycle: { next?: unknown } = {};
   cycle.next = cycle;
-  expect(() => boundedJson(cycle, 1024, 128)).toThrow(/circular/);
+  expect(() => boundedJson(cycle, GENEROUS_BYTES, MAX_DEPTH)).toThrow(/circular/);
 });
 
 it('rejects reports deeper than the configured limit', () => {
-  expect(() => boundedJson({ a: { b: {} } }, 1024, 2)).toThrow(/nesting/);
+  expect(() => boundedJson({ a: { b: {} } }, GENEROUS_BYTES, 2)).toThrow(/nesting/);
 });
