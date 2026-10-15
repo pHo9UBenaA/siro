@@ -7,7 +7,7 @@ const BUILTINS = [
   prettyReporter,
   jsonReporter,
   githubReporter,
-] as const satisfies readonly Reporter<BuiltinReporterName>[];
+] as const satisfies readonly Reporter[];
 
 export const DEFAULT_REPORTER_NAME = prettyReporter.name;
 export const JSON_REPORTER_NAME = jsonReporter.name;
@@ -18,11 +18,7 @@ export const BUILTIN_REPORTER_NAMES: readonly BuiltinReporterName[] = BUILTINS.m
 );
 
 /** Literal union of every built-in reporter name. */
-export type BuiltinReporterName = (
-  | typeof prettyReporter
-  | typeof jsonReporter
-  | typeof githubReporter
-)['name'];
+export type BuiltinReporterName = (typeof BUILTINS)[number]['name'];
 
 /** Later registrations replace earlier reporters with the same name. */
 export const createRegistry = (extras: readonly Reporter[] = []): ReadonlyMap<string, Reporter> => {
