@@ -32,9 +32,11 @@ export const lintCommand = async (
   const selection = options.reporter ?? reporters.defaultName;
   const reporter = typeof selection === 'string' ? registry.get(selection) : selection;
   if (!isReporterShape(reporter)) {
-    throw new UsageError(
-      `${typeof selection === 'string' ? 'Unknown' : 'Invalid'} reporter: ${String(selection)} (available: ${[...registry.keys()].join(', ')})`,
-    );
+    const detail =
+      typeof selection === 'string'
+        ? `Unknown reporter: ${selection}`
+        : `Invalid reporter: ${selection.name}`;
+    throw new UsageError(`${detail} (available: ${[...registry.keys()].join(', ')})`);
   }
   const result = runPreparedLint(prepared.evaluation);
   // With no --severity: report every finding, but fail only on errors.
