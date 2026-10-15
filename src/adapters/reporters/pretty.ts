@@ -27,7 +27,7 @@ const colorSupportedNow = (): boolean => {
 
 interface RenderPalette {
   readonly colors: ReturnType<typeof pc.createColors>;
-  readonly tag: Record<Severity, (str: string) => string>;
+  readonly severityColor: Record<Severity, (str: string) => string>;
 }
 
 const renderFinding = (
@@ -37,7 +37,7 @@ const renderFinding = (
 ): void => {
   const location = palette.colors.dim(` (${safeText(finding.file ?? finding.directory)})`);
   appendLine(
-    `${palette.tag[finding.severity](GLYPH[finding.severity])}  [${finding.pm ?? 'package'}] ${palette.colors.bold(safeText(finding.ruleId))}${location}`,
+    `${palette.severityColor[finding.severity](GLYPH[finding.severity])}  [${finding.pm ?? 'package'}] ${palette.colors.bold(safeText(finding.ruleId))}${location}`,
   );
   appendLine(`    ${safeText(finding.message)}`);
   if (finding.remediation?.kind === 'manual') {
@@ -50,12 +50,12 @@ const renderFinding = (
 
 const createRenderPalette = (): RenderPalette => {
   const colors = pc.createColors(colorSupportedNow());
-  const tag: Record<Severity, (str: string) => string> = {
+  const severityColor: Record<Severity, (str: string) => string> = {
     error: colors.red,
     info: colors.cyan,
     warn: colors.yellow,
   };
-  return { colors, tag };
+  return { colors, severityColor };
 };
 
 export const prettyReporter: Reporter<'pretty'> = {
