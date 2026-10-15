@@ -1,9 +1,8 @@
-import { rmSync } from 'node:fs';
 import path from 'node:path';
 import { run } from '../src/cli.ts';
 import { parseGithubAnnotation } from './helpers/github-annotation.ts';
 import { captureIO } from './helpers/io.ts';
-import { createTempProject } from './helpers/temp-project.ts';
+import { createTestProject } from './helpers/temp-project.ts';
 
 const FIXTURES = path.join(import.meta.dirname, 'fixtures');
 const packageJson = JSON.stringify({ name: 'demo', packageManager: 'npm@10.9.0' });
@@ -28,24 +27,20 @@ it('emits GitHub annotations naming the rule, PM and severity command', async ()
 });
 
 it('applies warn and off rule overrides from the same config', async () => {
-  const root = createTempProject({
+  const root = createTestProject({
     'package.json': packageJson,
     'siro.config.mjs':
       "export default { rules: { 'pin-exact-versions': 'warn', provenance: 'off' } };\n",
   });
-  try {
-    const { io, out } = captureIO();
-    await run(
-      ['lint', '--config', path.join(root, 'siro.config.mjs'), '--reporter', 'json', root],
-      io,
-    );
-    const parsed: { findings: { ruleId: string; severity: string }[] } = JSON.parse(out());
-    const finding = parsed.findings.find((entry) => entry.ruleId === 'pin-exact-versions');
-    expect(finding).toMatchObject({ ruleId: 'pin-exact-versions', severity: 'warn' });
-    expect(parsed.findings.map((entry) => entry.ruleId)).not.toContain('provenance');
-  } finally {
-    rmSync(root, { force: true, recursive: true });
-  }
+  const { io, out } = captureIO();
+  await run(
+    ['lint', '--config', path.join(root, 'siro.config.mjs'), '--reporter', 'json', root],
+    io,
+  );
+  const parsed: { findings: { ruleId: string; severity: string }[] } = JSON.parse(out());
+  const finding = parsed.findings.find((entry) => entry.ruleId === 'pin-exact-versions');
+  expect(finding).toMatchObject({ ruleId: 'pin-exact-versions', severity: 'warn' });
+  expect(parsed.findings.map((entry) => entry.ruleId)).not.toContain('provenance');
 });
 
 it.each<{ name: string; files: Record<string, string>; pattern: RegExp }>([
@@ -86,17 +81,13 @@ it.each<{ name: string; files: Record<string, string>; pattern: RegExp }>([
     pattern: /no-such-rule/u,
   },
 ])('exits 2 for $name', async ({ files, pattern }) => {
-  const root = createTempProject({ 'package.json': packageJson, ...files });
-  try {
-    const { io, err } = captureIO();
-    const configArgs = files['siro.config.mjs']
-      ? ['--config', path.join(root, 'siro.config.mjs')]
-      : [];
-    expect(await run(['lint', root, ...configArgs], io)).toBe(2);
-    expect(err()).toMatch(pattern);
-  } finally {
-    rmSync(root, { force: true, recursive: true });
-  }
+  const root = createTestProject({ 'package.json': packageJson, ...files });
+  const { io, err } = captureIO();
+  const configArgs = files['siro.config.mjs']
+    ? ['--config', path.join(root, 'siro.config.mjs')]
+    : [];
+  expect(await run(['lint', root, ...configArgs], io)).toBe(2);
+  expect(err()).toMatch(pattern);
 });
 
 it.each<{ name: string; files: Record<string, string>; pattern: RegExp }>([
@@ -114,16 +105,12 @@ it.each<{ name: string; files: Record<string, string>; pattern: RegExp }>([
     pattern: /customRules\.0/iu,
   },
 ])('exits 2 and identifies $name', async ({ files, pattern }) => {
-  const root = createTempProject(files);
-  try {
-    const { io, out, err } = captureIO();
-    const configArgs = files['siro.config.mjs']
-      ? ['--config', path.join(root, 'siro.config.mjs')]
-      : [];
-    const status = await run(['lint', root, ...configArgs], io);
-    expect(status, `stdout: ${out()}\nstderr: ${err()}`).toBe(2);
-    expect(err()).toMatch(pattern);
-  } finally {
-    rmSync(root, { force: true, recursive: true });
-  }
+  const root = createTestProject(files);
+  const { io, out, err } = captureIO();
+  const configArgs = files['siro.config.mjs']
+    ? ['--config', path.join(root, 'siro.config.mjs')]
+    : [];
+  const status = await run(['lint', root, ...configArgs], io);
+  expect(status, `stdout: ${out()}\nstderr: ${err()}`).toBe(2);
+  expect(err()).toMatch(pattern);
 });

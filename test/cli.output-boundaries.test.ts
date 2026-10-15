@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { rmSync, writeFileSync } from 'node:fs';
-import { createTempProject as fixture } from './helpers/temp-project.ts';
+import { writeFileSync } from 'node:fs';
+import { createTestProject as fixture } from './helpers/temp-project.ts';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -51,15 +51,11 @@ it.each([
   },
 ])('rejects a $name without a later unhandled rejection', ({ config }) => {
   const root = fixture({ 'siro.config.mjs': config });
-  try {
-    const result = run(root, '--pm', 'npm', '--json');
-    expect(result.status).toBe(2);
-    expect(result.stdout).toBe('');
-    expect(result.stderr).toMatch(/synchronous|Promise|async/);
-    expect(result.stderr).not.toContain('Node.js v');
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+  const result = run(root, '--pm', 'npm', '--json');
+  expect(result.status).toBe(2);
+  expect(result.stdout).toBe('');
+  expect(result.stderr).toMatch(/synchronous|Promise|async/);
+  expect(result.stderr).not.toContain('Node.js v');
 });
 
 it.each([
@@ -96,15 +92,11 @@ it.each([
       };
     `,
   });
-  try {
-    const result = run(root, '--pm', 'npm', '--json');
-    expect(result.status).toBe(2);
-    expect(result.stdout).toBe('');
-    expect(result.stderr).toMatch(input.diagnostic);
-    expect(result.stderr).not.toContain('Node.js v');
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+  const result = run(root, '--pm', 'npm', '--json');
+  expect(result.status).toBe(2);
+  expect(result.stdout).toBe('');
+  expect(result.stderr).toMatch(input.diagnostic);
+  expect(result.stderr).not.toContain('Node.js v');
 });
 
 it('reports oversized grouped results as exit 2 without partial JSON', () => {
@@ -127,16 +119,10 @@ it('reports oversized grouped results as exit 2 without partial JSON', () => {
       };
     `,
   });
-  try {
-    const result = run(root, '--pm', 'npm', '--json');
-    expect(result.error).toBeUndefined();
-    expect(result.signal).toBeNull();
-    expect(result.status).toBe(2);
-    expect(result.stdout).toBe('');
-    expect(result.stderr).toContain('maxFindings');
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+  const result = run(root, '--pm', 'npm', '--json');
+  expect(result.status).toBe(2);
+  expect(result.stdout).toBe('');
+  expect(result.stderr).toContain('maxFindings');
 });
 
 it('serializes legacy command openers safely while retaining JSON values', () => {
@@ -145,17 +131,13 @@ it('serializes legacy command openers safely while retaining JSON values', () =>
     'siro.config.mjs': 'export default {installationRoots:[]};',
     [`${name}/package.json`]: '{"name":"pkg"}',
   });
-  try {
-    const json = run(root, '--json');
-    expect(json.status).toBe(0);
-    expect(json.stdout).not.toContain('##[');
-    expect(JSON.parse(json.stdout).inspection.manifests[0].path).toBe(`${name}/package.json`);
-    const pretty = run(root);
-    expect(pretty.status).toBe(0);
-    expect(pretty.stdout).not.toContain('##[');
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+  const json = run(root, '--json');
+  expect(json.status).toBe(0);
+  expect(json.stdout).not.toContain('##[');
+  expect(JSON.parse(json.stdout).inspection.manifests[0].path).toBe(`${name}/package.json`);
+  const pretty = run(root);
+  expect(pretty.status).toBe(0);
+  expect(pretty.stdout).not.toContain('##[');
 });
 
 describe.skipIf(process.platform === 'win32')('POSIX names', () => {
@@ -165,22 +147,18 @@ describe.skipIf(process.platform === 'win32')('POSIX names', () => {
       'siro.config.mjs': 'export default {installationRoots:[]};',
       [`${name}/package.json`]: '{"name":"pkg"}',
     });
-    try {
-      const result = run(root);
-      expect(result.status).toBe(0);
-      expect(result.stdout).not.toMatch(/^\s*::/mu);
-      expect(result.stdout).not.toContain('\u001b');
-      expect(result.stdout).not.toContain('\u202e');
-      writeFileSync(path.join(root, name, 'package.json'), '{');
-      const invalid = run(root, '--json');
-      expect(invalid.status).toBe(2);
-      expect(invalid.stdout).toBe('');
-      expect(invalid.stderr).not.toMatch(/^\s*::/mu);
-      expect(invalid.stderr).not.toContain('\u001b');
-      expect(invalid.stderr).not.toContain('\u202e');
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+    const result = run(root);
+    expect(result.status).toBe(0);
+    expect(result.stdout).not.toMatch(/^\s*::/mu);
+    expect(result.stdout).not.toContain('\u001b');
+    expect(result.stdout).not.toContain('\u202e');
+    writeFileSync(path.join(root, name, 'package.json'), '{');
+    const invalid = run(root, '--json');
+    expect(invalid.status).toBe(2);
+    expect(invalid.stdout).toBe('');
+    expect(invalid.stderr).not.toMatch(/^\s*::/mu);
+    expect(invalid.stderr).not.toContain('\u001b');
+    expect(invalid.stderr).not.toContain('\u202e');
   });
 });
 
@@ -188,38 +166,34 @@ it.each(['--json', '--help', '--version'])(
   'classifies a real closed output pipe as exit 70: %s',
   async (flag) => {
     const root = fixture({ 'siro.config.mjs': 'export default {installationRoots:[]};' });
+    const child = spawn(
+      process.execPath,
+      [cli, 'lint', root, '--config', path.join(root, 'siro.config.mjs'), flag],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 10_000,
+      },
+    );
     try {
-      const child = spawn(
-        process.execPath,
-        [cli, 'lint', root, '--config', path.join(root, 'siro.config.mjs'), flag],
-        {
-          stdio: ['ignore', 'pipe', 'pipe'],
-          timeout: 10_000,
-        },
-      );
-      try {
-        const stderrChunks: string[] = [];
-        child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
-          stderrChunks.push(chunk);
-        });
-        child.stdout.destroy();
-        const completion = await new Promise<{
-          code: number | null;
-          signal: NodeJS.Signals | null;
-        }>((resolve, reject) => {
-          child.on('error', reject);
-          child.on('close', (code, signal) => resolve({ code, signal }));
-        });
-        expect({ ...completion, stderr: stderrChunks.join('') }).toMatchObject({
-          code: 70,
-          signal: null,
-          stderr: expect.not.stringContaining("Unhandled 'error' event"),
-        });
-      } finally {
-        if (child.exitCode === null && child.signalCode === null) child.kill();
-      }
+      const stderrChunks: string[] = [];
+      child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+        stderrChunks.push(chunk);
+      });
+      child.stdout.destroy();
+      const completion = await new Promise<{
+        code: number | null;
+        signal: NodeJS.Signals | null;
+      }>((resolve, reject) => {
+        child.on('error', reject);
+        child.on('close', (code, signal) => resolve({ code, signal }));
+      });
+      expect({ ...completion, stderr: stderrChunks.join('') }).toMatchObject({
+        code: 70,
+        signal: null,
+        stderr: expect.not.stringContaining("Unhandled 'error' event"),
+      });
     } finally {
-      rmSync(root, { recursive: true, force: true });
+      if (child.exitCode === null && child.signalCode === null) child.kill();
     }
   },
 );
