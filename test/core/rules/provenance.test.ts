@@ -19,7 +19,7 @@ describe('provenance (npm)', () => {
         name: 'x',
         publishConfig: { provenance: manifestProvenance, access: 'public' },
       });
-      expect(npm.check(ctx, { provenance: npmrcProvenance })).toMatchObject(
+      const expected =
         state === 'violation'
           ? {
               state: 'violation',
@@ -36,8 +36,8 @@ describe('provenance (npm)', () => {
                 ],
               },
             }
-          : { state: 'ok' },
-      );
+          : { state: 'ok' };
+      expect(npm.check(ctx, { provenance: npmrcProvenance })).toMatchObject(expected);
     },
   );
 
