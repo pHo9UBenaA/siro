@@ -205,13 +205,13 @@ it('resolves --config relative to the shell directory, not the lint target', () 
 });
 
 it.each([
-  ['--config'],
-  ['--config='],
-  ['--config', 'policy.mjs', '--config', 'other.mjs'],
-  ['--config', 'policy.mjs', '--no-config'],
-])('rejects invalid config selection before running code: %s', (...args) => {
+  { selection: ['--config'] },
+  { selection: ['--config='] },
+  { selection: ['--config', 'policy.mjs', '--config', 'other.mjs'] },
+  { selection: ['--config', 'policy.mjs', '--no-config'] },
+])('rejects invalid config selection before running code: $selection', ({ selection }) => {
   const root = createPassingProject();
-  const result = run(root, args);
+  const result = run(root, selection);
   expect(result.status).toBe(2);
   expect(result.stdout).toBe('');
   expect(result.stderr).toContain('--config');
