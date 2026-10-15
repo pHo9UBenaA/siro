@@ -100,10 +100,10 @@ const aubeBinding: RuleBinding = {
   check(_ctx, config) {
     const hasDashedPrefix = Object.hasOwn(config, 'save-prefix');
     const hasCamelPrefix = Object.hasOwn(config, 'savePrefix');
-    const prefixesAreEmpty =
+    const allPresentPrefixesAreEmpty =
       (!hasDashedPrefix || config['save-prefix'] === '') &&
       (!hasCamelPrefix || config.savePrefix === '');
-    if ((hasDashedPrefix || hasCamelPrefix) && prefixesAreEmpty) return { state: 'ok' };
+    if ((hasDashedPrefix || hasCamelPrefix) && allPresentPrefixesAreEmpty) return { state: 'ok' };
     return {
       remediation: {
         kind: 'manual',
