@@ -12,6 +12,8 @@ const COMMAND: Record<Severity, string> = {
 };
 
 // https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions
+// Encode with the protocol (%0A decodes back to a newline); safeText would instead
+// emit a literal \u000a and change the annotation body.
 const escapeData = (raw: string): string =>
   raw.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
 

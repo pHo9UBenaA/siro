@@ -16,6 +16,8 @@ export const safeText = (text: string): string =>
 export const safeJsonText = (json: string): string =>
   json
     .replace(
+      // JSON.stringify already escapes C0 controls inside strings, so only the
+      // remaining invisible ranges can smuggle terminal/CI control sequences.
       /[\u007f-\u009f\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]/gu,
       escapeControlCharacter,
     )

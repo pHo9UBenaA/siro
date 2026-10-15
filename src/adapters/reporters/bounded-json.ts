@@ -2,6 +2,8 @@ import { types } from 'node:util';
 import { outputBudget } from '../../core/contracts/scan-limits.ts';
 import { safeJsonText } from '../safe-text.ts';
 
+const INDENT = '  ';
+
 const isOmittedJsonValue = (value: unknown) =>
   value === undefined || typeof value === 'function' || typeof value === 'symbol';
 
@@ -50,7 +52,7 @@ export const boundedJson = (input: unknown, maxBytes: number, maxDepth: number):
       const child = normalizeJsonValue(raw, key);
       if (!isArray && isOmittedJsonValue(child)) return;
       const separator = hasEntries ? ',\n' : '\n';
-      emit(`${separator}${'  '.repeat(depth)}`);
+      emit(`${separator}${INDENT.repeat(depth)}`);
       hasEntries = true;
       if (!isArray) {
         emit(JSON.stringify(key));
@@ -64,11 +66,12 @@ export const boundedJson = (input: unknown, maxBytes: number, maxDepth: number):
     } else {
       for (const key of Object.keys(value)) serializeEntry(key, Reflect.get(value, key));
     }
-    if (hasEntries) emit(`\n${'  '.repeat(depth - 1)}`);
+    if (hasEntries) emit(`\n${INDENT.repeat(depth - 1)}`);
     emit(isArray ? ']' : '}');
     activeContainers.delete(value);
   };
   serialize(normalizeJsonValue(input, ''), 1);
+  // Budget the newline the IO sink appends after printing the document.
   consume('\n');
   return chunks.join('');
 };
