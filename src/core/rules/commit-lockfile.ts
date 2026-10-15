@@ -66,6 +66,7 @@ const lockfileBinding = (pm: PM): RuleBinding => {
       if (pm === 'aube') {
         const binaryLock = checkAubeBinaryLock(ctx);
         if (binaryLock) return binaryLock;
+        // Aube may also reuse a compatible lockfile; fall through to the shared check.
       }
       if (pm === 'npm') {
         const npmLockfile = checkNpmLockfile(ctx, preferredLockfile);
