@@ -101,3 +101,61 @@ Next candidate directions:
    pass so far; look for duplicated fixture builders across the largest suites.
 3. Architecture/import boundaries: re-check `test/architecture.test.ts` stays in
    sync with the area map after any new source file or dependency edge.
+
+## 2026-10-15T22:48Z — test readability and helpers
+
+Direction: test readability and helpers (`test/helpers/*`,
+`test/core/package-inspection.test.ts`, `test/core/run-lint*.test.ts`, the largest
+rule suites), with a secondary sweep into determinism/platform behavior
+(`core/contracts/date-time.ts`, `core/rules/deno-release-age.ts`,
+`adapters/node-paths.ts`) and import boundaries (`test/architecture.test.ts`, the
+core manifest dispatch).
+
+Findings: clean. No high-value, low-risk readability change was warranted.
+
+- `test/helpers/*` are small and purpose-scoped: `makeCtx` merges overrides with
+  defaults in one place, `createMemFileSystem` mirrors the native ENOENT-only
+  semantics, `assertCheckState`/`bindingForTest` narrow without hiding the actual
+  result, and the npm `fixtures.ts` says why its fixture passes the default
+  threshold.
+- The largest suite (`package-inspection.test.ts`) keeps one local `inspect` and
+  one `packageFindings` helper; its `it.each` tables label behavior (`rejects
+invalid scope %j`, `$name`) instead of indexing cases, so it reads well despite
+  its length. `run-lint.test.ts` / `run-lint-evaluation.test.ts` share the same
+  `createRepositoryEvaluation` + stub-codec shape and comment that the bindings
+  test metadata, not parsing.
+- `deno-release-age.ts` documents each regex against the Deno source and
+  normalizes only the leap second JS Date cannot represent; `date-time.ts` states
+  that offsetless parsing uses host semantics; `node-paths.ts` explains why it
+  does not re-validate native components. Determinism is deliberate, not
+  incidental.
+
+Rejected items (considered, deliberately not changed):
+
+- The manifest filename union `'package.json' | 'deno.json'` is written inline in
+  `discovery.ts` (three times) and named `ManifestFile` in `manifest-checks.ts`.
+  Extracting a shared contract adds a file/import for a two-member union
+  TypeScript already checks, with no reader cost in the literal; not worth the
+  indirection (same reasoning as the `isNonBlankString` duplication rejected
+  earlier).
+- `Reflect.apply(inspect, …)` in `package-inspection.test.ts` deliberately passes
+  intentionally invalid options past the type checker. A cast would hide that
+  intent; the `Reflect.apply` form reads as off-type on purpose.
+- The duplicated version merge in `lint.ts` `resolveDirectoryTargets` differs
+  between the cwd and installation-root branches (config `pmVersions` applies only
+  to cwd), so a shared helper would need a flag for a one-line spread.
+- `cutoffMs < nowMs` in `minimum-release-age.ts` looks implied by `ageDays > 0`,
+  but it is the semantic condition ("cutoff in the past") while
+  `Number.isFinite(cutoffMs)` guards overflow; neither is redundant in intent.
+
+Actions: none (documentation only). No code commits.
+
+Next candidate directions:
+
+1. Performance and allocations on hot paths (`evaluateBinding` context spread,
+   per-(rule,target) project-type resolution in `runLint`) — measure before
+   changing, since the current shape is already O(rules × targets).
+2. Comment value across `src` and the hand-written docs (`docs/configuration.md`,
+   `docs/json-output.md`): confirm each WHY still matches the code it explains.
+3. Architecture/import boundaries: re-check `test/architecture.test.ts` stays in
+   sync with the area map after any new source file or dependency edge.
