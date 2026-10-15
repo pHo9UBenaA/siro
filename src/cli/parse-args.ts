@@ -115,6 +115,7 @@ const parseLimitOverrides = (values: ReadonlyMap<string, string>): Partial<ScanL
     if (!/^\d+$/u.test(value)) throw new UsageError(`${flag} must be a positive safe integer.`);
     limits[key] = Number(value);
   }
+  // Reject out-of-range values as a usage error before linting starts.
   resolveScanLimits(limits);
   return limits;
 };
@@ -138,7 +139,7 @@ export const parseCommand = (argv: readonly string[]): ParsedCommand => {
   if (!isCommandName(command)) return { kind: 'usage', reason: `Unknown command: ${command}` };
   if (extra.length > 0) throw new UsageError(`Unexpected extra argument: ${extra.join(' ')}`);
   if (values.has('reporter') && flags.has('json')) {
-    throw new UsageError('Invalid reporter selection: use either --reporter or --json.');
+    throw new UsageError('Use either --reporter or --json, not both.');
   }
   const reporter =
     values.get('reporter') ?? (flags.has('json') ? JSON_REPORTER_NAME : DEFAULT_REPORTER_NAME);
