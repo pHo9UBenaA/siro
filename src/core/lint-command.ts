@@ -37,8 +37,11 @@ export const lintCommand = async (
     );
   }
   const result = runPreparedLint(prepared.evaluation);
-  const exitCode = exitCodeForLint(result, options.severity ?? 'error');
-  await reportAndAwaitWrites(reporter, filterBySeverity(result, options.severity ?? 'info'), io, {
+  // With no --severity: report every finding, but fail only on errors.
+  const failThreshold = options.severity ?? 'error';
+  const reportThreshold = options.severity ?? 'info';
+  const exitCode = exitCodeForLint(result, failThreshold);
+  await reportAndAwaitWrites(reporter, filterBySeverity(result, reportThreshold), io, {
     cwd: options.cwd,
     limits: prepared.evaluation.limits,
   });
