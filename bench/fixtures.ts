@@ -78,6 +78,7 @@ const WORKSPACE_MANIFEST: Fixture = {
 };
 
 const PACKAGE_COUNT = 50;
+const EXCLUDED_PACKAGE_COUNT = 200;
 const packageFiles = Object.fromEntries(
   Array.from({ length: PACKAGE_COUNT }, (_, index) => [
     `/repo/packages/p${index}/package.json`,
@@ -106,7 +107,10 @@ const excluded: Fixture = {
   files: {
     ...tree,
     ...Object.fromEntries(
-      Array.from({ length: 200 }, (_, index) => [`/repo/fixtures/p${index}/package.json`, '{']),
+      Array.from({ length: EXCLUDED_PACKAGE_COUNT }, (_, index) => [
+        `/repo/fixtures/p${index}/package.json`,
+        '{',
+      ]),
     ),
   },
   options: { installationRoots: [], exclude: ['fixtures'] },
