@@ -6,6 +6,8 @@ import type { RepositoryPaths } from '../core/contracts/repository-paths.ts';
 const isAbsPath = (value: unknown): value is AbsPath =>
   typeof value === 'string' && !value.includes('\0') && path.isAbsolute(value);
 
+const isWindows = path.sep === '\\';
+
 export const asAbsPath = (value: string): AbsPath => {
   if (!isAbsPath(value)) throw new TypeError('Expected an absolute filesystem path.');
   return value;
@@ -18,7 +20,7 @@ const isNativeChildName = (value: unknown): value is RelPath =>
   value !== '..' &&
   !value.includes('\0') &&
   !value.includes('/') &&
-  (path.sep !== '\\' || (!value.includes('\\') && !value.includes(':')));
+  (!isWindows || (!value.includes('\\') && !value.includes(':')));
 
 export const nodePaths: RepositoryPaths = {
   isAbsolute: isAbsPath,
@@ -29,7 +31,7 @@ export const nodePaths: RepositoryPaths = {
       typeof relative !== 'string' ||
       relative.includes('\0') ||
       path.isAbsolute(relative) ||
-      relative.split(path.sep === '\\' ? /[\\/]/u : /\//u).includes('..')
+      relative.split(isWindows ? /[\\/]/u : /\//u).includes('..')
     ) {
       throw new ConfigError(`Invalid repository-relative path: ${String(relative)}`);
     }
