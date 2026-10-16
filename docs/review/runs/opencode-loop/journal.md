@@ -214,3 +214,64 @@ Next candidate directions:
    `src` so far.
 3. Comment value across `src` and the hand-written docs: confirm each WHY still
    matches the code it explains after the 0.7.x changes.
+
+## 2026-10-16T00:07Z — config loading and validation; CLI limit help
+
+Direction: config loading and validation (`src/core/parse-siro-config.ts`,
+`parse-config-file.ts`, `apply-config.ts`, `config-files.ts`, `load-config.ts`,
+`inspection-options.ts`, `contracts/config-value.ts`, `config-codec.ts`,
+`config-file-ref.ts`, `records.ts`, `adapters/codecs/*`), with a secondary sweep
+across contracts, rules, reporters and adapters, then CLI help presentation
+(`src/cli/limit-options.ts`, `help.ts`).
+
+Findings:
+
+- Config loading and validation is clean. Codec selection is one
+  `satisfies Record<CodecKind, ConfigCodec>` table; `createCodecFor` memoizes the
+  bounded wrappers per scan; `createConfigParser` memoizes `(kind, path)` reads
+  and deliberately does not cache failures; `parseConfigObject` copies own keys
+  (prototype safety) and routes valibot issues through one `formatIssues`;
+  `applyConfig` names duplicate and unknown ids before selecting active rules.
+  The WHY comments (record() own-key drops, inherited config values, execution
+  trust) match the code they explain. No change warranted.
+- CLI limit help: `LimitOption.descriptionColumn` had a single override
+  (`maxTotalBytes: 25`) that pushed that row's description one column past the
+  rest of the generated block, with no effect on any other row. Removed the
+  field; `limitHelp` now pads every label to one column, so the short limit
+  descriptions align with each other and with the established help column.
+
+Actions:
+
+- `a2e0cbc` refactor(cli): align the limit help descriptions.
+
+Rejected items (considered, deliberately not changed):
+
+- Generalizing the removed `descriptionColumn` to align every row to the longest
+  flag (`--max-directory-depth <n>` = 28) would shift the whole block right.
+  Rows above the column (`--max-config-depth`, `--max-output-bytes`) still
+  overflow, matching the hand-written `FLAG_LINES` convention of a fixed column;
+  widening all rows is a cosmetic sweep beyond the observed defect.
+- `parseJsonConfig`'s `scopeOf(id) === 'custom'` reads as "unknown built-in
+  rule"; naming the predicate would add an import for one call site already
+  documented as the JSON/executable split.
+- `pmVersions`' valibot `check(..., isPM)` overlaps `record(picklist(PMS), ...)`
+  key validation but supplies a clearer message; removing it would change
+  diagnostics for no reader saving.
+- `applyConfig` walks `mergedRules` twice (duplicate/unknown ids, then
+  selection); folding them into one pass would mix validation with selection and
+  not clearly read better.
+- `loadExecutableConfig`'s `['.ts', '.mjs', '.js']` repeats the extensions of
+  `EXECUTABLE_CONFIG_NAMES`; deriving them adds a map for a three-item check.
+
+Note: `git push` failed repeatedly — the 1Password SSH agent is unavailable
+(`communication with agent failed`). Commit `a2e0cbc` (this pass) is local on
+`release/v0.7.1`, ahead of `origin` alongside the concurrent core-rules commit.
+
+Next candidate directions:
+
+1. Hand-written tooling (`scripts/*.mjs`, `bin-wrapper.mjs`, `bench/*`) for
+   naming and control flow; the loop has focused on `src` so far.
+2. Comment value across `src` and the hand-written docs (`docs/json-output.md`,
+   `docs/policy-sources.md`): confirm each WHY still matches the 0.7.x code.
+3. Architecture/import boundaries: re-check `test/architecture.test.ts` stays in
+   sync with the area map after any new source file or dependency edge.
