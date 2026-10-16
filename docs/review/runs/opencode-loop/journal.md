@@ -485,3 +485,77 @@ Next candidate directions:
 3. Public API and contracts as the primary direction (`src/index.ts`,
    `core/contracts/*`, `docs/json-output.md` schemaVersion 3): confirm every
    exported type/field still matches what consumers are told to rely on.
+
+## 2026-10-16T00:38Z — public API and contracts; error/exit handling
+
+Direction: public API and contracts as the primary direction (`src/index.ts`,
+`src/runtime.ts`, `core/contracts/*`, `core/siro-config.ts`, `load-config.ts`,
+`core/parse-config-file.ts`) against what `docs/configuration.md#library-use`,
+`docs/json-output.md` (schemaVersion 3) and `README.md` tell consumers to rely on;
+secondary sweeps over security boundaries (`adapters/node-paths.ts`,
+`adapters/node-file-system.ts`, `adapters/safe-text.ts`,
+`core/inspection-options.ts`, `docs/threat-model.md`) and error handling / exit
+codes (`cli.ts`, `core/filter.ts`, `core/lint-command.ts`,
+`core/contracts/errors.ts`, `core/contracts/scan-limits.ts`).
+
+Findings: all three directions clean. No high-value, low-risk readability change
+was warranted.
+
+- The exported surface is one barrel (`src/index.ts`) over `runtime.ts`,
+  `load-config.ts`, `core/contracts/*` and the reporters/fs/io adapters; each
+  export is used by `docs/configuration.md#library-use`, the injected-FS
+  contract, or the custom-rule/reporter contracts, and `knip` reports no unused
+  export. `LintOptions`/`LintCommandOptions` keep the sync `lint` vs async
+  `lintCommand` split the doc describes, and `prepareRuntime` is the only place
+  that translates public options into `LintDependencies`.
+- Schema-1 rejection (`isViolationStatusShape`, `isRuleBindingShape`) and the
+  `SetKeyOperation`/`Remediation` shapes match the migration text in
+  `json-output.md` and `configuration.md`; `Finding`'s optional fields match the
+  documented optional set; `schemaVersion` is a single `SCHEMA_VERSION` in
+  `reporters/json.ts`.
+- Security boundaries match `threat-model.md`: `nodePaths.resolve` keeps the
+  host-vs-portable split and the defense-in-depth escape re-check; the strict
+  checker canonicalizes only root ancestors and rejects symlink cwd/below-root
+  components; `safeText`/`safeJsonText` differ deliberately (JSON escapes C0
+  in-string) for the stated CI reason; `normalizeScopePath` rejects `exclude`
+  backslashes/drive letters but keeps native spelling for literal roots.
+- Exit codes are one mapping: `ConfigError`/`UsageError` 2, output failure
+  `SiroError(...70)`, findings 0/1 from `filter.ts`, crash 70 in `cli.ts`; the
+  README, help and configuration tables agree.
+
+Rejected items (considered, deliberately not changed):
+
+- `run-lint.ts` resolves the per-(rule,target) project type inside the rule loop
+  via `resolveBindingProjectType`. The value depends only on (ctx, pm==='deno'),
+  so it is recomputed per rule; hoisting it per target would read better and save
+  calls, but it is a hot-path restructure the journal has repeatedly deferred to a
+  measured performance pass, and the current shape keeps the rule-level
+  `projectTypes` filter next to its use.
+- The non-empty-tuple idiom `const [first, ...rest] = arr; return first ? ...[first,
+...rest] : ...` appears in `rebase-finding.ts`, `disable-lifecycle-scripts.ts`
+  and `unsupported-settings.ts`. Each site then does different work (map,
+  single-vs-group collapse, ok-vs-group), so a shared helper would need options
+  and read worse than the idiom it removes.
+- `EXIT_SUCCESS` is declared in both `cli.ts` and `filter.ts` (0); a shared
+  constants module for two integers is more indirection than the duplication.
+- `approved-git-repos.ts` names its lone message const `message` while sibling
+  rules use `<pm>Message`. It is the file's only message; renaming is churn.
+- `bench/fixtures.ts` still mixes two fixture key orders; already rejected in the
+  tooling pass as churn beyond the accepted value-name alignment.
+- `.githooks/*` and `.github/workflows/*` were skimmed: they only call the pnpm
+  scripts the tooling pass already reviewed.
+
+Actions: none (documentation only). No code commits.
+
+Next candidate directions:
+
+1. Performance and allocations on hot paths (`evaluateBinding` ctx spread,
+   per-(rule,target) project type in `runLint`) — now the only direction deferred
+   across every pass; profile the `bench/lint.bench.ts` 50-package fixture first.
+2. Test readability of suites not yet opened (`test/core/rules/*` beyond the
+   largest, `test/scripts/*`, `test/package/*`): look for duplicated fixture
+   builders or titles that index cases instead of naming behavior.
+3. Hand-written docs as a primary pass (`docs/getting-started.md`,
+   `docs/configuration.md` navigation, `docs/policy-sources.md`): reader-facing
+   clarity rather than code drift, since the determinism pass already confirmed
+   the facts.
