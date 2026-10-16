@@ -341,3 +341,78 @@ Next candidate directions:
 3. Security boundaries (paths, symlinks, escaping): re-check `safeText`/
    `safeJsonText` control ranges and the `normalizeScopePath` host-vs-portable
    split against the threat-model claims.
+
+## 2026-10-16T00:23Z — adapters (filesystem, codecs, reporters)
+
+Direction: adapters as the primary direction (`src/adapters/*` — codecs
+`ini/json/toml/yaml/store`, `exclusions`, `node-errors`, `node-file-system`,
+`node-io`, `node-paths`, `node-version`, `repo-context`, reporters
+`bounded-json/github/json/pretty/registry`, `safe-text`) together with their
+suites (`test/adapters/**`), then a second direction over the core pipeline
+helpers the loop had not yet covered (`manifest-checks`, `decide-severity`,
+`rebase-finding`, `render-version-note`, `signals`, `pm-versions`,
+`detect-pms`, `resolve-pms`, `bounded-file-system`, `config-files`,
+`resolve-project-type`, `inspection-options`, `parse-config-file`,
+`evaluate-binding`, `run-lint`, `apply-config`, `parse-siro-config`,
+`load-config`, `runtime`, `src/index.ts`, `contracts/*`).
+
+Findings: both directions clean. No high-value, low-risk readability change was
+warranted.
+
+- Codecs: each `parse` returns `toParsedConfig(...)` from one decode helper that
+  converts parser exceptions to constant `ConfigParseError` messages (no source
+  excerpts). `createBoundedCodec` documents why only json/yaml delegate depth to
+  their parsers, and `createCodecFor` memoizes per scan without caching contents.
+- Filesystem: `createStrictPathChecker`, `statRegularFile` and `openInputFile`
+  separate the strict-path guard, the regular-file check and the open; the
+  NONBLOCK/NOFOLLOW and re-`fstat` comments state the raced-file constraints.
+  `nodeFileSystem` documents the per-operation budgets.
+- Reporters: `boundedJson` boxes primitive BigInts, applies `toJSON` once and
+  tracks active containers with WHY comments matching native JSON; `pretty`
+  re-reads NO_COLOR/FORCE_COLOR per call; `github` states why `escapeData` is not
+  `safeText`; `safeText`/`safeJsonText` escape ranges are narrower in JSON for a
+  stated reason; `registry` derives the name union from `BUILTINS`.
+- Core helpers: guard chains read as their policy sentence (`resolve-pms`,
+  `inspection-options`, `resolve-project-type`), `PM_SIGNALS`/`detect-pms` keep
+  detection evidence in one table, and `decide-severity`/`render-version-note`
+  stay one-line declarative.
+
+Rejected items (considered, deliberately not changed):
+
+- `pretty.ts` budgets `line\n` for every collected line, while
+  `lines.join('\n')` plus the sink's trailing newline emits `N-1` newlines. The
+  overcount is conservative (never truncates a valid report) and the
+  `lint-command` wrapper already enforces the exact byte budget; matching them
+  would add state for a sub-line difference.
+- `nodePaths.resolve` re-checks "escapes repository root" after the lexical `..`
+  guard already makes it unreachable. It is cheap defense at a security
+  boundary; removing it is not a readability win worth the risk.
+- `rebase-finding.ts` destructures `[first, ...rest]` before mapping to preserve
+  the non-empty tuple type of `Remediation.operations` (`map` widens to an
+  array). The idiom is compact and correct; a comment would restate the types.
+- `safeJsonText` omits the C0 range and the leading-`::` guard that `safeText`
+  has: `JSON.stringify` escapes in-string controls, and structural newlines in
+  JSON never start a line at `::`. The comment already scopes this.
+- Escaping brackets/backslashes in `exclusions.ts` versus rejecting `\` for
+  `exclude` in `inspection-options.ts` is not duplication: the adapter is the
+  lower-level matcher its own test drives directly, and the strict check lives
+  at the user-input boundary. Both are correct in scope.
+- `render-version-note.ts` uses `typeof x !== 'undefined'`; stylistic, already
+  rejected in an earlier pass.
+- `loadExecutableConfig`'s `['.ts', '.mjs', '.js']` and the manifest filename
+  union remain unshared (rejected earlier); `nodeFileSystem`'s per-call
+  construction is deliberate per-operation budgeting, not an oversight.
+
+Actions: none (documentation only). No code commits.
+
+Next candidate directions:
+
+1. Determinism, timezone and platform behavior as the primary direction
+   (`minimum-release-age.ts`, `deno-release-age.ts`, `contracts/date-time.ts`,
+   the `node-paths.ts` Windows/POSIX split) — never reviewed as a primary focus.
+2. Performance and allocations on hot paths (`evaluateBinding` context spread,
+   per-(rule,target) project-type resolution in `runLint`) — measure first; the
+   loop has deferred this repeatedly.
+3. Docs prose and examples as the primary direction (`docs/configuration.md`,
+   `docs/json-output.md`, `docs/policy-sources.md`, `docs/getting-started.md`):
+   reader-facing clarity rather than code drift.
