@@ -7,7 +7,7 @@ export interface Fixture {
   readonly expectedScope: { readonly manifests: number; readonly installationRoots: number };
 }
 
-const SMALL: Fixture = {
+const small: Fixture = {
   expectedScope: { manifests: 1, installationRoots: 1 },
   files: {
     '/repo/package.json': JSON.stringify({
@@ -18,7 +18,7 @@ const SMALL: Fixture = {
   name: 'small (single package, npm-bad)',
 };
 
-const MEDIUM: Fixture = {
+const medium: Fixture = {
   expectedScope: { manifests: 1, installationRoots: 1 },
   files: {
     '/repo/.npmrc': [
@@ -63,7 +63,7 @@ const workspaceYaml = [
   '',
 ].join('\n');
 
-const WORKSPACE_MANIFEST: Fixture = {
+const workspaceManifest: Fixture = {
   expectedScope: { manifests: 1, installationRoots: 1 },
   files: {
     '/repo/package.json': JSON.stringify({
@@ -116,9 +116,9 @@ const excluded: Fixture = {
   options: { installationRoots: [], exclude: ['fixtures'] },
 };
 export const fixtures: readonly Fixture[] = [
-  SMALL,
-  MEDIUM,
-  WORKSPACE_MANIFEST,
+  small,
+  medium,
+  workspaceManifest,
   publication,
   independent,
   excluded,
