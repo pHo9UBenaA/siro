@@ -159,3 +159,58 @@ Next candidate directions:
    `docs/json-output.md`): confirm each WHY still matches the code it explains.
 3. Architecture/import boundaries: re-check `test/architecture.test.ts` stays in
    sync with the area map after any new source file or dependency edge.
+
+## 2026-10-16T00:04Z — core rules and the rule registry
+
+Direction: core rules and the rule registry (`src/core/rules/*`,
+`src/core/rules/builders/*`, `src/core/contracts/rule.ts`), with a secondary
+sweep across the public API and contracts (`src/index.ts`, `src/core/contracts/*`,
+`src/core/lint.ts`) and docs prose (`README.md`, `docs/configuration.md`,
+`docs/json-output.md`).
+
+Findings: clean. No high-value, low-risk readability change was warranted.
+
+- Every rule is a small `defineRule({...})` literal whose `check` reads as the
+  policy sentence it implements; the binding `file`/`docs`/`versionNote` stay next
+  to the check instead of in a central table, so one rule reads in isolation.
+- `builders/require-config-key.ts` is the one shared factory and earns it: it
+  validates bindings (plain object, known PMs) and the `accept`/`applies`
+  predicates once, and `withAubeParanoid` layers aube's requirement as a named
+  wrapper rather than a mode flag. The `label`/`assertSynchronous` pairing reports
+  async predicates as config errors without unhandled rejections.
+- `remediation.ts` / `remediation-availability.ts` keep the manual/operation
+  shapes in one place; `evaluate-binding.ts` is the single response boundary and
+  fixes output key order, so rule literals never depend on property order.
+- `builtin-rules.ts` registers the built-ins in one place with no duplicated id
+  map; `contracts/rule.ts` keeps `defineRule` and the status shape together.
+
+Rejected items (considered, deliberately not changed):
+
+- The three "flag a non-empty object setting for manual review" rules
+  (`dependency-overrides.ts`, `named-registries.ts`, `patched-dependencies.ts`)
+  share a shape (read key -> `isNonEmptyObject` -> manual violation). A
+  `reviewConfigKey` builder would cover only those three: `audit-suppression.ts`
+  reads an array plus a second key, `store-server.ts` tests `value !== true`, and
+  the messages, keys and docs all differ. The explicit `check` bodies read more
+  directly than a spec object, and the new abstraction is not obviously cheaper
+  than the duplication it would remove.
+- Violation literals order their keys differently across rules (for example
+  `dependency-overrides.ts` and `audit-suppression.ts` lead with `actual`, while
+  others lead with `remediation`). The order is immaterial to readers and to
+  output, since `evaluate-binding.ts` assembles findings in a fixed order.
+- `defineRule` is an identity function, but it is kept because it preserves the
+  literal `Id` through the `const` type parameter; a plain object literal would
+  widen `rule.id` and lose the id union used by reporters and filters.
+
+Actions: none (documentation only). No code commits.
+
+Next candidate directions:
+
+1. Performance and allocations on hot paths (`evaluateBinding` context spread,
+   per-(rule,target) project-type resolution in `runLint`) — measure first; the
+   shape is already O(rules × targets) and the spread is deliberate isolation.
+2. Hand-written tooling (`scripts/*.mjs`, `scripts/pnpm-command.ts`, `bench/*`,
+   `bin-wrapper.mjs`) for naming and control flow, since the loop has focused on
+   `src` so far.
+3. Comment value across `src` and the hand-written docs: confirm each WHY still
+   matches the code it explains after the 0.7.x changes.
