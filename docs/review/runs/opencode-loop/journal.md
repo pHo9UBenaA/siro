@@ -416,3 +416,72 @@ Next candidate directions:
 3. Docs prose and examples as the primary direction (`docs/configuration.md`,
    `docs/json-output.md`, `docs/policy-sources.md`, `docs/getting-started.md`):
    reader-facing clarity rather than code drift.
+
+## 2026-10-16T00:28Z — determinism, timezone and platform behavior
+
+Direction: determinism, timezone and platform behavior as the primary direction
+(`rules/minimum-release-age.ts`, `rules/deno-release-age.ts`,
+`contracts/date-time.ts`, `runtime.ts`, the `node-paths.ts` Windows/POSIX split,
+`inspection-options.ts`, `adapters/exclusions.ts`, `adapters/safe-text.ts`,
+`discovery.ts` ordering, `contracts/scan-limits.ts` UTF-8 counting), with a
+secondary direction over docs prose and examples (`README.md`,
+`docs/getting-started.md`, `docs/configuration.md`, `docs/json-output.md`,
+`docs/policy-sources.md`, `docs/threat-model.md`, `docs/contributing.md`).
+
+Findings: both directions clean. No high-value, low-risk readability change was
+warranted.
+
+- Time is read at evaluation only. `runtime.ts` states the `now`/`parse`
+  functions are lazy and every binding takes them through the `DateTime` port;
+  `release-age-clock.test.ts` and `date-time.test.ts` prove a supplied clock is
+  used instead of globals and that offsetless parsing follows the host TZ. The
+  Deno rule normalizes only the leap second JS `Date` cannot represent and
+  validates the calendar date through a `T00:00:00Z` midnight, so it never
+  depends on the local zone.
+- Platform branches are deliberate and documented in one place each:
+  `node-paths.ts` keeps `path.sep`-based child validation and `..` splitting,
+  `inspection-options.ts` retains native POSIX name characters for literal roots,
+  `exclusions.ts` pins `platform: 'linux'` for one case-sensitive dialect, and
+  `discovery.ts` sorts directories by code unit with a stated portability reason.
+  `utf8Bytes` counts code points without allocating, so budgets are host-locale
+  independent.
+- Docs match the code and each other: the limits table mirrors
+  `DEFAULT_SCAN_LIMITS` (bytes, counts, defaults 128/50000/32 MiB), the exit-code
+  tables in `README.md`, help output and `configuration.md` agree, and
+  `policy-sources.md` units (npm days, pnpm/Aube minutes, Bun seconds, Yarn
+  minutes/durations, Deno minutes/ISO dates) match the bindings. `check:docs`
+  passes, so the generated rule reference and comparison matrix are current.
+
+Rejected items (considered, deliberately not changed):
+
+- `checkNpmBefore` guards `typeof actual === 'string' || typeof actual === 'number'`
+  and parses `String(actual)`; npm defines `before` as a date string and INI
+  supplies strings, so the numeric arm is defensive, not a determinism defect.
+- `deno-release-age.ts` durations, date forms and the `DENO_MIN_TIMESTAMP_MS`
+  bound are each tied to the Deno/Chrono source in a WHY comment; the regexes
+  read as that grammar, and the leap-second handling is the one intentional
+  normalization.
+- `node-paths.ts` re-checks the escape after the lexical `..` guard and
+  `pretty.ts` budgets `line\n` conservatively: both were already rejected in the
+  adapters pass as cheap defense / conservative overcount.
+- `Date.parse('0')` (V8 legacy parsing) is pinned by the minimum-release-age
+  table as a past cutoff; that is host-parser behavior the `DateTime` contract
+  documents, and rewriting it would change policy, not readability.
+- `date-time.test.ts` spawns a subprocess only to set `TZ`; that is the smallest
+  way to prove host offsetless semantics and is not test duplication worth
+  collapsing.
+
+Actions: none (documentation only). No code commits.
+
+Next candidate directions:
+
+1. Performance and allocations on hot paths (`evaluateBinding` context spread,
+   per-(rule,target) project-type resolution in `runLint`) — measure with
+   `pnpm bench` first; the loop has deferred this repeatedly.
+2. Security boundaries (paths, symlinks, escaping): re-check `safeText`/
+   `safeJsonText` control ranges, `boundedJson` circular/wrapper handling and the
+   `normalizeScopePath` host-vs-portable split against the `threat-model.md`
+   claims after the 0.7.x changes.
+3. Public API and contracts as the primary direction (`src/index.ts`,
+   `core/contracts/*`, `docs/json-output.md` schemaVersion 3): confirm every
+   exported type/field still matches what consumers are told to rely on.
