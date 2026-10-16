@@ -275,3 +275,69 @@ Next candidate directions:
    `docs/policy-sources.md`): confirm each WHY still matches the 0.7.x code.
 3. Architecture/import boundaries: re-check `test/architecture.test.ts` stays in
    sync with the area map after any new source file or dependency edge.
+
+## 2026-10-16T00:17Z — hand-written tooling
+
+Direction: hand-written tooling (`scripts/*.mjs`, `scripts/pnpm-command.ts`,
+`scripts/docs.ts`, `bin-wrapper.mjs`, `bench/*`) for naming and control flow, with a
+secondary sweep over `.githooks/*`, `.github/workflows/*` and the hand-written docs
+(`README.md`, `docs/configuration.md`, `docs/policy-sources.md`,
+`docs/json-output.md`, `docs/threat-model.md`, `docs/contributing.md`,
+`docs/getting-started.md`).
+
+Findings:
+
+- `scripts/` and `bench/` are clean in control flow. `check-release.mjs` validates
+  and hashes one byte snapshot; `security-audit.mjs` keeps one `audit` helper whose
+  0/1/2 exit mapping and optional-ENOENT skip are documented and whose pnpm/OSV
+  parsers share the `{ total, lines }` shape; `verify-package.mjs` names each phase
+  (`packTarball`, `installPackage`, `verifyInstalledCli`, ...) and isolates the two
+  shell-launch probes behind WHY comments; `docs.ts` renders every rule from one
+  registry and `pnpm-command.ts` is a small pure function; `bin-wrapper.mjs` is
+  self-evident.
+- `bench/fixtures.ts` mixed naming for peer values: `SMALL`/`MEDIUM`/
+  `WORKSPACE_MANIFEST` were SCREAMING_CASE while `publication`/`independent`/
+  `excluded` were camelCase, implying a category split that does not exist (the
+  numeric `*_COUNT` constants legitimately stay SCREAMING). Renamed the three
+  fixture values to `small`/`medium`/`workspaceManifest`, matching the other
+  fixtures and the derived-value names (`tree`, `packageFiles`) in the same file.
+- The hand-written docs still match the code: the limits table mirrors
+  `DEFAULT_SCAN_LIMITS`, and `rejectSymlinks`, exit codes, reporter names, config
+  fields and release-age units all agree with `src`. No drift found.
+
+Actions:
+
+- `d9ddb1b` refactor(bench): align the fixture value names.
+
+Rejected items (considered, deliberately not changed):
+
+- `parsePnpm`'s `Math.max(total, lines.length)` reconciles the metadata severity
+  count with the advisory list. The existing header comment already scopes the
+  pnpm-10 advisory representation, and inventing a WHY for a defensive max would
+  describe a case the tests never exercise.
+- Fixture object key order varies (interface order is name/files/options/
+  expectedScope). Reordering all six would be churn beyond the observed naming
+  defect; the values in `export const fixtures` now read consistently.
+- `const count = vb.pipe(vb.number(), ...)` in `security-audit.mjs` names a
+  validator, not a number. It reads correctly where it is destructured into the
+  severity fields; renaming touches six schema fields for no reader saving.
+- `output` in `verify-package.mjs` is a `--output` path; `outputPath` would be
+  marginally clearer but it sits next to `inputTarball` and is used twice.
+- Repeated timeout/maxBuffer literals across the scripts, and
+  `['.ts', '.mjs', '.js']` repeating `EXECUTABLE_CONFIG_NAMES`, were already
+  rejected in earlier passes.
+
+Note: `git push` succeeded this pass; `release/v0.7.1` is back in sync with
+`origin` (the prior pass's 1Password SSH failure is resolved).
+
+Next candidate directions:
+
+1. Performance and allocations on hot paths (`evaluateBinding` context spread,
+   per-(rule,target) project-type resolution in `runLint`) — measure first; the
+   loop has deferred this several times.
+2. Adapters (filesystem, codecs, reporters) as the primary direction — swept only
+   secondarily so far; look at `createBoundedCodec` vs the `CODECS` table and
+   `nodeFileSystem`'s per-call construction.
+3. Security boundaries (paths, symlinks, escaping): re-check `safeText`/
+   `safeJsonText` control ranges and the `normalizeScopePath` host-vs-portable
+   split against the threat-model claims.
