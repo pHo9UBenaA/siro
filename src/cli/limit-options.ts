@@ -5,16 +5,11 @@ interface LimitOption {
   readonly key: keyof ScanLimits;
   readonly flag: string;
   readonly description: string;
-  readonly descriptionColumn?: number;
 }
 
 const options: Record<keyof ScanLimits, Omit<LimitOption, 'key'>> = {
   maxFileBytes: { flag: 'max-file-bytes', description: 'Bound each input file' },
-  maxTotalBytes: {
-    flag: 'max-total-bytes',
-    description: 'Bound all input reads',
-    descriptionColumn: 25,
-  },
+  maxTotalBytes: { flag: 'max-total-bytes', description: 'Bound all input reads' },
   maxEntries: { flag: 'max-entries', description: 'Bound native directory entries' },
   maxDirectories: { flag: 'max-directories', description: 'Bound discovered directories' },
   maxDirectoryDepth: { flag: 'max-directory-depth', description: 'Bound discovery depth' },
@@ -31,6 +26,6 @@ for (const key of Object.keys(options)) {
 export const LIMIT_OPTIONS: readonly LimitOption[] = limitOptions;
 
 export const limitHelp = LIMIT_OPTIONS.map(
-  ({ key, flag, description, descriptionColumn = 24 }) =>
-    `${`  --${flag} <n> `.padEnd(descriptionColumn)}${description} (default ${DEFAULT_SCAN_LIMITS[key]})`,
+  ({ key, flag, description }) =>
+    `${`  --${flag} <n> `.padEnd(24)}${description} (default ${DEFAULT_SCAN_LIMITS[key]})`,
 ).join('\n');
